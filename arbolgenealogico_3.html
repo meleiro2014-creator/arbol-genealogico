@@ -688,6 +688,49 @@ function importarFotosCarpeta(fileList){
         }).catch(function(e){toast('Error al guardar las fotos: '+e.message,true);});
     });
 }
+async function importarFotosDesdeDrive(){
+    if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
+    if(!driveRootFolderId){toast('Configura primero la carpeta raiz de Google Drive (boton "Documentos")',true);return;}
+    if(!tokenDriveValido()){
+        try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+    }
+    toast('Buscando la carpeta FOTO en Drive...');
+    try{
+        var qCarpeta="'"+driveRootFolderId+"' in parents and name='FOTO' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        if(rC.status===401){driveAccessToken=null;toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}
+        var dC=await rC.json();
+        if(!dC.files||!dC.files.length){toast('No existe una carpeta llamada "FOTO" dentro de la carpeta raiz configurada',true);return;}
+        var folderId=dC.files[0].id;
+        var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,mimeType)&pageSize=1000&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        var dF=await rF.json();
+        var archivos=(dF.files||[]).filter(function(f){return f.mimeType&&f.mimeType.indexOf('image/')===0;});
+        if(!archivos.length){toast('La carpeta FOTO no contiene imagenes',true);return;}
+        toast('Descargando '+archivos.length+' foto(s) desde Drive...');
+        var matched=0,unmatched=0;
+        for(var i=0;i<archivos.length;i++){
+            var f=archivos[i];
+            var base=f.name.replace(/\.[^/.]+$/,'').trim();
+            var persona=PI[base];
+            if(!persona){unmatched++;continue;}
+            try{
+                var rImg=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+                if(!rImg.ok){unmatched++;continue;}
+                var blob=await rImg.blob();
+                var dataUrl=await resizeImageToDataURL(blob,600,0.85);
+                persona.FOTO=dataUrl;
+                matched++;
+            }catch(e){unmatched++;}
+        }
+        if(!matched){toast('Ninguna foto de Drive coincidio con un ID existente. Comprueba que el nombre de cada archivo sea el ID exacto de la persona.',true);return;}
+        bIdx(D);
+        await sAll(D);
+        toast(matched+' foto(s) importada(s) desde Drive'+(unmatched?'. '+unmatched+' sin persona coincidente':''));
+        rStats();
+        if(cid)rFic(cid);
+    }catch(err){toast('Error al importar fotos desde Drive: '+err.message,true);}
+}
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
 function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
 
@@ -1427,21 +1470,45 @@ function splitCSVLine(line, delim){
     return result;
 }
 
+/* Parser CSV completo, consciente de comillas: procesa todo el texto (no linea a linea) para que
+   los campos entrecomillados que contienen saltos de linea (por ejemplo, observaciones multilinea
+   exportadas desde Access) se interpreten como un unico campo en vez de romper el fichero. */
+function parseCSVFull(text, delim){
+    var rows=[], row=[], field='', inQuotes=false, i=0, len=text.length, sawAny=false;
+    while(i<len){
+        var c=text[i];
+        if(inQuotes){
+            if(c==='"'){
+                if(text[i+1]==='"'){field+='"';i+=2;continue;}
+                inQuotes=false;i++;continue;
+            }
+            field+=c;i++;continue;
+        }
+        if(c==='"'){inQuotes=true;sawAny=true;i++;continue;}
+        if(c===delim){row.push(field);field='';sawAny=true;i++;continue;}
+        if(c==='\r'){i++;continue;}
+        if(c==='\n'){row.push(field);rows.push(row);row=[];field='';sawAny=false;i++;continue;}
+        field+=c;sawAny=true;i++;
+    }
+    if(sawAny||field!==''||row.length){row.push(field);rows.push(row);}
+    return rows;
+}
+
 function parseAndLoad(txt){
     txt=txt.replace(/^\uFEFF/,'');
-    var lines=txt.trim().split(/\r?\n/);
-    if(lines.length<2){toast('Archivo vacio o con muy pocas lineas',true);return;}
+    var rows=parseCSVFull(txt.replace(/\s+$/,''),';');
+    if(rows.length<2){toast('Archivo vacio o con muy pocas lineas',true);return;}
     var defaultHdr = ['ID','APROX','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','NACD','NACM','NACA','DEFD','DEFM','DEFA','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO'];
     var hdr = [], startIdx = 0;
-    var primeraLinea = lines[0].toUpperCase();
-    if(primeraLinea.indexOf('ID') !== -1 && primeraLinea.indexOf('APROX') !== -1) { hdr = splitCSVLine(lines[0], ';').map(function(h){return h.trim().replace(/^"|"$/g, '');}); startIdx = 1; } else { hdr = defaultHdr; startIdx = 0; }
+    var primeraLinea = (rows[0].join(';')).toUpperCase();
+    if(primeraLinea.indexOf('ID') !== -1 && primeraLinea.indexOf('APROX') !== -1) { hdr = rows[0].map(function(h){return h.trim();}); startIdx = 1; } else { hdr = defaultHdr; startIdx = 0; }
     var data=[], skipped=0, dupCount=0, seenIds={};
-    for(var i=startIdx; i<lines.length; i++){
-        if(!lines[i].trim()) continue;
-        var v=splitCSVLine(lines[i], ';');
+    for(var i=startIdx; i<rows.length; i++){
+        var v=rows[i];
+        if(v.length===1 && !v[0].trim()) continue;
         if(v.length < 5) { skipped++; continue; }
         var row={};
-        function g(idx, def){var val = (v[idx] !== undefined) ? v[idx].trim() : ''; val = val.replace(/^"|"$/g, ''); if(val==='null' || val==='undefined' || val==='') return def; if(idx === 0) { val = val.replace(/^[^0-9A-Za-z\-]*/, ''); } return val;}
+        function g(idx, def){var val = (v[idx] !== undefined) ? v[idx].trim() : ''; if(val==='null' || val==='undefined' || val==='') return def; if(idx === 0) { val = val.replace(/^[^0-9A-Za-z\-]*/, ''); } return val;}
         function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; if(val==='') return null; var f=parseFloat(val); return isNaN(f) ? null : f; }
         row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
         if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
@@ -1514,7 +1581,8 @@ document.addEventListener('DOMContentLoaded',function(){
     <div style="overflow:auto;margin-top:6px;padding-right:2px">
       <div class="herr-section">Datos</div>
       <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta)</div><div class="herr-desc">Asigna fotos a personas segun el nombre del archivo (ID)</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas segun el nombre del archivo (ID)</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raiz y asigna cada imagen por ID</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raiz con los documentos por persona</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
