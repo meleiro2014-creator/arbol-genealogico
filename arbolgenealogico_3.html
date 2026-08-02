@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Libro de los Ancestros</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#9E8E7E;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--dead:#3D2C1E;--alive:#2C5F8A}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 20% 20%,rgba(196,101,58,.06) 0%,transparent 60%),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(90,138,60,.05) 0%,transparent 60%);pointer-events:none;z-index:-1}
+h1,h2,h3,h4{font-family:'Cinzel',serif}
+header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.logo-text{font-family:'Cinzel',serif;font-size:16px;font-weight:700}
+nav{display:flex;gap:2px}
+nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:12px;padding:6px 12px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
+main{max-width:100%;margin:0 auto;padding:14px}
+.view{display:none}.view.active{display:block}
+.hero{text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
+.hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
+.hero p{color:var(--muted);font-size:14px}
+.search-box{max-width:460px;margin:14px auto 0;position:relative}
+.search-box input{width:100%;padding:12px 16px 12px 44px;border:2px solid var(--border);border-radius:14px;font-size:15px;font-family:'Lato',sans-serif;background:var(--card);color:var(--text);outline:none;transition:border-color .2s}
+.search-box input:focus{border-color:var(--accent)}
+.search-box i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+.hero-btns{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.stats{display:flex;justify-content:center;gap:24px;margin-top:16px;flex-wrap:wrap}
+.stat{text-align:center}.stat-num{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:var(--accent)}.stat-label{font-size:10px;color:var(--muted);font-weight:700}
+.ri{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .15s}
+.ri:hover{background:rgba(196,101,58,.06)}
+.ra{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.ra.al{background:rgba(44,95,138,.12);color:var(--alive)}.ra.de{background:rgba(61,44,30,.1);color:var(--dead)}
+.rn{font-weight:700;font-size:13px}.ry{font-size:11px;color:var(--muted)}
+.ficha{max-width:660px;margin:0 auto}
+.fh{display:flex;gap:16px;margin-bottom:18px;align-items:flex-start;flex-wrap:wrap}
+.fa{width:150px;height:105px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:32px;font-weight:700;flex-shrink:0;overflow:hidden}
+.fa.al{background:rgba(44,95,138,.1);color:var(--alive);border:3px solid rgba(44,95,138,.25)}.fa.de{background:rgba(61,44,30,.07);color:var(--dead);border:3px solid rgba(61,44,30,.12)}
+.ft{flex:1;min-width:180px}.ft h2{font-size:20px;margin-bottom:2px}
+.ft .sub{font-size:11px;color:var(--muted)}
+.fs{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:10px}
+.fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
+.fl2{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:700}.fl2:hover{text-decoration:underline}
+.ul{list-style:none}.ul li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}.ul li:last-child{border:0}
+.ul a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}.ul a:hover{text-decoration:underline}
+.bb{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-weight:700;font-size:12px;cursor:pointer;margin-bottom:12px;padding:4px 0}.bb:hover{color:var(--accent)}
+.fic-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.ef-btn{font-family:'Lato',sans-serif;font-size:12px;font-weight:700;padding:7px 14px;border-radius:10px;cursor:pointer;border:2px solid var(--accent);background:var(--accent);color:#fff;display:inline-flex;align-items:center;gap:6px}
+.ef-btn.ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+.ef-btn.ghost:hover{color:var(--accent);border-color:var(--accent)}
+.ef-btn.save{background:var(--green);border-color:var(--green)}
+.ef-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap}
+.ef-field{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.ef-field.small{flex:0 0 92px;min-width:92px}
+.ef-field.tiny{flex:0 0 62px;min-width:62px}
+.ef-input[type=number]{-moz-appearance:textfield}
+.ef-label{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+.ef-input,.ef-select,.ef-textarea{font-family:'Lato',sans-serif;font-size:13px;padding:7px 10px;border:2px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);width:100%}
+.ef-input:focus,.ef-select:focus,.ef-textarea:focus{outline:none;border-color:var(--accent)}
+.ef-textarea{resize:vertical;min-height:70px;font-family:'Lato',sans-serif}
+.ef-linkgroup{display:flex;gap:6px;align-items:center;flex:1;min-width:180px}
+.ef-linkname{flex:1;font-size:12px;padding:7px 10px;border:2px dashed var(--border);border-radius:8px;color:var(--muted);background:rgba(0,0,0,.015);min-height:32px;display:flex;align-items:center}
+.ef-linkname.set{color:var(--text);font-weight:700;border-style:solid;background:var(--card)}
+.ef-nbtn{width:30px;height:30px;border-radius:8px;border:2px solid var(--border);background:var(--card);color:var(--muted);font-weight:800;font-size:11px;cursor:pointer;flex-shrink:0}
+.ef-nbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.ef-nbtn:disabled{opacity:.35;cursor:not-allowed}
+.ef-check{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;margin-bottom:8px}
+.ef-check input{width:16px;height:16px;cursor:pointer}
+.ef-sub{opacity:.5;pointer-events:none}
+.iz{border:3px dashed var(--border);border-radius:16px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;margin:16px 0}
+.iz:hover{border-color:var(--accent);background:rgba(196,101,58,.04)}
+.iz p{color:var(--muted);font-size:13px;margin-bottom:8px}
+.pb{width:100%;height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0}
+.pf{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;width:0%}
+.toast-c{position:fixed;top:12px;right:12px;z-index:9999}
+.toast{padding:10px 16px;border-radius:12px;background:var(--card);border:2px solid var(--green);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.1);margin-bottom:6px;animation:tin .3s ease,tout .3s ease 2.5s forwards}
+.toast.err{border-color:var(--accent)}
+@keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tout{to{opacity:0;transform:translateY(-10px)}}
+@media(max-width:640px){.hero{padding:24px 12px 16px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}}
+/* ===== ÁRBOL GENEALÓGICO ===== */
+.tc{overflow-x:auto;overflow-y:auto;padding:20px 10px}
+.tr{display:flex;flex-direction:column;align-items:center;min-width:max-content}
+.tree-level{display:flex;justify-content:center;align-items:stretch;gap:6px;flex-wrap:nowrap;padding:0 10px}
+.tree-couples-row{display:flex;justify-content:center;gap:28px;flex-wrap:nowrap;align-items:stretch;padding:0 10px}
+.tree-box{width:125px;height:58px;border:1.5px solid #cdc5b6;border-radius:6px;padding:5px 6px;text-align:center;cursor:pointer;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05);font-family:'Lato',sans-serif;background:#f6f3ed;display:flex;flex-direction:column;justify-content:center;align-items:center;box-sizing:border-box;overflow:hidden;flex-shrink:0}
+.tree-box:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.1);border-color:#b8b0a0}
+.tree-box.root-box{width:145px;height:65px;padding:8px 12px;border-width:2px}
+.tree-box.spouse-box{border-style:dashed;background:#f1ede5}
+.tree-box.sm{width:110px;height:50px;padding:4px 5px}
+.tree-box.sm .tree-box-name{font-size:9px}
+.tree-box.sm .tree-box-year{font-size:9px}
+.tree-box-name{font-size:10px;font-weight:700;color:#3d2c1e;line-height:1.25;word-break:break-word;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tree-box-year{font-size:9px;color:#8a7e6e;font-weight:600;margin-top:2px}
+.tree-box.alive{background:#eef3f9;border-color:#c2d2e2}
+.tree-box.alive:hover{background:#e3ecf5;border-color:#a0b8d0}
+.tree-box.alive .tree-box-name{color:#1b4b73}
+.tree-box.alive .tree-box-year{color:#5a8bb5}
+.tree-box.alive.root-box{border-color:var(--alive);box-shadow:0 2px 12px rgba(44,95,138,.15)}
+.tree-box.alive.spouse-box{border-color:#a8c0d6;background:#edf2f8}
+.tree-box.alive.sm{background:#edf2f8;border-color:#b8cce0}
+.tree-vline{width:1.5px;height:12px;background:#c8c0b0;margin:0 auto}
+.tree-hline{width:16px;height:1.5px;background:#c8c0b0;align-self:center;flex-shrink:0}
+.tree-couple{display:flex;align-items:stretch;gap:0;position:relative;flex-shrink:0}
+.tree-couple::after{content:'';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);width:1.5px;height:12px;background:#c8c0b0}
+.tree-siblings{display:flex;justify-content:center;gap:8px;position:relative;padding-top:12px;flex-wrap:nowrap}
+.tree-siblings::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1.5px;background:#c8c0b0}
+.tree-sibling{position:relative;padding-top:4px;display:flex;flex-direction:column;align-items:center}
+.tree-sibling::before{content:'';position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:1.5px;height:4px;background:#c8c0b0}
+.tree-label{font-size:9px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:2px 0 1px;opacity:.6}
+.tree-grandchildren{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:4px}
+.tree-gchild{background:#f5f2ec;border:1px solid #d8d0c0;border-radius:4px;padding:3px 7px;font-size:9px;font-weight:600;color:#5a5040;cursor:pointer;transition:all .15s}
+.tree-gchild:hover{background:#eae5dc}
+.tree-gchild.alive{color:var(--alive);border-color:rgba(44,95,138,.3);background:rgba(44,95,138,.05)}
+.tree-back{position:fixed;top:68px;left:20px;z-index:50}
+/* ===== ÁRBOL GENEALÓGICO HORIZONTAL (Pedigree) ===== */
+.pedigree-container{display:flex;gap:50px;padding:30px 20px;position:relative;min-width:max-content;align-items:stretch;min-height:600px}
+.pedigree-col{display:flex;flex-direction:column;justify-content:space-around;min-width:170px;position:relative;z-index:1}
+.pedigree-col.central-column{justify-content:center;gap:12px}
+.pedigree-col.children-column{justify-content:center;gap:10px}
+.tree-heading{text-align:center;padding:18px 120px 4px}.tree-heading h1{font-size:clamp(19px,3vw,28px);color:var(--text);margin:0}.tree-heading p{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}.tree-tools{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}.tree-tool{font-family:'Lato',sans-serif;font-size:11px;font-weight:700;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}.tree-tool:hover{border-color:var(--accent);color:var(--accent)}.tree-legend{font-size:10px;color:var(--muted);margin-left:5px}.tree-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px 0 8px}.tree-legend .male-dot{background:var(--blue)}.tree-legend .female-dot{background:#b85c7a}.tree-legend .alive-dot{background:var(--alive)}
+.pedigree-card{background:#fff;border:1.5px solid #d8d0c0;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;z-index:2;min-height:72px;display:flex;align-items:center;gap:8px}
+.pedigree-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1);border-color:var(--accent)}
+.pedigree-card.root{border:2px solid var(--accent);background:linear-gradient(135deg,rgba(196,101,58,.06),rgba(90,138,60,.04))}
+.pedigree-card.spouse{border-style:dashed;background:#f1ede5;border-color:#c8c0b0}
+.pedigree-card.male{border-left:4px solid var(--blue)}
+.pedigree-card.female{border-left:4px solid #b85c7a}
+.pedigree-card.alive{background:#eef3f9;border-color:#c2d2e2}
+.pedigree-card.alive.male{border-left-color:var(--blue)}
+.pedigree-card.alive.female{border-left-color:#b85c7a}
+.pedigree-card.placeholder{opacity:.25;cursor:default;border-style:dashed;background:transparent;box-shadow:none}
+.pc-photo{width:52px;height:52px;object-fit:contain;background:#f5f2ec;border-radius:5px;flex-shrink:0}
+.pc-text{min-width:0;flex:1}
+.pc-name{font-weight:700;font-size:12px;color:var(--text);line-height:1.3;word-break:break-word}
+.pc-year{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600}
+.pc-open{position:absolute;right:6px;bottom:6px;width:22px;height:22px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}.pc-open:hover{color:var(--accent);border-color:var(--accent)}
+#pedigree-svg line{stroke:#c8c0b0;stroke-width:1.5;stroke-linecap:round}
+@media(max-width:640px){.pedigree-container{gap:30px;padding:20px 10px}.pedigree-col{min-width:130px}.pedigree-card{padding:7px 8px;min-height:62px}.pc-photo{width:42px;height:42px}.pc-name{font-size:11px}.pc-year{font-size:9px}}
+/* ===== INFORMES ===== */
+.inf-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.inf-card h3{font-size:14px;margin-bottom:6px}
+.inf-card p{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5}
+.inf-sel{max-width:520px;margin:0 auto 18px}
+.inf-sel-box{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;margin-bottom:10px}
+.inf-sel-box.empty{color:var(--muted);font-weight:400}
+.print-area{display:none}
+.print-report h1{font-family:'Cinzel',serif;font-size:20px;margin-bottom:2px}
+.print-report .print-sub{font-size:11px;color:var(--muted);margin-bottom:18px}
+.print-node{margin:0 0 4px 0;padding:6px 0 6px 14px;border-left:2px solid var(--border);font-size:12px}
+.print-node .pn-name{font-weight:700;color:var(--text)}
+.print-node .pn-meta{color:var(--muted);font-size:11px}
+.print-gen-title{font-family:'Cinzel',serif;font-size:14px;margin:16px 0 6px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:4px}
+.print-person{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);font-size:12px}
+.print-person .pn-name{font-weight:700;font-size:13px}
+.print-person .pn-row{margin-top:2px;color:var(--muted)}
+@media print{
+  body>*:not(.print-area){display:none!important}
+  .print-area{display:block!important}
+  body{background:#fff}
+}
+</style>
+<base target="_blank">
+</head>
+<body>
+<div class="toast-c" id="toastC"></div>
+<header>
+<div class="logo"><div class="logo-icon"><i class="fa-solid fa-tree"></i></div><div class="logo-text">Libro de los Ancestros</div></div>
+<nav id="mn">
+<button class="active" data-view="bus" onclick="sv('bus')"><i class="fa-solid fa-magnifying-glass"></i> <span class="mh">Buscar</span></button>
+<button data-view="arb" onclick="sv('arb')"><i class="fa-solid fa-sitemap"></i> <span class="mh">Arbol</span></button>
+<button data-view="fic" onclick="irFicha()"><i class="fa-solid fa-id-card"></i> <span class="mh">Ficha</span></button>
+<button data-view="inf" onclick="sv('inf')"><i class="fa-solid fa-file-pdf"></i> <span class="mh">Informes</span></button>
+<button onclick="expGed()"><i class="fa-solid fa-file-export"></i> GEDCOM</button>
+</nav>
+</header>
+<main>
+<div class="view active" id="vBus">
+<div class="hero">
+<h1>Libro de los Ancestros</h1>
+<p>Tu arbol genealogico familiar</p>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
+<div class="hero-btns">
+<button class="btn" style="background:var(--accent);color:#fff" onclick="impCSV()"><i class="fa-solid fa-file-import"></i> Importar CSV</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="mostrarRamasIncompletas()"><i class="fa-solid fa-list-check"></i> Ramas incompletas</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="document.getElementById('fiFotos').click()"><i class="fa-solid fa-images"></i> Importar fotos (carpeta)</button>
+<input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Documentos (Google Drive)</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="exportarCopia()"><i class="fa-solid fa-download"></i> Guardar copia</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="document.getElementById('fiCopia').click()"><i class="fa-solid fa-upload"></i> Restaurar copia</button>
+<input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="confirmLimpiar()"><i class="fa-solid fa-trash-can"></i> Limpiar Cache</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="marcarFallecidosMayores100()"><i class="fa-solid fa-skull"></i> Marcar fallecidos +100 años</button>
+<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="calcularAnosAproximados()"><i class="fa-solid fa-calculator"></i> Calcular años aproximados</button>
+</div>
+<div class="stats" id="sb"></div>
+</div>
+<div id="rl"></div>
+<div style="text-align:center;padding:40px 20px">
+<div class="iz" onclick="impCSV()">
+<i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--accent);display:block;margin-bottom:10px"></i>
+<p>Arrastra tu archivo CSV aqui o pulsa para seleccionarlo</p>
+<input type="file" id="fi" accept=".csv,.txt" style="display:none">
+<div class="pb" id="pb" style="display:none"><div class="pf" id="pf"></div></div>
+</div>
+</div>
+</div>
+<div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
+<div class="view" id="vFic"><div class="ficha" id="fco"></div></div>
+<div class="view" id="vInf">
+<div class="hero">
+<h1>Informes</h1>
+<p>Genera arboles e informes en PDF para la persona seleccionada</p>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siInf" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
+</div>
+<div class="inf-sel">
+<div id="infSelBox" class="inf-sel-box empty">Ninguna persona seleccionada</div>
+<div id="rlInf"></div>
+</div>
+<div class="inf-sel" style="max-width:640px">
+<div class="inf-card">
+<h3><i class="fa-solid fa-sitemap"></i> Arbol descendente</h3>
+<p>Lista todos los descendientes de la persona seleccionada, generacion por generacion.</p>
+<button class="ef-btn" onclick="descargarArbolDescendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Arbol ascendente</h3>
+<p>Muestra los antepasados de la persona seleccionada (padres, abuelos, bisabuelos...).</p>
+<button class="ef-btn" onclick="descargarArbolAscendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
+<p>Informe detallado con los datos completos de cada antepasado.</p>
+<button class="ef-btn" onclick="descargarInformeAscendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+</div>
+</div>
+</main>
+<div class="print-area" id="printArea"></div>
+<script>
+var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
+/* ===== GOOGLE DRIVE (documentos) =====
+   1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicacion web").
+   2) Añade aqui abajo tu Client ID, sustituyendo el texto de ejemplo.
+   3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
+var GOOGLE_CLIENT_ID='TU_CLIENT_ID_AQUI.apps.googleusercontent.com';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
+var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
+function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,3);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function sAll(d){return new Promise(function(res,rej){var tx=db.transaction([ST,BK],'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);s.clear();d.forEach(function(r){s.put(r);});b.put({id:'ultima',fecha:new Date().toISOString(),personas:d});tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res(null);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:null;res(driveRootFolderId);};r.onerror=function(){res(null);};});}
+function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
+function extraerIdCarpetaDrive(texto){
+    texto=String(texto||'').trim();
+    var m=texto.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if(m)return m[1];
+    m=texto.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if(m)return m[1];
+    if(/^[a-zA-Z0-9_-]{10,}$/.test(texto))return texto;
+    return null;
+}
+function conectarGoogleDrive(){
+    return new Promise(function(resolve,reject){
+        if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){reject(new Error('Falta configurar GOOGLE_CLIENT_ID en el codigo'));return;}
+        if(!window.google||!google.accounts||!google.accounts.oauth2){reject(new Error('Google Identity Services no se ha cargado (revisa tu conexion)'));return;}
+        if(!googleTokenClient){
+            googleTokenClient=google.accounts.oauth2.initTokenClient({
+                client_id:GOOGLE_CLIENT_ID,
+                scope:DRIVE_SCOPE,
+                callback:function(resp){
+                    if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);resolve(driveAccessToken);}
+                    else reject(new Error('No se recibio el token de acceso'));
+                },
+                error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticacion cancelada'));}
+            });
+        }
+        try{googleTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});}catch(err){reject(err);}
+    });
+}
+function tokenDriveValido(){return !!(driveAccessToken&&driveTokenExpira&&Date.now()<driveTokenExpira-30000);}
+async function elegirCarpetaDocumentos(){
+    if(!tokenDriveValido()){
+        try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+    }
+    var entrada=prompt('Pega el enlace (o el ID) de la carpeta de Google Drive que contiene las subcarpetas por ID de persona:',driveRootFolderId||'');
+    if(!entrada)return;
+    var folderId=extraerIdCarpetaDrive(entrada);
+    if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
+    driveRootFolderId=folderId;
+    try{await guardarCarpetaDocumentos();toast('Carpeta raiz de Google Drive configurada');if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuracion: '+err.message,true);}
+}
+async function mostrarDocumentos(id){
+    var lista=document.getElementById('docsLista');if(!lista)return;
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el codigo (variable GOOGLE_CLIENT_ID).</p>';return;}
+    if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raiz de Google Drive que contiene las subcarpetas por ID.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
+    if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conectate con Google Drive para ver los documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
+    lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>';
+    try{
+        var qCarpeta="'"+driveRootFolderId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
+        var dC=await rC.json();
+        if(cid!==id)return;
+        if(!dC.files||!dC.files.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No existe una carpeta de Drive con el ID '+esc(String(id))+' dentro de la carpeta raiz.</p>';return;}
+        var folderId=dC.files[0].id;
+        var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        var dF=await rF.json();
+        if(cid!==id)return;
+        var archivos=dF.files||[];
+        if(!archivos.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La carpeta '+esc(String(id))+' no contiene documentos.</p>';return;}
+        lista.innerHTML=archivos.map(function(f){return '<div class="fr" style="align-items:center;margin-bottom:7px"><span class="fv" style="flex:1;overflow-wrap:anywhere"><i class="fa-regular fa-file" style="color:var(--accent);margin-right:6px"></i>'+esc(f.name)+'</span><a class="ef-btn ghost" style="padding:4px 8px;text-decoration:none" href="'+escAttr(f.webViewLink||('https://drive.google.com/file/d/'+f.id+'/view'))+'" target="_blank" rel="noopener">Abrir</a></div>';}).join('');
+    }catch(err){if(cid!==id)return;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>';}
+}
+async function autorizarDocumentos(id){
+    try{await conectarGoogleDrive();mostrarDocumentos(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
+}
+function bIdx(d){PI={};HD={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }});}
+function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE, r=[];D.forEach(function(x){if(x.ID===id) return;var match = false;if(pa && ma) { match = (x.PADRE === pa && x.MADRE === ma);} else if(pa && !ma) { match = (x.PADRE === pa && !x.MADRE);} else if(!pa && ma) { match = (!x.PADRE && x.MADRE === ma);}if(match) r.push(x);});return r;}
+function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
+function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
+function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?::0{2})?(?:\.0+)?Z?$/,'');}
+function safeId(sid){return String(sid).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||'');}
+function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
+function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
+function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
+function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
+function sv(v){['bus','arb','fic','inf'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';}
+function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}return null;}
+function marcarFallecidosMayores100(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var anoActual=new Date().getFullYear(),candidatos=[];
+    D.forEach(function(p){
+        if(!isAl(p))return;
+        var y=getYear(p);
+        if(y===null)return;
+        var edad=anoActual-y;
+        if(edad>100)candidatos.push(p);
+    });
+    if(!candidatos.length){toast('No se encontraron personas vivas con mas de 100 años',true);return;}
+    if(!confirm('Se marcaran como fallecidas '+candidatos.length+' persona(s) con mas de 100 años (segun su año de nacimiento o aproximado). ¿Continuar?'))return;
+    candidatos.forEach(function(p){p.FALLECIDO='1';});
+    bIdx(D);
+    sAll(D).then(function(){
+        rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+        toast(candidatos.length+' persona(s) marcada(s) como fallecidas');
+    }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+function calcularAnosAproximados(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var pendientes=D.filter(function(p){return getYear(p)===null;});
+    if(!pendientes.length){toast('Todas las personas ya tienen año de nacimiento o aproximado',true);return;}
+    var calculados=0,cambio=true,vueltas=0;
+    while(cambio&&vueltas<8){
+        cambio=false;vueltas++;
+        pendientes.forEach(function(p){
+            if(getYear(p)!==null)return;
+            var estimado=null;
+            var hermanos=gHerm(p.ID);
+            for(var i=0;i<hermanos.length;i++){var y=getYear(hermanos[i]);if(y!==null){estimado=y;break;}}
+            if(estimado===null){
+                var padre=p.PADRE?PI[p.PADRE]:null,madre=p.MADRE?PI[p.MADRE]:null;
+                var yp=getYear(padre),ym=getYear(madre);
+                if(yp!==null)estimado=yp+22;else if(ym!==null)estimado=ym+22;
+            }
+            if(estimado===null){
+                var hijos=HD[p.ID]||[];
+                for(var j=0;j<hijos.length;j++){var yh=getYear(PI[hijos[j]]);if(yh!==null){estimado=yh-22;break;}}
+            }
+            if(estimado!==null){p.APROX=String(estimado);calculados++;cambio=true;}
+        });
+    }
+    if(!calculados){toast('No se pudo estimar ningun año adicional (faltan datos de referencia en la familia)',true);return;}
+    bIdx(D);
+    sAll(D).then(function(){
+        rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+        toast('Se calcularon '+calculados+' año(s) aproximado(s) de '+pendientes.length+' persona(s) pendientes');
+    }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+function doSrch(q){
+    q=q.toLowerCase().trim();
+    if(!q){document.getElementById('rl').innerHTML='';return;}
+    var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0||String(p.APROX||'').indexOf(q)>=0;});
+    f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+    var total=f.length;
+    f=f.slice(0,80);
+    var h='';
+    f.forEach(function(p){
+        var al=isAl(p),y=p.APROX||p.NACA||'';
+        h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
+    });
+    if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
+    else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver mas.</p>';
+    document.getElementById('rl').innerHTML=h;
+}
+function selP(id){cid=id;sv('arb');rTree(id);}
+function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
+function irFicha(){editMode=false;sv('fic');}
+function abrirFichaDesdeArbol(id){cid=id;editMode=false;sv('fic');}
+
+function rFic(id){
+    if(editMode) rFicEdit(id); else rFicView(id);
+}
+
+function rFicView(id){
+    var p=PI[id];
+    if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
+    var al=isAl(p);
+    var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
+    h+='<div class="fic-toolbar"><div></div><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div>';
+    h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(fDate(p.NACD,p.NACM,p.NACA)?' · Nac: '+esc(fDate(p.NACD,p.NACM,p.NACA)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(fDate(p.NACD,p.NACM,p.NACA)||'Desconocido')+'</span></div>'+(p.APROX?'<div class="fr"><span class="fl">Año aprox.</span><span class="fv">'+esc(p.APROX)+'</span></div>':'')+'<div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defuncion</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+    var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
+    var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
+    var m1l=p.M1&&PI[p.M1]?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(PI[p.M1]))+'</a>':'Ninguno';
+    var m2l=p.M2&&PI[p.M2]?'<a class="fl2" onclick="selP(\''+safeId(p.M2)+'\')">'+esc(fn(PI[p.M2]))+'</a>':'Ninguno';
+    h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Conyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Conyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
+    var her=gHerm(id);
+    if(her.length){
+        var hh='';
+        her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a></li>';});
+        h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
+    }
+    var hij=HD[id]||[];
+    h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
+    if(hij.length){
+        var hi='';
+        hij.forEach(function(x){hi+='<li><a onclick="selP(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a></li>';});
+        h+='<ul class="ul">'+hi+'</ul>';
+    } else {
+        h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
+    }
+    h+='</div>';
+    h+='<div class="fs"><h3>Documentos</h3><div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div><button class="ef-btn ghost" style="margin-top:8px" onclick="mostrarDocumentos(\''+safeId(id)+'\')"><i class="fa-solid fa-rotate"></i> Actualizar</button></div>';
+    if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
+    document.getElementById('fco').innerHTML=h;
+    cid=id;
+    mostrarDocumentos(id);
+}
+
+function activarEdicion(id){cid=id;editMode=true;rFic(id);}
+function cancelarEdicion(id){editMode=false;rFic(id);}
+
+function linkFieldHtml(p,campo,labelTxt,sexoNuevo){
+    var linkedId=p[campo];
+    var linked=linkedId?PI[linkedId]:null;
+    var nameHtml=linked?esc(fn(linked)):'Sin vincular';
+    var esConyuge=campo==='M1'||campo==='M2';
+    var acciones='<button type="button" class="ef-nbtn" title="Editar vinculado"'+(linked?'':' disabled')+' onclick="editarVinculado(\''+safeId(p.ID)+'\',\''+campo+'\')">E</button>';
+    acciones+='<button type="button" class="ef-nbtn" title="Elegir persona existente" onclick="abrirSelectorRelacion(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-magnifying-glass"></i></button>';
+    acciones+='<button type="button" class="ef-nbtn" title="Crear nuevo y vincular" onclick="crearVinculado(\''+safeId(p.ID)+'\',\''+campo+'\',\''+sexoNuevo+'\')">N</button>';
+    if(esConyuge&&linked)acciones+='<button type="button" class="ef-nbtn" title="Quitar vínculo" onclick="quitarConyuge(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-link-slash"></i></button>';
+    return '<div class="ef-row"><div class="ef-field" style="flex:0 0 90px;min-width:90px"><span class="ef-label">'+esc(labelTxt)+'</span></div>'+
+        '<div class="ef-linkgroup">'+
+        '<div class="ef-linkname'+(linked?' set':'')+'">'+nameHtml+'</div>'+
+        acciones+
+        '</div></div>';
+}
+
+function rFicEdit(id){
+    var p=PI[id];
+    if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
+    fotoPendiente=undefined;
+    var fallecido=!isAl(p);
+    var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
+    h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
+
+    h+='<div class="fs"><h3>Foto</h3><div style="display:flex;align-items:center;gap:14px">';
+    h+='<div id="ef-foto-preview" style="width:150px;height:105px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+    h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
+    h+='</div><div>';
+    h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="handleFotoSeleccionada(event)">';
+    h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'ef-foto-input\').click()"><i class="fa-solid fa-camera"></i> Subir foto</button>';
+    if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
+    h+='</div></div></div>';
+
+    h+='<div class="fs"><h3>Datos personales</h3>';
+    h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="ef-ap1" value="'+escAttr(p.APELLIDO1)+'"></div>';
+    h+='<div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="ef-sexo"><option value=""'+(p.SEXO?'':' selected')+'></option><option value="Hombre"'+(p.SEXO==='Hombre'?' selected':'')+'>Hombre</option><option value="Mujer"'+(p.SEXO==='Mujer'?' selected':'')+'>Mujer</option></select></div></div>';
+    h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="ef-ap2" value="'+escAttr(p.APELLIDO2)+'"></div></div>';
+    h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre</span><input class="ef-input" id="ef-nombre" value="'+escAttr(p.NOMBRE)+'"></div></div>';
+
+    h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-nacd" type="number" min="1" max="31" value="'+escAttr(p.NACD||'')+'"></div>';
+    h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-nacm" type="number" min="1" max="12" value="'+escAttr(p.NACM||'')+'"></div>';
+    h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-naca" type="number" value="'+escAttr(p.NACA||'')+'"></div>';
+    h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar nacimiento</span><input class="ef-input" id="ef-lugarnac" value="'+escAttr(p.LUGARNAC)+'"></div></div>';
+
+    h+='<div class="ef-row"><div class="ef-field small"><span class="ef-label">Año aproximado</span><input class="ef-input" id="ef-aprox" type="number" value="'+escAttr(p.APROX||'')+'"></div></div>';
+
+    h+='<label class="ef-check"><input type="checkbox" id="ef-fallecido" onchange="document.getElementById(\'ef-defwrap\').classList.toggle(\'ef-sub\',!this.checked)" '+(fallecido?'checked':'')+'> Fallecido</label>';
+    h+='<div id="ef-defwrap" class="'+(fallecido?'':'ef-sub')+'">';
+    h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-defd" type="number" min="1" max="31" value="'+escAttr(p.DEFD||'')+'"></div>';
+    h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-defm" type="number" min="1" max="12" value="'+escAttr(p.DEFM||'')+'"></div>';
+    h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
+    h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defuncion</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
+    h+='</div></div>';
+
+    h+='<div class="fs"><h3>Familia</h3>';
+    h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
+    h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
+    h+=linkFieldHtml(p,'M1','Conyuge 1',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+    h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 1</span><input class="ef-input" id="ef-ml1" value="'+escAttr(p.ML1)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 1</span><input class="ef-input" id="ef-mf1" value="'+escAttr(fFechaMatrimonio(p.MF1))+'" placeholder="dd/mm/aaaa"></div></div>';
+    h+=linkFieldHtml(p,'M2','Conyuge 2',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+    h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 2</span><input class="ef-input" id="ef-ml2" value="'+escAttr(p.ML2)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 2</span><input class="ef-input" id="ef-mf2" value="'+escAttr(fFechaMatrimonio(p.MF2))+'" placeholder="dd/mm/aaaa"></div></div>';
+    h+='</div>';
+
+    var descendientes=HD[id]||[];
+    h+='<div class="fs"><h3>Descendientes ('+descendientes.length+')</h3>';
+    if(descendientes.length){
+        descendientes.forEach(function(hid){var hp=PI[hid];if(hp)h+='<div class="fr" style="align-items:center;margin-bottom:8px"><span class="fv" style="flex:1">'+esc(fn(hp))+'</span><button type="button" class="ef-btn ghost" style="padding:4px 8px" onclick="editarDescendiente(\''+safeId(hid)+'\')">Editar</button></div>';});
+    }else h+='<p style="font-size:11px;color:var(--muted);margin-bottom:8px">No hay descendientes registrados.</p>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\')"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
+    if(p.M1&&PI[p.M1])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M1)+'\')"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M1]))+'</button>';
+    if(p.M2&&PI[p.M2])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M2)+'\')"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M2]))+'</button>';
+    h+='</div></div>';
+
+    h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
+
+    document.getElementById('fco').innerHTML=h;
+    cid=id;
+}
+
+function resizeImageToDataURL(file,maxDim,quality){
+    return new Promise(function(resolve,reject){
+        var reader=new FileReader();
+        reader.onerror=function(){reject(new Error('No se pudo leer el archivo'));};
+        reader.onload=function(){
+            var img=new Image();
+            img.onerror=function(){reject(new Error('El archivo no es una imagen valida'));};
+            img.onload=function(){
+                var w=img.width,h=img.height;
+                if(w>maxDim||h>maxDim){
+                    if(w>=h){h=Math.round(h*maxDim/w);w=maxDim;}
+                    else{w=Math.round(w*maxDim/h);h=maxDim;}
+                }
+                var canvas=document.createElement('canvas');
+                canvas.width=w;canvas.height=h;
+                canvas.getContext('2d').drawImage(img,0,0,w,h);
+                resolve(canvas.toDataURL('image/jpeg',quality));
+            };
+            img.src=reader.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+function handleFotoSeleccionada(ev){
+    var file=ev.target.files&&ev.target.files[0];
+    if(!file)return;
+    if(!file.type||file.type.indexOf('image/')!==0){toast('El archivo seleccionado no es una imagen',true);return;}
+    toast('Procesando imagen...');
+    resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
+        fotoPendiente=dataUrl;
+        var prev=document.getElementById('ef-foto-preview');
+        if(prev)prev.innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+        if(!document.getElementById('ef-foto-quitar-btn')){
+            var wrap=prev?prev.parentElement:null;
+            if(wrap){var btn=document.createElement('button');btn.type='button';btn.className='ef-btn ghost';btn.id='ef-foto-quitar-btn';btn.style.marginLeft='6px';btn.textContent='Quitar';btn.onclick=quitarFoto;wrap.appendChild(btn);}
+        }
+        toast('Foto cargada. Pulsa Guardar para conservarla.');
+    }).catch(function(e){toast('Error al procesar la imagen: '+e.message,true);});
+}
+function quitarFoto(){
+    fotoPendiente='';
+    var prev=document.getElementById('ef-foto-preview');
+    if(prev)prev.innerHTML='<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
+    var btn=document.getElementById('ef-foto-quitar-btn');
+    if(btn)btn.remove();
+}
+function importarFotosCarpeta(fileList){
+    var files=Array.prototype.filter.call(fileList,function(f){return f.type&&f.type.indexOf('image/')===0;});
+    if(!files.length){toast('No se encontraron imagenes en la carpeta seleccionada',true);return;}
+    if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
+    toast('Importando '+files.length+' foto(s)...');
+    var matched=0,unmatched=0;
+    var promises=files.map(function(file){
+        var base=file.name.replace(/\.[^/.]+$/,'').trim();
+        var persona=PI[base];
+        if(!persona){unmatched++;return Promise.resolve();}
+        return resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
+            persona.FOTO=dataUrl;
+            matched++;
+        }).catch(function(){unmatched++;});
+    });
+    Promise.all(promises).then(function(){
+        if(!matched){toast('Ninguna foto coincidio con un ID existente. Comprueba que el nombre del archivo sea el ID exacto.',true);return;}
+        sAll(D).then(function(){
+            toast(matched+' foto(s) importada(s) correctamente'+(unmatched?'. '+unmatched+' sin persona coincidente':''));
+            rStats();
+            if(cid)rFic(cid);
+        }).catch(function(e){toast('Error al guardar las fotos: '+e.message,true);});
+    });
+}
+function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
+function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
+
+function guardarFicha(id){
+    var p=PI[id];
+    if(!p){toast('Registro no encontrado',true);return;}
+    p.APELLIDO1=leerCampo('ef-ap1');
+    p.APELLIDO2=leerCampo('ef-ap2');
+    p.NOMBRE=leerCampo('ef-nombre');
+    p.SEXO=leerCampo('ef-sexo');
+    p.NACD=leerNum('ef-nacd');
+    p.NACM=leerNum('ef-nacm');
+    p.NACA=leerNum('ef-naca');
+    p.LUGARNAC=leerCampo('ef-lugarnac');
+    var ap=leerNum('ef-aprox');
+    p.APROX=(ap!==null)?String(ap):'';
+    var fallecido=document.getElementById('ef-fallecido').checked;
+    p.FALLECIDO=fallecido?'1':'';
+    if(fallecido){
+        p.DEFD=leerNum('ef-defd');
+        p.DEFM=leerNum('ef-defm');
+        p.DEFA=leerNum('ef-defa');
+        p.LUGARDEF=leerCampo('ef-lugardef');
+    } else {
+        p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
+    }
+    p.ML1=leerCampo('ef-ml1');p.MF1=leerCampo('ef-mf1');
+    p.ML2=leerCampo('ef-ml2');p.MF2=leerCampo('ef-mf2');
+    p.OBSERVACIONES=leerCampo('ef-obs');
+    if(fotoPendiente!==undefined){p.FOTO=fotoPendiente;fotoPendiente=undefined;}
+    var today=new Date();
+    p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+    bIdx(D);
+    sAll(D).then(function(){
+        editMode=false;
+        rStats();
+        rFic(id);
+        toast('Cambios guardados');
+    }).catch(function(err){toast('Error al guardar: '+err.message,true);});
+}
+function eliminarFicha(id){
+    var persona=PI[id];
+    if(!persona){toast('Ficha no encontrada',true);return;}
+    if(!confirm('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular. ¿Continuar?'))return;
+    var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
+        var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
+        ['PADRE','MADRE','M1','M2'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
+        return copia;
+    });
+    sAll(nuevos).then(function(){
+        D=nuevos;bIdx(D);cid=null;editMode=false;rStats();doSrch(document.getElementById('si').value);sv('bus');
+        toast('Ficha eliminada correctamente');
+    }).catch(function(err){toast('No se pudo eliminar la ficha: '+err.message,true);});
+}
+
+function crearVinculado(id,campo,sexoNuevo){
+    if(!confirm('Se creara una nueva persona y se vinculara como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderan. Continuar?'))return;
+    var newId=genNewId();
+    var nuevo={ID:newId,APROX:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
+    D.push(nuevo);
+    var actual=PI[id];
+    if(actual){
+        actual[campo]=newId;
+        if(campo==='M1'||campo==='M2')nuevo.M1=actual.ID;
+    }
+    bIdx(D);
+    sAll(D).then(function(){
+        rStats();
+        cid=newId;
+        editMode=true;
+        rFic(newId);
+        toast('Nueva persona creada y vinculada');
+    }).catch(function(err){toast('Error al guardar: '+err.message,true);});
+}
+
+function editarVinculado(id,campo){
+    var actual=PI[id];
+    var linkedId=actual?actual[campo]:null;
+    if(!linkedId||!PI[linkedId]){toast('No hay nadie vinculado en ese campo',true);return;}
+    if(editMode && !confirm('Se perderan los cambios sin guardar en este formulario. Continuar?'))return;
+    cid=linkedId;
+    editMode=true;
+    rFic(linkedId);
+}
+var selectorRelacion=null;
+var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2'};
+function abrirSelectorRelacion(id,campo){
+    selectorRelacion={id:id,campo:campo};
+    var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
+    if(tit)tit.textContent='Elegir '+(ETIQUETAS_RELACION[campo]||'persona');
+    modal.style.display='flex';input.value='';filtrarRelacion();setTimeout(function(){input.focus();},0);
+}
+function cerrarSelectorRelacion(){document.getElementById('modalConyuge').style.display='none';selectorRelacion=null;}
+function filtrarRelacion(){
+    if(!selectorRelacion)return;
+    var q=document.getElementById('buscarConyuge').value.toLowerCase().trim(),actual=PI[selectorRelacion.id],campo=selectorRelacion.campo,lista=document.getElementById('listaConyuges');
+    var excluir={};excluir[actual.ID]=true;
+    if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2)excluir[actual.M2]=true;}
+    var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCase().indexOf(q)>=0||String(p.ID).indexOf(q)>=0);}).slice(0,80);
+    lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
+}
+function elegirRelacion(otroId){
+    if(!selectorRelacion)return;
+    var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
+    if(!actual||!otro)return;
+    if(campo==='M1'||campo==='M2'){
+        var yaReciproco=otro.M1===actual.ID||otro.M2===actual.ID;
+        var campoReciproco=yaReciproco?null:(!otro.M1?'M1':(!otro.M2?'M2':''));
+        if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);return;}
+        var anterior=actual[campo];
+        if(anterior&&PI[anterior]){if(PI[anterior].M1===actual.ID)PI[anterior].M1='';if(PI[anterior].M2===actual.ID)PI[anterior].M2='';}
+        actual[campo]=otro.ID;
+        if(campoReciproco)otro[campoReciproco]=actual.ID;
+    }else{
+        actual[campo]=otro.ID;
+    }
+    bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
+}
+function quitarConyuge(id,campo){
+    var actual=PI[id],otroId=actual?actual[campo]:'';
+    if(!actual||!otroId)return;
+    if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?'))return;
+    var otro=PI[otroId];actual[campo]='';
+    if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
+    bIdx(D);sAll(D).then(function(){rFic(id);toast('Vínculo de cónyuge eliminado');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);});
+}
+function editarDescendiente(id){
+    if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
+    cid=id;editMode=true;rFic(id);
+}
+function crearDescendiente(id,parejaId){
+    var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
+    if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
+    if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?'))return;
+    var madre=null,padre=null;
+    if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
+    else {padre=progenitor;madre=pareja;}
+    var nuevo={ID:genNewId(),APROX:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
+    D.push(nuevo);bIdx(D);
+    sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
+}
+function drawPedigreeLines(){
+    var svg=document.getElementById("pedigree-svg");
+    var container=document.getElementById("pedigree-container");
+    if(!svg||!container)return;
+    var containerRect=container.getBoundingClientRect();
+    var scale=treeZoom||1;
+    function px(value){return value/scale;}
+    function x(rect,side){return px(rect[side]-containerRect.left);}
+    function y(rect){return px(rect.top+rect.height/2-containerRect.top);}
+    var lines=[];
+    var childCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.children-column .pedigree-card:not(.placeholder)'));
+    var rootCard=document.querySelector('.pedigree-card.root');
+    var spouseCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-card.spouse'));
+
+    // Hijos: un solo ramal familiar, en vez de una línea independiente que se salga del árbol.
+    if(childCards.length&&rootCard){
+        var childRects=childCards.map(function(card){return card.getBoundingClientRect();});
+        var rootRect=rootCard.getBoundingClientRect();
+        var parentCards=[rootCard].concat(spouseCards);
+        var parentRects=parentCards.map(function(card){return card.getBoundingClientRect();});
+        var familyX=x(rootRect,'left')-18;
+        var rightMost=Math.max.apply(null,childRects.map(function(r){return x(r,'right');}));
+        var trunkX=Math.min(familyX-12,rightMost+18);
+        var childYs=childRects.map(y);
+        var parentYs=parentRects.map(y);
+        var branchY=(Math.min.apply(null,childYs)+Math.max.apply(null,childYs))/2;
+        var parentY=(Math.min.apply(null,parentYs)+Math.max.apply(null,parentYs))/2;
+        childRects.forEach(function(r){var cy=y(r);lines.push(`<line x1="${x(r,'right')}" y1="${cy}" x2="${trunkX}" y2="${cy}"/>`);});
+        if(childYs.length>1)lines.push(`<line x1="${trunkX}" y1="${Math.min.apply(null,childYs)}" x2="${trunkX}" y2="${Math.max.apply(null,childYs)}"/>`);
+        lines.push(`<line x1="${trunkX}" y1="${branchY}" x2="${familyX}" y2="${branchY}"/>`);
+        if(branchY!==parentY)lines.push(`<line x1="${familyX}" y1="${branchY}" x2="${familyX}" y2="${parentY}"/>`);
+        if(parentYs.length>1)lines.push(`<line x1="${familyX}" y1="${Math.min.apply(null,parentYs)}" x2="${familyX}" y2="${Math.max.apply(null,parentYs)}"/>`);
+        parentRects.forEach(function(r){var py=y(r);lines.push(`<line x1="${familyX}" y1="${py}" x2="${x(r,'left')}" y2="${py}"/>`);});
+    }
+    document.querySelectorAll(".pedigree-card[data-father], .pedigree-card[data-mother]").forEach(function(card){
+        if(childCards.indexOf(card)!==-1)return;
+        var cardRect=card.getBoundingClientRect();
+        var startX=x(cardRect,'right');
+        var startY=y(cardRect);
+        var fatherId=card.getAttribute("data-father");
+        var motherId=card.getAttribute("data-mother");
+        var fatherCard=fatherId?document.querySelector(`.pedigree-card[data-id="${fatherId}"]`):null;
+        var motherCard=motherId?document.querySelector(`.pedigree-card[data-id="${motherId}"]`):null;
+        if(!fatherCard&&!motherCard)return;
+        var endX;
+        if(fatherCard){endX=x(fatherCard.getBoundingClientRect(),'left');}
+        else{endX=x(motherCard.getBoundingClientRect(),'left');}
+        var midX=startX+(endX-startX)/2;
+        lines.push(`<line x1="${startX}" y1="${startY}" x2="${midX}" y2="${startY}"/>`);
+        if(fatherCard&&motherCard){
+            var fRect=fatherCard.getBoundingClientRect();
+            var mRect=motherCard.getBoundingClientRect();
+            var fY=y(fRect);
+            var mY=y(mRect);
+            lines.push(`<line x1="${midX}" y1="${fY}" x2="${midX}" y2="${mY}"/>`);
+            lines.push(`<line x1="${midX}" y1="${fY}" x2="${endX}" y2="${fY}"/>`);
+            lines.push(`<line x1="${midX}" y1="${mY}" x2="${endX}" y2="${mY}"/>`);
+        }else if(fatherCard){
+            var fRect=fatherCard.getBoundingClientRect();
+            var fY=y(fRect);
+            lines.push(`<line x1="${midX}" y1="${startY}" x2="${midX}" y2="${fY}"/>`);
+            lines.push(`<line x1="${midX}" y1="${fY}" x2="${endX}" y2="${fY}"/>`);
+        }else if(motherCard){
+            var mRect=motherCard.getBoundingClientRect();
+            var mY=y(mRect);
+            lines.push(`<line x1="${midX}" y1="${startY}" x2="${midX}" y2="${mY}"/>`);
+            lines.push(`<line x1="${midX}" y1="${mY}" x2="${endX}" y2="${mY}"/>`);
+        }
+    });
+    var width=container.scrollWidth, height=container.scrollHeight;
+    svg.innerHTML=lines.join("");
+    // Las dimensiones CSS deben cubrir todo el contenido desplazable, no solo la ventana visible.
+    svg.style.width=width+'px';
+    svg.style.height=height+'px';
+    svg.setAttribute("width",width);
+    svg.setAttribute("height",height);
+    svg.setAttribute("viewBox","0 0 "+width+" "+height);
+}
+
+function cambiarZoom(delta){
+    treeZoom=Math.max(0.6,Math.min(1.4,Math.round((treeZoom+delta)*10)/10));
+    if(cid)rTree(cid);
+}
+function restablecerZoom(){treeZoom=1;if(cid)rTree(cid);}
+function alternarGeneraciones(){treeDepth=treeDepth===4?2:4;if(cid)rTree(cid);}
+function rTree(id){
+    var p=PI[id];
+    if(!p){
+        for(var key in PI){if(String(key)===String(id)){p=PI[key];break;}}
+    }
+    if(!p){
+        document.getElementById("tco").innerHTML=`<p style="color:var(--accent);text-align:center;padding:40px;">Error: Registro no encontrado.</p>`;
+        document.getElementById("treeHeading").innerHTML='';
+        return;
+    }
+
+    function fullName(pp){return esc((String(pp.NOMBRE||"")+" "+String(pp.APELLIDO1||"")+" "+String(pp.APELLIDO2||"")).trim()||"?");}
+    function year(pp){return pp.NACA?String(pp.NACA):(pp.APROX?String(pp.APROX):"");}
+    function makeCard(pp,extraClass){
+        if(!pp){return `<div class="pedigree-card placeholder"><div class="pc-name">?</div></div>`;}
+        var y=year(pp);
+        var sexClass="";
+        if(pp.SEXO==="Hombre"||pp.SEXO==="M")sexClass="male";
+        else if(pp.SEXO==="Mujer"||pp.SEXO==="F")sexClass="female";
+        var aliveClass=isAl(pp)?"alive":"";
+        var attrs=`data-id="${esc(pp.ID)}"`;
+        if(pp.PADRE&&PI[pp.PADRE])attrs+=` data-father="${esc(pp.PADRE)}"`;
+        if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
+        var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
+        return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${y?`<div class="pc-year">${esc(y)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
+    }
+    document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
+
+    var ancestors=[[id]];
+    for(var gen=0;gen<treeDepth;gen++){
+        var nextGen=[];
+        ancestors[gen].forEach(function(pid){
+            var person=pid?PI[pid]:null;
+            if(person){nextGen.push(person.PADRE||null);nextGen.push(person.MADRE||null);}
+            else{nextGen.push(null,null);}
+        });
+        ancestors.push(nextGen);
+    }
+
+    var h=`<div class="tree-back"><button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border);font-family:Lato,sans-serif;font-size:12px;padding:6px 14px;border-radius:10px;cursor:pointer" onclick="sv('bus')"><i class="fa-solid fa-arrow-left"></i> Volver</button></div>`;
+    h+=`<div class="pedigree-container" id="pedigree-container" style="zoom:${treeZoom}">`;
+    h+=`<svg id="pedigree-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></svg>`;
+
+    // HIJOS - columna a la izquierda (se muestra siempre, incluso vacia, para que quede claro que no es un fallo)
+    var hijos=HD[id]||[];
+    h+=`<div class="pedigree-col children-column" data-gen="-1" style="border-right:2px dashed var(--border);padding-right:14px">`;
+    if(hijos.length){
+        hijos.forEach(function(hid){
+            h+=makeCard(PI[hid],"");
+            // Nietos (hijos de los hijos)
+            var nietos=HD[hid]||[];
+            if(nietos.length){
+                h+=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-left:8px;border-left:1.5px solid var(--border)">`;
+                nietos.forEach(function(nid){
+                    h+=`<div class="tree-gchild${isAl(PI[nid])?' alive':''}" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;cursor:pointer" onclick="selP('${safeId(nid)}')">${esc(PI[nid].NOMBRE||'?')}${year(PI[nid])?' '+esc(year(PI[nid])):''}</div>`;
+                });
+                h+=`</div>`;
+            }
+        });
+    } else {
+        h+=`<div style="font-size:11px;color:var(--muted);text-align:center;padding:14px 6px;opacity:.75;max-width:110px">Sin hijos registrados</div>`;
+    }
+    h+=`</div>`;
+
+    // PERSONA CENTRAL + ANCESTROS
+    for(var g=0;g<=treeDepth;g++){
+        h+=`<div class="pedigree-col${g===0?' central-column':''}" data-gen="${g}">`;
+        if(g===0){
+            h+=makeCard(p,"root");
+            if(p.M1&&PI[p.M1])h+=makeCard(PI[p.M1],"spouse");
+            if(p.M2&&PI[p.M2])h+=makeCard(PI[p.M2],"spouse");
+        }else{
+            ancestors[g].forEach(function(pid){h+=makeCard(pid?PI[pid]:null,"");});
+        }
+        h+=`</div>`;
+    }
+    h+=`</div>`;
+    document.getElementById("tco").innerHTML=h;
+    cid=id;
+    setTimeout(function(){drawPedigreeLines();centerTreeOnRoot();},50);
+}
+function centerTreeOnRoot(){
+    var scroller=document.querySelector('.tc');
+    var rootCard=document.querySelector('.pedigree-card.root');
+    if(!scroller||!rootCard)return;
+    var sRect=scroller.getBoundingClientRect();
+    var cRect=rootCard.getBoundingClientRect();
+    var offset=(cRect.left-sRect.left)-(sRect.width/2)+(cRect.width/2)+scroller.scrollLeft;
+    scroller.scrollLeft=Math.max(0,offset);
+}
+var infId=null;
+function initInformes(){
+    var box=document.getElementById('infSelBox');
+    if(infId&&PI[infId]){box.textContent=fn(PI[infId]);box.classList.remove('empty');}
+    else{box.textContent='Ninguna persona seleccionada';box.classList.add('empty');}
+    document.getElementById('rlInf').innerHTML='';
+    var input=document.getElementById('siInf');
+    if(input)input.value='';
+}
+function doSrchInf(q){
+    q=(q||'').toLowerCase().trim();
+    var lista=document.getElementById('rlInf');
+    if(!q){lista.innerHTML='';return;}
+    var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+    f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+    f=f.slice(0,40);
+    var h='';
+    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaInforme(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
+}
+function seleccionarPersonaInforme(id){
+    infId=id;
+    var box=document.getElementById('infSelBox');
+    box.textContent=fn(PI[id]);box.classList.remove('empty');
+    document.getElementById('rlInf').innerHTML='';
+    document.getElementById('siInf').value='';
+}
+function fechaCorta(p,pref){var d=fDate(p[pref+'D'],p[pref+'M'],p[pref+'A']);return d;}
+function datosPersonaTexto(p){
+    var partes=[];
+    var nac=fechaCorta(p,'NAC')||(p.APROX?'~'+p.APROX:'');
+    if(nac)partes.push('n. '+nac+(p.LUGARNAC?' en '+p.LUGARNAC:''));
+    if(!isAl(p)){var def=fechaCorta(p,'DEF');if(def||p.LUGARDEF)partes.push('f. '+(def||'')+(p.LUGARDEF?' en '+p.LUGARDEF:''));}
+    else partes.push('vivo');
+    return partes.join(' · ');
+}
+function buildDescendentesHTML(id,gen,visitados){
+    if(visitados[id]||gen>10)return '';
+    visitados[id]=true;
+    var p=PI[id];if(!p)return'';
+    var h='<div class="print-node" style="margin-left:'+(gen*16)+'px"><div class="pn-name">'+esc(fn(p))+'</div><div class="pn-meta">'+esc(datosPersonaTexto(p))+'</div></div>';
+    var hijos=HD[id]||[];
+    hijos.forEach(function(hid){h+=buildDescendentesHTML(hid,gen+1,visitados);});
+    return h;
+}
+function descargarArbolDescendente(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var html='<div class="print-report"><h1>Arbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+buildDescendentesHTML(infId,0,{})+'</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+function buildAscendentesHTML(id,gen,sosa,maxGen,visitados){
+    if(gen>maxGen||visitados[sosa])return{html:'',huboAlguno:false};
+    var p=id?PI[id]:null;
+    if(!p)return{html:'',huboAlguno:false};
+    visitados[sosa]=true;
+    var h='<div class="print-node" style="margin-left:'+(gen*16)+'px"><div class="pn-name">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400">(Sosa '+sosa+')</span></div><div class="pn-meta">'+esc(datosPersonaTexto(p))+'</div></div>';
+    var padre=buildAscendentesHTML(p.PADRE,gen+1,sosa*2,maxGen,visitados);
+    var madre=buildAscendentesHTML(p.MADRE,gen+1,sosa*2+1,maxGen,visitados);
+    return{html:h+padre.html+madre.html,huboAlguno:true};
+}
+function descargarArbolAscendente(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var r=buildAscendentesHTML(infId,0,1,7,{});
+    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · Numeracion Sosa-Stradonitz</div>'+r.html+'</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+function recopilarAscendientesInforme(id,gen,sosa,maxGen,visitados,porGeneracion){
+    if(gen>maxGen||visitados[sosa])return;
+    var p=id?PI[id]:null;
+    if(!p)return;
+    visitados[sosa]=true;
+    if(!porGeneracion[gen])porGeneracion[gen]=[];
+    porGeneracion[gen].push({p:p,sosa:sosa});
+    recopilarAscendientesInforme(p.PADRE,gen+1,sosa*2,maxGen,visitados,porGeneracion);
+    recopilarAscendientesInforme(p.MADRE,gen+1,sosa*2+1,maxGen,visitados,porGeneracion);
+}
+function descargarInformeAscendientes(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var porGeneracion={};
+    recopilarAscendientesInforme(infId,0,1,7,{},porGeneracion);
+    var html='<div class="print-report"><h1>Informe de ascendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
+        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
+        porGeneracion[g].forEach(function(item){
+            var pp=item.p;
+            var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
+            var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
+            html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+' <span style="font-weight:400;color:var(--muted)">(Sosa '+item.sosa+')</span></div>';
+            html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
+            html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+            if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
+            if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
+            if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
+            html+='</div>';
+        });
+    });
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+function confirmLimpiar(){document.getElementById('modalLimpiar').style.display='flex';}
+function ejecutarLimpiar(){
+    document.getElementById('modalLimpiar').style.display='none';
+    if(db){try{db.close();}catch(e){}}
+    var req=indexedDB.deleteDatabase(DB);
+    req.onsuccess=function(){toast('Base de datos eliminada correctamente');D=[];PI={};HD={};cid=null;document.getElementById('rl').innerHTML='';document.getElementById('tco').innerHTML='';document.getElementById('fco').innerHTML='';rStats();};
+    req.onerror=function(){toast('Error al eliminar la base de datos',true);};
+}
+
+function gLine(s){return String(s||'').replace(/\r\n|\r|\n/g,' ').trim();}
+function gSex(s){if(s==='Hombre')return'M';if(s==='Mujer')return'F';return'';}
+function expGed(){
+    if(!D.length){toast('No hay datos',true);return;}
+    toast('Generando GEDCOM...');
+    setTimeout(function(){
+        var today=new Date();
+        var headerDate=fDateGed(today.getDate(),today.getMonth()+1,today.getFullYear());
+        var ged='0 HEAD\n1 SOUR Libro de los Ancestros\n2 VERS 1.0\n2 NAME Libro de los Ancestros\n1 DATE '+headerDate+'\n1 GEDC\n2 VERS 5.5.1\n2 FORM LINEAGE-LINKED\n1 CHAR UTF-8\n1 LANG Spanish\n\n0 @SUB1@ SUBM\n1 NAME Usuario\n1 ADDR Espana\n2 CTRY Espana\n\n';
+        var fom={},foc={};
+        D.forEach(function(p){var pk=(p.PADRE||'')+'|'+(p.MADRE||'');if(pk==='||')return;if(!foc[pk]){foc[pk]=Object.keys(foc).length+1;} p._famc='@F'+foc[pk]+'@';});
+        D.forEach(function(p){if(p.M1){var k=p.ID+'|'+p.M1;if(!fom[k]){fom[k]={h:p.ID,w:p.M1,n:Object.keys(fom).length};}}if(p.M2){var k2=p.ID+'|'+p.M2;if(!fom[k2]){fom[k2]={h:p.ID,w:p.M2,n:Object.keys(fom).length};}}});
+        var fmS={};Object.keys(fom).forEach(function(k){var f=fom[k],fn2='@F'+f.n+'@';if(!fmS[f.h])fmS[f.h]=[];if(!fmS[f.w])fmS[f.w]=[];fmS[f.h].push(fn2);fmS[f.w].push(fn2);f._fNum=fn2;});
+        D.forEach(function(p){
+            var al=isAl(p);
+            ged+='0 @I'+p.ID+'@ INDI\n';
+            ged+='1 NAME '+gLine(p.NOMBRE)+' /'+gLine((p.APELLIDO1||'')+' '+(p.APELLIDO2||''))+'/\n';
+            ged+='2 GIVN '+gLine(p.NOMBRE)+'\n';
+            ged+='2 SURN '+gLine((p.APELLIDO1||'')+' '+(p.APELLIDO2||''))+'\n';
+            var sx=gSex(p.SEXO);if(sx)ged+='1 SEX '+sx+'\n';
+            var nd=fDateGed(p.NACD,p.NACM,p.NACA);
+            if(nd){ged+='1 BIRT\n2 DATE '+nd+'\n';if(p.LUGARNAC)ged+='2 PLAC '+gLine(p.LUGARNAC)+'\n';}
+            if(!al){ged+='1 DEAT Y\n';var dd=fDateGed(p.DEFD,p.DEFM,p.DEFA);if(dd)ged+='2 DATE '+dd+'\n';if(p.LUGARDEF)ged+='2 PLAC '+gLine(p.LUGARDEF)+'\n';}
+            if(p._famc)ged+='1 FAMC '+p._famc+'\n';
+            if(fmS[p.ID])fmS[p.ID].forEach(function(fnm){ged+='1 FAMS '+fnm+'\n';});
+            if(p.OBSERVACIONES)ged+='1 NOTE '+gLine(p.OBSERVACIONES)+'\n';
+            ged+='\n';
+        });
+        Object.keys(fom).forEach(function(k){
+            var f=fom[k],fnm='@F'+f.n+'@';
+            ged+='0 '+fnm+' FAM\n1 HUSB @I'+f.h+'@\n1 WIFE @I'+f.w+'@\n';
+            var hf=[];
+            D.forEach(function(x){if(x.PADRE===f.h&&x.MADRE===f.w)hf.push(x.ID);else if(x.PADRE===f.w&&x.MADRE===f.h)hf.push(x.ID);else if(x.PADRE===f.h&&!x.MADRE)hf.push(x.ID);else if(x.MADRE===f.w&&!x.PADRE)hf.push(x.ID);});
+            hf.forEach(function(hid){ged+='1 CHIL @I'+hid+'@\n';});
+            ged+='\n';
+        });
+        ged+='0 TRLR\n';
+        var blob=new Blob([ged],{type:'text/plain;charset=utf-8'});
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download='FAMILIA.ged';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+        toast('GEDCOM descargado: '+D.length+' personas');
+    },100);
+}
+function impCSV(){document.getElementById('fi').click();}
+function exportarCopia(){
+    if(!D.length){toast('No hay datos para guardar',true);return;}
+    var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
+    var blob=new Blob([JSON.stringify(copia)],{type:'application/json;charset=utf-8'});
+    var fecha=new Date().toISOString().slice(0,10);
+    var url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='copia-arbol-genealogico-'+fecha+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    toast('Copia descargada con '+D.length+' personas y sus fotos');
+}
+function restaurarCopia(archivo){
+    if(!archivo)return;
+    var lector=new FileReader();
+    lector.onerror=function(){toast('No se pudo leer la copia de seguridad',true);};
+    lector.onload=function(e){
+        var copia;
+        try{copia=JSON.parse(e.target.result);}catch(err){toast('El archivo no es una copia valida',true);return;}
+        var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
+        if(!personas){toast('La copia no contiene personas validas',true);return;}
+        var ids={};
+        for(var i=0;i<personas.length;i++){
+            if(!personas[i]||typeof personas[i]!=='object'||personas[i].ID===undefined||String(personas[i].ID).trim()===''){toast('La copia contiene un registro sin ID',true);return;}
+            personas[i].ID=String(personas[i].ID);
+            if(ids[personas[i].ID]){toast('La copia contiene IDs duplicados',true);return;}
+            ids[personas[i].ID]=true;
+        }
+        if(!confirm('Se reemplazaran los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
+        sAll(personas).then(function(){
+            D=personas;bIdx(D);cid=null;editMode=false;init();
+            toast('Copia restaurada correctamente: '+D.length+' personas');
+        }).catch(function(err){toast('No se pudo restaurar la copia: '+err.message,true);});
+    };
+    lector.readAsText(archivo,'utf-8');
+}
+var dropZone=document.querySelector('.iz');
+if(dropZone){dropZone.addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(196,101,58,.06)';});dropZone.addEventListener('dragleave',function(){this.style.borderColor='var(--border)';this.style.background='';});dropZone.addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='var(--border)';this.style.background='';if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});}
+document.getElementById('fi').addEventListener('change',function(e){handleFile(e.target.files[0]);});
+document.getElementById('fiFotos').addEventListener('change',function(e){importarFotosCarpeta(e.target.files);this.value='';});
+document.getElementById('fiCopia').addEventListener('change',function(e){restaurarCopia(e.target.files[0]);this.value='';});
+
+function handleFile(f){
+    if(!f)return; 
+    document.getElementById('pb').style.display='block';document.getElementById('pf').style.width='10%';
+    var r = new FileReader();
+    r.onload = function(ev) {
+        try {
+            var arrayBuffer = ev.target.result;
+            var texto = '';
+            var vista = new Uint8Array(arrayBuffer);
+            if (vista.length >= 3 && vista[0] === 0xEF && vista[1] === 0xBB && vista[2] === 0xBF) {
+                texto = new TextDecoder('utf-8').decode(arrayBuffer);
+            } else {
+                texto = new TextDecoder('windows-1252').decode(arrayBuffer);
+                if (texto.indexOf('Ã') !== -1 || texto.indexOf('Â') !== -1) {
+                    texto = new TextDecoder('utf-8').decode(arrayBuffer);
+                }
+            }
+            parseAndLoad(texto);
+            document.getElementById('pf').style.width='100%';
+            setTimeout(function(){document.getElementById('pb').style.display='none';},1500);
+        } catch(ex) {
+            document.getElementById('pb').style.display='none';
+            toast('Error procesando: '+ex.message,true);console.error(ex);
+        }
+    };
+    r.readAsArrayBuffer(f);
+}
+
+function splitCSVLine(line, delim){
+    var result=[], cur='', inQuotes=false;
+    for(var i=0;i<line.length;i++){
+        var c=line[i];
+        if(c==='"'){
+            if(inQuotes && line[i+1]==='"'){cur+='"';i++;}
+            else inQuotes=!inQuotes;
+        } else if(c===delim && !inQuotes){
+            result.push(cur);cur='';
+        } else { cur+=c; }
+    }
+    result.push(cur);
+    return result;
+}
+
+function parseAndLoad(txt){
+    txt=txt.replace(/^\uFEFF/,'');
+    var lines=txt.trim().split(/\r?\n/);
+    if(lines.length<2){toast('Archivo vacio o con muy pocas lineas',true);return;}
+    var defaultHdr = ['ID','APROX','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','NACD','NACM','NACA','DEFD','DEFM','DEFA','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO'];
+    var hdr = [], startIdx = 0;
+    var primeraLinea = lines[0].toUpperCase();
+    if(primeraLinea.indexOf('ID') !== -1 && primeraLinea.indexOf('APROX') !== -1) { hdr = splitCSVLine(lines[0], ';').map(function(h){return h.trim().replace(/^"|"$/g, '');}); startIdx = 1; } else { hdr = defaultHdr; startIdx = 0; }
+    var data=[], skipped=0, dupCount=0, seenIds={};
+    for(var i=startIdx; i<lines.length; i++){
+        if(!lines[i].trim()) continue;
+        var v=splitCSVLine(lines[i], ';');
+        if(v.length < 5) { skipped++; continue; }
+        var row={};
+        function g(idx, def){var val = (v[idx] !== undefined) ? v[idx].trim() : ''; val = val.replace(/^"|"$/g, ''); if(val==='null' || val==='undefined' || val==='') return def; if(idx === 0) { val = val.replace(/^[^0-9A-Za-z\-]*/, ''); } return val;}
+        function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; if(val==='') return null; var f=parseFloat(val); return isNaN(f) ? null : f; }
+        row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
+        if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
+        var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : '';
+        row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, '');
+        data.push(row);
+    }
+    if(!data.length){toast('No se encontraron datos validos en el CSV',true);return;}
+    var idsSet={}; data.forEach(function(r){idsSet[r.ID]=true;});
+    var orphans=0;
+    data.forEach(function(r){if(r.PADRE && !idsSet[r.PADRE])orphans++; if(r.MADRE && !idsSet[r.MADRE])orphans++;});
+    D = data;
+    bIdx(data);
+    sAll(data).then(function(n){
+        toast(n+' personas importadas correctamente');
+        if(skipped) toast(skipped+' fila(s) omitida(s) por datos incompletos', true);
+        if(dupCount) toast(dupCount+' ID(s) duplicado(s): se conservo el ultimo registro', true);
+        if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el archivo', true);
+        init();
+    });
+}
+
+function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);}
+
+document.addEventListener('DOMContentLoaded',function(){
+    oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);});}).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);init();cargarCarpetaDocumentos();});},500);});
+});
+(function(){
+    var srchTimer=null;
+    document.getElementById('si').addEventListener('input',function(){
+        var val=this.value;
+        clearTimeout(srchTimer);
+        srchTimer=setTimeout(function(){doSrch(val);},150);
+    });
+})();
+(function(){
+    var srchTimerInf=null;
+    var elInf=document.getElementById('siInf');
+    if(elInf)elInf.addEventListener('input',function(){
+        var val=this.value;
+        clearTimeout(srchTimerInf);
+        srchTimerInf=setTimeout(function(){doSrchInf(val);},150);
+    });
+})();
+</script>
+<div id="modalLimpiar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:var(--accent);margin-bottom:14px;display:block"></i>
+    <h2 style="font-family:'Cinzel',serif;font-size:18px;margin-bottom:8px;color:var(--text)">Limpiar Cache y Base de Datos</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5">Se eliminaran todos los datos de IndexedDB. Esta accion no se puede deshacer.</p>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="document.getElementById('modalLimpiar').style.display='none'">Cancelar</button>
+      <button class="btn" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="ejecutarLimpiar()"><i class="fa-solid fa-trash-can"></i> Si, limpiar todo</button>
+    </div>
+  </div>
+</div>
+<div id="modalConyuge" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:220;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 id="modalRelacionTitulo" style="font-family:'Cinzel',serif;font-size:17px">Elegir persona</h2><button class="ef-nbtn" onclick="cerrarSelectorRelacion()">×</button></div>
+    <input id="buscarConyuge" class="ef-input" placeholder="Buscar por nombre o ID" oninput="filtrarRelacion()" autocomplete="off">
+    <div id="listaConyuges" style="overflow:auto;margin-top:12px;padding-right:2px"></div>
+  </div>
+</div>
+</body>
+</html>
