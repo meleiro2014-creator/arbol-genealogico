@@ -1041,6 +1041,145 @@ function solucionarTodasInconsistencias(){
     if(aplicadas)guardarTrasCorreccion(aplicadas+' correccion(es) aplicada(s)');
     else toast('No se pudo aplicar ninguna corrección automáticamente',true);
 }
+
+/* ===== POSIBLES DUPLICADOS ===== */
+function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+function detectarDuplicados(){
+    var grupos={};
+    D.forEach(function(p){
+        var key=normTxt(p.NOMBRE)+'|'+normTxt(p.APELLIDO1)+'|'+normTxt(p.APELLIDO2);
+        if(!key.replace(/\|/g,'').trim())return;
+        if(!grupos[key])grupos[key]=[];
+        grupos[key].push(p);
+    });
+    var pares=[];
+    Object.keys(grupos).forEach(function(k){
+        var arr=grupos[k];
+        if(arr.length<2)return;
+        for(var i=0;i<arr.length;i++){
+            for(var j=i+1;j<arr.length;j++){
+                var a=arr[i],b=arr[j];
+                var score=50,motivos=['Mismo nombre completo'];
+                var ya=getYear(a),yb=getYear(b);
+                if(ya!==null&&yb!==null){
+                    if(ya===yb){score+=30;motivos.push('Mismo año de nacimiento');}
+                    else if(Math.abs(ya-yb)<=2){score+=15;motivos.push('Años de nacimiento cercanos');}
+                }else{score+=5;}
+                if(a.PADRE&&a.PADRE===b.PADRE){score+=15;motivos.push('Mismo padre');}
+                if(a.MADRE&&a.MADRE===b.MADRE){score+=15;motivos.push('Misma madre');}
+                if(a.LUGARNAC&&b.LUGARNAC&&normTxt(a.LUGARNAC)===normTxt(b.LUGARNAC)){score+=10;motivos.push('Mismo lugar de nacimiento');}
+                pares.push({a:a,b:b,score:score,motivos:motivos});
+            }
+        }
+    });
+    pares.sort(function(x,y){return y.score-x.score;});
+    return pares;
+}
+var DUP_IGNORADOS={};
+function fichaResumenDup(p){
+    var y=getYear(p);
+    var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'';
+    var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'';
+    var hijos=(HD[p.ID]||[]).length;
+    var partes=[];
+    if(y)partes.push('Año: '+y);
+    if(p.LUGARNAC)partes.push(p.LUGARNAC);
+    if(padre||madre)partes.push('Padres: '+(padre||'?')+' / '+(madre||'?'));
+    partes.push(hijos+' hijo(s) registrado(s)');
+    if(p.OBSERVACIONES)partes.push('Obs: '+p.OBSERVACIONES.slice(0,80)+(p.OBSERVACIONES.length>80?'…':''));
+    return partes.join(' · ');
+}
+function fusionarPersonas(idMantener,idEliminar){
+    var pM=PI[idMantener],pE=PI[idEliminar];
+    if(!pM||!pE)return false;
+    if(idMantener===idEliminar)return false;
+    var camposRellenar=['APROX','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','FALLECIDO','FOTO'];
+    camposRellenar.forEach(function(c){
+        var vaM=pM[c],vaE=pE[c];
+        var vacioM=(vaM===''||vaM===null||vaM===undefined);
+        var vacioE=(vaE===''||vaE===null||vaE===undefined);
+        if(vacioM&&!vacioE)pM[c]=vaE;
+    });
+    if(pE.OBSERVACIONES&&pE.OBSERVACIONES.trim()&&pE.OBSERVACIONES.trim()!==(pM.OBSERVACIONES||'').trim()){
+        pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n---\n':'')+pE.OBSERVACIONES;
+    }
+    pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n':'')+'[Fusionado con el registro ID '+idEliminar+' el '+new Date().toISOString().slice(0,10)+']';
+    if(pM.M1===idEliminar)pM.M1='';
+    if(pM.M2===idEliminar)pM.M2='';
+    D.forEach(function(x){
+        if(x.ID===idEliminar)return;
+        if(x.PADRE===idEliminar)x.PADRE=idMantener;
+        if(x.MADRE===idEliminar)x.MADRE=idMantener;
+        if(x.M1===idEliminar)x.M1=idMantener;
+        if(x.M2===idEliminar)x.M2=idMantener;
+    });
+    D=D.filter(function(x){return x.ID!==idEliminar;});
+    bIdx(D);
+    return true;
+}
+function solucionarDuplicado(idx){
+    var pares=window._duplicadosActuales||[];
+    var par=pares[idx];
+    if(!par)return;
+    if(!confirm('Se fusionaran las dos fichas en una sola.\n\nSe conservara: '+fn(par.a)+' (ID '+par.a.ID+')\nSe eliminara: '+fn(par.b)+' (ID '+par.b.ID+')\n\nLos datos vacios del registro conservado se rellenaran con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasaran al registro conservado. Esta accion no se puede deshacer. ¿Continuar?'))return;
+    if(fusionarPersonas(par.a.ID,par.b.ID))guardarTrasFusion(par.a.ID);
+}
+function solucionarDuplicadoInverso(idx){
+    var pares=window._duplicadosActuales||[];
+    var par=pares[idx];
+    if(!par)return;
+    if(!confirm('Se fusionaran las dos fichas en una sola.\n\nSe conservara: '+fn(par.b)+' (ID '+par.b.ID+')\nSe eliminara: '+fn(par.a)+' (ID '+par.a.ID+')\n\nLos datos vacios del registro conservado se rellenaran con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasaran al registro conservado. Esta accion no se puede deshacer. ¿Continuar?'))return;
+    if(fusionarPersonas(par.b.ID,par.a.ID))guardarTrasFusion(par.b.ID);
+}
+function ignorarDuplicado(idx){
+    var pares=window._duplicadosActuales||[];
+    var par=pares[idx];
+    if(!par)return;
+    DUP_IGNORADOS[par.a.ID+'|'+par.b.ID]=true;
+    mostrarDuplicados();
+}
+function guardarTrasFusion(idSuperviviente){
+    sAll(D).then(function(){
+        rStats();
+        if(cid===idSuperviviente&&!editMode&&document.getElementById('vFic').classList.contains('active'))rFic(cid);
+        toast('Fichas fusionadas correctamente');
+        mostrarDuplicados();
+    }).catch(function(err){toast('No se pudo guardar la fusion: '+err.message,true);});
+}
+function mostrarDuplicados(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var todos=detectarDuplicados();
+    var pares=todos.filter(function(p){return !DUP_IGNORADOS[p.a.ID+'|'+p.b.ID];});
+    window._duplicadosActuales=pares;
+    var lista=document.getElementById('listaDuplicados');
+    var resumen=document.getElementById('resumenDuplicados');
+    if(!pares.length){
+        resumen.textContent=todos.length?('Sin candidatos pendientes ('+(todos.length-pares.length)+' ignorados)'):'Sin posibles duplicados detectados';
+        lista.innerHTML='<p style="text-align:center;color:var(--green);padding:24px 10px;font-weight:700"><i class="fa-solid fa-circle-check" style="display:block;font-size:24px;margin-bottom:8px"></i>No hay duplicados pendientes de revisar</p>';
+        return;
+    }
+    var MOSTRAR=150;
+    resumen.textContent=pares.length+' pareja(s) candidata(s) detectada(s), ordenadas por confianza'+(pares.length>MOSTRAR?' (mostrando las '+MOSTRAR+' con mayor puntuacion)':'');
+    lista.innerHTML=pares.slice(0,MOSTRAR).map(function(pr,idx){
+        var nivel=pr.score>=90?'Muy probable':(pr.score>=65?'Posible':'Baja confianza');
+        var color=pr.score>=90?'var(--accent)':(pr.score>=65?'var(--blue)':'var(--muted)');
+        return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-user-group"></i></div>'+
+            '<div class="inc-msg"><span class="inc-tag" style="color:'+color+'">'+esc(nivel)+' · '+pr.score+' pts</span><br>'+
+            '<b>'+esc(fn(pr.a))+'</b> (ID '+esc(pr.a.ID)+') vs <b>'+esc(fn(pr.b))+'</b> (ID '+esc(pr.b.ID)+')<br>'+
+            '<span style="color:var(--muted);font-size:11px">'+esc(pr.motivos.join(' · '))+'</span><br>'+
+            '<span style="color:var(--muted);font-size:11px">A: '+esc(fichaResumenDup(pr.a))+'</span><br>'+
+            '<span style="color:var(--muted);font-size:11px">B: '+esc(fichaResumenDup(pr.b))+'</span>'+
+            '<div class="inc-actions">'+
+            '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="solucionarDuplicado('+idx+')"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
+            '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="solucionarDuplicadoInverso('+idx+')"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
+            '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="cerrarDuplicados();selP(\''+safeId(pr.a.ID)+'\')">Ver A</button>'+
+            '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="cerrarDuplicados();selP(\''+safeId(pr.b.ID)+'\')">Ver B</button>'+
+            '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="ignorarDuplicado('+idx+')"><i class="fa-solid fa-eye-slash"></i> No es duplicado</button>'+
+            '</div></div></div>';
+    }).join('');
+    document.getElementById('modalDuplicados').style.display='flex';
+}
+function cerrarDuplicados(){document.getElementById('modalDuplicados').style.display='none';}
 function drawPedigreeLines(){
     var svg=document.getElementById("pedigree-svg");
     var container=document.getElementById("pedigree-container");
@@ -1663,6 +1802,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
       <div class="herr-section">Calidad de los datos</div>
       <button class="herr-item" onclick="cerrarHerramientas();mostrarInconsistencias()"><div class="herr-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="herr-text"><div class="herr-title">Comprobar consistencia</div><div class="herr-desc">Detecta cónyuges sin vincular, géneros y edades incoherentes</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();mostrarDuplicados()"><div class="herr-icon"><i class="fa-solid fa-user-group"></i></div><div class="herr-text"><div class="herr-title">Posibles duplicados</div><div class="herr-desc">Busca fichas que podrian ser la misma persona y permite fusionarlas</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();mostrarRamasIncompletas()"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Ramas incompletas</div><div class="herr-desc">Lista personas sin padre ni madre registrados</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();calcularAnosAproximados()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Calcular años aproximados</div><div class="herr-desc">Estima el año de nacimiento a partir de familiares cercanos</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();marcarFallecidosMayores100()"><div class="herr-icon"><i class="fa-solid fa-skull"></i></div><div class="herr-text"><div class="herr-title">Marcar fallecidos +100 años</div><div class="herr-desc">Marca como fallecidas a las personas vivas con mas de 100 años</div></div></button>
@@ -1679,6 +1819,16 @@ document.addEventListener('DOMContentLoaded',function(){
       <button id="btnSolucionarTodas" class="ef-btn" style="display:none" onclick="solucionarTodasInconsistencias()"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar todas</button>
     </div>
     <div id="listaInconsistencias" style="overflow:auto;margin-top:6px;padding-right:2px"></div>
+  </div>
+</div>
+<div id="modalDuplicados" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+      <div><h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-user-group" style="color:var(--accent)"></i> Posibles duplicados</h2><p id="resumenDuplicados" style="font-size:11px;color:var(--muted);margin-top:2px"></p></div>
+      <button class="ef-nbtn" onclick="cerrarDuplicados()">×</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin:6px 0">Se comparan personas con el mismo nombre y apellidos. La puntuacion sube si ademas coincide el año, los padres o el lugar de nacimiento. Revisa cada pareja antes de fusionar: la accion no se puede deshacer.</p>
+    <div id="listaDuplicados" style="overflow:auto;margin-top:6px;padding-right:2px"></div>
   </div>
 </div>
 </body>
