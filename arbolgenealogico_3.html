@@ -248,7 +248,7 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicacion web").
    2) Añade aqui abajo tu Client ID, sustituyendo el texto de ejemplo.
    3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
-var GOOGLE_CLIENT_ID='TU_CLIENT_ID_AQUI.apps.googleusercontent.com';
+var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
