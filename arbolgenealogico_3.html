@@ -278,7 +278,11 @@ var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleu
 /* Carpeta raiz de Google Drive por defecto (la carpeta "ARBOL" con las subcarpetas por ID de persona y la subcarpeta "FOTO").
    Si el usuario elige otra carpeta desde "Documentos (Google Drive)", esa eleccion se guarda en su navegador y tiene prioridad sobre este valor. */
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1NyKUc8u3nk80QBtc5agweQzvnH1RCQWr';
-var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+var DRIVE_BACKUP_FILENAME='backup-arbol.json';
+/* Clave sencilla para evitar subidas accidentales desde el boton "Subir copia a Drive".
+   OJO: esto NO es seguridad real (es codigo visible en el navegador), es solo un seguro contra clics accidentales. */
+var CLAVE_SUBIDA_DRIVE='1962';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,3);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
@@ -1402,29 +1406,94 @@ function exportarCopia(){
     a.href=url;a.download='copia-arbol-genealogico-'+fecha+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     toast('Copia descargada con '+D.length+' personas y sus fotos');
 }
+function restaurarDesdeJSONTexto(texto){
+    var copia;
+    try{copia=JSON.parse(texto);}catch(err){toast('El archivo no es una copia valida',true);return;}
+    var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
+    if(!personas){toast('La copia no contiene personas validas',true);return;}
+    var ids={};
+    for(var i=0;i<personas.length;i++){
+        if(!personas[i]||typeof personas[i]!=='object'||personas[i].ID===undefined||String(personas[i].ID).trim()===''){toast('La copia contiene un registro sin ID',true);return;}
+        personas[i].ID=String(personas[i].ID);
+        if(ids[personas[i].ID]){toast('La copia contiene IDs duplicados',true);return;}
+        ids[personas[i].ID]=true;
+    }
+    if(!confirm('Se reemplazaran los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
+    sAll(personas).then(function(){
+        D=personas;bIdx(D);cid=null;editMode=false;init();
+        toast('Copia restaurada correctamente: '+D.length+' personas');
+    }).catch(function(err){toast('No se pudo restaurar la copia: '+err.message,true);});
+}
 function restaurarCopia(archivo){
     if(!archivo)return;
     var lector=new FileReader();
     lector.onerror=function(){toast('No se pudo leer la copia de seguridad',true);};
-    lector.onload=function(e){
-        var copia;
-        try{copia=JSON.parse(e.target.result);}catch(err){toast('El archivo no es una copia valida',true);return;}
-        var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
-        if(!personas){toast('La copia no contiene personas validas',true);return;}
-        var ids={};
-        for(var i=0;i<personas.length;i++){
-            if(!personas[i]||typeof personas[i]!=='object'||personas[i].ID===undefined||String(personas[i].ID).trim()===''){toast('La copia contiene un registro sin ID',true);return;}
-            personas[i].ID=String(personas[i].ID);
-            if(ids[personas[i].ID]){toast('La copia contiene IDs duplicados',true);return;}
-            ids[personas[i].ID]=true;
-        }
-        if(!confirm('Se reemplazaran los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
-        sAll(personas).then(function(){
-            D=personas;bIdx(D);cid=null;editMode=false;init();
-            toast('Copia restaurada correctamente: '+D.length+' personas');
-        }).catch(function(err){toast('No se pudo restaurar la copia: '+err.message,true);});
-    };
+    lector.onload=function(e){restaurarDesdeJSONTexto(e.target.result);};
     lector.readAsText(archivo,'utf-8');
+}
+function subirArchivoDrive(nombre,contenidoTexto,mimeType,folderId,fileIdExistente){
+    if(fileIdExistente){
+        return fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileIdExistente+'?uploadType=media',{
+            method:'PATCH',
+            headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mimeType},
+            body:contenidoTexto
+        });
+    }
+    var boundary='libroancestros_'+Date.now();
+    var delimiter='\r\n--'+boundary+'\r\n';
+    var closeDelim='\r\n--'+boundary+'--';
+    var metadata={name:nombre,parents:[folderId],mimeType:mimeType};
+    var multipartBody=delimiter+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+delimiter+'Content-Type: '+mimeType+'\r\n\r\n'+contenidoTexto+closeDelim;
+    return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},
+        body:multipartBody
+    });
+}
+async function buscarArchivoBackupDrive(){
+    var q="'"+driveRootFolderId+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
+    var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+    if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+    var d=await r.json();
+    return (d.files&&d.files.length)?d.files[0]:null;
+}
+async function subirCopiaADrive(){
+    if(!D.length){toast('No hay datos para subir',true);return;}
+    var clave=prompt('Introduce la clave para subir la copia a Drive:');
+    if(clave===null)return;
+    if(clave.trim()!==CLAVE_SUBIDA_DRIVE){toast('Clave incorrecta',true);return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
+    if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
+    if(!tokenDriveValido()){
+        try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+    }
+    toast('Subiendo copia a Drive...');
+    try{
+        var existente;
+        try{existente=await buscarArchivoBackupDrive();}catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
+        var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
+        var contenido=JSON.stringify(copia);
+        var rSubida=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
+        if(!rSubida.ok){var errTxt=await rSubida.text();throw new Error('Drive respondio con error '+rSubida.status+': '+errTxt.slice(0,200));}
+        toast('Copia subida a Drive correctamente ('+D.length+' personas)');
+    }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
+}
+async function restaurarDesdeDrive(){
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
+    if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
+    if(!tokenDriveValido()){
+        try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+    }
+    toast('Buscando la copia en Drive...');
+    try{
+        var archivo;
+        try{archivo=await buscarArchivoBackupDrive();}catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
+        if(!archivo){toast('Todavia no hay ninguna copia subida a Drive ('+DRIVE_BACKUP_FILENAME+')',true);return;}
+        var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (codigo '+rContenido.status+')');
+        var texto=await rContenido.text();
+        restaurarDesdeJSONTexto(texto);
+    }catch(err){toast('No se pudo restaurar desde Drive: '+err.message,true);}
 }
 document.getElementById('fi').addEventListener('change',function(e){handleFile(e.target.files[0]);});
 document.getElementById('fiFotos').addEventListener('change',function(e){importarFotosCarpeta(e.target.files);this.value='';});
@@ -1589,6 +1658,8 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raiz con los documentos por persona</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la ultima copia subida a Drive y la carga aqui</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
       <div class="herr-section">Calidad de los datos</div>
       <button class="herr-item" onclick="cerrarHerramientas();mostrarInconsistencias()"><div class="herr-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="herr-text"><div class="herr-title">Comprobar consistencia</div><div class="herr-desc">Detecta cónyuges sin vincular, géneros y edades incoherentes</div></div></button>
