@@ -30,6 +30,17 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .search-box input:focus{border-color:var(--accent)}
 .search-box i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
 .hero-btns{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.search-row{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px}
+.search-row .search-box{margin:0;flex:1;max-width:460px}
+.hero-icon-btn{width:44px;height:44px;border-radius:14px;border:2px solid var(--border);background:var(--card);color:var(--muted);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.hero-icon-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+.herr-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-radius:12px;padding:9px 8px;cursor:pointer;transition:background .15s;font-family:'Lato',sans-serif}
+.herr-item:hover{background:rgba(196,101,58,.06)}
+.herr-icon{width:36px;height:36px;border-radius:10px;background:rgba(196,101,58,.08);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.herr-title{font-weight:700;font-size:13px;color:var(--text)}
+.herr-desc{font-size:11px;color:var(--muted);margin-top:1px;line-height:1.35}
+.herr-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 4px 4px;padding-top:12px;border-top:1px solid var(--border)}
+.herr-section:first-child{margin-top:0;padding-top:0;border-top:0}
 .stats{display:flex;justify-content:center;gap:24px;margin-top:16px;flex-wrap:wrap}
 .stat{text-align:center}.stat-num{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:var(--accent)}.stat-label{font-size:10px;color:var(--muted);font-weight:700}
 .ri{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .15s}
@@ -78,6 +89,12 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .iz p{color:var(--muted);font-size:13px;margin-bottom:8px}
 .pb{width:100%;height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0}
 .pf{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;width:0%}
+.inc-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.inc-row:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.inc-icon{width:28px;height:28px;border-radius:50%;background:rgba(196,101,58,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px}
+.inc-msg{flex:1;font-size:12px;line-height:1.5;color:var(--text)}
+.inc-tag{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:2px}
+.inc-actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
 .toast-c{position:fixed;top:12px;right:12px;z-index:9999}
 .toast{padding:10px 16px;border-radius:12px;background:var(--card);border:2px solid var(--green);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.1);margin-bottom:6px;animation:tin .3s ease,tout .3s ease 2.5s forwards}
 .toast.err{border-color:var(--accent)}
@@ -207,31 +224,17 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="hero">
 <h1>Libro de los Ancestros</h1>
 <p>Tu arbol genealogico familiar</p>
+<div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
-<div class="hero-btns">
-<button class="btn" style="background:var(--accent);color:#fff" onclick="impCSV()"><i class="fa-solid fa-file-import"></i> Importar CSV</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="mostrarRamasIncompletas()"><i class="fa-solid fa-list-check"></i> Ramas incompletas</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="document.getElementById('fiFotos').click()"><i class="fa-solid fa-images"></i> Importar fotos (carpeta)</button>
-<input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Documentos (Google Drive)</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="exportarCopia()"><i class="fa-solid fa-download"></i> Guardar copia</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="document.getElementById('fiCopia').click()"><i class="fa-solid fa-upload"></i> Restaurar copia</button>
-<input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="confirmLimpiar()"><i class="fa-solid fa-trash-can"></i> Limpiar Cache</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="marcarFallecidosMayores100()"><i class="fa-solid fa-skull"></i> Marcar fallecidos +100 años</button>
-<button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border)" onclick="calcularAnosAproximados()"><i class="fa-solid fa-calculator"></i> Calcular años aproximados</button>
+<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas"><i class="fa-solid fa-toolbox"></i></button>
 </div>
+<div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
 <div class="stats" id="sb"></div>
 </div>
 <div id="rl"></div>
-<div style="text-align:center;padding:40px 20px">
-<div class="iz" onclick="impCSV()">
-<i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--accent);display:block;margin-bottom:10px"></i>
-<p>Arrastra tu archivo CSV aqui o pulsa para seleccionarlo</p>
 <input type="file" id="fi" accept=".csv,.txt" style="display:none">
-<div class="pb" id="pb" style="display:none"><div class="pf" id="pf"></div></div>
-</div>
-</div>
+<input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
+<input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
 </div>
 <div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
 <div class="view" id="vFic"><div class="ficha" id="fco"></div></div>
@@ -374,6 +377,8 @@ function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
 function sv(v){['bus','arb','fic','inf'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';}
+function mostrarHerramientas(){document.getElementById('modalHerramientas').style.display='flex';}
+function cerrarHerramientas(){document.getElementById('modalHerramientas').style.display='none';}
 function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}return null;}
 function ordenarIdsPorEdad(ids){
     return (ids||[]).slice().sort(function(a,b){
@@ -824,6 +829,168 @@ function crearDescendiente(id,parejaId){
     D.push(nuevo);bIdx(D);
     sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
 }
+function mostrarRamasIncompletas(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var sinPadres=D.filter(function(p){return !p.PADRE&&!p.MADRE;});
+    sv('bus');
+    document.getElementById('si').value='';
+    sinPadres.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+    var h='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px 0">'+sinPadres.length+' persona(s) sin padre ni madre registrados (posibles ramas por completar)</p>';
+    if(!sinPadres.length){
+        document.getElementById('rl').innerHTML=h;
+        return;
+    }
+    sinPadres.slice(0,200).forEach(function(p){
+        var al=isAl(p),y=p.APROX||p.NACA||'';
+        h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
+    });
+    if(sinPadres.length>200) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 200 de '+sinPadres.length+'.</p>';
+    document.getElementById('rl').innerHTML=h;
+}
+
+/* ===== COMPROBADOR DE CONSISTENCIA ===== */
+var EDAD_MIN_PROGENITOR=12;
+function detectarInconsistencias(){
+    var problemas=[];
+    D.forEach(function(p){
+        ['M1','M2'].forEach(function(campo){
+            var otroId=p[campo];
+            if(otroId&&PI[otroId]){
+                var otro=PI[otroId];
+                if(otro.M1!==p.ID&&otro.M2!==p.ID){
+                    problemas.push({
+                        icono:'fa-heart-crack',
+                        etiqueta:'Cónyuge sin vínculo recíproco',
+                        mensaje:esc(fn(p))+' tiene a '+esc(fn(otro))+' como cónyuge, pero '+esc(fn(otro))+' no tiene el vínculo de vuelta.',
+                        aplicar:function(){return aplicarFixConyugeReciproco(p.ID,campo);},
+                        verId:p.ID
+                    });
+                }
+            }
+        });
+        if(p.PADRE&&PI[p.PADRE]){
+            var padre=PI[p.PADRE];
+            if(padre.SEXO&&padre.SEXO!=='Hombre'){
+                problemas.push({
+                    icono:'fa-venus-mars',
+                    etiqueta:'Posible problema de género',
+                    mensaje:esc(fn(padre))+' figura como padre de '+esc(fn(p))+', pero su sexo registrado es "'+esc(padre.SEXO)+'".',
+                    aplicar:function(){return aplicarFixGenero(p.PADRE,'Hombre');},
+                    verId:p.PADRE
+                });
+            }
+        }
+        if(p.MADRE&&PI[p.MADRE]){
+            var madre=PI[p.MADRE];
+            if(madre.SEXO&&madre.SEXO!=='Mujer'){
+                problemas.push({
+                    icono:'fa-venus-mars',
+                    etiqueta:'Posible problema de género',
+                    mensaje:esc(fn(madre))+' figura como madre de '+esc(fn(p))+', pero su sexo registrado es "'+esc(madre.SEXO)+'".',
+                    aplicar:function(){return aplicarFixGenero(p.MADRE,'Mujer');},
+                    verId:p.MADRE
+                });
+            }
+        }
+        var yHijo=getYear(p);
+        if(yHijo!==null){
+            [['PADRE','padre'],['MADRE','madre']].forEach(function(par){
+                var campo=par[0],rel=par[1];
+                var prog=p[campo]&&PI[p[campo]];
+                if(prog){
+                    var yProg=getYear(prog);
+                    if(yProg!==null){
+                        var diff=yHijo-yProg;
+                        if(diff<EDAD_MIN_PROGENITOR){
+                            var msg;
+                            if(diff<0) msg=esc(fn(prog))+' ('+yProg+') nace despues que '+esc(fn(p))+' ('+yHijo+'), pero figura como su '+rel+'.';
+                            else msg=esc(fn(prog))+' ('+yProg+') tendria solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.';
+                            problemas.push({
+                                icono:'fa-calendar-xmark',
+                                etiqueta:'Edad incoherente entre padres e hijos',
+                                mensaje:msg,
+                                aplicar:function(){return aplicarFixEdadDesvincular(p.ID,campo);},
+                                verId:p.ID
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    });
+    return problemas;
+}
+/* Las funciones "aplicar*" solo mutan los datos en memoria, sin guardar ni refrescar la interfaz,
+   para poder encadenar varias correcciones y guardar una sola vez (botón "Solucionar todas"). */
+function aplicarFixConyugeReciproco(id,campo){
+    var p=PI[id];if(!p)return false;
+    var otroId=p[campo],otro=PI[otroId];
+    if(!otro)return false;
+    if(!otro.M1)otro.M1=id;
+    else if(!otro.M2)otro.M2=id;
+    else{toast(fn(otro)+' ya tiene dos cónyuges registrados; revisalo manualmente',true);return false;}
+    return true;
+}
+function aplicarFixGenero(id,sexoCorrecto){
+    var p=PI[id];if(!p)return false;
+    p.SEXO=sexoCorrecto;
+    return true;
+}
+function aplicarFixEdadDesvincular(id,campo){
+    var p=PI[id];if(!p)return false;
+    p[campo]='';
+    return true;
+}
+function guardarTrasCorreccion(mensaje){
+    bIdx(D);
+    sAll(D).then(function(){
+        rStats();
+        if(cid&&!editMode&&document.getElementById('vFic').classList.contains('active'))rFic(cid);
+        toast(mensaje||'Corrección aplicada');
+        mostrarInconsistencias();
+    }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+function solucionarInconsistencia(idx){
+    var problemas=window._inconsistenciasActuales||[];
+    var pr=problemas[idx];
+    if(!pr)return;
+    if(pr.aplicar())guardarTrasCorreccion();
+}
+function mostrarInconsistencias(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var problemas=detectarInconsistencias();
+    window._inconsistenciasActuales=problemas;
+    var lista=document.getElementById('listaInconsistencias');
+    var resumen=document.getElementById('resumenInconsistencias');
+    var btnTodas=document.getElementById('btnSolucionarTodas');
+    if(!problemas.length){
+        resumen.textContent='Sin inconsistencias detectadas';
+        lista.innerHTML='<p style="text-align:center;color:var(--green);padding:24px 10px;font-weight:700"><i class="fa-solid fa-circle-check" style="display:block;font-size:24px;margin-bottom:8px"></i>No se detectaron inconsistencias</p>';
+        btnTodas.style.display='none';
+    }else{
+        resumen.textContent=problemas.length+' inconsistencia(s) detectada(s)';
+        btnTodas.style.display='inline-flex';
+        lista.innerHTML=problemas.map(function(pr,idx){
+            return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+pr.icono+'"></i></div>'+
+                '<div class="inc-msg"><span class="inc-tag">'+esc(pr.etiqueta)+'</span><br>'+pr.mensaje+
+                '<div class="inc-actions">'+
+                '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="solucionarInconsistencia('+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>'+
+                '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="cerrarInconsistencias();selP(\''+safeId(pr.verId)+'\')">Ver ficha</button>'+
+                '</div></div></div>';
+        }).join('');
+    }
+    document.getElementById('modalInconsistencias').style.display='flex';
+}
+function cerrarInconsistencias(){document.getElementById('modalInconsistencias').style.display='none';}
+function solucionarTodasInconsistencias(){
+    var problemas=window._inconsistenciasActuales||detectarInconsistencias();
+    if(!problemas.length)return;
+    if(!confirm('Se aplicaran automaticamente '+problemas.length+' correccion(es): se completaran vinculos de cónyuge, se ajustara el sexo segun el rol de padre/madre y se desvincularan las relaciones padre-hijo con edades incoherentes. ¿Continuar?'))return;
+    var aplicadas=0;
+    problemas.forEach(function(pr){if(pr.aplicar())aplicadas++;});
+    if(aplicadas)guardarTrasCorreccion(aplicadas+' correccion(es) aplicada(s)');
+    else toast('No se pudo aplicar ninguna corrección automáticamente',true);
+}
 function drawPedigreeLines(){
     var svg=document.getElementById("pedigree-svg");
     var container=document.getElementById("pedigree-container");
@@ -1213,8 +1380,6 @@ function restaurarCopia(archivo){
     };
     lector.readAsText(archivo,'utf-8');
 }
-var dropZone=document.querySelector('.iz');
-if(dropZone){dropZone.addEventListener('dragover',function(e){e.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(196,101,58,.06)';});dropZone.addEventListener('dragleave',function(){this.style.borderColor='var(--border)';this.style.background='';});dropZone.addEventListener('drop',function(e){e.preventDefault();this.style.borderColor='var(--border)';this.style.background='';if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});}
 document.getElementById('fi').addEventListener('change',function(e){handleFile(e.target.files[0]);});
 document.getElementById('fiFotos').addEventListener('change',function(e){importarFotosCarpeta(e.target.files);this.value='';});
 document.getElementById('fiCopia').addEventListener('change',function(e){restaurarCopia(e.target.files[0]);this.value='';});
@@ -1338,6 +1503,40 @@ document.addEventListener('DOMContentLoaded',function(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 id="modalRelacionTitulo" style="font-family:'Cinzel',serif;font-size:17px">Elegir persona</h2><button class="ef-nbtn" onclick="cerrarSelectorRelacion()">×</button></div>
     <input id="buscarConyuge" class="ef-input" placeholder="Buscar por nombre o ID" oninput="filtrarRelacion()" autocomplete="off">
     <div id="listaConyuges" style="overflow:auto;margin-top:12px;padding-right:2px"></div>
+  </div>
+</div>
+<div id="modalHerramientas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+      <h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas</h2>
+      <button class="ef-nbtn" onclick="cerrarHerramientas()">×</button>
+    </div>
+    <div style="overflow:auto;margin-top:6px;padding-right:2px">
+      <div class="herr-section">Datos</div>
+      <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta)</div><div class="herr-desc">Asigna fotos a personas segun el nombre del archivo (ID)</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raiz con los documentos por persona</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
+      <div class="herr-section">Calidad de los datos</div>
+      <button class="herr-item" onclick="cerrarHerramientas();mostrarInconsistencias()"><div class="herr-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="herr-text"><div class="herr-title">Comprobar consistencia</div><div class="herr-desc">Detecta cónyuges sin vincular, géneros y edades incoherentes</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();mostrarRamasIncompletas()"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Ramas incompletas</div><div class="herr-desc">Lista personas sin padre ni madre registrados</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();calcularAnosAproximados()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Calcular años aproximados</div><div class="herr-desc">Estima el año de nacimiento a partir de familiares cercanos</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();marcarFallecidosMayores100()"><div class="herr-icon"><i class="fa-solid fa-skull"></i></div><div class="herr-text"><div class="herr-title">Marcar fallecidos +100 años</div><div class="herr-desc">Marca como fallecidas a las personas vivas con mas de 100 años</div></div></button>
+    </div>
+  </div>
+</div>
+<div id="modalInconsistencias" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:560px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+      <div><h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent)"></i> Comprobar consistencia</h2><p id="resumenInconsistencias" style="font-size:11px;color:var(--muted);margin-top:2px"></p></div>
+      <button class="ef-nbtn" onclick="cerrarInconsistencias()">×</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin:8px 0 4px">
+      <button id="btnSolucionarTodas" class="ef-btn" style="display:none" onclick="solucionarTodasInconsistencias()"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar todas</button>
+    </div>
+    <div id="listaInconsistencias" style="overflow:auto;margin-top:6px;padding-right:2px"></div>
   </div>
 </div>
 </body>
