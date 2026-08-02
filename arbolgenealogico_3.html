@@ -159,7 +159,30 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .print-person{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);font-size:12px}
 .print-person .pn-name{font-weight:700;font-size:13px}
 .print-person .pn-row{margin-top:2px;color:var(--muted)}
+.pd-tree-wrap{overflow-x:visible;padding:10px 0 30px}
+.pd-tree,.pd-tree ul{list-style:none;margin:0;padding:0;position:relative;display:table}
+.pd-tree{margin:0 auto;text-align:center}
+.pd-tree ul{width:100%}
+.pd-tree li{display:table-cell;padding:22px 6px 0;vertical-align:top;position:relative}
+.pd-tree li:before{content:"";position:absolute;top:0;left:0;right:0;border-top:1.5px solid #b0a692}
+.pd-tree li:first-child:before{left:50%}
+.pd-tree li:last-child:before{right:50%}
+.pd-tree ul:before,.pd-tree li:before{border-left:1.5px solid #b0a692}
+.pd-tree ul:before{content:"";position:absolute;top:-22px;left:50%;height:22px}
+.pd-tree>li{padding-top:0}
+.pd-tree>li:before{display:none;border:none}
+.pd-tree li:only-child{padding-top:0}
+.pd-tree li:only-child:before{display:none}
+.pd-couple{display:inline-flex;gap:4px}
+.pd-card{width:100px;min-height:76px;border:1.5px solid #4a4038;border-radius:7px;padding:5px 4px;text-align:center;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Lato',sans-serif;page-break-inside:avoid}
+.pd-card.spouse{border-style:dashed;border-color:#9c8f7a}
+.pd-photo-box{width:32px;height:32px;border-radius:50%;object-fit:cover;margin-bottom:3px;background:#e8e0d2}
+.pd-initial{width:32px;height:32px;border-radius:50%;background:#e8e0d2;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;margin-bottom:3px;color:#5a5040}
+.pd-nombre{font-weight:700;font-size:8.5px;line-height:1.2;word-break:break-word}
+.pd-anio{font-size:7.5px;color:#8a7e6e;margin-top:1px}
+.pd-sosa{font-size:7px;color:#b8ac9a;margin-top:1px}
 @media print{
+  @page{size:landscape}
   body>*:not(.print-area){display:none!important}
   .print-area{display:block!important}
   body{background:#fff}
@@ -321,6 +344,23 @@ async function mostrarDocumentos(id){
 async function autorizarDocumentos(id){
     try{await conectarGoogleDrive();mostrarDocumentos(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
 }
+async function abrirCarpetaEnDrive(id){
+    if(!driveRootFolderId){toast('Configura primero la carpeta raiz de Google Drive',true);return;}
+    if(!tokenDriveValido()){
+        try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+    }
+    try{
+        var q="'"+driveRootFolderId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+        var d=await r.json();
+        if(d.files&&d.files.length){
+            window.open('https://drive.google.com/drive/folders/'+d.files[0].id,'_blank');
+        }else{
+            window.open('https://drive.google.com/drive/folders/'+driveRootFolderId,'_blank');
+            toast('Aun no existe una carpeta con el ID '+id+'. Creala dentro de la carpeta raiz con ese nombre exacto para poder subir documentos.',true);
+        }
+    }catch(err){toast('Error al abrir Google Drive: '+err.message,true);}
+}
 function bIdx(d){PI={};HD={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }});}
 function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE, r=[];D.forEach(function(x){if(x.ID===id) return;var match = false;if(pa && ma) { match = (x.PADRE === pa && x.MADRE === ma);} else if(pa && !ma) { match = (x.PADRE === pa && !x.MADRE);} else if(!pa && ma) { match = (!x.PADRE && x.MADRE === ma);}if(match) r.push(x);});return r;}
 function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
@@ -335,6 +375,15 @@ function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').repla
 function sv(v){['bus','arb','fic','inf'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';}
 function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}return null;}
+function ordenarIdsPorEdad(ids){
+    return (ids||[]).slice().sort(function(a,b){
+        var ya=getYear(PI[a]),yb=getYear(PI[b]);
+        if(ya===null&&yb===null)return 0;
+        if(ya===null)return 1;
+        if(yb===null)return -1;
+        return ya-yb;
+    });
+}
 function marcarFallecidosMayores100(){
     if(!D.length){toast('No hay datos cargados',true);return;}
     var anoActual=new Date().getFullYear(),candidatos=[];
@@ -354,31 +403,64 @@ function marcarFallecidosMayores100(){
         toast(candidatos.length+' persona(s) marcada(s) como fallecidas');
     }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
+function relacionadosMismaGeneracion(p){
+    var r=gHerm(p.ID).slice();
+    if(p.M1&&PI[p.M1])r.push(PI[p.M1]);
+    if(p.M2&&PI[p.M2])r.push(PI[p.M2]);
+    if(p.M1&&PI[p.M1])r=r.concat(gHerm(p.M1));
+    if(p.M2&&PI[p.M2])r=r.concat(gHerm(p.M2));
+    var tios=[];
+    if(p.PADRE)tios=tios.concat(gHerm(p.PADRE));
+    if(p.MADRE)tios=tios.concat(gHerm(p.MADRE));
+    tios.forEach(function(t){(HD[t.ID]||[]).forEach(function(pid){if(PI[pid])r.push(PI[pid]);});});
+    return r;
+}
+function relacionadosGeneracionMayor(p){
+    var r22=[],r44=[];
+    if(p.PADRE&&PI[p.PADRE])r22.push(PI[p.PADRE]);
+    if(p.MADRE&&PI[p.MADRE])r22.push(PI[p.MADRE]);
+    if(p.PADRE)r22=r22.concat(gHerm(p.PADRE));
+    if(p.MADRE)r22=r22.concat(gHerm(p.MADRE));
+    [p.M1,p.M2].forEach(function(mid){
+        if(mid&&PI[mid]){var c=PI[mid];if(c.PADRE&&PI[c.PADRE])r22.push(PI[c.PADRE]);if(c.MADRE&&PI[c.MADRE])r22.push(PI[c.MADRE]);}
+    });
+    var padre=p.PADRE?PI[p.PADRE]:null,madre=p.MADRE?PI[p.MADRE]:null;
+    [padre,madre].forEach(function(prog){if(prog){if(prog.PADRE&&PI[prog.PADRE])r44.push(PI[prog.PADRE]);if(prog.MADRE&&PI[prog.MADRE])r44.push(PI[prog.MADRE]);}});
+    return{r22:r22,r44:r44};
+}
+function relacionadosGeneracionMenor(p){
+    var hijos=(HD[p.ID]||[]).map(function(id){return PI[id];}).filter(Boolean);
+    var r22=hijos.slice(),r44=[];
+    gHerm(p.ID).forEach(function(h){(HD[h.ID]||[]).forEach(function(sid){if(PI[sid])r22.push(PI[sid]);});});
+    hijos.forEach(function(h){if(h.M1&&PI[h.M1])r22.push(PI[h.M1]);if(h.M2&&PI[h.M2])r22.push(PI[h.M2]);});
+    hijos.forEach(function(h){(HD[h.ID]||[]).forEach(function(nid){if(PI[nid])r44.push(PI[nid]);});});
+    return{r22:r22,r44:r44};
+}
+function estimarAnoPersona(p){
+    var mismos=relacionadosMismaGeneracion(p);
+    for(var i=0;i<mismos.length;i++){var y=getYear(mismos[i]);if(y!==null)return y;}
+    var mayor=relacionadosGeneracionMayor(p);
+    for(var i=0;i<mayor.r22.length;i++){var y=getYear(mayor.r22[i]);if(y!==null)return y+22;}
+    var menor=relacionadosGeneracionMenor(p);
+    for(var i=0;i<menor.r22.length;i++){var y=getYear(menor.r22[i]);if(y!==null)return y-22;}
+    for(var i=0;i<mayor.r44.length;i++){var y=getYear(mayor.r44[i]);if(y!==null)return y+44;}
+    for(var i=0;i<menor.r44.length;i++){var y=getYear(menor.r44[i]);if(y!==null)return y-44;}
+    return null;
+}
 function calcularAnosAproximados(){
     if(!D.length){toast('No hay datos cargados',true);return;}
     var pendientes=D.filter(function(p){return getYear(p)===null;});
     if(!pendientes.length){toast('Todas las personas ya tienen año de nacimiento o aproximado',true);return;}
     var calculados=0,cambio=true,vueltas=0;
-    while(cambio&&vueltas<8){
+    while(cambio&&vueltas<25){
         cambio=false;vueltas++;
         pendientes.forEach(function(p){
             if(getYear(p)!==null)return;
-            var estimado=null;
-            var hermanos=gHerm(p.ID);
-            for(var i=0;i<hermanos.length;i++){var y=getYear(hermanos[i]);if(y!==null){estimado=y;break;}}
-            if(estimado===null){
-                var padre=p.PADRE?PI[p.PADRE]:null,madre=p.MADRE?PI[p.MADRE]:null;
-                var yp=getYear(padre),ym=getYear(madre);
-                if(yp!==null)estimado=yp+22;else if(ym!==null)estimado=ym+22;
-            }
-            if(estimado===null){
-                var hijos=HD[p.ID]||[];
-                for(var j=0;j<hijos.length;j++){var yh=getYear(PI[hijos[j]]);if(yh!==null){estimado=yh-22;break;}}
-            }
+            var estimado=estimarAnoPersona(p);
             if(estimado!==null){p.APROX=String(estimado);calculados++;cambio=true;}
         });
     }
-    if(!calculados){toast('No se pudo estimar ningun año adicional (faltan datos de referencia en la familia)',true);return;}
+    if(!calculados){toast('No se pudo estimar ningun año: en toda la rama familiar (hermanos, conyuges, cuñados, primos, padres, tios, suegros, hijos, sobrinos, nietos, abuelos) no hay ni un solo dato de referencia',true);return;}
     bIdx(D);
     sAll(D).then(function(){
         rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
@@ -431,7 +513,7 @@ function rFicView(id){
         her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a></li>';});
         h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
     }
-    var hij=HD[id]||[];
+    var hij=ordenarIdsPorEdad(HD[id]||[]);
     h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
     if(hij.length){
         var hi='';
@@ -441,7 +523,7 @@ function rFicView(id){
         h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
     }
     h+='</div>';
-    h+='<div class="fs"><h3>Documentos</h3><div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div><button class="ef-btn ghost" style="margin-top:8px" onclick="mostrarDocumentos(\''+safeId(id)+'\')"><i class="fa-solid fa-rotate"></i> Actualizar</button></div>';
+    h+='<div class="fs"><h3>Documentos</h3><div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="ef-btn ghost" onclick="mostrarDocumentos(\''+safeId(id)+'\')"><i class="fa-solid fa-rotate"></i> Actualizar</button><button class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button></div></div>';
     if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
     document.getElementById('fco').innerHTML=h;
     cid=id;
@@ -515,7 +597,7 @@ function rFicEdit(id){
     h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 2</span><input class="ef-input" id="ef-ml2" value="'+escAttr(p.ML2)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 2</span><input class="ef-input" id="ef-mf2" value="'+escAttr(fFechaMatrimonio(p.MF2))+'" placeholder="dd/mm/aaaa"></div></div>';
     h+='</div>';
 
-    var descendientes=HD[id]||[];
+    var descendientes=ordenarIdsPorEdad(HD[id]||[]);
     h+='<div class="fs"><h3>Descendientes ('+descendientes.length+')</h3>';
     if(descendientes.length){
         descendientes.forEach(function(hid){var hp=PI[hid];if(hp)h+='<div class="fr" style="align-items:center;margin-bottom:8px"><span class="fv" style="flex:1">'+esc(fn(hp))+'</span><button type="button" class="ef-btn ghost" style="padding:4px 8px" onclick="editarDescendiente(\''+safeId(hid)+'\')">Editar</button></div>';});
@@ -871,13 +953,13 @@ function rTree(id){
     h+=`<svg id="pedigree-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></svg>`;
 
     // HIJOS - columna a la izquierda (se muestra siempre, incluso vacia, para que quede claro que no es un fallo)
-    var hijos=HD[id]||[];
+    var hijos=ordenarIdsPorEdad(HD[id]||[]);
     h+=`<div class="pedigree-col children-column" data-gen="-1" style="border-right:2px dashed var(--border);padding-right:14px">`;
     if(hijos.length){
         hijos.forEach(function(hid){
             h+=makeCard(PI[hid],"");
             // Nietos (hijos de los hijos)
-            var nietos=HD[hid]||[];
+            var nietos=ordenarIdsPorEdad(HD[hid]||[]);
             if(nietos.length){
                 h+=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-left:8px;border-left:1.5px solid var(--border)">`;
                 nietos.forEach(function(nid){
@@ -953,37 +1035,60 @@ function datosPersonaTexto(p){
     else partes.push('vivo');
     return partes.join(' · ');
 }
-function buildDescendentesHTML(id,gen,visitados){
-    if(visitados[id]||gen>10)return '';
+function pdAnioTexto(p){return p.NACA?String(p.NACA):(p.APROX?('~'+p.APROX):'');}
+function pdCardHTML(p,esposo,sosa){
+    if(!p)return'';
+    var y=pdAnioTexto(p);
+    var foto=p.FOTO?'<img class="pd-photo-box" src="'+escAttr(p.FOTO)+'">':'<div class="pd-initial">'+esc(ini(p))+'</div>';
+    return '<div class="pd-card'+(esposo?' spouse':'')+'">'+foto+'<div class="pd-nombre">'+esc(fn(p))+'</div>'+(y?'<div class="pd-anio">'+esc(y)+'</div>':'')+(sosa?'<div class="pd-sosa">Sosa '+sosa+'</div>':'')+'</div>';
+}
+function pdCoupleHTML(p,conyugeIds,sosa){
+    var h=pdCardHTML(p,false,sosa);
+    (conyugeIds||[]).forEach(function(cid){if(PI[cid])h+=pdCardHTML(PI[cid],true);});
+    return '<div class="pd-couple">'+h+'</div>';
+}
+var PD_MAX_GEN=6;
+function buildArbolDescendenteGrafico(id,visitados,gen){
+    if(!id||visitados[id]||gen>PD_MAX_GEN)return'';
     visitados[id]=true;
     var p=PI[id];if(!p)return'';
-    var h='<div class="print-node" style="margin-left:'+(gen*16)+'px"><div class="pn-name">'+esc(fn(p))+'</div><div class="pn-meta">'+esc(datosPersonaTexto(p))+'</div></div>';
-    var hijos=HD[id]||[];
-    hijos.forEach(function(hid){h+=buildDescendentesHTML(hid,gen+1,visitados);});
+    var conyuges=[p.M1,p.M2].filter(function(x){return x&&PI[x];});
+    var hijos=ordenarIdsPorEdad(HD[id]||[]);
+    var h='<li>'+pdCoupleHTML(p,conyuges);
+    if(hijos.length&&gen<PD_MAX_GEN){
+        h+='<ul>';
+        hijos.forEach(function(hid){h+=buildArbolDescendenteGrafico(hid,visitados,gen+1);});
+        h+='</ul>';
+    }
+    h+='</li>';
     return h;
 }
 function descargarArbolDescendente(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
-    var html='<div class="print-report"><h1>Arbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+buildDescendentesHTML(infId,0,{})+'</div>';
+    var html='<div class="print-report"><h1>Arbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
-function buildAscendentesHTML(id,gen,sosa,maxGen,visitados){
-    if(gen>maxGen||visitados[sosa])return{html:'',huboAlguno:false};
-    var p=id?PI[id]:null;
-    if(!p)return{html:'',huboAlguno:false};
+function buildArbolAscendenteGrafico(id,sosa,gen,visitados){
+    if(!id||visitados[sosa]||gen>PD_MAX_GEN)return'';
+    var p=PI[id];if(!p)return'';
     visitados[sosa]=true;
-    var h='<div class="print-node" style="margin-left:'+(gen*16)+'px"><div class="pn-name">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400">(Sosa '+sosa+')</span></div><div class="pn-meta">'+esc(datosPersonaTexto(p))+'</div></div>';
-    var padre=buildAscendentesHTML(p.PADRE,gen+1,sosa*2,maxGen,visitados);
-    var madre=buildAscendentesHTML(p.MADRE,gen+1,sosa*2+1,maxGen,visitados);
-    return{html:h+padre.html+madre.html,huboAlguno:true};
+    var h='<li>'+pdCoupleHTML(p,[],sosa);
+    var tienePadres=(p.PADRE&&PI[p.PADRE])||(p.MADRE&&PI[p.MADRE]);
+    if(tienePadres&&gen<PD_MAX_GEN){
+        h+='<ul>';
+        h+=buildArbolAscendenteGrafico(p.PADRE,sosa*2,gen+1,visitados);
+        h+=buildArbolAscendenteGrafico(p.MADRE,sosa*2+1,gen+1,visitados);
+        h+='</ul>';
+    }
+    h+='</li>';
+    return h;
 }
 function descargarArbolAscendente(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
-    var r=buildAscendentesHTML(infId,0,1,7,{});
-    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · Numeracion Sosa-Stradonitz</div>'+r.html+'</div>';
+    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' - Numeracion Sosa-Stradonitz</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolAscendenteGrafico(infId,1,0,{})+'</ul></div></div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
