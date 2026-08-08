@@ -275,7 +275,9 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    2) Añade aqui abajo tu Client ID, sustituyendo el texto de ejemplo.
    3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
-/* Carpeta raiz de Google Drive por defecto (la carpeta "ARBOL" con las subcarpetas por ID de persona y la subcarpeta "FOTO").
+/* Carpeta raiz de Google Drive por defecto. Debe contener dos subcarpetas:
+   - "FOTO": con una imagen por persona, nombrada exactamente con su ID.
+   - "DOCUMENTOS": con una subcarpeta por cada ID de persona, dentro de la cual van sus documentos.
    Si el usuario elige otra carpeta desde "Documentos (Google Drive)", esa eleccion se guarda en su navegador y tiene prioridad sobre este valor. */
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1NyKUc8u3nk80QBtc5agweQzvnH1RCQWr';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
@@ -322,26 +324,40 @@ async function elegirCarpetaDocumentos(){
     if(!tokenDriveValido()){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
     }
-    var entrada=prompt('Pega el enlace (o el ID) de la carpeta de Google Drive que contiene las subcarpetas por ID de persona:',driveRootFolderId||'');
+    var entrada=prompt('Pega el enlace (o el ID) de la carpeta de Google Drive que contiene las subcarpetas FOTO y DOCUMENTOS:',driveRootFolderId||'');
     if(!entrada)return;
     var folderId=extraerIdCarpetaDrive(entrada);
     if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
     driveRootFolderId=folderId;
+    driveDocumentosFolderId=null;
     try{await guardarCarpetaDocumentos();toast('Carpeta raiz de Google Drive configurada');if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuracion: '+err.message,true);}
+}
+var driveDocumentosFolderId=null;
+async function obtenerCarpetaDocumentosId(){
+    if(driveDocumentosFolderId)return driveDocumentosFolderId;
+    var q="'"+driveRootFolderId+"' in parents and name='DOCUMENTOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+    if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+    var d=await r.json();
+    if(d.files&&d.files.length){driveDocumentosFolderId=d.files[0].id;return driveDocumentosFolderId;}
+    return null;
 }
 async function mostrarDocumentos(id){
     var lista=document.getElementById('docsLista');if(!lista)return;
     if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el codigo (variable GOOGLE_CLIENT_ID).</p>';return;}
-    if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raiz de Google Drive que contiene las subcarpetas por ID.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
+    if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raiz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
     if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conectate con Google Drive para ver los documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
     lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>';
     try{
-        var qCarpeta="'"+driveRootFolderId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        var carpetaDocsId;
+        try{carpetaDocsId=await obtenerCarpetaDocumentosId();}catch(e){if(e.message==='sesion_caducada'){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}throw e;}
+        if(!carpetaDocsId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raiz configurada.</p>';return;}
+        var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
         var dC=await rC.json();
         if(cid!==id)return;
-        if(!dC.files||!dC.files.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No existe una carpeta de Drive con el ID '+esc(String(id))+' dentro de la carpeta raiz.</p>';return;}
+        if(!dC.files||!dC.files.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No existe una carpeta de Drive con el ID '+esc(String(id))+' dentro de la carpeta DOCUMENTOS.</p>';return;}
         var folderId=dC.files[0].id;
         var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         var dF=await rF.json();
@@ -360,14 +376,16 @@ async function abrirCarpetaEnDrive(id){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
     }
     try{
-        var q="'"+driveRootFolderId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        var carpetaDocsId=await obtenerCarpetaDocumentosId();
+        if(!carpetaDocsId){toast('No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raiz configurada',true);return;}
+        var q="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         var d=await r.json();
         if(d.files&&d.files.length){
             window.open('https://drive.google.com/drive/folders/'+d.files[0].id,'_blank');
         }else{
-            window.open('https://drive.google.com/drive/folders/'+driveRootFolderId,'_blank');
-            toast('Aun no existe una carpeta con el ID '+id+'. Creala dentro de la carpeta raiz con ese nombre exacto para poder subir documentos.',true);
+            window.open('https://drive.google.com/drive/folders/'+carpetaDocsId,'_blank');
+            toast('Aun no existe una carpeta con el ID '+id+'. Creala dentro de la carpeta DOCUMENTOS con ese nombre exacto para poder subir documentos.',true);
         }
     }catch(err){toast('Error al abrir Google Drive: '+err.message,true);}
 }
