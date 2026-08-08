@@ -198,6 +198,30 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pd-nombre{font-weight:700;font-size:8.5px;line-height:1.2;word-break:break-word}
 .pd-anio{font-size:7.5px;color:#8a7e6e;margin-top:1px}
 .pd-sosa{font-size:7px;color:#b8ac9a;margin-top:1px}
+/* ===== ARBOL ASCENDENTE ESTILO BRACKET (poster simetrico, como un cuadro de torneo) =====
+   Estructura recursiva con flexbox: cada .abr-node = [hijos apilados][tronco][tarjeta].
+   El centrado vertical de cada tarjeta respecto a sus dos ascendientes lo resuelve el propio
+   flexbox (align-items:center), sin necesidad de medir alturas por JS ni de trucos fragiles. */
+.abr-poster{display:flex;flex-direction:column;align-items:center;padding:16px 0 34px}
+.abr-halves{display:flex;align-items:flex-end;gap:14px}
+.abr-side{display:flex;align-items:center}
+.abr-mirror{transform:scaleX(-1)}
+.abr-mirror .abr-card{transform:scaleX(-1)}
+.abr-node{display:flex;align-items:center}
+.abr-children{display:flex;flex-direction:column;justify-content:center;gap:7px}
+.abr-child{position:relative}
+.abr-child:after{content:'';position:absolute;top:50%;right:-13px;width:13px;border-top:1.5px solid #b0a692}
+.abr-trunk{width:13px;align-self:stretch;border-left:1.5px solid #b0a692;margin:0 1px;flex-shrink:0}
+.abr-card{position:relative;width:78px;min-height:54px;border:1.5px solid #4a4038;border-radius:6px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 3px;text-align:center;font-family:'Lato',sans-serif;flex-shrink:0}
+.abr-card:before{content:'';position:absolute;top:50%;left:-13px;width:13px;border-top:1.5px solid #b0a692}
+.abr-card.empty{border-style:dashed;border-color:#d8d0c0;background:#fbf9f5}
+.abr-card .pd-photo-box,.abr-card .pd-initial{width:24px;height:24px;margin-bottom:2px}
+.abr-card .pd-nombre{font-size:8px}
+.abr-card .pd-anio{font-size:7px}
+.abr-card.thin{flex-direction:row;justify-content:space-between;align-items:center;width:150px;min-height:0;height:18px;border-radius:3px;padding:2px 8px;gap:6px}
+.abr-thin-name{font-size:7.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.abr-thin-year{font-size:7px;color:#8a7e6e;flex-shrink:0}
+.abr-drop{width:1.5px;height:20px;background:#b0a692;margin:0 auto}
 @media print{
   @page{size:landscape}
   body>*:not(.print-area){display:none!important}
@@ -263,6 +287,11 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
 <p>Informe detallado con los datos completos de cada antepasado.</p>
 <button class="ef-btn" onclick="descargarInformeAscendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-file-lines"></i> Informe de descendientes</h3>
+<p>Informe detallado con los datos completos de cada descendiente, generacion por generacion.</p>
+<button class="ef-btn" onclick="descargarInformeDescendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 </div>
 </div>
@@ -539,6 +568,13 @@ function rFicView(id){
     h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Conyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Conyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
     var her=gHerm(id);
     if(her.length){
+        her=her.slice().sort(function(a,b){
+            var ya=getYear(a),yb=getYear(b);
+            if(ya===null&&yb===null)return 0;
+            if(ya===null)return 1;
+            if(yb===null)return -1;
+            return ya-yb;
+        });
         var hh='';
         her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a></li>';});
         h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
@@ -1459,25 +1495,52 @@ function descargarArbolDescendente(){
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
-function buildArbolAscendenteGrafico(id,sosa,gen,visitados){
-    if(!id||visitados[sosa]||gen>PD_MAX_GEN)return'';
-    var p=PI[id];if(!p)return'';
-    visitados[sosa]=true;
-    var h='<li>'+pdCoupleHTML(p,[],sosa);
-    var tienePadres=(p.PADRE&&PI[p.PADRE])||(p.MADRE&&PI[p.MADRE]);
-    if(tienePadres&&gen<PD_MAX_GEN){
-        h+='<ul>';
-        h+=buildArbolAscendenteGrafico(p.PADRE,sosa*2,gen+1,visitados);
-        h+=buildArbolAscendenteGrafico(p.MADRE,sosa*2+1,gen+1,visitados);
-        h+='</ul>';
+var ASC_POSTER_GENS=6; /* 1=persona raiz, 2=padres, 3=abuelos ... 6=generacion mas antigua mostrada */
+function abrCardHTML(p,thin){
+    if(!p)return thin?'<div class="abr-card thin empty"></div>':'<div class="abr-card empty"></div>';
+    var y=pdAnioTexto(p);
+    if(thin){
+        return '<div class="abr-card thin"><span class="abr-thin-name">'+esc(fn(p))+'</span>'+(y?'<span class="abr-thin-year">'+esc(y)+'</span>':'')+'</div>';
     }
-    h+='</li>';
+    var foto=p.FOTO?'<img class="pd-photo-box" src="'+escAttr(p.FOTO)+'">':'<div class="pd-initial">'+esc(ini(p))+'</div>';
+    return '<div class="abr-card">'+foto+'<div class="pd-nombre">'+esc(fn(p))+'</div>'+(y?'<div class="pd-anio">'+esc(y)+'</div>':'')+'</div>';
+}
+/* Construye recursivamente un nodo del arbol ascendente ("bracket" tipo cuadro de torneo):
+   cada nodo es [sus dos ascendientes apilados][tronco][su propia tarjeta]. El propio flexbox
+   (align-items:center en .abr-node) centra la tarjeta respecto a sus ascendientes de forma
+   automatica y correcta, sea cual sea el tamaño de cada rama (sin medir nada por JS). */
+function abrBuildNode(id,gen){
+    var p=id?PI[id]:null;
+    var thin=gen>=ASC_POSTER_GENS-1;
+    var card=abrCardHTML(p,thin);
+    if(!p||gen>=ASC_POSTER_GENS)return card;
+    var tienePadres=(p.PADRE&&PI[p.PADRE])||(p.MADRE&&PI[p.MADRE]);
+    if(!tienePadres)return card;
+    var h='<div class="abr-node">';
+    h+='<div class="abr-children">';
+    h+='<div class="abr-child">'+abrBuildNode(p.PADRE,gen+1)+'</div>';
+    h+='<div class="abr-child">'+abrBuildNode(p.MADRE,gen+1)+'</div>';
+    h+='</div>';
+    h+='<div class="abr-trunk"></div>';
+    h+=card;
+    h+='</div>';
     return h;
 }
 function descargarArbolAscendente(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
-    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' - Numeracion Sosa-Stradonitz</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolAscendenteGrafico(infId,1,0,{})+'</ul></div></div>';
+    var tieneP=p.PADRE&&PI[p.PADRE],tieneM=p.MADRE&&PI[p.MADRE];
+    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    html+='<div class="abr-poster">';
+    if(tieneP||tieneM){
+        html+='<div class="abr-halves">';
+        html+='<div class="abr-side">'+(tieneP?abrBuildNode(p.PADRE,2):abrCardHTML(null,false))+'</div>';
+        html+='<div class="abr-side abr-mirror">'+(tieneM?abrBuildNode(p.MADRE,2):abrCardHTML(null,false))+'</div>';
+        html+='</div>';
+        html+='<div class="abr-drop"></div>';
+    }
+    html+='<div class="abr-root">'+pdCoupleHTML(p,[p.M1,p.M2].filter(function(x){return x&&PI[x];}))+'</div>';
+    html+='</div></div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
@@ -1496,6 +1559,8 @@ function descargarInformeAscendientes(){
     var p=PI[infId];
     var porGeneracion={};
     recopilarAscendientesInforme(infId,0,1,7,{},porGeneracion);
+    var sosaMap={};
+    Object.keys(porGeneracion).forEach(function(g){porGeneracion[g].forEach(function(item){sosaMap[item.sosa]=item.p;});});
     var html='<div class="print-report"><h1>Informe de ascendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
     Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
         html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
@@ -1503,9 +1568,51 @@ function descargarInformeAscendientes(){
             var pp=item.p;
             var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
             var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
-            html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+' <span style="font-weight:400;color:var(--muted)">(Sosa '+item.sosa+')</span></div>';
+            var relTxt='';
+            if(item.sosa>1){
+                var hijoDe=sosaMap[Math.floor(item.sosa/2)];
+                if(hijoDe)relTxt=(item.sosa%2===0?'Padre de ':'Madre de ')+fn(hijoDe);
+            }
+            html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+(relTxt?' <span style="font-weight:400;color:var(--muted)">('+esc(relTxt)+')</span>':'')+'</div>';
             html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
             html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+            if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
+            if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
+            if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
+            html+='</div>';
+        });
+    });
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+function recopilarDescendientesInforme(id,gen,maxGen,visitados,porGeneracion){
+    if(!id||gen>maxGen||visitados[id])return;
+    var p=PI[id];
+    if(!p)return;
+    visitados[id]=true;
+    if(!porGeneracion[gen])porGeneracion[gen]=[];
+    porGeneracion[gen].push(p);
+    var hijos=ordenarIdsPorEdad(HD[id]||[]);
+    hijos.forEach(function(hid){recopilarDescendientesInforme(hid,gen+1,maxGen,visitados,porGeneracion);});
+}
+function descargarInformeDescendientes(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var porGeneracion={};
+    recopilarDescendientesInforme(infId,0,PD_MAX_GEN,{},porGeneracion);
+    var html='<div class="print-report"><h1>Informe de descendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
+        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
+        porGeneracion[g].forEach(function(pp){
+            var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
+            var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
+            var padre=pp.PADRE&&PI[pp.PADRE]?fn(PI[pp.PADRE]):'';
+            var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
+            html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+'</div>';
+            html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
+            html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+            if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
             if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
             if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
             if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
