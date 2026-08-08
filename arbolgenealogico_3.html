@@ -713,6 +713,18 @@ function importarFotosCarpeta(fileList){
         }).catch(function(e){toast('Error al guardar las fotos: '+e.message,true);});
     });
 }
+async function listarTodosArchivosDrive(query,fields){
+    var archivos=[],pageToken=null;
+    do{
+        var url='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(query)+'&fields=nextPageToken,files('+fields+')&pageSize=1000&orderBy=name&spaces=drive'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+        var r=await fetch(url,{headers:{Authorization:'Bearer '+driveAccessToken}});
+        if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+        var d=await r.json();
+        archivos=archivos.concat(d.files||[]);
+        pageToken=d.nextPageToken||null;
+    }while(pageToken);
+    return archivos;
+}
 async function importarFotosDesdeDrive(){
     if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
     if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
@@ -728,9 +740,11 @@ async function importarFotosDesdeDrive(){
         var dC=await rC.json();
         if(!dC.files||!dC.files.length){toast('No existe una carpeta llamada "FOTO" dentro de la carpeta raiz configurada',true);return;}
         var folderId=dC.files[0].id;
-        var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,mimeType)&pageSize=1000&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-        var dF=await rF.json();
-        var archivos=(dF.files||[]).filter(function(f){return f.mimeType&&f.mimeType.indexOf('image/')===0;});
+        toast('Listando archivos de la carpeta FOTO...');
+        var todos;
+        try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');}
+        catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
+        var archivos=todos.filter(function(f){return f.mimeType&&f.mimeType.indexOf('image/')===0;});
         if(!archivos.length){toast('La carpeta FOTO no contiene imagenes',true);return;}
         toast('Descargando '+archivos.length+' foto(s) desde Drive...');
         var matched=0,unmatched=0;
@@ -747,6 +761,7 @@ async function importarFotosDesdeDrive(){
                 persona.FOTO=dataUrl;
                 matched++;
             }catch(e){unmatched++;}
+            if((i+1)%200===0)toast('Progreso: '+(i+1)+' de '+archivos.length+' foto(s) procesadas...');
         }
         if(!matched){toast('Ninguna foto de Drive coincidio con un ID existente. Comprueba que el nombre de cada archivo sea el ID exacto de la persona.',true);return;}
         bIdx(D);
