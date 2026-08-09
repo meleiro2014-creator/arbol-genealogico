@@ -2130,164 +2130,143 @@ function descargarArbolDescendente(){
     setTimeout(function(){window.print();},80);
 }
 /* ===== POSTER ASCENDENTE A3: PLANTILLA FIJA (SVG) =====
-   La geometria (posicion y tamaño de cada casilla y de cada linea) se calcula UNA SOLA VEZ,
-   de forma puramente recursiva sobre la ESTRUCTURA de 8 generaciones (no sobre los datos de
-   ninguna persona en concreto): cada casilla de la generacion mas antigua ocupa siempre el
-   mismo lugar fijo, y cada casilla "descendiente" de esa rama se centra exactamente entre
-   sus dos casillas ascendentes. El resultado es siempre la MISMA plantilla en forma de
-   abanico simetrico, exista o no la persona correspondiente en cada casilla: si falta el
-   dato, la casilla queda vacia pero no se elimina, no se desplaza y no se reorganiza nada.
-   El color de las lineas y las cajas es fijo (sepia); lo unico que el usuario puede elegir
-   es el color de FONDO del poster (variable independiente, --> ascPosterBg). */
-var ASC_PAGE_W=420, ASC_PAGE_H=297;               // A3 horizontal real, en milimetros
-/* Geometria recalibrada a partir de una medicion automatica (deteccion de contornos) del
-   modelo real Modelo_arbol.png (8000x5809px): se extrajeron las posiciones y tamaños reales
-   de cada columna de casillas y se convirtieron a mm sobre una pagina A3. El modelo real medido
-   mostraba 7 generaciones completas (persona + 6 niveles de ascendientes, con la generacion
-   mas antigua medida en 32 casillas por rama, repartida en 3 campos: apellidos/nombre/año).
-   A peticion del usuario se ha añadido una generacion mas (la 8ª): esa fila que antes eran
-   3 campos de UNA sola persona pasa a ser una unica casilla normal (nombre+apellidos+año,
-   igual que el resto de generaciones), y a su izquierda aparece una nueva generacion final
-   con 64 casillas simples por rama (el padre y la madre de cada una de esas 32 personas).
-   Como el modelo real no llegaba a esta 8ª generacion, su posicion y tamaño (ASC_DEPTH_DIMS[5]
-   y ASC_LEAF_W/ASC_LEAF_X) son una estimacion razonable, no una medicion; se pueden ajustar
-   a mano si no queda bien. Las coordenadas Y siguen siendo puramente recursivas (cada
-   ascendiente se centra entre sus dos hijos) para que la plantilla sea siempre simetrica,
-   haya o no datos. */
-var ASC_LEAF_GENS=6;                              // 6 duplicaciones: 1,2,4,8,16,32,64 cajas en la rama mas antigua
-var ASC_LEAF_COUNT=Math.pow(2,ASC_LEAF_GENS);     // 64
-var ASC_TITLE_H=22, ASC_FOOTER_H=8, ASC_FRAME_MARGIN=8;
-var ASC_LEAF_H=3.3, ASC_LEAF_TOP=15.18, ASC_LEAF_BOTTOM_MARGIN=15.18; // mm; alto de caja reducido para que quepan 64 filas
-var ASC_LINE_COLOR='#3D2C1E';                      // FIJO: no se modifica desde la interfaz
-var ASC_ROOT_X=198.0, ASC_ROOT_Y=280.05, ASC_ROOT_W=26.6, ASC_ROOT_H=14.0; // caja de la persona (abajo, centrada)
-// Dimensiones y posicion X (mm, lado paterno; el materno es el espejo) de cada generacion,
-// medidas directamente sobre el modelo real, de d=0 (generacion 2, junto a la raiz) a d=4
-// (generacion 6). d5 (generacion 7, la antigua fila-hoja de 3 campos) es una estimacion:
-// ocupa aproximadamente la zona donde antes estaba el campo del año.
+   VERSION 4 (fiel al modelo): abanico simetrico, raiz abajo al centro.
+   - La 7ª generacion (32 casillas finas por rama) marca las FILAS, repartidas por todo
+     el alto de la pagina.
+   - La 8ª generacion (la nueva) va EN LA MISMA FILA HORIZONTAL que su hijo/a de la 7ª:
+     el PADRE y la MADRE en dos casillas pegadas, una al lado de la otra, a la izquierda
+     de la casilla del hijo. Asi el modelo muestra sus 8 generaciones reales.
+   - Las generaciones 2 a 6 se centran recursivamente entre sus descendientes.
+   La plantilla es fija: si falta un dato, la casilla queda vacia pero nunca se desplaza. */
+var ASC_PAGE_W=420, ASC_PAGE_H=297;
+var ASC_ROWS=32;                                    // filas de la 7ª generacion por rama
+var ASC_THIN_H=5.0;                                 // casillas finas un poco mas altas: filas menos "separadas"
+var ASC_ROW_TOP=15.18, ASC_ROW_BOTTOM_MARGIN=15.18;
+var ASC_LINE_COLOR='#3D2C1E';
+var ASC_ROOT_X=198.0, ASC_ROOT_Y=280.05, ASC_ROOT_W=26.6, ASC_ROOT_H=14.0;
 var ASC_DEPTH_DIMS=[
-    {w:19.7,h:25.3,x:188.9},  // d0 = generacion 2 (padre/madre)
-    {w:20.3,h:24.6,x:175.1},  // d1 = generacion 3
-    {w:27.6,h:10.4,x:154.2},  // d2 = generacion 4
-    {w:21.8,h:10.3,x:142.3},  // d3 = generacion 5
-    {w:21.5,h:10.2,x:113.8},  // d4 = generacion 6
-    {w:32.0,h:6.2, x:74.0}    // d5 = generacion 7 (estimado, antes era la fila-hoja de 3 campos)
+{w:19.7,h:25.3,x:188.9},  // d0 = generacion 2 (padre/madre)
+{w:20.3,h:24.6,x:175.1},  // d1 = generacion 3
+{w:27.6,h:10.4,x:154.2},  // d2 = generacion 4
+{w:21.8,h:10.3,x:142.3},  // d3 = generacion 5
+{w:21.5,h:10.2,x:113.8},  // d4 = generacion 6
+{w:34.0,h:ASC_THIN_H,x:67.0}    // d5 = generacion 7 (marca la fila), ahora mas ancha
 ];
-// Generacion 8 (hoja nueva, d6 = ASC_LEAF_GENS): casilla simple (nombre+apellidos+año),
-// no dividida en campos. Posicion/tamaño estimados (el modelo real no llegaba tan lejos).
-var ASC_LEAF_W=20.0, ASC_LEAF_X=13.0;
+var ASC_GEN8_W=27.0, ASC_GEN8_PADRE_X=9.0;          // 8ª: casillas 35% mas largas; la pareja queda pegada a la 7ª
+var ASC_GEN8_MADRE_X=ASC_GEN8_PADRE_X+ASC_GEN8_W;   // = 29.0
 var ASC_BG_OPTIONS=[
-    {id:'blanco',label:'Blanco',hex:'#FFFFFF'},
-    {id:'marfil',label:'Marfil',hex:'#FFFFF2'},
-    {id:'beige',label:'Beige',hex:'#F3ECDD'},
-    {id:'crema',label:'Crema',hex:'#FDF6E3'},
-    {id:'gris',label:'Gris muy claro',hex:'#F1F1EF'}
+{id:'blanco',label:'Blanco',hex:'#FFFFFF'},
+{id:'marfil',label:'Marfil',hex:'#FFFFF2'},
+{id:'beige',label:'Beige',hex:'#F3ECDD'},
+{id:'crema',label:'Crema',hex:'#FDF6E3'},
+{id:'gris',label:'Gris muy claro',hex:'#F1F1EF'}
 ];
 var ascPosterBg=ASC_BG_OPTIONS[0].hex;
-
-/* Devuelve la geometria (x,w,h) de la caja de una generacion dada, para el lado paterno o el
-   materno (espejo exacto respecto al eje central de la pagina). */
-function ascGetBoxGeom(depth,esPadre){
-    var dims=(depth===ASC_LEAF_GENS)?{w:ASC_LEAF_W,h:ASC_LEAF_H,x:ASC_LEAF_X}:ASC_DEPTH_DIMS[depth];
-    var x=esPadre?dims.x:(ASC_PAGE_W-dims.x-dims.w);
-    return{x:x,w:dims.w,h:dims.h};
+function ascGetBoxGeom(depth,esPadre,par){
+var w,h,x;
+if(depth===6){w=ASC_GEN8_W;h=ASC_THIN_H;x=(par==='P')?ASC_GEN8_PADRE_X:ASC_GEN8_MADRE_X;}
+else{var d=ASC_DEPTH_DIMS[depth];w=d.w;h=d.h;x=d.x;}
+return{x:esPadre?x:(ASC_PAGE_W-x-w),w:w,h:h};
 }
-
 function fitFontSize(text,maxWidthMm,maxSize,minSize,charFactor){
-    charFactor=charFactor||0.56;
-    var len=Math.max(1,String(text||'').length);
-    var size=maxWidthMm/(len*charFactor);
-    return Math.max(minSize,Math.min(maxSize,size));
+charFactor=charFactor||0.56;
+var len=Math.max(1,String(text||'').length);
+var size=maxWidthMm/(len*charFactor);
+return Math.max(minSize,Math.min(maxSize,size));
 }
-
-/* La caja SIEMPRE se dibuja con la posicion y el tamaño fijos que le tocan; solo el TEXTO
-   se adapta (reduciendo su tamaño de letra) para que quepa dentro. La caja nunca cambia. */
 function ascBoxSVG(x,y,w,h,persona,thin){
-    var out='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.5" ry="0.5" fill="#fff" stroke="'+ASC_LINE_COLOR+'" stroke-width="'+(thin?0.22:0.3)+'"/>';
-    if(persona){
-        var nombre=esc(fn(persona).trim())||'?';
-        var anio=pdAnioTexto(persona);
-        var padX=w*0.07;
-        if(thin){
-            var anioW=anio?3.6:0;
-            var fsN=fitFontSize(nombre,w*0.9-padX*2-anioW,2.1,0.85);
-            out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2+fsN*0.32).toFixed(2)+'" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+nombre+'</text>';
-            if(anio)out+='<text x="'+(x+w-padX).toFixed(2)+'" y="'+(y+h/2+fsN*0.32).toFixed(2)+'" text-anchor="end" font-family="Lato,sans-serif" font-size="1.35" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
-        }else{
-            var fsN2=fitFontSize(nombre,w-2*padX,2.6,1.2);
-            out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2-0.4).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN2.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+nombre+'</text>';
-            if(anio)out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2+2.3).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.7" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
-        }
-    }
-    return out;
+var out='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.5" ry="0.5" fill="#fff" stroke="'+ASC_LINE_COLOR+'" stroke-width="'+(thin?0.25:0.3)+'"/>';
+if(persona){
+var nombreRaw=String(fn(persona)).trim()||'?';
+var anio=pdAnioTexto(persona);
+var padX=w*0.07;
+if(thin){
+/* Casillas finas (gens 4-8): DOS lineas. Linea 1 = nombre usando TODO el ancho
+   de la casilla; linea 2 = el año, que SIEMPRE se muestra. Si el nombre es mas
+   largo que la casilla, se trunca con "…" pero el año nunca se pierde. */
+var fsN=Math.max(1.3,Math.min(1.6,h*0.34));
+var avail=w-padX*2-0.5;
+var maxChars=Math.max(3,Math.floor(avail/(fsN*0.56)));
+var nom=nombreRaw;
+if(nom.length>maxChars)nom=nom.slice(0,maxChars-1)+'\u2026';
+out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2-0.3).toFixed(2)+'" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+esc(nom)+'</text>';
+if(anio)out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2+fsN+0.1).toFixed(2)+'" font-family="Lato,sans-serif" font-size="'+(fsN*0.8).toFixed(2)+'" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
+}else{
+/* Casillas grandes (raiz, padres, abuelos): nombre centrado y año debajo.
+   (Este bloque es el que se habia perdido y dejaba esas casillas en blanco.) */
+var fsN2=fitFontSize(nombreRaw,w-2*padX,2.6,1.2);
+out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2-0.4).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN2.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+esc(nombreRaw)+'</text>';
+if(anio)out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2+2.3).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.7" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
 }
-
-var ascLeafIndex=0;
-/* 64 posiciones repartidas simetricamente en el alto de la pagina (generacion mas antigua). */
-function ascLeafY(i){
-    var top=ASC_LEAF_TOP+ASC_LEAF_H/2, bottom=ASC_PAGE_H-ASC_LEAF_BOTTOM_MARGIN-ASC_LEAF_H/2;
-    var step=(bottom-top)/(ASC_LEAF_COUNT-1);
-    return top+i*step;
 }
-/* Recorre la relacion PADRE/MADRE asignando SIEMPRE la misma posicion (profundidad) a cada
-   generacion, exista o no la persona: si falta el dato, la rama entera sigue construyendose
-   vacia hasta la generacion mas antigua, para que la plantilla no pierda nunca su simetria. */
+return out;
+}
+var ascRowIndex=0;
+/* 32 filas repartidas en el alto de la pagina: las marca la 7ª generacion. */
+function ascRowY(i){
+var top=ASC_ROW_TOP+ASC_THIN_H/2, bottom=ASC_PAGE_H-ASC_ROW_BOTTOM_MARGIN-ASC_THIN_H/2;
+var step=(bottom-top)/(ASC_ROWS-1);
+return top+i*step;
+}
 function ascRecBuild(id,depth){
-    var p=id?PI[id]:null;
-    if(depth===ASC_LEAF_GENS){
-        var y=ascLeafY(ascLeafIndex);
-        ascLeafIndex++;
-        return{depth:depth,y:y,persona:p,children:null};
-    }
-    var padre=ascRecBuild(p&&p.PADRE?p.PADRE:null,depth+1);
-    var madre=ascRecBuild(p&&p.MADRE?p.MADRE:null,depth+1);
-    return{depth:depth,y:(padre.y+madre.y)/2,persona:p,children:[padre,madre]};
+var p=id?PI[id]:null;
+if(depth===5){
+/* La 7ª marca la fila; su padre y su madre (8ª) van pegados EN ESA MISMA FILA. */
+var y=ascRowY(ascRowIndex);ascRowIndex++;
+return{depth:5,y:y,persona:p,children:[
+{depth:6,y:y,par:'P',persona:(p&&p.PADRE)?PI[p.PADRE]:null,children:null},
+{depth:6,y:y,par:'M',persona:(p&&p.MADRE)?PI[p.MADRE]:null,children:null}]};
 }
-
+var padre=ascRecBuild(p&&p.PADRE?p.PADRE:null,depth+1);
+var madre=ascRecBuild(p&&p.MADRE?p.MADRE:null,depth+1);
+return{depth:depth,y:(padre.y+madre.y)/2,persona:p,children:[padre,madre]};
+}
 function ascNodeSVG(node,esPadre){
-    var g=ascGetBoxGeom(node.depth,esPadre);
-    var out=ascBoxSVG(g.x,node.y-g.h/2,g.w,g.h,node.persona,node.depth>=2);
-    if(node.children){
-        var hijoP=node.children[0],hijoM=node.children[1];
-        var gc=ascGetBoxGeom(node.depth+1,esPadre);
-        var outwardX=esPadre?g.x:g.x+g.w;
-        var childCenterX=esPadre?(gc.x+gc.w):gc.x;
-        var gap=Math.abs(esPadre?(g.x-(gc.x+gc.w)):(gc.x-(g.x+g.w)));
-        var trunkX=esPadre?(outwardX-gap/2):(outwardX+gap/2);
-        out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
-        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
-        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoP.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
-        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoM.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
-        out+=ascNodeSVG(hijoP,esPadre);
-        out+=ascNodeSVG(hijoM,esPadre);
-    }
-    return out;
+var g=ascGetBoxGeom(node.depth,esPadre,node.par);
+var out=ascBoxSVG(g.x,node.y-g.h/2,g.w,g.h,node.persona,node.depth>=2);
+if(node.children){
+var hijoP=node.children[0],hijoM=node.children[1];
+var outwardX=esPadre?g.x:g.x+g.w;
+if(node.depth===5){
+/* Una sola linea horizontal hasta la pareja [padre][madre] de su misma fila. */
+var gm=ascGetBoxGeom(6,esPadre,'M');
+var edgeM=esPadre?(gm.x+gm.w):gm.x;
+out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+edgeM.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+}else{
+var gc=ascGetBoxGeom(node.depth+1,esPadre,null);
+var childCenterX=esPadre?(gc.x+gc.w):gc.x;
+var gap=Math.abs(esPadre?(g.x-(gc.x+gc.w)):(gc.x-(g.x+g.w)));
+var trunkX=esPadre?(outwardX-gap/2):(outwardX+gap/2);
+out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoP.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoM.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
 }
-
-/* Ensambla la plantilla SVG A3 completa: marco, titulo, las dos mitades (rama paterna y
-   materna) y la casilla central (la propia persona, sin conyuge, igual que en el modelo real
-   que solo mostraba la fila de ascendientes). La unica diferencia entre imprimir a Francisco
-   o a cualquier otro pariente es que texto cae en cada casilla: la geometria, siempre identica. */
+out+=ascNodeSVG(hijoP,esPadre);
+out+=ascNodeSVG(hijoM,esPadre);
+}
+return out;
+}
 function buildAscPosterSVGString(rootId){
-    var p=PI[rootId];
-    ascLeafIndex=0;var arbolPadre=ascRecBuild(p.PADRE,0);
-    ascLeafIndex=0;var arbolMadre=ascRecBuild(p.MADRE,0);
-    var gen2Y=arbolPadre.y;
-    var g0Padre=ascGetBoxGeom(0,true),g0Madre=ascGetBoxGeom(0,false);
-    var svg='';
-    svg+=ascNodeSVG(arbolPadre,true);
-    svg+=ascNodeSVG(arbolMadre,false);
-    svg+='<line x1="'+(ASC_PAGE_W/2).toFixed(2)+'" y1="'+ASC_ROOT_Y.toFixed(2)+'" x2="'+(ASC_PAGE_W/2).toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
-    svg+='<line x1="'+(g0Padre.x+g0Padre.w).toFixed(2)+'" y1="'+gen2Y.toFixed(2)+'" x2="'+g0Madre.x.toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
-    svg+=ascBoxSVG(ASC_ROOT_X,ASC_ROOT_Y-ASC_ROOT_H/2,ASC_ROOT_W,ASC_ROOT_H,p,false);
-    var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
-    var marco='<rect x="4" y="4" width="'+(ASC_PAGE_W-8)+'" height="'+(ASC_PAGE_H-8)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.6"/>'+
-               '<rect x="7" y="7" width="'+(ASC_PAGE_W-14)+'" height="'+(ASC_PAGE_H-14)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.18"/>';
-    var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ARBOL GENEALOGICO</text>'+
-               '<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
-    var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+svg+pie+'</svg>';
+var p=PI[rootId];
+ascRowIndex=0;var arbolPadre=ascRecBuild(p.PADRE,0);
+ascRowIndex=0;var arbolMadre=ascRecBuild(p.MADRE,0);
+var gen2Y=arbolPadre.y;
+var g0Padre=ascGetBoxGeom(0,true),g0Madre=ascGetBoxGeom(0,false);
+var svg='';
+svg+=ascNodeSVG(arbolPadre,true);
+svg+=ascNodeSVG(arbolMadre,false);
+svg+='<line x1="'+(ASC_PAGE_W/2).toFixed(2)+'" y1="'+ASC_ROOT_Y.toFixed(2)+'" x2="'+(ASC_PAGE_W/2).toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
+svg+='<line x1="'+(g0Padre.x+g0Padre.w).toFixed(2)+'" y1="'+gen2Y.toFixed(2)+'" x2="'+g0Madre.x.toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
+svg+=ascBoxSVG(ASC_ROOT_X,ASC_ROOT_Y-ASC_ROOT_H/2,ASC_ROOT_W,ASC_ROOT_H,p,false);
+var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
+var marco='<rect x="4" y="4" width="'+(ASC_PAGE_W-8)+'" height="'+(ASC_PAGE_H-8)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.6"/>'+
+'<rect x="7" y="7" width="'+(ASC_PAGE_W-14)+'" height="'+(ASC_PAGE_H-14)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.18"/>';
+var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ARBOL GENEALOGICO</text>'+
+'<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
+var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+svg+pie+'</svg>';
 }
-
 function renderAscBgSwatches(){
     var cont=document.getElementById('ascColorSwatches');
     if(!cont)return;
