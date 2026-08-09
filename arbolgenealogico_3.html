@@ -17,7 +17,7 @@ header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px soli
 .logo{display:flex;align-items:center;gap:8px}
 .logo-icon{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
 .logo-text{font-family:'Cinzel',serif;font-size:16px;font-weight:700}
-nav{display:flex;gap:2px}
+nav{display:flex;gap:2px;flex-wrap:nowrap}
 nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:12px;padding:6px 12px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
 nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
 main{max-width:100%;margin:0 auto;padding:14px}
@@ -100,7 +100,19 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .toast.err{border-color:var(--accent)}
 @keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes tout{to{opacity:0;transform:translateY(-10px)}}
-@media(max-width:640px){.hero{padding:24px 12px 16px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}}
+.cmd-grid{display:flex;justify-content:center;gap:14px;margin-top:18px;flex-wrap:wrap}
+.cmd-card{background:var(--card);border:2px solid var(--border);border-radius:16px;padding:12px 22px;min-width:128px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.cmd-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
+.cmd-num{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:#b8863c;line-height:1}
+.cmd-card.cmd-alert .cmd-num{color:#c0392b}
+.cmd-card.ok .cmd-num{color:var(--green)}
+.cmd-label{font-size:10px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px;margin-top:6px;line-height:1.4}
+.cmd-sub{display:block;font-size:9px;font-weight:400;text-transform:none;color:var(--muted);letter-spacing:0;margin-top:1px}
+.activebar{display:none;background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:7px 16px;align-items:center;justify-content:center;gap:10px;font-family:'Lato',sans-serif;font-size:12px;position:sticky;top:54px;z-index:90}
+.activebar-label{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:9px}
+.activebar-name{font-weight:700;color:var(--text);cursor:pointer}
+.activebar-name:hover{color:var(--accent);text-decoration:underline}
+@media(max-width:640px){.hero{padding:24px 12px 16px}.cmd-grid{gap:8px}.cmd-card{padding:9px 14px;min-width:100px}.cmd-num{font-size:20px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}nav button{padding:6px 8px}nav button .mh{display:none}}
 /* ===== ÁRBOL GENEALÓGICO ===== */
 .tc{overflow-x:auto;overflow-y:auto;padding:20px 10px}
 .tr{display:flex;flex-direction:column;align-items:center;min-width:max-content}
@@ -142,7 +154,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pedigree-col.central-column{justify-content:center;gap:12px}
 .pedigree-col.children-column{justify-content:center;gap:10px}
 .tree-heading{text-align:center;padding:18px 120px 4px}.tree-heading h1{font-size:clamp(19px,3vw,28px);color:var(--text);margin:0}.tree-heading p{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}.tree-tools{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}.tree-tool{font-family:'Lato',sans-serif;font-size:11px;font-weight:700;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}.tree-tool:hover{border-color:var(--accent);color:var(--accent)}.tree-legend{font-size:10px;color:var(--muted);margin-left:5px}.tree-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px 0 8px}.tree-legend .male-dot{background:var(--blue)}.tree-legend .female-dot{background:#b85c7a}.tree-legend .alive-dot{background:var(--alive)}
-.pedigree-card{background:#fff;border:1.5px solid #d8d0c0;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;z-index:2;min-height:72px;display:flex;align-items:center;gap:8px}
+.pedigree-card{background:#fff;border:1.5px solid #d8d0c0;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;z-index:2;min-height:80px;display:flex;align-items:center;gap:8px}
 .pedigree-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1);border-color:var(--accent)}
 .pedigree-card.root{border:2px solid var(--accent);background:linear-gradient(135deg,rgba(196,101,58,.06),rgba(90,138,60,.04))}
 .pedigree-card.spouse{border-style:dashed;background:#f1ede5;border-color:#c8c0b0}
@@ -156,6 +168,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pc-text{min-width:0;flex:1}
 .pc-name{font-weight:700;font-size:12px;color:var(--text);line-height:1.3;word-break:break-word}
 .pc-year{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600}
+.pc-place{font-size:9px;color:var(--muted);margin-top:1px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pc-open{position:absolute;right:6px;bottom:6px;width:22px;height:22px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}.pc-open:hover{color:var(--accent);border-color:var(--accent)}
 #pedigree-svg line{stroke:#c8c0b0;stroke-width:1.5;stroke-linecap:round}
 @media(max-width:640px){.pedigree-container{gap:30px;padding:20px 10px}.pedigree-col{min-width:130px}.pedigree-card{padding:7px 8px;min-height:62px}.pc-photo{width:42px;height:42px}.pc-name{font-size:11px}.pc-year{font-size:9px}}
@@ -166,7 +179,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .inf-sel{max-width:520px;margin:0 auto 18px}
 .inf-sel-box{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;margin-bottom:10px}
 .inf-sel-box.empty{color:var(--muted);font-weight:400}
-.print-area{display:none}
+.print-area{position:fixed;left:-10000px;top:0}
 .print-report h1{font-family:'Cinzel',serif;font-size:20px;margin-bottom:2px}
 .print-report .print-sub{font-size:11px;color:var(--muted);margin-bottom:18px}
 .print-node{margin:0 0 4px 0;padding:6px 0 6px 14px;border-left:2px solid var(--border);font-size:12px}
@@ -198,34 +211,83 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pd-nombre{font-weight:700;font-size:8.5px;line-height:1.2;word-break:break-word}
 .pd-anio{font-size:7.5px;color:#8a7e6e;margin-top:1px}
 .pd-sosa{font-size:7px;color:#b8ac9a;margin-top:1px}
+/* ===== CRONOLOGIA (linea de vida + comparativa familiar) ===== */
+.cro-life{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.cro-life h3{font-family:'Cinzel',serif;font-size:15px;margin-bottom:4px}
+.cro-life .cro-sub{font-size:11px;color:var(--muted);margin-bottom:10px}
+.cro-event{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;align-items:flex-start}
+.cro-event:last-child{border-bottom:0}
+.cro-event-year{min-width:48px;flex-shrink:0;font-weight:700;color:var(--accent);font-family:'Cinzel',serif;font-size:13px}
+.cro-event-txt{flex:1;line-height:1.4}
+.cro-event.warn .cro-event-year{color:#c0392b}
+.cro-event-warn-tag{display:inline-block;font-size:10px;font-weight:700;color:#c0392b;background:rgba(192,57,43,.1);padding:1px 6px;border-radius:6px;margin-left:6px;white-space:nowrap}
+.cro-gantt-wrap{overflow-x:auto;padding:4px 0 6px}
+.cro-gantt{min-width:560px}
+.cro-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;height:20px}
+.cro-row-label{width:132px;flex-shrink:0;font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cro-row-label:hover{color:var(--accent);text-decoration:underline}
+.cro-track{position:relative;flex:1;height:14px;background:rgba(0,0,0,.035);border-radius:4px}
+.cro-bar{position:absolute;top:0;height:14px;border-radius:4px;background:rgba(61,44,30,.55);cursor:default}
+.cro-bar.alive{background:rgba(44,95,138,.55)}
+.cro-bar.warn{background:repeating-linear-gradient(45deg,#c0392b,#c0392b 4px,#e0836f 4px,#e0836f 8px)}
+.cro-marker{position:absolute;top:-3px;width:2px;height:20px;background:var(--green);opacity:.8;border-radius:1px}
+.cro-axis{display:flex;margin-left:140px;margin-top:4px;font-size:9px;color:var(--muted);position:relative;height:14px}
+.cro-axis span{position:absolute;transform:translateX(-50%)}
+.cro-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-top:14px}
+.cro-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* ===== RELACION ENTRE DOS PERSONAS ===== */
+.rel-picker{display:flex;gap:16px;flex-wrap:wrap}
+.rel-picker-col{flex:1;min-width:220px}
+.rel-badge{display:inline-block;font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#fff;background:var(--accent);padding:8px 18px;border-radius:12px;letter-spacing:.5px}
+.rel-camino{display:flex;flex-direction:column;align-items:center;gap:2px}
+.rel-nodo{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:8px 16px;font-weight:700;font-size:13px;text-align:center;cursor:pointer;min-width:170px;max-width:280px}
+.rel-nodo:hover{border-color:var(--accent);color:var(--accent)}
+.rel-nodo.root{border-color:var(--accent);background:rgba(196,101,58,.06)}
+.rel-flecha{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 0}
 /* ===== ARBOL ASCENDENTE ESTILO BRACKET (poster simetrico, como un cuadro de torneo) =====
    Estructura recursiva con flexbox: cada .abr-node = [hijos apilados][tronco][tarjeta].
    El centrado vertical de cada tarjeta respecto a sus dos ascendientes lo resuelve el propio
    flexbox (align-items:center), sin necesidad de medir alturas por JS ni de trucos fragiles. */
-.abr-poster{display:flex;flex-direction:column;align-items:center;padding:16px 0 34px}
-.abr-halves{display:flex;align-items:flex-end;gap:14px}
+.abr-poster{--pc:#3D2C1E;--pc-line:#b0a692;--pc-year:#8a7e6e;--pc-sub:#8a7e6e;--pc-frame:#b0a692;--pc-empty:#d8d0c0;display:flex;flex-direction:column;align-items:center;padding:10px 0 20px}
+.abr-halves{display:flex;align-items:flex-end;gap:12px}
 .abr-side{display:flex;align-items:center}
 .abr-mirror{transform:scaleX(-1)}
 .abr-mirror .abr-card{transform:scaleX(-1)}
 .abr-node{display:flex;align-items:center}
-.abr-children{display:flex;flex-direction:column;justify-content:center;gap:7px}
+.abr-children{display:flex;flex-direction:column;justify-content:center;gap:4px}
 .abr-child{position:relative}
-.abr-child:after{content:'';position:absolute;top:50%;right:-13px;width:13px;border-top:1.5px solid #b0a692}
-.abr-trunk{width:13px;align-self:stretch;border-left:1.5px solid #b0a692;margin:0 1px;flex-shrink:0}
-.abr-card{position:relative;width:78px;min-height:54px;border:1.5px solid #4a4038;border-radius:6px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 3px;text-align:center;font-family:'Lato',sans-serif;flex-shrink:0}
-.abr-card:before{content:'';position:absolute;top:50%;left:-13px;width:13px;border-top:1.5px solid #b0a692}
-.abr-card.empty{border-style:dashed;border-color:#d8d0c0;background:#fbf9f5}
-.abr-card .pd-photo-box,.abr-card .pd-initial{width:24px;height:24px;margin-bottom:2px}
-.abr-card .pd-nombre{font-size:8px}
-.abr-card .pd-anio{font-size:7px}
-.abr-card.thin{flex-direction:row;justify-content:space-between;align-items:center;width:150px;min-height:0;height:18px;border-radius:3px;padding:2px 8px;gap:6px}
-.abr-thin-name{font-size:7.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.abr-thin-year{font-size:7px;color:#8a7e6e;flex-shrink:0}
-.abr-drop{width:1.5px;height:20px;background:#b0a692;margin:0 auto}
+.abr-child:after{content:'';position:absolute;top:50%;right:-11px;width:11px;border-top:1.5px solid var(--pc-line)}
+.abr-trunk{width:11px;align-self:stretch;border-left:1.5px solid var(--pc-line);margin:0 1px;flex-shrink:0}
+.abr-card{position:relative;width:88px;min-height:42px;border:1.5px solid var(--pc);border-radius:5px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 4px;text-align:center;font-family:'Lato',sans-serif;flex-shrink:0;color:var(--pc)}
+.abr-card:before{content:'';position:absolute;top:50%;left:-11px;width:11px;border-top:1.5px solid var(--pc-line)}
+.abr-card.empty{border-style:dashed;border-color:var(--pc-empty);background:#fbfaf7}
+.abr-card .pd-nombre{font-size:7px;color:var(--pc)}
+.abr-card .pd-anio{font-size:6.5px;color:var(--pc-year)}
+.abr-card.thin{flex-direction:row;justify-content:space-between;align-items:center;width:150px;min-height:0;height:14px;border-radius:3px;padding:1px 6px;gap:5px}
+.abr-card.thin.empty .abr-thin-name,.abr-card.thin.empty .abr-thin-year{opacity:.4}
+.abr-thin-name{font-size:6.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--pc)}
+.abr-thin-year{font-size:6px;color:var(--pc-year);flex-shrink:0}
+.abr-drop{width:1.5px;height:18px;background:var(--pc);margin:0 auto}
+.abr-root-group{display:flex;gap:6px}
+.abr-card.root-card{border-width:2.5px}
+.abr-card.spouse-card{border-style:dashed}
+/* ===== POSTER PARA ENMARCAR (arbol ascendente A3) ===== */
+.asc-poster-wrap{--pc:#3D2C1E;font-family:'Lato',sans-serif;color:var(--pc);padding:8px;display:inline-block}
+.asc-poster-border{border:2.5px solid var(--pc);padding:8px}
+.asc-poster-border-inner{border:1px solid var(--pc-frame);padding:16px 18px 10px}
+.asc-poster-title{text-align:center;margin-bottom:6px}
+.asc-poster-title h1{font-family:'Cinzel',serif;font-size:24px;letter-spacing:3px;color:var(--pc);margin:0}
+.asc-poster-title p{font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;color:var(--pc-sub);font-weight:700}
+.asc-poster-footer{text-align:center;font-size:8px;letter-spacing:1px;color:var(--pc-line);margin-top:8px}
+.asc-print-page{width:400mm;height:277mm;position:relative;overflow:hidden;background:#fff}
+.asc-scale-inner{position:absolute;top:0;left:0;transform-origin:top left;white-space:nowrap}
+/* Contenedor del nuevo poster ascendente basado en plantilla SVG fija (A3 real, sin escalado por JS) */
+.asc-print-page-fixed{width:420mm;height:297mm;background:#fff}
+.asc-print-page-fixed svg{display:block;width:420mm;height:297mm}
 @media print{
   @page{size:landscape}
   body>*:not(.print-area){display:none!important}
-  .print-area{display:block!important}
+  .print-area{position:static!important;left:auto!important}
   body{background:#fff}
 }
 </style>
@@ -240,14 +302,23 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button data-view="arb" onclick="sv('arb')"><i class="fa-solid fa-sitemap"></i> <span class="mh">Arbol</span></button>
 <button data-view="fic" onclick="irFicha()"><i class="fa-solid fa-id-card"></i> <span class="mh">Ficha</span></button>
 <button data-view="inf" onclick="sv('inf')"><i class="fa-solid fa-file-pdf"></i> <span class="mh">Informes</span></button>
-<button onclick="expGed()"><i class="fa-solid fa-file-export"></i> GEDCOM</button>
+<button data-view="inv" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart"></i> <span class="mh">Investigacion</span></button>
 </nav>
 </header>
+<div class="activebar" id="activeBar">
+<span class="activebar-label">Persona activa</span>
+<span class="activebar-name" id="activeBarName" onclick="irFicha()"></span>
+<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="sv('bus')">Cambiar</button>
+</div>
 <main>
 <div class="view active" id="vBus">
 <div class="hero">
 <h1>Libro de los Ancestros</h1>
 <p>Tu arbol genealogico familiar</p>
+<div class="cmd-grid" id="cmdGrid">
+<div class="cmd-card" onclick="sv('inv')"><div class="cmd-num" id="cmdPendientes">-</div><div class="cmd-label">Pendientes<span class="cmd-sub">sin año conocido</span></div></div>
+<div class="cmd-card cmd-alert" onclick="sv('inv')"><div class="cmd-num" id="cmdProblemas">-</div><div class="cmd-label">Problemas<span class="cmd-sub">inconsistencias y duplicados</span></div></div>
+</div>
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas"><i class="fa-solid fa-toolbox"></i></button>
@@ -273,15 +344,26 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div id="rlInf"></div>
 </div>
 <div class="inf-sel" style="max-width:640px">
+<div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin-bottom:8px">Sobre la persona seleccionada</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-id-card"></i> Informe de una persona</h3>
+<p>Ficha completa e imprimible de la persona seleccionada: datos, familia, cónyuges, hijos y observaciones.</p>
+<button class="ef-btn" onclick="descargarInformePersona()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-sitemap"></i> Arbol descendente</h3>
 <p>Lista todos los descendientes de la persona seleccionada, generacion por generacion.</p>
 <button class="ef-btn" onclick="descargarArbolDescendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Arbol ascendente</h3>
-<p>Muestra los antepasados de la persona seleccionada (padres, abuelos, bisabuelos...).</p>
-<button class="ef-btn" onclick="descargarArbolAscendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<h3><i class="fa-solid fa-code-branch"></i> Informe de una rama</h3>
+<p>Situa a la persona seleccionada como cabeza de rama (indicando de quien es hija) y detalla todos sus descendientes.</p>
+<button class="ef-btn" onclick="descargarInformeRama()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Arbol ascendente (poster A3)</h3>
+<p>Poster en abanico de 8 generaciones, pensado para imprimir en A3 apaisado y enmarcar. Sin fotos; elige el color.</p>
+<button class="ef-btn" onclick="abrirModalAscendentePoster()"><i class="fa-solid fa-file-pdf"></i> Generar poster</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
@@ -291,9 +373,116 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de descendientes</h3>
 <p>Informe detallado con los datos completos de cada descendiente, generacion por generacion.</p>
+<div class="ef-row" style="margin-bottom:10px">
+<div class="ef-field"><span class="ef-label">Generaciones</span><select class="ef-select" id="infDescGen"><option value="3">Mostrar 3 generaciones</option><option value="5">Mostrar 5 generaciones</option><option value="999" selected>Mostrar todas</option></select></div>
+<div class="ef-field"><span class="ef-label">Filtrar por</span><select class="ef-select" id="infDescFiltro"><option value="todos" selected>Todos</option><option value="vivos">Solo vivos</option><option value="fallecidos">Solo fallecidos</option></select></div>
+</div>
 <button class="ef-btn" onclick="descargarInformeDescendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-timeline"></i> Informe cronologico</h3>
+<p>Linea de vida de la persona seleccionada y comparativa con sus familiares mas cercanos, en formato imprimible.</p>
+<button class="ef-btn" onclick="descargarInformeCronologico()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
+<div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Por apellido</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-users"></i> Informe por apellido</h3>
+<p>Lista a todas las personas de la base de datos con un apellido concreto, ordenadas por año de nacimiento.</p>
+<div class="ef-row" style="margin-bottom:10px"><div class="ef-field"><span class="ef-label">Apellido</span><input class="ef-input" id="infApellido" placeholder="Ej: Garcia" autocomplete="off"></div></div>
+<button class="ef-btn" onclick="descargarInformePorApellido()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Informes generales (toda la base de datos)</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-list-check"></i> Informe de datos faltantes</h3>
+<p>Recopila, por categorias, las personas a las que falta año de nacimiento, lugar de nacimiento, sexo, padres o foto.</p>
+<button class="ef-btn" onclick="descargarInformeDatosFaltantes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-triangle-exclamation"></i> Informe de inconsistencias</h3>
+<p>Version imprimible de las inconsistencias detectadas: conyuges sin vinculo reciproco, generos y edades incoherentes.</p>
+<button class="ef-btn" onclick="descargarInformeInconsistencias()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-user-group"></i> Informe de posibles duplicados</h3>
+<p>Version imprimible de las parejas de fichas que podrian ser la misma persona, ordenadas por confianza.</p>
+<button class="ef-btn" onclick="descargarInformeDuplicados()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+</div>
+</div>
+</div>
+<div class="view" id="vInv">
+<div class="hero">
+<h1>Investigacion</h1>
+<p>Herramientas para revisar y mejorar la calidad de los datos de tu arbol</p>
+</div>
+<div class="inf-sel" style="max-width:640px">
+<div class="inf-card">
+<h3><i class="fa-solid fa-list-check"></i> Ramas incompletas</h3>
+<p>Lista personas sin padre ni madre registrados: posibles ramas por completar.</p>
+<button class="ef-btn" onclick="mostrarRamasIncompletas()"><i class="fa-solid fa-magnifying-glass"></i> Ver personas</button>
+<div id="invRamasResultado" style="margin-top:10px"></div>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-triangle-exclamation"></i> Comprobar consistencia</h3>
+<p>Detecta cónyuges sin vincular, géneros y edades incoherentes entre padres e hijos.</p>
+<button class="ef-btn" onclick="mostrarInconsistencias()"><i class="fa-solid fa-magnifying-glass"></i> Comprobar</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-user-group"></i> Posibles duplicados</h3>
+<p>Busca fichas que podrian ser la misma persona y permite fusionarlas.</p>
+<button class="ef-btn" onclick="mostrarDuplicados()"><i class="fa-solid fa-magnifying-glass"></i> Buscar duplicados</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-calculator"></i> Calcular años aproximados</h3>
+<p>Estima el año de nacimiento a partir de familiares cercanos, sin tocar años ya existentes. Guarda el motivo de cada calculo y se puede deshacer.</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="ef-btn" onclick="calcularAnosAproximados()"><i class="fa-solid fa-calculator"></i> Calcular</button>
+<button id="btnDeshacerAprox" class="ef-btn ghost" style="display:none" onclick="deshacerUltimoCalculoAnios()"><i class="fa-solid fa-rotate-left"></i> Deshacer ultimos años calculados</button>
+</div>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-skull"></i> Marcar fallecidos +100 años</h3>
+<p>Marca como fallecidas a las personas vivas con mas de 100 años segun su año de nacimiento o aproximado.</p>
+<button class="ef-btn" onclick="marcarFallecidosMayores100()"><i class="fa-solid fa-skull"></i> Marcar</button>
+</div>
+</div>
+</div>
+<div class="view" id="vCro">
+<div class="bb" style="margin:14px 0 0 14px" onclick="sv('fic')"><i class="fa-solid fa-arrow-left"></i> Volver a la ficha</div>
+<div class="hero">
+<h1>Cronologia</h1>
+<p>Linea de vida de una persona y comparativa con sus familiares mas cercanos</p>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siCro" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
+</div>
+<div class="inf-sel">
+<div id="croSelBox" class="inf-sel-box empty">Ninguna persona seleccionada</div>
+<div id="rlCro"></div>
+</div>
+<div id="croContenido" class="ficha" style="max-width:820px"></div>
+</div>
+<div class="view" id="vRel">
+<div class="bb" style="margin:14px 0 0 14px" onclick="sv('fic')"><i class="fa-solid fa-arrow-left"></i> Volver a la ficha</div>
+<div class="hero">
+<h1>Relación entre dos personas</h1>
+<p>Descubre el parentesco exacto y el camino genealógico entre dos personas del árbol</p>
+</div>
+<div class="inf-sel" style="max-width:640px">
+<div class="rel-picker">
+<div class="rel-picker-col">
+<div class="ef-label" style="margin-bottom:6px">Persona A</div>
+<div id="relSelBoxA" class="inf-sel-box empty">Ninguna seleccionada</div>
+<div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
+<div id="rlRelA"></div>
+</div>
+<div class="rel-picker-col">
+<div class="ef-label" style="margin-bottom:6px">Persona B</div>
+<div id="relSelBoxB" class="inf-sel-box empty">Ninguna seleccionada</div>
+<div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siRelB" placeholder="Buscar persona B..." autocomplete="off"></div>
+<div id="rlRelB"></div>
+</div>
+</div>
+<div style="text-align:center;margin-top:14px"><button class="ef-btn" onclick="calcularYMostrarRelacion()"><i class="fa-solid fa-diagram-project"></i> Calcular parentesco</button></div>
+</div>
+<div id="relResultado" class="ficha" style="max-width:640px"></div>
 </div>
 </main>
 <div class="print-area" id="printArea"></div>
@@ -318,7 +507,7 @@ var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFol
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,3);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function sAll(d){return new Promise(function(res,rej){var tx=db.transaction([ST,BK],'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);s.clear();d.forEach(function(r){s.put(r);});b.put({id:'ultima',fecha:new Date().toISOString(),personas:d});tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};});}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
 function extraerIdCarpetaDrive(texto){
@@ -429,8 +618,39 @@ function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+Strin
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function sv(v){['bus','arb','fic','inf'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';}
+function sv(v){['bus','arb','fic','inf','inv','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
+function initInvestigacion(){actualizarBotonDeshacerAprox();var r=document.getElementById('invRamasResultado');if(r)r.innerHTML='';}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();}
+/* Centro de mando: reutiliza las mismas funciones de deteccion que ya usan las herramientas
+   de Investigacion (getYear, detectarInconsistencias, detectarDuplicados), asi que los numeros
+   mostrados aqui siempre coinciden exactamente con lo que se ve al entrar a esas herramientas. */
+function rPanelMando(){
+    var elP=document.getElementById('cmdPendientes'),elPr=document.getElementById('cmdProblemas');
+    if(!elP||!elPr)return;
+    if(!D.length){elP.textContent='-';elPr.textContent='-';return;}
+    var pendientes=D.filter(function(p){return getYear(p)===null;}).length;
+    var inconsistencias=detectarInconsistencias().length;
+    var dupPendientes=detectarDuplicados().filter(function(pr){return !DUP_IGNORADOS[pr.a.ID+'|'+pr.b.ID];}).length;
+    var problemas=inconsistencias+dupPendientes;
+    elP.textContent=pendientes;
+    elPr.textContent=problemas;
+    var cardP=elP.closest('.cmd-card'),cardPr=elPr.closest('.cmd-card');
+    if(cardP)cardP.classList.toggle('ok',pendientes===0);
+    if(cardPr)cardPr.classList.toggle('ok',problemas===0);
+}
+/* Barra de "persona activa": refleja la variable cid (la persona sobre la que gira el Arbol/Ficha)
+   de forma permanente, visible en cualquier pantalla, para que siempre quede claro sobre quien
+   se esta trabajando. Se actualiza desde sv(), rFic() y rTree(), que son los puntos donde cid cambia. */
+function actualizarBarraActiva(){
+    var bar=document.getElementById('activeBar');
+    if(!bar)return;
+    if(cid&&PI[cid]){
+        document.getElementById('activeBarName').textContent=fn(PI[cid]);
+        bar.style.display='flex';
+    }else{
+        bar.style.display='none';
+    }
+}
 function mostrarHerramientas(){document.getElementById('modalHerramientas').style.display='flex';}
 function cerrarHerramientas(){document.getElementById('modalHerramientas').style.display='none';}
 function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}return null;}
@@ -497,34 +717,75 @@ function relacionadosGeneracionMenor(p){
 }
 function estimarAnoPersona(p){
     var mismos=relacionadosMismaGeneracion(p);
-    for(var i=0;i<mismos.length;i++){var y=getYear(mismos[i]);if(y!==null)return y;}
+    for(var i=0;i<mismos.length;i++){var y=getYear(mismos[i]);if(y!==null)return{anio:y,motivo:'mismo año que '+fn(mismos[i])+' ('+y+'), por pertenecer a la misma generación (hermano/a, cónyuge, cuñado/a o primo/a)'};}
     var mayor=relacionadosGeneracionMayor(p);
-    for(var i=0;i<mayor.r22.length;i++){var y=getYear(mayor.r22[i]);if(y!==null)return y+22;}
+    for(var i=0;i<mayor.r22.length;i++){var y=getYear(mayor.r22[i]);if(y!==null)return{anio:y+22,motivo:'22 años después de '+fn(mayor.r22[i])+' ('+y+'), de la generación de sus padres, tíos o suegros'};}
     var menor=relacionadosGeneracionMenor(p);
-    for(var i=0;i<menor.r22.length;i++){var y=getYear(menor.r22[i]);if(y!==null)return y-22;}
-    for(var i=0;i<mayor.r44.length;i++){var y=getYear(mayor.r44[i]);if(y!==null)return y+44;}
-    for(var i=0;i<menor.r44.length;i++){var y=getYear(menor.r44[i]);if(y!==null)return y-44;}
+    for(var i=0;i<menor.r22.length;i++){var y=getYear(menor.r22[i]);if(y!==null)return{anio:y-22,motivo:'22 años antes de '+fn(menor.r22[i])+' ('+y+'), de la generación de sus hijos o sobrinos'};}
+    for(var i=0;i<mayor.r44.length;i++){var y=getYear(mayor.r44[i]);if(y!==null)return{anio:y+44,motivo:'44 años después de '+fn(mayor.r44[i])+' ('+y+'), de la generación de sus abuelos'};}
+    for(var i=0;i<menor.r44.length;i++){var y=getYear(menor.r44[i]);if(y!==null)return{anio:y-44,motivo:'44 años antes de '+fn(menor.r44[i])+' ('+y+'), de la generación de sus nietos'};}
     return null;
+}
+/* Guarda el ultimo lote de calculos {id, valor, motivo} para poder deshacerlo. Solo vive en memoria
+   (se pierde al recargar la pagina), ya que "deshacer" solo tiene sentido dentro de la misma sesion
+   de trabajo, justo despues de haber pulsado "Calcular años aproximados". */
+var ultimoCalculoAnios=null;
+function actualizarBotonDeshacerAprox(){
+    var btn=document.getElementById('btnDeshacerAprox');
+    if(!btn)return;
+    btn.style.display=(ultimoCalculoAnios&&ultimoCalculoAnios.length)?'flex':'none';
 }
 function calcularAnosAproximados(){
     if(!D.length){toast('No hay datos cargados',true);return;}
     var pendientes=D.filter(function(p){return getYear(p)===null;});
     if(!pendientes.length){toast('Todas las personas ya tienen año de nacimiento o aproximado',true);return;}
-    var calculados=0,cambio=true,vueltas=0;
+    if(!confirm('Se intentara calcular un año aproximado para '+pendientes.length+' persona(s) que ahora mismo no tienen ningun año registrado.\n\nNo se modificara ningun año de nacimiento confirmado ni ningun año aproximado que ya exista. Se guardara el motivo de cada calculo (visible en la ficha) y podras deshacer el lote completo despues con el boton "Deshacer ultimos años calculados".\n\n¿Continuar?'))return;
+    var calculados=[],cambio=true,vueltas=0;
+    var fechaCalculo=new Date().toISOString().slice(0,10);
     while(cambio&&vueltas<25){
         cambio=false;vueltas++;
         pendientes.forEach(function(p){
             if(getYear(p)!==null)return;
             var estimado=estimarAnoPersona(p);
-            if(estimado!==null){p.APROX=String(estimado);calculados++;cambio=true;}
+            if(estimado!==null){
+                p.APROX=String(estimado.anio);
+                p.MotivoAprox='Calculado automáticamente el '+fechaCalculo+': '+estimado.motivo+'.';
+                calculados.push({id:p.ID,valor:p.APROX});
+                cambio=true;
+            }
         });
     }
-    if(!calculados){toast('No se pudo estimar ningun año: en toda la rama familiar (hermanos, conyuges, cuñados, primos, padres, tios, suegros, hijos, sobrinos, nietos, abuelos) no hay ni un solo dato de referencia',true);return;}
+    if(!calculados.length){toast('No se pudo estimar ningun año: en toda la rama familiar (hermanos, conyuges, cuñados, primos, padres, tios, suegros, hijos, sobrinos, nietos, abuelos) no hay ni un solo dato de referencia',true);return;}
     bIdx(D);
     sAll(D).then(function(){
+        ultimoCalculoAnios=calculados;
+        actualizarBotonDeshacerAprox();
         rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
-        toast('Se calcularon '+calculados+' año(s) aproximado(s) de '+pendientes.length+' persona(s) pendientes');
+        toast('Se calcularon '+calculados.length+' año(s) aproximado(s) de '+pendientes.length+' persona(s) pendientes. Puedes deshacerlo con "Deshacer ultimos años calculados".');
     }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+function deshacerUltimoCalculoAnios(){
+    if(!ultimoCalculoAnios||!ultimoCalculoAnios.length){toast('No hay ningun calculo reciente que deshacer',true);return;}
+    if(!confirm('Se revertira el ultimo lote de años aproximados calculados automaticamente ('+ultimoCalculoAnios.length+' persona(s)).\n\nSolo se revertiran los registros que sigan tal cual los dejo el calculo: si has editado a mano el año aproximado de alguna de esas personas despues, ese cambio se respetara y no se tocara. ¿Continuar?'))return;
+    var revertidos=0,conservados=0;
+    ultimoCalculoAnios.forEach(function(item){
+        var p=PI[item.id];
+        if(!p)return;
+        if(String(p.APROX||'')===String(item.valor)){
+            p.APROX='';
+            p.MotivoAprox='';
+            revertidos++;
+        }else{
+            conservados++;
+        }
+    });
+    bIdx(D);
+    sAll(D).then(function(){
+        ultimoCalculoAnios=null;
+        actualizarBotonDeshacerAprox();
+        rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+        toast(revertidos+' año(s) aproximado(s) deshecho(s)'+(conservados?'. '+conservados+' se conservaron porque los modificaste a mano después':''));
+    }).catch(function(err){toast('No se pudo deshacer: '+err.message,true);});
 }
 function doSrch(q){
     q=q.toLowerCase().trim();
@@ -551,6 +812,7 @@ function abrirFichaDesdeArbol(id){cid=id;editMode=false;sv('fic');}
 
 function rFic(id){
     if(editMode) rFicEdit(id); else rFicView(id);
+    actualizarBarraActiva();
 }
 
 function rFicView(id){
@@ -558,9 +820,9 @@ function rFicView(id){
     if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
     var al=isAl(p);
     var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-    h+='<div class="fic-toolbar"><div></div><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div>';
+    h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronologia</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
     h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(fDate(p.NACD,p.NACM,p.NACA)?' · Nac: '+esc(fDate(p.NACD,p.NACM,p.NACA)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
-    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(fDate(p.NACD,p.NACM,p.NACA)||'Desconocido')+'</span></div>'+(p.APROX?'<div class="fr"><span class="fl">Año aprox.</span><span class="fv">'+esc(p.APROX)+'</span></div>':'')+'<div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defuncion</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(fDate(p.NACD,p.NACM,p.NACA)||'Desconocido')+'</span></div>'+(p.APROX?'<div class="fr"><span class="fl">Año aprox.</span><span class="fv">'+esc(p.APROX)+'</span></div>':'')+(p.APROX&&p.MotivoAprox?'<div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.MotivoAprox)+'</span></div>':'')+'<div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defuncion</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
     var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
     var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
     var m1l=p.M1&&PI[p.M1]?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(PI[p.M1]))+'</a>':'Ninguno';
@@ -822,7 +1084,9 @@ function guardarFicha(id){
     p.NACA=leerNum('ef-naca');
     p.LUGARNAC=leerCampo('ef-lugarnac');
     var ap=leerNum('ef-aprox');
-    p.APROX=(ap!==null)?String(ap):'';
+    var apNuevo=(ap!==null)?String(ap):'';
+    if(apNuevo!==String(p.APROX||''))p.MotivoAprox=''; // edicion manual: ya no es un calculo automatico
+    p.APROX=apNuevo;
     var fallecido=document.getElementById('ef-fallecido').checked;
     p.FALLECIDO=fallecido?'1':'';
     if(fallecido){
@@ -857,7 +1121,7 @@ function eliminarFicha(id){
         return copia;
     });
     sAll(nuevos).then(function(){
-        D=nuevos;bIdx(D);cid=null;editMode=false;rStats();doSrch(document.getElementById('si').value);sv('bus');
+        D=nuevos;bIdx(D);cid=null;editMode=false;rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
         toast('Ficha eliminada correctamente');
     }).catch(function(err){toast('No se pudo eliminar la ficha: '+err.message,true);});
 }
@@ -865,7 +1129,7 @@ function eliminarFicha(id){
 function crearVinculado(id,campo,sexoNuevo){
     if(!confirm('Se creara una nueva persona y se vinculara como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderan. Continuar?'))return;
     var newId=genNewId();
-    var nuevo={ID:newId,APROX:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
+    var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
     D.push(nuevo);
     var actual=PI[id];
     if(actual){
@@ -944,19 +1208,19 @@ function crearDescendiente(id,parejaId){
     var madre=null,padre=null;
     if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
     else {padre=progenitor;madre=pareja;}
-    var nuevo={ID:genNewId(),APROX:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
+    var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
     D.push(nuevo);bIdx(D);
     sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
 }
 function mostrarRamasIncompletas(){
     if(!D.length){toast('No hay datos cargados',true);return;}
     var sinPadres=D.filter(function(p){return !p.PADRE&&!p.MADRE;});
-    sv('bus');
-    document.getElementById('si').value='';
+    var cont=document.getElementById('invRamasResultado');
+    if(!cont)return;
     sinPadres.sort(function(a,b){return sn(a).localeCompare(sn(b));});
     var h='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px 0">'+sinPadres.length+' persona(s) sin padre ni madre registrados (posibles ramas por completar)</p>';
     if(!sinPadres.length){
-        document.getElementById('rl').innerHTML=h;
+        cont.innerHTML=h;
         return;
     }
     sinPadres.slice(0,200).forEach(function(p){
@@ -964,7 +1228,7 @@ function mostrarRamasIncompletas(){
         h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
     });
     if(sinPadres.length>200) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 200 de '+sinPadres.length+'.</p>';
-    document.getElementById('rl').innerHTML=h;
+    cont.innerHTML=h;
 }
 
 /* ===== COMPROBADOR DE CONSISTENCIA ===== */
@@ -1162,7 +1426,7 @@ function fusionarPersonas(idMantener,idEliminar){
     var pM=PI[idMantener],pE=PI[idEliminar];
     if(!pM||!pE)return false;
     if(idMantener===idEliminar)return false;
-    var camposRellenar=['APROX','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','FALLECIDO','FOTO'];
+    var camposRellenar=['APROX','MotivoAprox','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','FALLECIDO','FOTO'];
     camposRellenar.forEach(function(c){
         var vaM=pM[c],vaE=pE[c];
         var vacioM=(vaM===''||vaM===null||vaM===undefined);
@@ -1259,9 +1523,9 @@ function drawPedigreeLines(){
     function x(rect,side){return px(rect[side]-containerRect.left);}
     function y(rect){return px(rect.top+rect.height/2-containerRect.top);}
     var lines=[];
-    var childCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.children-column .pedigree-card:not(.placeholder)'));
+    var childCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.children-column .pedigree-card:not(.placeholder):not(.spouse)'));
     var rootCard=document.querySelector('.pedigree-card.root');
-    var spouseCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-card.spouse'));
+    var spouseCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.central-column .pedigree-card.spouse'));
 
     // Hijos: un solo ramal familiar, en vez de una línea independiente que se salga del árbol.
     if(childCards.length&&rootCard){
@@ -1347,18 +1611,23 @@ function rTree(id){
 
     function fullName(pp){return esc((String(pp.NOMBRE||"")+" "+String(pp.APELLIDO1||"")+" "+String(pp.APELLIDO2||"")).trim()||"?");}
     function year(pp){return pp.NACA?String(pp.NACA):(pp.APROX?String(pp.APROX):"");}
-    function makeCard(pp,extraClass){
+    function defYear(pp){return(!isAl(pp)&&pp.DEFA)?String(pp.DEFA):"";}
+    function makeCard(pp,extraClass,sinLineaFamilia){
         if(!pp){return `<div class="pedigree-card placeholder"><div class="pc-name">?</div></div>`;}
-        var y=year(pp);
+        var y=year(pp),dy=defYear(pp);
+        var yearsTxt=y?(dy?(y+' \u2013 '+dy):y):(dy?('? \u2013 '+dy):'');
+        var placeTxt=pp.LUGARNAC?String(pp.LUGARNAC):'';
         var sexClass="";
         if(pp.SEXO==="Hombre"||pp.SEXO==="M")sexClass="male";
         else if(pp.SEXO==="Mujer"||pp.SEXO==="F")sexClass="female";
         var aliveClass=isAl(pp)?"alive":"";
         var attrs=`data-id="${esc(pp.ID)}"`;
-        if(pp.PADRE&&PI[pp.PADRE])attrs+=` data-father="${esc(pp.PADRE)}"`;
-        if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
+        if(!sinLineaFamilia){
+            if(pp.PADRE&&PI[pp.PADRE])attrs+=` data-father="${esc(pp.PADRE)}"`;
+            if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
+        }
         var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
-        return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${y?`<div class="pc-year">${esc(y)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
+        return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year">${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
     }
     document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
 
@@ -1382,7 +1651,11 @@ function rTree(id){
     h+=`<div class="pedigree-col children-column" data-gen="-1" style="border-right:2px dashed var(--border);padding-right:14px">`;
     if(hijos.length){
         hijos.forEach(function(hid){
-            h+=makeCard(PI[hid],"");
+            var hijoP=PI[hid];
+            h+=makeCard(hijoP,"");
+            // Conyuge(s) del hijo, debajo de su tarjeta (sin lineas hacia los padres del conyuge, para no cruzar el arbol)
+            if(hijoP.M1&&PI[hijoP.M1])h+=makeCard(PI[hijoP.M1],"spouse",true);
+            if(hijoP.M2&&PI[hijoP.M2])h+=makeCard(PI[hijoP.M2],"spouse",true);
             // Nietos (hijos de los hijos)
             var nietos=ordenarIdsPorEdad(HD[hid]||[]);
             if(nietos.length){
@@ -1413,6 +1686,7 @@ function rTree(id){
     h+=`</div>`;
     document.getElementById("tco").innerHTML=h;
     cid=id;
+    actualizarBarraActiva();
     setTimeout(function(){drawPedigreeLines();centerTreeOnRoot();},50);
 }
 function centerTreeOnRoot(){
@@ -1426,6 +1700,7 @@ function centerTreeOnRoot(){
 }
 var infId=null;
 function initInformes(){
+    if(!infId&&cid&&PI[cid])infId=cid;
     var box=document.getElementById('infSelBox');
     if(infId&&PI[infId]){box.textContent=fn(PI[infId]);box.classList.remove('empty');}
     else{box.textContent='Ninguna persona seleccionada';box.classList.add('empty');}
@@ -1451,6 +1726,365 @@ function seleccionarPersonaInforme(id){
     document.getElementById('rlInf').innerHTML='';
     document.getElementById('siInf').value='';
 }
+/* ===== CRONOLOGIA ===== */
+var croId=null;
+function initCronologia(){
+    if(!croId&&cid&&PI[cid])croId=cid;
+    var box=document.getElementById('croSelBox');
+    if(croId&&PI[croId]){box.textContent=fn(PI[croId]);box.classList.remove('empty');renderCronologia(croId);}
+    else{box.textContent='Ninguna persona seleccionada';box.classList.add('empty');document.getElementById('croContenido').innerHTML='';}
+    document.getElementById('rlCro').innerHTML='';
+    var input=document.getElementById('siCro');
+    if(input)input.value='';
+}
+function doSrchCro(q){
+    q=(q||'').toLowerCase().trim();
+    var lista=document.getElementById('rlCro');
+    if(!q){lista.innerHTML='';return;}
+    var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+    f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+    f=f.slice(0,40);
+    var h='';
+    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaCronologia(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
+}
+function seleccionarPersonaCronologia(id){
+    croId=id;
+    var box=document.getElementById('croSelBox');
+    box.textContent=fn(PI[id]);box.classList.remove('empty');
+    document.getElementById('rlCro').innerHTML='';
+    document.getElementById('siCro').value='';
+    renderCronologia(id);
+}
+function selPDesdeGantt(id){croId=id;renderCronologia(id);var box=document.getElementById('croSelBox');box.textContent=fn(PI[id]);box.classList.remove('empty');}
+function extraerAnioTexto(s){if(!s)return null;var m=String(s).match(/(\d{4})/);return m?parseInt(m[1],10):null;}
+function anioNacimientoPersona(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}return null;}
+function construirEventosPersona(p){
+    var eventos=[];
+    var yNac=anioNacimientoPersona(p);
+    var fNac=fDate(p.NACD,p.NACM,p.NACA);
+    if(yNac!==null)eventos.push({anio:yNac,txt:'Nacimiento'+(fNac?' ('+fNac+')':(!p.NACA&&p.APROX?' (año aproximado)':''))+(p.LUGARNAC?' en '+p.LUGARNAC:'')});
+    [['M1','MF1'],['M2','MF2']].forEach(function(par){
+        var conyugeId=p[par[0]],fecha=p[par[1]];
+        var anio=extraerAnioTexto(fecha);
+        if(anio!==null){
+            var conyuge=conyugeId&&PI[conyugeId]?fn(PI[conyugeId]):'';
+            eventos.push({anio:anio,txt:'Matrimonio'+(conyuge?' con '+conyuge:'')});
+        }
+    });
+    var hijos=(HD[p.ID]||[]).map(function(x){return PI[x];}).filter(Boolean);
+    hijos.forEach(function(h){
+        var yh=anioNacimientoPersona(h);
+        if(yh!==null)eventos.push({anio:yh,txt:'Nacimiento de '+fn(h)+(!h.NACA&&h.APROX?' (año aproximado)':'')});
+    });
+    var yDef=(!isAl(p)&&p.DEFA)?parseInt(p.DEFA,10):null;
+    if(yDef!==null){
+        var fDef=fDate(p.DEFD,p.DEFM,p.DEFA);
+        eventos.push({anio:yDef,txt:'Defuncion'+(fDef?' ('+fDef+')':'')+(p.LUGARDEF?' en '+p.LUGARDEF:'')});
+    }
+    eventos.sort(function(a,b){return a.anio-b.anio;});
+    eventos.forEach(function(e){
+        e.warn=false;
+        if(yNac!==null&&e.anio<yNac)e.warn='Ocurre antes del nacimiento registrado ('+yNac+')';
+        else if(yDef!==null&&e.anio>yDef)e.warn='Ocurre despues de la defuncion registrada ('+yDef+')';
+    });
+    return eventos;
+}
+function htmlLineaVida(p){
+    var eventos=construirEventosPersona(p);
+    var h='<div class="cro-life"><h3>Linea de vida</h3><div class="cro-sub">'+esc(fn(p))+'</div>';
+    if(!eventos.length){h+='<p style="font-size:12px;color:var(--muted)">No hay suficientes datos con año (nacimiento, matrimonio, hijos o defuncion) para construir la linea de vida.</p>';}
+    else{
+        eventos.forEach(function(e){
+            h+='<div class="cro-event'+(e.warn?' warn':'')+'"><div class="cro-event-year">'+e.anio+'</div><div class="cro-event-txt">'+esc(e.txt)+(e.warn?'<span class="cro-event-warn-tag"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(e.warn)+'</span>':'')+'</div></div>';
+        });
+    }
+    h+='</div>';
+    return h;
+}
+function construirFamiliaCronologia(p){
+    var vistos={},lista=[];
+    function add(x){if(x&&!vistos[x.ID]){vistos[x.ID]=true;lista.push(x);}}
+    if(p.PADRE&&PI[p.PADRE])add(PI[p.PADRE]);
+    if(p.MADRE&&PI[p.MADRE])add(PI[p.MADRE]);
+    gHerm(p.ID).forEach(add);
+    add(p);
+    if(p.M1&&PI[p.M1])add(PI[p.M1]);
+    if(p.M2&&PI[p.M2])add(PI[p.M2]);
+    (HD[p.ID]||[]).forEach(function(hid){add(PI[hid]);});
+    return lista;
+}
+function htmlGanttFamilia(p){
+    var familia=construirFamiliaCronologia(p);
+    var datos=familia.map(function(x){
+        var yNac=anioNacimientoPersona(x);
+        var vivo=isAl(x);
+        var yDef=(!vivo&&x.DEFA)?parseInt(x.DEFA,10):null;
+        var yFin=yDef!==null?yDef:(vivo?new Date().getFullYear():null);
+        return{p:x,yNac:yNac,yFin:yFin,vivo:vivo};
+    }).filter(function(d){return d.yNac!==null;});
+    var h='<div class="cro-life"><h3>Comparativa familiar</h3><div class="cro-sub">Padres, hermanos, cónyuges e hijos de '+esc(fn(p))+' sobre un mismo eje temporal</div>';
+    if(datos.length<2){
+        h+='<p style="font-size:12px;color:var(--muted)">No hay suficientes familiares cercanos con año de nacimiento conocido para comparar.</p></div>';
+        return h;
+    }
+    var anios=[];
+    datos.forEach(function(d){anios.push(d.yNac);if(d.yFin!==null)anios.push(d.yFin);});
+    var minA=Math.min.apply(null,anios)-3, maxA=Math.max.apply(null,anios)+3;
+    var span=Math.max(1,maxA-minA);
+    function pct(y){return(y-minA)/span*100;}
+    datos.forEach(function(d){
+        d.warn=false;
+        [d.p.PADRE,d.p.MADRE].forEach(function(progId){
+            if(!progId)return;
+            var prog=datos.filter(function(x){return x.p.ID===progId;})[0];
+            if(prog&&prog.yNac!==null&&(d.yNac-prog.yNac)<EDAD_MIN_PROGENITOR)d.warn=true;
+        });
+    });
+    datos.sort(function(a,b){return a.yNac-b.yNac;});
+    h+='<div class="cro-gantt-wrap"><div class="cro-gantt">';
+    datos.forEach(function(d){
+        var left=pct(d.yNac),width=Math.max(0.6,pct(d.yFin!==null?d.yFin:d.yNac)-left);
+        h+='<div class="cro-row"><div class="cro-row-label" title="'+escAttr(fn(d.p))+'" onclick="selPDesdeGantt(\''+safeId(d.p.ID)+'\')">'+esc(fn(d.p))+(d.p.ID===p.ID?' ★':'')+'</div><div class="cro-track">';
+        h+='<div class="cro-bar'+(d.vivo?' alive':'')+(d.warn?' warn':'')+'" style="left:'+left.toFixed(2)+'%;width:'+width.toFixed(2)+'%" title="'+d.yNac+(d.yFin!==null?' - '+d.yFin:' - presente')+'"></div>';
+        (HD[d.p.ID]||[]).forEach(function(hid){
+            var hp=PI[hid],yh=anioNacimientoPersona(hp);
+            if(yh!==null&&yh>=minA&&yh<=maxA)h+='<div class="cro-marker" style="left:'+pct(yh).toFixed(2)+'%" title="Nace '+escAttr(fn(hp))+' ('+yh+')"></div>';
+        });
+        h+='</div></div>';
+    });
+    h+='</div>';
+    var pasos=6,h2='<div class="cro-axis">';
+    for(var i=0;i<=pasos;i++){var y=Math.round(minA+span*i/pasos);h2+='<span style="left:'+(i/pasos*100).toFixed(2)+'%">'+y+'</span>';}
+    h2+='</div>';
+    h+=h2;
+    h+='<div class="cro-legend"><span><i style="background:rgba(61,44,30,.55)"></i>Fallecido</span><span><i style="background:rgba(44,95,138,.55)"></i>Vivo</span><span><i style="background:#c0392b"></i>Posible edad incoherente con su progenitor mostrado</span><span><i style="background:var(--green)"></i>Nacimiento de un hijo</span></div>';
+    h+='</div>';
+    return h;
+}
+function renderCronologia(id){
+    var p=PI[id];
+    if(!p){document.getElementById('croContenido').innerHTML='';return;}
+    document.getElementById('croContenido').innerHTML=htmlLineaVida(p)+htmlGanttFamilia(p);
+}
+
+/* ===== RELACION ENTRE DOS PERSONAS (parentesco + camino genealógico) ===== */
+function capitalizar(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1);}
+function sexoLetra(p){if(!p)return null;if(p.SEXO==='Hombre')return'M';if(p.SEXO==='Mujer')return'F';return null;}
+/* Combina una forma masculina y femenina segun el sexo conocido; si se desconoce, produce "hijo/a". */
+function formaSexo(masc,fem,sexoL){
+    if(sexoL==='M')return masc;
+    if(sexoL==='F')return fem;
+    if(masc.slice(0,-1)===fem.slice(0,-1))return masc+'/a';
+    return masc+'/'+fem;
+}
+var TERMINOS_DIRECTOS=[null,
+    {asc:['padre','madre'],desc:['hijo','hija']},
+    {asc:['abuelo','abuela'],desc:['nieto','nieta']},
+    {asc:['bisabuelo','bisabuela'],desc:['bisnieto','bisnieta']},
+    {asc:['tatarabuelo','tatarabuela'],desc:['tataranieto','tataranieta']}
+];
+/* n = numero de generaciones. esAscendiente=true -> "abuelo/a" (mirando hacia arriba); false -> "nieto/a" (mirando hacia abajo). */
+function terminoLineaDirecta(n,esAscendiente,sexoL){
+    if(n>=1&&n<TERMINOS_DIRECTOS.length){
+        var par=esAscendiente?TERMINOS_DIRECTOS[n].asc:TERMINOS_DIRECTOS[n].desc;
+        return formaSexo(par[0],par[1],sexoL);
+    }
+    return(esAscendiente?'ascendiente':'descendiente')+' directo/a ('+n+'ª generación)';
+}
+/* mayor = generaciones desde el sobrino/a hasta el ancestro comun (siempre >=2). esTio=true da la forma "tio/tia [...]"; false da "sobrino/a [...]" */
+function terminoAvuncular(mayor,esTio,sexoL){
+    var base=esTio?formaSexo('tío','tía',sexoL):formaSexo('sobrino','sobrina',sexoL);
+    if(mayor===2)return base;
+    return base+' '+terminoLineaDirecta(mayor-1,esTio,sexoL);
+}
+function terminoPrimo(grado,ambosF){
+    if(grado===1)return ambosF?'primas hermanas':'primos hermanos';
+    var ORD=['','primero','segundo','tercero','cuarto','quinto','sexto','séptimo','octavo','noveno','décimo'];
+    var ORD_F=['','primera','segunda','tercera','cuarta','quinta','sexta','séptima','octava','novena','décima'];
+    var base=grado<ORD.length?(ambosF?ORD_F[grado]:ORD[grado]):(grado+'º');
+    var plural=grado<ORD.length?base+'s':base;
+    return(ambosF?'primas ':'primos ')+plural;
+}
+/* Recorre PADRE/MADRE hacia arriba y devuelve {idAntepasado: distancia}, incluyendo a la propia persona (distancia 0). */
+function mapaAncestros(id,maxProf){
+    maxProf=maxProf||30;
+    var dist={};dist[id]=0;
+    var queue=[[id,0]];
+    while(queue.length){
+        var item=queue.shift(),pid=item[0],d=item[1];
+        if(d>=maxProf)continue;
+        var pers=PI[pid];
+        if(!pers)continue;
+        [pers.PADRE,pers.MADRE].forEach(function(anc){
+            if(anc&&PI[anc]&&(dist[anc]===undefined||dist[anc]>d+1)){
+                dist[anc]=d+1;
+                queue.push([anc,d+1]);
+            }
+        });
+    }
+    return dist;
+}
+/* Calcula el grado de parentesco de sangre entre idA e idB buscando el antepasado comun mas cercano
+   (el que minimiza la suma de generaciones hasta cada uno). Devuelve null si no hay ningun antepasado
+   comun conocido dentro de los datos disponibles. */
+function calcularParentesco(idA,idB){
+    if(idA===idB)return{corto:'Misma persona',texto:'Es la misma persona.'};
+    var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
+    var mejor=null;
+    Object.keys(ancA).forEach(function(anc){
+        if(ancB[anc]!==undefined){
+            var dA=ancA[anc],dB=ancB[anc],suma=dA+dB;
+            if(!mejor||suma<mejor.suma)mejor={anc:anc,dA:dA,dB:dB,suma:suma};
+        }
+    });
+    if(!mejor)return null;
+    var cuenta=0;
+    Object.keys(ancA).forEach(function(anc){if(ancA[anc]===mejor.dA&&ancB[anc]===mejor.dB)cuenta++;});
+    return nombrarParentesco(mejor.dA,mejor.dB,cuenta,idA,idB);
+}
+function nombrarParentesco(dA,dB,cuentaComun,idA,idB){
+    var A=PI[idA],B=PI[idB];
+    var sexA=sexoLetra(A),sexB=sexoLetra(B);
+    var nomA=fn(A),nomB=fn(B);
+    if(dA===0&&dB===0)return{corto:'Misma persona',texto:'Es la misma persona.'};
+    if(dA===0||dB===0){
+        var n=dA===0?dB:dA;
+        var ascId=dA===0?idA:idB,descId=dA===0?idB:idA;
+        var sexAsc=dA===0?sexA:sexB,sexDesc=dA===0?sexB:sexA;
+        var tAsc=terminoLineaDirecta(n,true,sexAsc),tDesc=terminoLineaDirecta(n,false,sexDesc);
+        return{corto:capitalizar(tAsc),texto:fn(PI[ascId])+' es '+tAsc+' de '+fn(PI[descId])+' (y '+fn(PI[descId])+' es '+tDesc+' de '+fn(PI[ascId])+').'};
+    }
+    var menor=Math.min(dA,dB),mayor=Math.max(dA,dB);
+    if(menor===1&&mayor===1){
+        var completos=cuentaComun>=2;
+        var ambasF=sexA==='F'&&sexB==='F';
+        var corto;
+        if(ambasF)corto=completos?'Hermanas':'Medias hermanas';
+        else corto=completos?'Hermanos':'Medio hermanos';
+        var terminoTxt=ambasF?(completos?'hermanas':'medias hermanas'):(completos?'hermanos':'medio hermanos');
+        return{corto:corto,texto:nomA+' y '+nomB+' son '+terminoTxt+(completos?'':' (comparten un solo progenitor)')+'.'};
+    }
+    if(menor===1&&mayor>=2){
+        var tioId=dA===1?idA:idB,sobId=dA===1?idB:idA;
+        var sexTio=dA===1?sexA:sexB,sexSob=dA===1?sexB:sexA;
+        var tTio=terminoAvuncular(mayor,true,sexTio),tSob=terminoAvuncular(mayor,false,sexSob);
+        return{corto:capitalizar(tTio),texto:fn(PI[tioId])+' es '+tTio+' de '+fn(PI[sobId])+' (y '+fn(PI[sobId])+' es '+tSob+' de '+fn(PI[tioId])+').'};
+    }
+    var grado=menor-1,removido=mayor-menor;
+    var ambosF=sexA==='F'&&sexB==='F';
+    var base=terminoPrimo(grado,ambosF);
+    var corto=capitalizar(base)+(removido?(' (removido '+removido+(removido===1?' generación)':' generaciones)')):'');
+    var texto=nomA+' y '+nomB+' son '+base+(removido?(', con '+removido+(removido===1?' generación':' generaciones')+' de diferencia entre sus ramas'):'')+'.';
+    return{corto:corto,texto:texto};
+}
+/* Vecinos directos de una persona en el grafo de parentesco: padres, hijos, hermanos y conyuges.
+   Se usa para encontrar el camino mas corto y natural entre dos personas (permite atajos como
+   "hermana" en vez de subir y volver a bajar por el antepasado comun). */
+function vecinosParentesco(id){
+    var p=PI[id];
+    if(!p)return[];
+    var vec=[];
+    if(p.PADRE&&PI[p.PADRE])vec.push({id:p.PADRE,tipo:'padre'});
+    if(p.MADRE&&PI[p.MADRE])vec.push({id:p.MADRE,tipo:'madre'});
+    (HD[id]||[]).forEach(function(hid){vec.push({id:hid,tipo:'hijo'});});
+    gHerm(id).forEach(function(h){vec.push({id:h.ID,tipo:'hermano'});});
+    if(p.M1&&PI[p.M1])vec.push({id:p.M1,tipo:'conyuge'});
+    if(p.M2&&PI[p.M2])vec.push({id:p.M2,tipo:'conyuge'});
+    return vec;
+}
+function buscarCaminoParentesco(idA,idB,maxProf){
+    maxProf=maxProf||25;
+    if(idA===idB)return[];
+    var visitado={};visitado[idA]=true;
+    var queue=[{id:idA,camino:[]}];
+    var visitas=0;
+    while(queue.length){
+        visitas++;
+        if(visitas>30000)return null;
+        var actual=queue.shift();
+        if(actual.camino.length>=maxProf)continue;
+        var vecinos=vecinosParentesco(actual.id);
+        for(var i=0;i<vecinos.length;i++){
+            var v=vecinos[i];
+            if(visitado[v.id])continue;
+            visitado[v.id]=true;
+            var nuevoCamino=actual.camino.concat([{desde:actual.id,hasta:v.id,tipo:v.tipo}]);
+            if(v.id===idB)return nuevoCamino;
+            queue.push({id:v.id,camino:nuevoCamino});
+        }
+    }
+    return null;
+}
+function etiquetaPaso(paso){
+    var destino=PI[paso.hasta],sexoDestino=sexoLetra(destino);
+    if(paso.tipo==='padre')return'Padre';
+    if(paso.tipo==='madre')return'Madre';
+    if(paso.tipo==='hijo')return capitalizar(formaSexo('hijo','hija',sexoDestino));
+    if(paso.tipo==='hermano')return capitalizar(formaSexo('hermano','hermana',sexoDestino));
+    if(paso.tipo==='conyuge')return sexoDestino==='M'?'Esposo':(sexoDestino==='F'?'Esposa':'Cónyuge');
+    return capitalizar(paso.tipo);
+}
+var relIdA=null,relIdB=null;
+function initRelacion(){
+    var boxA=document.getElementById('relSelBoxA'),boxB=document.getElementById('relSelBoxB');
+    if(relIdA&&PI[relIdA]){boxA.textContent=fn(PI[relIdA]);boxA.classList.remove('empty');}else{boxA.textContent='Ninguna seleccionada';boxA.classList.add('empty');}
+    if(relIdB&&PI[relIdB]){boxB.textContent=fn(PI[relIdB]);boxB.classList.remove('empty');}else{boxB.textContent='Ninguna seleccionada';boxB.classList.add('empty');}
+    document.getElementById('rlRelA').innerHTML='';document.getElementById('rlRelB').innerHTML='';
+    var ia=document.getElementById('siRelA'),ib=document.getElementById('siRelB');
+    if(ia)ia.value='';if(ib)ib.value='';
+    if(relIdA&&relIdB&&PI[relIdA]&&PI[relIdB])calcularYMostrarRelacion();
+    else document.getElementById('relResultado').innerHTML='';
+}
+function doSrchRel(q,letra){
+    q=(q||'').toLowerCase().trim();
+    var lista=document.getElementById('rlRel'+letra);
+    if(!q){lista.innerHTML='';return;}
+    var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+    f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+    f=f.slice(0,40);
+    var h='';
+    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
+}
+function seleccionarPersonaRel(id,letra){
+    if(letra==='A')relIdA=id;else relIdB=id;
+    var box=document.getElementById('relSelBox'+letra);
+    box.textContent=fn(PI[id]);box.classList.remove('empty');
+    document.getElementById('rlRel'+letra).innerHTML='';
+    document.getElementById('siRel'+letra).value='';
+    if(relIdA&&relIdB)calcularYMostrarRelacion();
+}
+function calcularYMostrarRelacion(){
+    if(!relIdA||!relIdB){toast('Selecciona ambas personas',true);return;}
+    var cont=document.getElementById('relResultado');
+    if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
+    var parentesco=calcularParentesco(relIdA,relIdB);
+    var camino=buscarCaminoParentesco(relIdA,relIdB,30);
+    var h='<div class="cro-life"><h3>Parentesco</h3>';
+    if(parentesco){
+        h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
+        h+='<p style="font-size:13px;margin-top:10px;line-height:1.5">'+esc(parentesco.texto)+'</p>';
+    }else{
+        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningun antepasado comun conocido entre '+esc(fn(PI[relIdA]))+' y '+esc(fn(PI[relIdB]))+'. Puede que no haya relacion de sangre, o que falten datos de ascendencia en alguna de las ramas.</p>';
+    }
+    h+='</div><div class="cro-life"><h3>Camino genealógico</h3>';
+    if(camino===null){
+        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningun camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.</p>';
+    }else if(!camino.length){
+        h+='<p style="font-size:13px;color:var(--muted)">Es la misma persona.</p>';
+    }else{
+        h+='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]))+'</div>';
+        camino.forEach(function(paso){
+            h+='<div class="rel-flecha"><i class="fa-solid fa-arrow-down"></i><span>'+esc(etiquetaPaso(paso))+'</span></div>';
+            h+='<div class="rel-nodo'+(paso.hasta===relIdB?' root':'')+'" onclick="selP(\''+safeId(paso.hasta)+'\')">'+esc(fn(PI[paso.hasta]))+'</div>';
+        });
+        h+='</div>';
+    }
+    h+='</div>';
+    cont.innerHTML=h;
+}
+
 function fechaCorta(p,pref){var d=fDate(p[pref+'D'],p[pref+'M'],p[pref+'A']);return d;}
 function datosPersonaTexto(p){
     var partes=[];
@@ -1495,54 +2129,193 @@ function descargarArbolDescendente(){
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
-var ASC_POSTER_GENS=6; /* 1=persona raiz, 2=padres, 3=abuelos ... 6=generacion mas antigua mostrada */
-function abrCardHTML(p,thin){
-    if(!p)return thin?'<div class="abr-card thin empty"></div>':'<div class="abr-card empty"></div>';
-    var y=pdAnioTexto(p);
-    if(thin){
-        return '<div class="abr-card thin"><span class="abr-thin-name">'+esc(fn(p))+'</span>'+(y?'<span class="abr-thin-year">'+esc(y)+'</span>':'')+'</div>';
-    }
-    var foto=p.FOTO?'<img class="pd-photo-box" src="'+escAttr(p.FOTO)+'">':'<div class="pd-initial">'+esc(ini(p))+'</div>';
-    return '<div class="abr-card">'+foto+'<div class="pd-nombre">'+esc(fn(p))+'</div>'+(y?'<div class="pd-anio">'+esc(y)+'</div>':'')+'</div>';
+/* ===== POSTER ASCENDENTE A3: PLANTILLA FIJA (SVG) =====
+   La geometria (posicion y tamaño de cada casilla y de cada linea) se calcula UNA SOLA VEZ,
+   de forma puramente recursiva sobre la ESTRUCTURA de 8 generaciones (no sobre los datos de
+   ninguna persona en concreto): cada casilla de la generacion mas antigua ocupa siempre el
+   mismo lugar fijo, y cada casilla "descendiente" de esa rama se centra exactamente entre
+   sus dos casillas ascendentes. El resultado es siempre la MISMA plantilla en forma de
+   abanico simetrico, exista o no la persona correspondiente en cada casilla: si falta el
+   dato, la casilla queda vacia pero no se elimina, no se desplaza y no se reorganiza nada.
+   El color de las lineas y las cajas es fijo (sepia); lo unico que el usuario puede elegir
+   es el color de FONDO del poster (variable independiente, --> ascPosterBg). */
+var ASC_PAGE_W=420, ASC_PAGE_H=297;               // A3 horizontal real, en milimetros
+/* Geometria recalibrada a partir de una medicion automatica (deteccion de contornos) del
+   modelo real Modelo_arbol.png (8000x5809px): se extrajeron las posiciones y tamaños reales
+   de cada columna de casillas y se convirtieron a mm sobre una pagina A3. El modelo real medido
+   mostraba 7 generaciones completas (persona + 6 niveles de ascendientes, con la generacion
+   mas antigua medida en 32 casillas por rama, repartida en 3 campos: apellidos/nombre/año).
+   A peticion del usuario se ha añadido una generacion mas (la 8ª): esa fila que antes eran
+   3 campos de UNA sola persona pasa a ser una unica casilla normal (nombre+apellidos+año,
+   igual que el resto de generaciones), y a su izquierda aparece una nueva generacion final
+   con 64 casillas simples por rama (el padre y la madre de cada una de esas 32 personas).
+   Como el modelo real no llegaba a esta 8ª generacion, su posicion y tamaño (ASC_DEPTH_DIMS[5]
+   y ASC_LEAF_W/ASC_LEAF_X) son una estimacion razonable, no una medicion; se pueden ajustar
+   a mano si no queda bien. Las coordenadas Y siguen siendo puramente recursivas (cada
+   ascendiente se centra entre sus dos hijos) para que la plantilla sea siempre simetrica,
+   haya o no datos. */
+var ASC_LEAF_GENS=6;                              // 6 duplicaciones: 1,2,4,8,16,32,64 cajas en la rama mas antigua
+var ASC_LEAF_COUNT=Math.pow(2,ASC_LEAF_GENS);     // 64
+var ASC_TITLE_H=22, ASC_FOOTER_H=8, ASC_FRAME_MARGIN=8;
+var ASC_LEAF_H=3.3, ASC_LEAF_TOP=15.18, ASC_LEAF_BOTTOM_MARGIN=15.18; // mm; alto de caja reducido para que quepan 64 filas
+var ASC_LINE_COLOR='#3D2C1E';                      // FIJO: no se modifica desde la interfaz
+var ASC_ROOT_X=198.0, ASC_ROOT_Y=280.05, ASC_ROOT_W=26.6, ASC_ROOT_H=14.0; // caja de la persona (abajo, centrada)
+// Dimensiones y posicion X (mm, lado paterno; el materno es el espejo) de cada generacion,
+// medidas directamente sobre el modelo real, de d=0 (generacion 2, junto a la raiz) a d=4
+// (generacion 6). d5 (generacion 7, la antigua fila-hoja de 3 campos) es una estimacion:
+// ocupa aproximadamente la zona donde antes estaba el campo del año.
+var ASC_DEPTH_DIMS=[
+    {w:19.7,h:25.3,x:188.9},  // d0 = generacion 2 (padre/madre)
+    {w:20.3,h:24.6,x:175.1},  // d1 = generacion 3
+    {w:27.6,h:10.4,x:154.2},  // d2 = generacion 4
+    {w:21.8,h:10.3,x:142.3},  // d3 = generacion 5
+    {w:21.5,h:10.2,x:113.8},  // d4 = generacion 6
+    {w:32.0,h:6.2, x:74.0}    // d5 = generacion 7 (estimado, antes era la fila-hoja de 3 campos)
+];
+// Generacion 8 (hoja nueva, d6 = ASC_LEAF_GENS): casilla simple (nombre+apellidos+año),
+// no dividida en campos. Posicion/tamaño estimados (el modelo real no llegaba tan lejos).
+var ASC_LEAF_W=20.0, ASC_LEAF_X=13.0;
+var ASC_BG_OPTIONS=[
+    {id:'blanco',label:'Blanco',hex:'#FFFFFF'},
+    {id:'marfil',label:'Marfil',hex:'#FFFFF2'},
+    {id:'beige',label:'Beige',hex:'#F3ECDD'},
+    {id:'crema',label:'Crema',hex:'#FDF6E3'},
+    {id:'gris',label:'Gris muy claro',hex:'#F1F1EF'}
+];
+var ascPosterBg=ASC_BG_OPTIONS[0].hex;
+
+/* Devuelve la geometria (x,w,h) de la caja de una generacion dada, para el lado paterno o el
+   materno (espejo exacto respecto al eje central de la pagina). */
+function ascGetBoxGeom(depth,esPadre){
+    var dims=(depth===ASC_LEAF_GENS)?{w:ASC_LEAF_W,h:ASC_LEAF_H,x:ASC_LEAF_X}:ASC_DEPTH_DIMS[depth];
+    var x=esPadre?dims.x:(ASC_PAGE_W-dims.x-dims.w);
+    return{x:x,w:dims.w,h:dims.h};
 }
-/* Construye recursivamente un nodo del arbol ascendente ("bracket" tipo cuadro de torneo):
-   cada nodo es [sus dos ascendientes apilados][tronco][su propia tarjeta]. El propio flexbox
-   (align-items:center en .abr-node) centra la tarjeta respecto a sus ascendientes de forma
-   automatica y correcta, sea cual sea el tamaño de cada rama (sin medir nada por JS). */
-function abrBuildNode(id,gen){
+
+function fitFontSize(text,maxWidthMm,maxSize,minSize,charFactor){
+    charFactor=charFactor||0.56;
+    var len=Math.max(1,String(text||'').length);
+    var size=maxWidthMm/(len*charFactor);
+    return Math.max(minSize,Math.min(maxSize,size));
+}
+
+/* La caja SIEMPRE se dibuja con la posicion y el tamaño fijos que le tocan; solo el TEXTO
+   se adapta (reduciendo su tamaño de letra) para que quepa dentro. La caja nunca cambia. */
+function ascBoxSVG(x,y,w,h,persona,thin){
+    var out='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.5" ry="0.5" fill="#fff" stroke="'+ASC_LINE_COLOR+'" stroke-width="'+(thin?0.22:0.3)+'"/>';
+    if(persona){
+        var nombre=esc(fn(persona).trim())||'?';
+        var anio=pdAnioTexto(persona);
+        var padX=w*0.07;
+        if(thin){
+            var anioW=anio?3.6:0;
+            var fsN=fitFontSize(nombre,w*0.9-padX*2-anioW,2.1,0.85);
+            out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2+fsN*0.32).toFixed(2)+'" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+nombre+'</text>';
+            if(anio)out+='<text x="'+(x+w-padX).toFixed(2)+'" y="'+(y+h/2+fsN*0.32).toFixed(2)+'" text-anchor="end" font-family="Lato,sans-serif" font-size="1.35" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
+        }else{
+            var fsN2=fitFontSize(nombre,w-2*padX,2.6,1.2);
+            out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2-0.4).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN2.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+nombre+'</text>';
+            if(anio)out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2+2.3).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.7" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
+        }
+    }
+    return out;
+}
+
+var ascLeafIndex=0;
+/* 64 posiciones repartidas simetricamente en el alto de la pagina (generacion mas antigua). */
+function ascLeafY(i){
+    var top=ASC_LEAF_TOP+ASC_LEAF_H/2, bottom=ASC_PAGE_H-ASC_LEAF_BOTTOM_MARGIN-ASC_LEAF_H/2;
+    var step=(bottom-top)/(ASC_LEAF_COUNT-1);
+    return top+i*step;
+}
+/* Recorre la relacion PADRE/MADRE asignando SIEMPRE la misma posicion (profundidad) a cada
+   generacion, exista o no la persona: si falta el dato, la rama entera sigue construyendose
+   vacia hasta la generacion mas antigua, para que la plantilla no pierda nunca su simetria. */
+function ascRecBuild(id,depth){
     var p=id?PI[id]:null;
-    var thin=gen>=ASC_POSTER_GENS-1;
-    var card=abrCardHTML(p,thin);
-    if(!p||gen>=ASC_POSTER_GENS)return card;
-    var tienePadres=(p.PADRE&&PI[p.PADRE])||(p.MADRE&&PI[p.MADRE]);
-    if(!tienePadres)return card;
-    var h='<div class="abr-node">';
-    h+='<div class="abr-children">';
-    h+='<div class="abr-child">'+abrBuildNode(p.PADRE,gen+1)+'</div>';
-    h+='<div class="abr-child">'+abrBuildNode(p.MADRE,gen+1)+'</div>';
-    h+='</div>';
-    h+='<div class="abr-trunk"></div>';
-    h+=card;
-    h+='</div>';
-    return h;
-}
-function descargarArbolAscendente(){
-    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
-    var p=PI[infId];
-    var tieneP=p.PADRE&&PI[p.PADRE],tieneM=p.MADRE&&PI[p.MADRE];
-    var html='<div class="print-report"><h1>Arbol ascendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
-    html+='<div class="abr-poster">';
-    if(tieneP||tieneM){
-        html+='<div class="abr-halves">';
-        html+='<div class="abr-side">'+(tieneP?abrBuildNode(p.PADRE,2):abrCardHTML(null,false))+'</div>';
-        html+='<div class="abr-side abr-mirror">'+(tieneM?abrBuildNode(p.MADRE,2):abrCardHTML(null,false))+'</div>';
-        html+='</div>';
-        html+='<div class="abr-drop"></div>';
+    if(depth===ASC_LEAF_GENS){
+        var y=ascLeafY(ascLeafIndex);
+        ascLeafIndex++;
+        return{depth:depth,y:y,persona:p,children:null};
     }
-    html+='<div class="abr-root">'+pdCoupleHTML(p,[p.M1,p.M2].filter(function(x){return x&&PI[x];}))+'</div>';
-    html+='</div></div>';
-    document.getElementById('printArea').innerHTML=html;
-    setTimeout(function(){window.print();},80);
+    var padre=ascRecBuild(p&&p.PADRE?p.PADRE:null,depth+1);
+    var madre=ascRecBuild(p&&p.MADRE?p.MADRE:null,depth+1);
+    return{depth:depth,y:(padre.y+madre.y)/2,persona:p,children:[padre,madre]};
+}
+
+function ascNodeSVG(node,esPadre){
+    var g=ascGetBoxGeom(node.depth,esPadre);
+    var out=ascBoxSVG(g.x,node.y-g.h/2,g.w,g.h,node.persona,node.depth>=2);
+    if(node.children){
+        var hijoP=node.children[0],hijoM=node.children[1];
+        var gc=ascGetBoxGeom(node.depth+1,esPadre);
+        var outwardX=esPadre?g.x:g.x+g.w;
+        var childCenterX=esPadre?(gc.x+gc.w):gc.x;
+        var gap=Math.abs(esPadre?(g.x-(gc.x+gc.w)):(gc.x-(g.x+g.w)));
+        var trunkX=esPadre?(outwardX-gap/2):(outwardX+gap/2);
+        out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
+        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
+        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoP.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
+        out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoM.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.22"/>';
+        out+=ascNodeSVG(hijoP,esPadre);
+        out+=ascNodeSVG(hijoM,esPadre);
+    }
+    return out;
+}
+
+/* Ensambla la plantilla SVG A3 completa: marco, titulo, las dos mitades (rama paterna y
+   materna) y la casilla central (la propia persona, sin conyuge, igual que en el modelo real
+   que solo mostraba la fila de ascendientes). La unica diferencia entre imprimir a Francisco
+   o a cualquier otro pariente es que texto cae en cada casilla: la geometria, siempre identica. */
+function buildAscPosterSVGString(rootId){
+    var p=PI[rootId];
+    ascLeafIndex=0;var arbolPadre=ascRecBuild(p.PADRE,0);
+    ascLeafIndex=0;var arbolMadre=ascRecBuild(p.MADRE,0);
+    var gen2Y=arbolPadre.y;
+    var g0Padre=ascGetBoxGeom(0,true),g0Madre=ascGetBoxGeom(0,false);
+    var svg='';
+    svg+=ascNodeSVG(arbolPadre,true);
+    svg+=ascNodeSVG(arbolMadre,false);
+    svg+='<line x1="'+(ASC_PAGE_W/2).toFixed(2)+'" y1="'+ASC_ROOT_Y.toFixed(2)+'" x2="'+(ASC_PAGE_W/2).toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
+    svg+='<line x1="'+(g0Padre.x+g0Padre.w).toFixed(2)+'" y1="'+gen2Y.toFixed(2)+'" x2="'+g0Madre.x.toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
+    svg+=ascBoxSVG(ASC_ROOT_X,ASC_ROOT_Y-ASC_ROOT_H/2,ASC_ROOT_W,ASC_ROOT_H,p,false);
+    var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
+    var marco='<rect x="4" y="4" width="'+(ASC_PAGE_W-8)+'" height="'+(ASC_PAGE_H-8)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.6"/>'+
+               '<rect x="7" y="7" width="'+(ASC_PAGE_W-14)+'" height="'+(ASC_PAGE_H-14)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.18"/>';
+    var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ARBOL GENEALOGICO</text>'+
+               '<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
+    var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+svg+pie+'</svg>';
+}
+
+function renderAscBgSwatches(){
+    var cont=document.getElementById('ascColorSwatches');
+    if(!cont)return;
+    cont.innerHTML=ASC_BG_OPTIONS.map(function(c){
+        var activo=c.hex===ascPosterBg;
+        return '<button type="button" title="'+esc(c.label)+'" onclick="elegirFondoAscendente(\''+c.hex+'\')" style="width:36px;height:36px;border-radius:50%;background:'+c.hex+';border:3px solid '+(activo?'var(--accent)':'#c8c0b0')+';cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15);flex-shrink:0"></button>';
+    }).join('');
+}
+function elegirFondoAscendente(hex){ascPosterBg=hex;renderAscBgSwatches();}
+function abrirModalAscendentePoster(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    renderAscBgSwatches();
+    document.getElementById('modalPosterAscendente').style.display='flex';
+}
+function cerrarModalAscendentePoster(){document.getElementById('modalPosterAscendente').style.display='none';}
+function generarArbolAscendentePoster(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var svg=buildAscPosterSVGString(infId);
+    var printArea=document.getElementById('printArea');
+    printArea.innerHTML='<div class="asc-print-page-fixed">'+svg+'</div>';
+    var styleTag=document.getElementById('pageSizeOverride');
+    if(!styleTag){styleTag=document.createElement('style');styleTag.id='pageSizeOverride';document.head.appendChild(styleTag);}
+    styleTag.textContent='@media print{@page{size:A3 landscape;margin:0}}';
+    cerrarModalAscendentePoster();
+    requestAnimationFrame(function(){
+        window.print();
+        setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
+    });
 }
 function recopilarAscendientesInforme(id,gen,sosa,maxGen,visitados,porGeneracion){
     if(gen>maxGen||visitados[sosa])return;
@@ -1596,29 +2369,192 @@ function recopilarDescendientesInforme(id,gen,maxGen,visitados,porGeneracion){
     var hijos=ordenarIdsPorEdad(HD[id]||[]);
     hijos.forEach(function(hid){recopilarDescendientesInforme(hid,gen+1,maxGen,visitados,porGeneracion);});
 }
+/* Bloque de datos de una persona reutilizado por varios informes (descendientes, rama, apellido). */
+function htmlPrintPersona(pp){
+    var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
+    var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
+    var padre=pp.PADRE&&PI[pp.PADRE]?fn(PI[pp.PADRE]):'';
+    var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
+    var html='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+'</div>';
+    html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
+    html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+    if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
+    if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
+    if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
+    if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
+    html+='</div>';
+    return html;
+}
 function descargarInformeDescendientes(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
+    var genSel=document.getElementById('infDescGen');
+    var maxGen=genSel?parseInt(genSel.value,10):PD_MAX_GEN;
+    if(isNaN(maxGen))maxGen=PD_MAX_GEN;
+    var filtroSel=document.getElementById('infDescFiltro');
+    var filtro=filtroSel?filtroSel.value:'todos';
+    var porGeneracion={};
+    recopilarDescendientesInforme(infId,0,maxGen,{},porGeneracion);
+    if(filtro!=='todos'){
+        Object.keys(porGeneracion).forEach(function(g){
+            porGeneracion[g]=porGeneracion[g].filter(function(pp){return filtro==='vivos'?isAl(pp):!isAl(pp);});
+        });
+    }
+    var html='<div class="print-report"><h1>Informe de descendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+(filtro!=='todos'?' · Solo '+(filtro==='vivos'?'personas vivas':'personas fallecidas'):'')+'</div>';
+    var huboAlguno=false;
+    Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
+        if(!porGeneracion[g].length)return;
+        huboAlguno=true;
+        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
+        porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
+    });
+    if(!huboAlguno)html+='<p style="font-size:12px;color:var(--muted)">No hay descendientes que cumplan el filtro seleccionado.</p>';
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME DE UNA PERSONA ===== */
+function descargarInformePersona(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var al=isAl(p);
+    var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
+    var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'Desconocida';
+    var her=gHerm(infId);
+    var hij=ordenarIdsPorEdad(HD[infId]||[]);
+    var html='<div class="print-report"><h1>Informe de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    html+='<div class="print-person" style="border-bottom:0">';
+    html+='<div class="pn-name" style="font-size:14px">Datos personales</div>';
+    html+='<div class="pn-row">ID: '+esc(p.ID)+(p.SEXO?' · Sexo: '+esc(p.SEXO):'')+' · '+(al?'Vivo':'Fallecido')+'</div>';
+    html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(p,'NAC')||(p.APROX?'Aprox. '+p.APROX:'Desconocido'))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
+    if(p.APROX&&p.MotivoAprox)html+='<div class="pn-row">Motivo del año aprox.: '+esc(p.MotivoAprox)+'</div>';
+    html+='<div class="pn-row">Defuncion: '+esc(al?'Vivo':(fechaCorta(p,'DEF')||'Desconocida'))+(p.LUGARDEF?' — '+esc(p.LUGARDEF):'')+'</div>';
+    html+='</div>';
+    html+='<div class="print-person" style="border-bottom:0">';
+    html+='<div class="pn-name" style="font-size:14px">Familia</div>';
+    html+='<div class="pn-row">Padre: '+esc(padre)+'</div><div class="pn-row">Madre: '+esc(madre)+'</div>';
+    if(p.M1&&PI[p.M1])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M1]))+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</div>';
+    if(p.M2&&PI[p.M2])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M2]))+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</div>';
+    if(her.length)html+='<div class="pn-row">Hermanos ('+her.length+'): '+esc(her.map(function(x){return fn(x);}).join(', '))+'</div>';
+    if(hij.length)html+='<div class="pn-row">Hijos ('+hij.length+'): '+esc(hij.map(function(x){return fn(PI[x]);}).join(', '))+'</div>';
+    html+='</div>';
+    if(p.OBSERVACIONES)html+='<div class="print-person" style="border-bottom:0"><div class="pn-name" style="font-size:14px">Observaciones</div><div class="pn-row">'+esc(p.OBSERVACIONES)+'</div></div>';
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME DE UNA RAMA (cabecera de rama + todos sus descendientes) ===== */
+function descargarInformeRama(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
+    var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'Desconocida';
     var porGeneracion={};
     recopilarDescendientesInforme(infId,0,PD_MAX_GEN,{},porGeneracion);
-    var html='<div class="print-report"><h1>Informe de descendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    var html='<div class="print-report"><h1>Informe de la rama de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+    html+='<div class="print-person"><div class="pn-name">Cabeza de rama: '+esc(fn(p))+'</div>';
+    html+='<div class="pn-row">Hijo/a de '+esc(padre)+' y '+esc(madre)+'</div>';
+    html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(p,'NAC')||(p.APROX?'Aprox. '+p.APROX:'Desconocido'))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
+    if(p.M1&&PI[p.M1])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M1]))+'</div>';
+    if(p.M2&&PI[p.M2])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M2]))+'</div>';
+    html+='</div>';
+    var huboDescendientes=false;
     Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
-        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
-        porGeneracion[g].forEach(function(pp){
-            var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
-            var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
-            var padre=pp.PADRE&&PI[pp.PADRE]?fn(PI[pp.PADRE]):'';
-            var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
-            html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+'</div>';
-            html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
-            html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
-            if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
-            if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
-            if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
-            if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
-            html+='</div>';
-        });
+        if(parseInt(g,10)===0)return; // ya se muestra arriba como cabeza de rama
+        if(!porGeneracion[g].length)return;
+        huboDescendientes=true;
+        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+' de la rama</div>';
+        porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
     });
+    if(!huboDescendientes)html+='<p style="font-size:12px;color:var(--muted)">Esta persona no tiene descendientes registrados.</p>';
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME CRONOLOGICO (version imprimible de la pestaña Cronologia) ===== */
+function descargarInformeCronologico(){
+    if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+    var p=PI[infId];
+    var html='<div class="print-report"><h1>Informe cronologico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p)+'</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME POR APELLIDO ===== */
+function descargarInformePorApellido(){
+    var input=document.getElementById('infApellido');
+    var q=input?input.value.trim():'';
+    if(!q){toast('Escribe un apellido',true);return;}
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var qn=normTxt(q);
+    var coincidencias=D.filter(function(p){return normTxt(p.APELLIDO1)===qn||normTxt(p.APELLIDO2)===qn;});
+    if(!coincidencias.length){toast('No se encontraron personas con el apellido "'+q+'"',true);return;}
+    coincidencias=coincidencias.slice().sort(function(a,b){
+        var ya=getYear(a),yb=getYear(b);
+        if(ya===null&&yb===null)return sn(a).localeCompare(sn(b));
+        if(ya===null)return 1;if(yb===null)return -1;return ya-yb;
+    });
+    var html='<div class="print-report"><h1>Informe del apellido '+esc(q)+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+coincidencias.length+' persona(s)</div>';
+    coincidencias.forEach(function(pp){html+=htmlPrintPersona(pp);});
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME DE DATOS FALTANTES ===== */
+function datosFaltantesCategorias(){
+    return[
+        {titulo:'Sin año de nacimiento (ni confirmado ni aproximado)',personas:D.filter(function(p){return getYear(p)===null;})},
+        {titulo:'Sin lugar de nacimiento',personas:D.filter(function(p){return !String(p.LUGARNAC||'').trim();})},
+        {titulo:'Sin sexo registrado',personas:D.filter(function(p){return !String(p.SEXO||'').trim();})},
+        {titulo:'Sin padre ni madre registrados',personas:D.filter(function(p){return !p.PADRE&&!p.MADRE;})},
+        {titulo:'Sin foto',personas:D.filter(function(p){return !p.FOTO;})}
+    ];
+}
+function descargarInformeDatosFaltantes(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var cats=datosFaltantesCategorias();
+    var MOSTRAR=300;
+    var html='<div class="print-report"><h1>Informe de datos faltantes</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+D.length+' personas en total</div>';
+    cats.forEach(function(c){
+        html+='<div class="print-gen-title">'+esc(c.titulo)+' ('+c.personas.length+')</div>';
+        if(!c.personas.length){html+='<div class="print-node" style="border:0;padding-left:0">Ninguna — enhorabuena.</div>';return;}
+        var lista=c.personas.slice().sort(function(a,b){return sn(a).localeCompare(sn(b));});
+        lista.slice(0,MOSTRAR).forEach(function(pp){
+            html+='<div class="print-node"><span class="pn-name">'+esc(fn(pp))+'</span> <span class="pn-meta">(ID '+esc(pp.ID)+')</span></div>';
+        });
+        if(lista.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(lista.length-MOSTRAR)+' mas</span></div>';
+    });
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME DE INCONSISTENCIAS (version imprimible) ===== */
+function descargarInformeInconsistencias(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var problemas=detectarInconsistencias();
+    var html='<div class="print-report"><h1>Informe de inconsistencias</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+problemas.length+' inconsistencia(s)</div>';
+    if(!problemas.length)html+='<p style="font-size:12px;color:var(--muted)">No se detectaron inconsistencias.</p>';
+    else problemas.forEach(function(pr){
+        html+='<div class="print-node"><span class="pn-name">'+esc(pr.etiqueta)+'</span><br><span class="pn-meta">'+pr.mensaje+'</span></div>';
+    });
+    html+='</div>';
+    document.getElementById('printArea').innerHTML=html;
+    setTimeout(function(){window.print();},80);
+}
+/* ===== INFORME DE POSIBLES DUPLICADOS (version imprimible) ===== */
+function descargarInformeDuplicados(){
+    if(!D.length){toast('No hay datos cargados',true);return;}
+    var todos=detectarDuplicados();
+    var pares=todos.filter(function(p){return !DUP_IGNORADOS[p.a.ID+'|'+p.b.ID];});
+    var MOSTRAR=200;
+    var html='<div class="print-report"><h1>Informe de posibles duplicados</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+pares.length+' pareja(s) candidata(s)</div>';
+    if(!pares.length)html+='<p style="font-size:12px;color:var(--muted)">No hay duplicados pendientes de revisar.</p>';
+    else{
+        pares.slice(0,MOSTRAR).forEach(function(pr){
+            var nivel=pr.score>=90?'Muy probable':(pr.score>=65?'Posible':'Baja confianza');
+            html+='<div class="print-node"><span class="pn-name">'+esc(nivel)+' · '+pr.score+' pts — '+esc(fn(pr.a))+' (ID '+esc(pr.a.ID)+') vs '+esc(fn(pr.b))+' (ID '+esc(pr.b.ID)+')</span><br><span class="pn-meta">'+esc(pr.motivos.join(' · '))+'</span></div>';
+        });
+        if(pares.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(pares.length-MOSTRAR)+' pareja(s) mas. Usa "Posibles duplicados" en Herramientas para verlas todas.</span></div>';
+    }
     html+='</div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
@@ -1863,7 +2799,7 @@ function parseAndLoad(txt){
         function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; if(val==='') return null; var f=parseFloat(val); return isNaN(f) ? null : f; }
         row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
         if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
-        var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : '';
+        var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : ''; row.MotivoAprox = '';
         row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, '');
         data.push(row);
     }
@@ -1882,7 +2818,7 @@ function parseAndLoad(txt){
     });
 }
 
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);}
+function init(){ultimoCalculoAnios=null;actualizarBotonDeshacerAprox();rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);}
 
 document.addEventListener('DOMContentLoaded',function(){
     oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);});}).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);init();cargarCarpetaDocumentos();});},500);});
@@ -1902,6 +2838,31 @@ document.addEventListener('DOMContentLoaded',function(){
         var val=this.value;
         clearTimeout(srchTimerInf);
         srchTimerInf=setTimeout(function(){doSrchInf(val);},150);
+    });
+})();
+(function(){
+    var srchTimerCro=null;
+    var elCro=document.getElementById('siCro');
+    if(elCro)elCro.addEventListener('input',function(){
+        var val=this.value;
+        clearTimeout(srchTimerCro);
+        srchTimerCro=setTimeout(function(){doSrchCro(val);},150);
+    });
+})();
+(function(){
+    var srchTimerRelA=null;
+    var elRelA=document.getElementById('siRelA');
+    if(elRelA)elRelA.addEventListener('input',function(){
+        var val=this.value;
+        clearTimeout(srchTimerRelA);
+        srchTimerRelA=setTimeout(function(){doSrchRel(val,'A');},150);
+    });
+    var srchTimerRelB=null;
+    var elRelB=document.getElementById('siRelB');
+    if(elRelB)elRelB.addEventListener('input',function(){
+        var val=this.value;
+        clearTimeout(srchTimerRelB);
+        srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
     });
 })();
 </script>
@@ -1940,12 +2901,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la ultima copia subida a Drive y la carga aqui</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
-      <div class="herr-section">Calidad de los datos</div>
-      <button class="herr-item" onclick="cerrarHerramientas();mostrarInconsistencias()"><div class="herr-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="herr-text"><div class="herr-title">Comprobar consistencia</div><div class="herr-desc">Detecta cónyuges sin vincular, géneros y edades incoherentes</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();mostrarDuplicados()"><div class="herr-icon"><i class="fa-solid fa-user-group"></i></div><div class="herr-text"><div class="herr-title">Posibles duplicados</div><div class="herr-desc">Busca fichas que podrian ser la misma persona y permite fusionarlas</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();mostrarRamasIncompletas()"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Ramas incompletas</div><div class="herr-desc">Lista personas sin padre ni madre registrados</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();calcularAnosAproximados()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Calcular años aproximados</div><div class="herr-desc">Estima el año de nacimiento a partir de familiares cercanos</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();marcarFallecidosMayores100()"><div class="herr-icon"><i class="fa-solid fa-skull"></i></div><div class="herr-text"><div class="herr-title">Marcar fallecidos +100 años</div><div class="herr-desc">Marca como fallecidas a las personas vivas con mas de 100 años</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogia</div></div></button>
     </div>
   </div>
 </div>
@@ -1969,6 +2925,18 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <p style="font-size:11px;color:var(--muted);margin:6px 0">Se comparan personas con el mismo nombre y apellidos. La puntuacion sube si ademas coincide el año, los padres o el lugar de nacimiento. Revisa cada pareja antes de fusionar: la accion no se puede deshacer.</p>
     <div id="listaDuplicados" style="overflow:auto;margin-top:6px;padding-right:2px"></div>
+  </div>
+</div>
+<div id="modalPosterAscendente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-palette" style="color:var(--accent)"></i> Poster ascendente</h2>
+      <button class="ef-nbtn" onclick="cerrarModalAscendentePoster()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Plantilla fija en abanico de 8 generaciones, pensada para imprimir en A3 apaisado (horizontal) y enmarcar. No incluye fotos. Las lineas y las casillas son siempre color sepia; puedes elegir el color de fondo:</p>
+    <div id="ascColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientacion horizontal y tamaño real (100%, sin "ajustar a la pagina").</p>
+    <button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePoster()"><i class="fa-solid fa-file-pdf"></i> Generar e imprimir</button>
   </div>
 </div>
 </body>
