@@ -423,7 +423,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-triangle-exclamation"></i> Comprobar consistencia</h3>
-<p>Detecta cónyuges sin vincular, géneros y edades incoherentes entre padres e hijos.</p>
+<p>Detecta cónyuges sin vincular, géneros incoherentes, fechas imposibles (nacimientos, defunciones, matrimonios) y otras anomalías. Se muestran como posibles inconsistencias para que decidas tú.</p>
 <button class="ef-btn" onclick="mostrarInconsistencias()"><i class="fa-solid fa-magnifying-glass"></i> Comprobar</button>
 </div>
 <div class="inf-card">
@@ -1231,8 +1231,22 @@ function mostrarRamasIncompletas(){
     cont.innerHTML=h;
 }
 
-/* ===== COMPROBADOR DE CONSISTENCIA ===== */
-var EDAD_MIN_PROGENITOR=12;
+/* ===== COMPROBADOR DE CONSISTENCIA =====
+   Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error:
+   en genealogia una anomalia no siempre es un fallo de los datos (partos multiples,
+   adopciones, segundas nupcias tardias, longevidad real, etc.), asi que el programa
+   avisa y es la persona quien decide si corregirlo. Solo las comprobaciones que ya
+   tenian una correccion segura y reversible (conyuge sin vinculo, sexo de padre/madre,
+   edad imposible entre progenitor e hijo) ofrecen el boton "Solucionar"; el resto solo
+   permite "Ver ficha" para revisar el caso a mano. */
+var EDAD_MIN_PROGENITOR=14;
+var EDAD_MIN_CONYUGE=14;
+var DIF_EDAD_CONYUGES_EXTREMA=45;
+var ANIOS_MAX_PADRE_HIJO=120;
+var EDAD_VIVO_EXTREMA=110;
+var DIAS_MIN_ENTRE_HERMANOS=200;
+function getDeathYear(p){if(!p||isAl(p))return null;if(p.DEFA===undefined||p.DEFA===null||p.DEFA==='')return null;var n=parseInt(p.DEFA,10);return isNaN(n)?null:n;}
+function fechaCompletaNac(p){if(!p||!p.NACD||!p.NACM||!p.NACA)return null;var d=parseInt(p.NACD,10),m=parseInt(p.NACM,10),a=parseInt(p.NACA,10);if(!d||!m||!a)return null;var f=new Date(a,m-1,d);return isNaN(f.getTime())?null:f;}
 function detectarInconsistencias(){
     var problemas=[];
     D.forEach(function(p){
@@ -1275,7 +1289,20 @@ function detectarInconsistencias(){
                 });
             }
         }
+        /* Persona que figura como su propio padre o madre, o que tiene el mismo ID en ambos campos */
+        if(p.PADRE&&p.PADRE===p.ID){
+            problemas.push({icono:'fa-user-slash',etiqueta:'Posible inconsistencia: persona como su propio progenitor',mensaje:esc(fn(p))+' figura como padre de sí misma.',verId:p.ID});
+        }
+        if(p.MADRE&&p.MADRE===p.ID){
+            problemas.push({icono:'fa-user-slash',etiqueta:'Posible inconsistencia: persona como su propio progenitor',mensaje:esc(fn(p))+' figura como madre de sí misma.',verId:p.ID});
+        }
+        if(p.PADRE&&p.MADRE&&p.PADRE===p.MADRE){
+            problemas.push({icono:'fa-people-pulling',etiqueta:'Posible inconsistencia: mismo padre y madre',mensaje:esc(fn(p))+' tiene a '+esc(fn(PI[p.PADRE]))+' registrado a la vez como padre y como madre.',verId:p.ID});
+        }
+        /* Persona casada consigo misma */
+        ['M1','M2'].forEach(function(campo){if(p[campo]&&p[campo]===p.ID){problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: cónyuge de sí mismo/a',mensaje:esc(fn(p))+' figura como su propio/a cónyuge ('+campo+').',verId:p.ID});}});
         var yHijo=getYear(p);
+        var yDefPropia=getDeathYear(p);
         if(yHijo!==null){
             [['PADRE','padre'],['MADRE','madre']].forEach(function(par){
                 var campo=par[0],rel=par[1];
@@ -1290,16 +1317,90 @@ function detectarInconsistencias(){
                             else msg=esc(fn(prog))+' ('+yProg+') tendria solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.';
                             problemas.push({
                                 icono:'fa-calendar-xmark',
-                                etiqueta:'Edad incoherente entre padres e hijos',
+                                etiqueta:'Posible edad incoherente entre padres e hijos',
                                 mensaje:msg,
                                 aplicar:function(){return aplicarFixEdadDesvincular(p.ID,campo);},
                                 verId:p.ID
                             });
+                        } else if(diff>ANIOS_MAX_PADRE_HIJO){
+                            problemas.push({
+                                icono:'fa-calendar-xmark',
+                                etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria',
+                                mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años despues que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), mas de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.',
+                                verId:p.ID
+                            });
                         }
+                    }
+                    var yDefProg=getDeathYear(prog);
+                    if(yDefProg!==null&&yHijo>yDefProg){
+                        problemas.push({
+                            icono:'fa-calendar-xmark',
+                            etiqueta:'Posible inconsistencia: hijo nacido tras la defunción del progenitor',
+                            mensaje:esc(fn(p))+' nace en '+yHijo+', despues de la defuncion de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.',
+                            verId:p.ID
+                        });
                     }
                 }
             });
         }
+        /* Matrimonios: fecha posterior a la defuncion propia o del conyuge; edad al casarse extrema;
+           diferencia de edad extraordinaria entre conyuges; segundo matrimonio anterior al primero. */
+        var matrimonios=[];
+        [['M1','MF1'],['M2','MF2']].forEach(function(par){
+            var conyugeId=p[par[0]],anioMat=extraerAnioTexto(p[par[1]]);
+            if(anioMat!==null)matrimonios.push({campo:par[0],conyugeId:conyugeId,anio:anioMat});
+        });
+        matrimonios.forEach(function(m){
+            var conyuge=m.conyugeId?PI[m.conyugeId]:null;
+            if(yDefPropia!==null&&m.anio>yDefPropia){
+                problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' en '+m.anio+' es posterior a su propia defunción ('+yDefPropia+').',verId:p.ID});
+            }
+            if(conyuge){
+                var yDefConyuge=getDeathYear(conyuge);
+                if(yDefConyuge!==null&&m.anio>yDefConyuge){
+                    problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defuncion de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID});
+                }
+                var yConyuge=getYear(conyuge);
+                if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
+                    problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.',verId:p.ID});
+                }
+            }
+            if(yHijo!==null&&(m.anio-yHijo)<EDAD_MIN_CONYUGE){
+                problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habria casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').',verId:p.ID});
+            }
+        });
+        if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
+            problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrimonio anterior al primero',mensaje:esc(fn(p))+' tiene el segundo matrimonio fechado en '+matrimonios[1].anio+', antes que el primero ('+matrimonios[0].anio+').',verId:p.ID});
+        }
+        /* Persona viva con edad extraordinaria */
+        if(isAl(p)&&yHijo!==null){
+            var edadActual=new Date().getFullYear()-yHijo;
+            if(edadActual>EDAD_VIVO_EXTREMA){
+                problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendria '+edadActual+' años (nacido/a en '+yHijo+').',verId:p.ID});
+            }
+        }
+    });
+    /* Hermanos (mismo padre y misma madre) con intervalo de nacimiento demasiado corto para ser
+       partos distintos de la misma madre, salvo mellizos/gemelos (mismo dia). Solo se compara cuando
+       hay fecha completa (dia, mes y año) en ambos, para evitar falsos positivos por datos parciales. */
+    var yaComparados={};
+    D.forEach(function(p){
+        if(!p.PADRE||!p.MADRE)return;
+        var fechaP=fechaCompletaNac(p);
+        if(!fechaP)return;
+        gHerm(p.ID).forEach(function(h){
+            if(!h.PADRE||!h.MADRE||h.MADRE!==p.MADRE)return;
+            var parKey=[p.ID,h.ID].sort().join('|');
+            if(yaComparados[parKey])return;
+            yaComparados[parKey]=true;
+            var fechaH=fechaCompletaNac(h);
+            if(!fechaH)return;
+            var diasMs=Math.abs(fechaP.getTime()-fechaH.getTime());
+            var dias=Math.round(diasMs/86400000);
+            if(dias>0&&dias<DIAS_MIN_ENTRE_HERMANOS){
+                problemas.push({icono:'fa-baby',etiqueta:'Posible inconsistencia: hermanos con nacimientos demasiado próximos',mensaje:esc(fn(p))+' y '+esc(fn(h))+', hijos de la misma madre, nacen con solo '+dias+' dia(s) de diferencia (menos de '+DIAS_MIN_ENTRE_HERMANOS+'), salvo que sean mellizos o gemelos nacidos el mismo dia.',verId:p.ID});
+            }
+        });
     });
     return problemas;
 }
@@ -1346,18 +1447,20 @@ function mostrarInconsistencias(){
     var lista=document.getElementById('listaInconsistencias');
     var resumen=document.getElementById('resumenInconsistencias');
     var btnTodas=document.getElementById('btnSolucionarTodas');
+    var conSolucion=problemas.filter(function(pr){return typeof pr.aplicar==='function';});
     if(!problemas.length){
         resumen.textContent='Sin inconsistencias detectadas';
         lista.innerHTML='<p style="text-align:center;color:var(--green);padding:24px 10px;font-weight:700"><i class="fa-solid fa-circle-check" style="display:block;font-size:24px;margin-bottom:8px"></i>No se detectaron inconsistencias</p>';
         btnTodas.style.display='none';
     }else{
-        resumen.textContent=problemas.length+' inconsistencia(s) detectada(s)';
-        btnTodas.style.display='inline-flex';
+        resumen.textContent=problemas.length+' posible(s) inconsistencia(s) detectada(s). Revisalas: no siempre son un error.';
+        btnTodas.style.display=conSolucion.length?'inline-flex':'none';
         lista.innerHTML=problemas.map(function(pr,idx){
+            var btnSolucionar=pr.aplicar?('<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="solucionarInconsistencia('+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>'):'';
             return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+pr.icono+'"></i></div>'+
                 '<div class="inc-msg"><span class="inc-tag">'+esc(pr.etiqueta)+'</span><br>'+pr.mensaje+
                 '<div class="inc-actions">'+
-                '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="solucionarInconsistencia('+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>'+
+                btnSolucionar+
                 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="cerrarInconsistencias();selP(\''+safeId(pr.verId)+'\')">Ver ficha</button>'+
                 '</div></div></div>';
         }).join('');
@@ -1366,9 +1469,9 @@ function mostrarInconsistencias(){
 }
 function cerrarInconsistencias(){document.getElementById('modalInconsistencias').style.display='none';}
 function solucionarTodasInconsistencias(){
-    var problemas=window._inconsistenciasActuales||detectarInconsistencias();
-    if(!problemas.length)return;
-    if(!confirm('Se aplicaran automaticamente '+problemas.length+' correccion(es): se completaran vinculos de cónyuge, se ajustara el sexo segun el rol de padre/madre y se desvincularan las relaciones padre-hijo con edades incoherentes. ¿Continuar?'))return;
+    var problemas=(window._inconsistenciasActuales||detectarInconsistencias()).filter(function(pr){return typeof pr.aplicar==='function';});
+    if(!problemas.length){toast('No hay correcciones automáticas disponibles; el resto de posibles inconsistencias requiere revisión manual',true);return;}
+    if(!confirm('Se aplicaran automaticamente '+problemas.length+' correccion(es) de las que tienen una solucion segura: se completaran vinculos de cónyuge, se ajustara el sexo segun el rol de padre/madre y se desvincularan las relaciones padre-hijo con edades incoherentes. El resto de posibles inconsistencias detectadas no se tocan: hay que revisarlas una a una. ¿Continuar?'))return;
     var aplicadas=0;
     problemas.forEach(function(pr){if(pr.aplicar())aplicadas++;});
     if(aplicadas)guardarTrasCorreccion(aplicadas+' correccion(es) aplicada(s)');
@@ -2130,19 +2233,17 @@ function descargarArbolDescendente(){
     setTimeout(function(){window.print();},80);
 }
 /* ===== POSTER ASCENDENTE A3: PLANTILLA FIJA (SVG) =====
-   VERSION 4 (fiel al modelo): abanico simetrico, raiz abajo al centro.
-   - La 7ª generacion (32 casillas finas por rama) marca las FILAS, repartidas por todo
-     el alto de la pagina.
-   - La 8ª generacion (la nueva) va EN LA MISMA FILA HORIZONTAL que su hijo/a de la 7ª:
-     el PADRE y la MADRE en dos casillas pegadas, una al lado de la otra, a la izquierda
-     de la casilla del hijo. Asi el modelo muestra sus 8 generaciones reales.
-   - Las generaciones 2 a 6 se centran recursivamente entre sus descendientes.
-   La plantilla es fija: si falta un dato, la casilla queda vacia pero nunca se desplaza. */
+   VERSION 7 (estetica del vacio): mismo modelo (abanico simetrico, 8ª generacion en
+   parejas horizontales, año siempre visible). Las casillas SIN datos se atenuan:
+   sin relleno, borde punteado claro y "?" decorativa en las grandes; las lineas que
+   conducen a ramas vacias se dibujan mas claras. La parte documentada destaca y la
+   vacia queda como esqueleto elegante "por investigar" (leyenda bajo el titulo). */
 var ASC_PAGE_W=420, ASC_PAGE_H=297;
-var ASC_ROWS=32;                                    // filas de la 7ª generacion por rama
-var ASC_THIN_H=5.0;                                 // casillas finas un poco mas altas: filas menos "separadas"
+var ASC_ROWS=32;
+var ASC_THIN_H=5.0;
 var ASC_ROW_TOP=15.18, ASC_ROW_BOTTOM_MARGIN=15.18;
 var ASC_LINE_COLOR='#3D2C1E';
+var ASC_FAINT_COLOR='#d8d0c0';
 var ASC_ROOT_X=198.0, ASC_ROOT_Y=280.05, ASC_ROOT_W=26.6, ASC_ROOT_H=14.0;
 var ASC_DEPTH_DIMS=[
 {w:19.7,h:25.3,x:188.9},  // d0 = generacion 2 (padre/madre)
@@ -2150,16 +2251,19 @@ var ASC_DEPTH_DIMS=[
 {w:27.6,h:10.4,x:154.2},  // d2 = generacion 4
 {w:21.8,h:10.3,x:142.3},  // d3 = generacion 5
 {w:21.5,h:10.2,x:113.8},  // d4 = generacion 6
-{w:34.0,h:ASC_THIN_H,x:67.0}    // d5 = generacion 7 (marca la fila), ahora mas ancha
+{w:34.0,h:ASC_THIN_H,x:67.0}   // d5 = generacion 7 (marca la fila)
 ];
-var ASC_GEN8_W=27.0, ASC_GEN8_PADRE_X=9.0;          // 8ª: casillas 35% mas largas; la pareja queda pegada a la 7ª
-var ASC_GEN8_MADRE_X=ASC_GEN8_PADRE_X+ASC_GEN8_W;   // = 29.0
+var ASC_GEN8_W=27.0, ASC_GEN8_PADRE_X=9.0;          // 8ª: [padre][madre] pegados en la misma fila
+var ASC_GEN8_MADRE_X=ASC_GEN8_PADRE_X+ASC_GEN8_W;
 var ASC_BG_OPTIONS=[
 {id:'blanco',label:'Blanco',hex:'#FFFFFF'},
 {id:'marfil',label:'Marfil',hex:'#FFFFF2'},
 {id:'beige',label:'Beige',hex:'#F3ECDD'},
 {id:'crema',label:'Crema',hex:'#FDF6E3'},
-{id:'gris',label:'Gris muy claro',hex:'#F1F1EF'}
+{id:'gris',label:'Gris muy claro',hex:'#F1F1EF'},
+{id:'rosa',label:'Rosa palo',hex:'#FBEDEE'},
+{id:'verde',label:'Verde salvia',hex:'#EEF3E7'},
+{id:'azul',label:'Azul cielo',hex:'#EAF1F6'}
 ];
 var ascPosterBg=ASC_BG_OPTIONS[0].hex;
 function ascGetBoxGeom(depth,esPadre,par){
@@ -2175,15 +2279,18 @@ var size=maxWidthMm/(len*charFactor);
 return Math.max(minSize,Math.min(maxSize,size));
 }
 function ascBoxSVG(x,y,w,h,persona,thin){
+if(!persona){
+/* Casilla VACIA: sin relleno, borde punteado claro; las grandes llevan una "?" suave. */
+var out0='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.5" ry="0.5" fill="none" stroke="'+ASC_FAINT_COLOR+'" stroke-width="0.25" stroke-dasharray="1.4,1.1"/>';
+if(h>=8)out0+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2+h*0.18).toFixed(2)+'" text-anchor="middle" font-family="Cinzel,serif" font-size="'+(h*0.45).toFixed(2)+'" fill="'+ASC_FAINT_COLOR+'" opacity="0.8">?</text>';
+return out0;
+}
 var out='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+w.toFixed(2)+'" height="'+h.toFixed(2)+'" rx="0.5" ry="0.5" fill="#fff" stroke="'+ASC_LINE_COLOR+'" stroke-width="'+(thin?0.25:0.3)+'"/>';
-if(persona){
 var nombreRaw=String(fn(persona)).trim()||'?';
 var anio=pdAnioTexto(persona);
 var padX=w*0.07;
 if(thin){
-/* Casillas finas (gens 4-8): DOS lineas. Linea 1 = nombre usando TODO el ancho
-   de la casilla; linea 2 = el año, que SIEMPRE se muestra. Si el nombre es mas
-   largo que la casilla, se trunca con "…" pero el año nunca se pierde. */
+/* Dos lineas: nombre con todo el ancho y año SIEMPRE debajo. */
 var fsN=Math.max(1.3,Math.min(1.6,h*0.34));
 var avail=w-padX*2-0.5;
 var maxChars=Math.max(3,Math.floor(avail/(fsN*0.56)));
@@ -2192,17 +2299,13 @@ if(nom.length>maxChars)nom=nom.slice(0,maxChars-1)+'\u2026';
 out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2-0.3).toFixed(2)+'" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+esc(nom)+'</text>';
 if(anio)out+='<text x="'+(x+padX).toFixed(2)+'" y="'+(y+h/2+fsN+0.1).toFixed(2)+'" font-family="Lato,sans-serif" font-size="'+(fsN*0.8).toFixed(2)+'" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
 }else{
-/* Casillas grandes (raiz, padres, abuelos): nombre centrado y año debajo.
-   (Este bloque es el que se habia perdido y dejaba esas casillas en blanco.) */
 var fsN2=fitFontSize(nombreRaw,w-2*padX,2.6,1.2);
 out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2-0.4).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-weight="700" font-size="'+fsN2.toFixed(2)+'" fill="'+ASC_LINE_COLOR+'">'+esc(nombreRaw)+'</text>';
 if(anio)out+='<text x="'+(x+w/2).toFixed(2)+'" y="'+(y+h/2+2.3).toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.7" fill="'+ASC_LINE_COLOR+'" opacity="0.72">'+esc(anio)+'</text>';
 }
-}
 return out;
 }
 var ascRowIndex=0;
-/* 32 filas repartidas en el alto de la pagina: las marca la 7ª generacion. */
 function ascRowY(i){
 var top=ASC_ROW_TOP+ASC_THIN_H/2, bottom=ASC_PAGE_H-ASC_ROW_BOTTOM_MARGIN-ASC_THIN_H/2;
 var step=(bottom-top)/(ASC_ROWS-1);
@@ -2211,15 +2314,15 @@ return top+i*step;
 function ascRecBuild(id,depth){
 var p=id?PI[id]:null;
 if(depth===5){
-/* La 7ª marca la fila; su padre y su madre (8ª) van pegados EN ESA MISMA FILA. */
 var y=ascRowY(ascRowIndex);ascRowIndex++;
-return{depth:5,y:y,persona:p,children:[
-{depth:6,y:y,par:'P',persona:(p&&p.PADRE)?PI[p.PADRE]:null,children:null},
-{depth:6,y:y,par:'M',persona:(p&&p.MADRE)?PI[p.MADRE]:null,children:null}]};
+var padre={depth:6,y:y,par:'P',persona:(p&&p.PADRE)?PI[p.PADRE]:null,children:null};
+var madre={depth:6,y:y,par:'M',persona:(p&&p.MADRE)?PI[p.MADRE]:null,children:null};
+padre.has=!!padre.persona;madre.has=!!madre.persona;
+return{depth:5,y:y,persona:p,children:[padre,madre],has:!!p||padre.has||madre.has};
 }
 var padre=ascRecBuild(p&&p.PADRE?p.PADRE:null,depth+1);
 var madre=ascRecBuild(p&&p.MADRE?p.MADRE:null,depth+1);
-return{depth:depth,y:(padre.y+madre.y)/2,persona:p,children:[padre,madre]};
+return{depth:depth,y:(padre.y+madre.y)/2,persona:p,children:[padre,madre],has:!!p||padre.has||madre.has};
 }
 function ascNodeSVG(node,esPadre){
 var g=ascGetBoxGeom(node.depth,esPadre,node.par);
@@ -2228,19 +2331,23 @@ if(node.children){
 var hijoP=node.children[0],hijoM=node.children[1];
 var outwardX=esPadre?g.x:g.x+g.w;
 if(node.depth===5){
-/* Una sola linea horizontal hasta la pareja [padre][madre] de su misma fila. */
 var gm=ascGetBoxGeom(6,esPadre,'M');
 var edgeM=esPadre?(gm.x+gm.w):gm.x;
-out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+edgeM.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+var hayP=hijoP.has||hijoM.has;
+out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+edgeM.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+(hayP?ASC_LINE_COLOR:ASC_FAINT_COLOR)+'" stroke-width="'+(hayP?0.25:0.18)+'"/>';
 }else{
 var gc=ascGetBoxGeom(node.depth+1,esPadre,null);
 var childCenterX=esPadre?(gc.x+gc.w):gc.x;
 var gap=Math.abs(esPadre?(g.x-(gc.x+gc.w)):(gc.x-(g.x+g.w)));
 var trunkX=esPadre?(outwardX-gap/2):(outwardX+gap/2);
-out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
-out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
-out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoP.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
-out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoM.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.25"/>';
+var hayT=hijoP.has||hijoM.has;
+var colT=hayT?ASC_LINE_COLOR:ASC_FAINT_COLOR, wT=hayT?0.25:0.18;
+var colP=hijoP.has?ASC_LINE_COLOR:ASC_FAINT_COLOR, wP=hijoP.has?0.25:0.18;
+var colM=hijoM.has?ASC_LINE_COLOR:ASC_FAINT_COLOR, wM=hijoM.has?0.25:0.18;
+out+='<line x1="'+outwardX.toFixed(2)+'" y1="'+node.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+node.y.toFixed(2)+'" stroke="'+colT+'" stroke-width="'+wT+'"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+trunkX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+colT+'" stroke-width="'+wT+'"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoP.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoP.y.toFixed(2)+'" stroke="'+colP+'" stroke-width="'+wP+'"/>';
+out+='<line x1="'+trunkX.toFixed(2)+'" y1="'+hijoM.y.toFixed(2)+'" x2="'+childCenterX.toFixed(2)+'" y2="'+hijoM.y.toFixed(2)+'" stroke="'+colM+'" stroke-width="'+wM+'"/>';
 }
 out+=ascNodeSVG(hijoP,esPadre);
 out+=ascNodeSVG(hijoM,esPadre);
@@ -2262,10 +2369,12 @@ svg+=ascBoxSVG(ASC_ROOT_X,ASC_ROOT_Y-ASC_ROOT_H/2,ASC_ROOT_W,ASC_ROOT_H,p,false)
 var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
 var marco='<rect x="4" y="4" width="'+(ASC_PAGE_W-8)+'" height="'+(ASC_PAGE_H-8)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.6"/>'+
 '<rect x="7" y="7" width="'+(ASC_PAGE_W-14)+'" height="'+(ASC_PAGE_H-14)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.18"/>';
-var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ARBOL GENEALOGICO</text>'+
+var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ÁRBOL GENEALÓGICO</text>'+
 '<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
+var leyenda='<rect x="'+(ASC_PAGE_W/2-36)+'" y="24.3" width="7" height="2.8" fill="none" stroke="'+ASC_FAINT_COLOR+'" stroke-width="0.25" stroke-dasharray="1.4,1.1"/>'+
+'<text x="'+(ASC_PAGE_W/2-26)+'" y="26.5" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASC_LINE_COLOR+'" opacity="0.65">= rama pendiente de investigar</text>';
 var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
-return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+svg+pie+'</svg>';
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+leyenda+svg+pie+'</svg>';
 }
 function renderAscBgSwatches(){
     var cont=document.getElementById('ascColorSwatches');
