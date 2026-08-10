@@ -172,6 +172,13 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pc-open{position:absolute;right:6px;bottom:6px;width:22px;height:22px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}.pc-open:hover{color:var(--accent);border-color:var(--accent)}
 #pedigree-svg line{stroke:#c8c0b0;stroke-width:1.5;stroke-linecap:round}
 @media(max-width:640px){.pedigree-container{gap:30px;padding:20px 10px}.pedigree-col{min-width:130px}.pedigree-card{padding:7px 8px;min-height:62px}.pc-photo{width:42px;height:42px}.pc-name{font-size:11px}.pc-year{font-size:9px}}
+/* ===== ESTADÍSTICAS ===== */
+.est-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px}
+.est-bar-label{width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--text)}
+.est-bar-track{flex:1;height:10px;background:rgba(0,0,0,.05);border-radius:5px;overflow:hidden}
+.est-bar-fill{height:100%;border-radius:5px;background:var(--accent)}
+.est-bar-num{width:34px;text-align:right;color:var(--muted);font-weight:700;font-size:11px;flex-shrink:0}
+@media(max-width:640px){.est-bar-label{width:96px}}
 /* ===== INFORMES ===== */
 .inf-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
 .inf-card h3{font-size:14px;margin-bottom:6px}
@@ -211,7 +218,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pd-nombre{font-weight:700;font-size:8.5px;line-height:1.2;word-break:break-word}
 .pd-anio{font-size:7.5px;color:#8a7e6e;margin-top:1px}
 .pd-sosa{font-size:7px;color:#b8ac9a;margin-top:1px}
-/* ===== CRONOLOGIA (linea de vida + comparativa familiar) ===== */
+/* ===== Cronología (linea de vida + comparativa familiar) ===== */
 .cro-life{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
 .cro-life h3{font-family:'Cinzel',serif;font-size:15px;margin-bottom:4px}
 .cro-life .cro-sub{font-size:11px;color:var(--muted);margin-bottom:10px}
@@ -235,7 +242,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .cro-axis span{position:absolute;transform:translateX(-50%)}
 .cro-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--muted);margin-top:14px}
 .cro-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-/* ===== RELACION ENTRE DOS PERSONAS ===== */
+/* ===== Relación ENTRE DOS PERSONAS ===== */
 .rel-picker{display:flex;gap:16px;flex-wrap:wrap}
 .rel-picker-col{flex:1;min-width:220px}
 .rel-badge{display:inline-block;font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#fff;background:var(--accent);padding:8px 18px;border-radius:12px;letter-spacing:.5px}
@@ -244,7 +251,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .rel-nodo:hover{border-color:var(--accent);color:var(--accent)}
 .rel-nodo.root{border-color:var(--accent);background:rgba(196,101,58,.06)}
 .rel-flecha{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 0}
-/* ===== ARBOL ASCENDENTE ESTILO BRACKET (poster simetrico, como un cuadro de torneo) =====
+/* ===== Árbol ASCENDENTE ESTILO BRACKET (poster simetrico, como un cuadro de torneo) =====
    Estructura recursiva con flexbox: cada .abr-node = [hijos apilados][tronco][tarjeta].
    El centrado vertical de cada tarjeta respecto a sus dos ascendientes lo resuelve el propio
    flexbox (align-items:center), sin necesidad de medir alturas por JS ni de trucos fragiles. */
@@ -271,7 +278,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .abr-root-group{display:flex;gap:6px}
 .abr-card.root-card{border-width:2.5px}
 .abr-card.spouse-card{border-style:dashed}
-/* ===== POSTER PARA ENMARCAR (arbol ascendente A3) ===== */
+/* ===== POSTER PARA ENMARCAR (árbol ascendente A3) ===== */
 .asc-poster-wrap{--pc:#3D2C1E;font-family:'Lato',sans-serif;color:var(--pc);padding:8px;display:inline-block}
 .asc-poster-border{border:2.5px solid var(--pc);padding:8px}
 .asc-poster-border-inner{border:1px solid var(--pc-frame);padding:16px 18px 10px}
@@ -299,10 +306,11 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="logo"><div class="logo-icon"><i class="fa-solid fa-tree"></i></div><div class="logo-text">Libro de los Ancestros</div></div>
 <nav id="mn">
 <button class="active" data-view="bus" onclick="sv('bus')"><i class="fa-solid fa-magnifying-glass"></i> <span class="mh">Buscar</span></button>
-<button data-view="arb" onclick="sv('arb')"><i class="fa-solid fa-sitemap"></i> <span class="mh">Arbol</span></button>
+<button data-view="arb" onclick="sv('arb')"><i class="fa-solid fa-sitemap"></i> <span class="mh">Árbol</span></button>
 <button data-view="fic" onclick="irFicha()"><i class="fa-solid fa-id-card"></i> <span class="mh">Ficha</span></button>
 <button data-view="inf" onclick="sv('inf')"><i class="fa-solid fa-file-pdf"></i> <span class="mh">Informes</span></button>
-<button data-view="inv" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart"></i> <span class="mh">Investigacion</span></button>
+<button data-view="inv" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart"></i> <span class="mh">Investigación</span></button>
+<button data-view="est" onclick="sv('est')"><i class="fa-solid fa-chart-column"></i> <span class="mh">Estadísticas</span></button>
 </nav>
 </header>
 <div class="activebar" id="activeBar">
@@ -314,7 +322,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="view active" id="vBus">
 <div class="hero">
 <h1>Libro de los Ancestros</h1>
-<p>Tu arbol genealogico familiar</p>
+<p>Tu árbol genealógico familiar</p>
 <div class="cmd-grid" id="cmdGrid">
 <div class="cmd-card" onclick="sv('inv')"><div class="cmd-num" id="cmdPendientes">-</div><div class="cmd-label">Pendientes<span class="cmd-sub">sin año conocido</span></div></div>
 <div class="cmd-card cmd-alert" onclick="sv('inv')"><div class="cmd-num" id="cmdProblemas">-</div><div class="cmd-label">Problemas<span class="cmd-sub">inconsistencias y duplicados</span></div></div>
@@ -336,7 +344,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="view" id="vInf">
 <div class="hero">
 <h1>Informes</h1>
-<p>Genera arboles e informes en PDF para la persona seleccionada</p>
+<p>Genera árboles e informes en PDF para la persona seleccionada</p>
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siInf" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
 </div>
 <div class="inf-sel">
@@ -351,8 +359,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button class="ef-btn" onclick="descargarInformePersona()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-sitemap"></i> Arbol descendente</h3>
-<p>Lista todos los descendientes de la persona seleccionada, generacion por generacion.</p>
+<h3><i class="fa-solid fa-sitemap"></i> Árbol descendente</h3>
+<p>Lista todos los descendientes de la persona seleccionada, generación por generación.</p>
 <button class="ef-btn" onclick="descargarArbolDescendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
@@ -361,7 +369,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button class="ef-btn" onclick="descargarInformeRama()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Arbol ascendente (poster A3)</h3>
+<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Árbol ascendente (poster A3)</h3>
 <p>Poster en abanico de 8 generaciones, pensado para imprimir en A3 apaisado y enmarcar. Sin fotos; elige el color.</p>
 <button class="ef-btn" onclick="abrirModalAscendentePoster()"><i class="fa-solid fa-file-pdf"></i> Generar poster</button>
 </div>
@@ -372,7 +380,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de descendientes</h3>
-<p>Informe detallado con los datos completos de cada descendiente, generacion por generacion.</p>
+<p>Informe detallado con los datos completos de cada descendiente, generación por generación.</p>
 <div class="ef-row" style="margin-bottom:10px">
 <div class="ef-field"><span class="ef-label">Generaciones</span><select class="ef-select" id="infDescGen"><option value="3">Mostrar 3 generaciones</option><option value="5">Mostrar 5 generaciones</option><option value="999" selected>Mostrar todas</option></select></div>
 <div class="ef-field"><span class="ef-label">Filtrar por</span><select class="ef-select" id="infDescFiltro"><option value="todos" selected>Todos</option><option value="vivos">Solo vivos</option><option value="fallecidos">Solo fallecidos</option></select></div>
@@ -380,8 +388,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button class="ef-btn" onclick="descargarInformeDescendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-timeline"></i> Informe cronologico</h3>
-<p>Linea de vida de la persona seleccionada y comparativa con sus familiares mas cercanos, en formato imprimible.</p>
+<h3><i class="fa-solid fa-timeline"></i> Informe cronológico</h3>
+<p>Linea de vida de la persona seleccionada y comparativa con sus familiares más cercanos, en formato imprimible.</p>
 <button class="ef-btn" onclick="descargarInformeCronologico()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Por apellido</div>
@@ -399,7 +407,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-triangle-exclamation"></i> Informe de inconsistencias</h3>
-<p>Version imprimible de las inconsistencias detectadas: conyuges sin vinculo reciproco, generos y edades incoherentes.</p>
+<p>Version imprimible de las inconsistencias detectadas: conyuges sin vínculo recíproco, géneros y edades incoherentes.</p>
 <button class="ef-btn" onclick="descargarInformeInconsistencias()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
@@ -411,8 +419,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div class="view" id="vInv">
 <div class="hero">
-<h1>Investigacion</h1>
-<p>Herramientas para revisar y mejorar la calidad de los datos de tu arbol</p>
+<h1>Investigación</h1>
+<p>Herramientas para revisar y mejorar la calidad de los datos de tu árbol</p>
 </div>
 <div class="inf-sel" style="max-width:640px">
 <div class="inf-card">
@@ -436,21 +444,63 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <p>Estima el año de nacimiento a partir de familiares cercanos, sin tocar años ya existentes. Guarda el motivo de cada calculo y se puede deshacer.</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap">
 <button class="ef-btn" onclick="calcularAnosAproximados()"><i class="fa-solid fa-calculator"></i> Calcular</button>
-<button id="btnDeshacerAprox" class="ef-btn ghost" style="display:none" onclick="deshacerUltimoCalculoAnios()"><i class="fa-solid fa-rotate-left"></i> Deshacer ultimos años calculados</button>
+<button id="btnDeshacerAprox" class="ef-btn ghost" style="display:none" onclick="deshacerUltimoCalculoAnios()"><i class="fa-solid fa-rotate-left"></i> Deshacer últimos años calculados</button>
 </div>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-skull"></i> Marcar fallecidos +100 años</h3>
-<p>Marca como fallecidas a las personas vivas con mas de 100 años segun su año de nacimiento o aproximado.</p>
+<p>Marca como fallecidas a las personas vivas con más de 100 años según su año de nacimiento o aproximado.</p>
 <button class="ef-btn" onclick="marcarFallecidosMayores100()"><i class="fa-solid fa-skull"></i> Marcar</button>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-magnifying-glass-chart"></i> Investigación externa (gratuita)</h3>
+<p>Genera una consulta con los datos de la persona activa para pedir ayuda a una IA gratuita, o busca directamente en archivos históricos y hemerotecas digitales.</p>
+<div id="invExtSinPersona" style="font-size:12px;color:var(--muted)">Selecciona primero una persona (en Buscar o en el Árbol) para activar estas herramientas.</div>
+<div id="invExtConPersona" style="display:none">
+<div class="ef-label" style="margin-bottom:6px">Preguntar a una IA (copia el prompt y ábrela)</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+<button class="ef-btn ghost" onclick="investigarConIA('https://chatgpt.com/')"><i class="fa-solid fa-robot"></i> ChatGPT</button>
+<button class="ef-btn ghost" onclick="investigarConIA('https://claude.ai/new')"><i class="fa-solid fa-robot"></i> Claude</button>
+<button class="ef-btn ghost" onclick="investigarConIA('https://gemini.google.com/app')"><i class="fa-solid fa-robot"></i> Gemini</button>
+</div>
+<div class="ef-label" style="margin-bottom:6px">Buscar en archivos y hemerotecas</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="ef-btn ghost" onclick="buscarEnArchivos('pares')"><i class="fa-solid fa-landmark"></i> PARES (archivos ES)</button>
+<button class="ef-btn ghost" onclick="buscarEnArchivos('familysearch')"><i class="fa-solid fa-people-roof"></i> FamilySearch</button>
+<button class="ef-btn ghost" onclick="buscarEnArchivos('google_pdfs')"><i class="fa-solid fa-file-pdf"></i> Google (PDFs/libros)</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="view" id="vEst">
+<div class="hero">
+<h1>Estadísticas</h1>
+<p>Panorama general de tu árbol genealógico</p>
+</div>
+<div class="stats" id="estStatsGrid" style="margin-top:0"></div>
+<div class="inf-sel" style="max-width:640px;margin-top:26px">
+<div class="inf-card">
+<h3><i class="fa-solid fa-signature"></i> Apellidos más frecuentes</h3>
+<div id="estApellidos"></div>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-location-dot"></i> Lugares más frecuentes</h3>
+<p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Suma de lugares de nacimiento y de defunción</p>
+<div id="estLugares"></div>
+</div>
+<div class="inf-card">
+<h3><i class="fa-solid fa-clock-rotate-left"></i> Periodos históricos</h3>
+<p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Nacimientos por década, según año confirmado o aproximado</p>
+<div id="estPeriodos"></div>
 </div>
 </div>
 </div>
 <div class="view" id="vCro">
 <div class="bb" style="margin:14px 0 0 14px" onclick="sv('fic')"><i class="fa-solid fa-arrow-left"></i> Volver a la ficha</div>
 <div class="hero">
-<h1>Cronologia</h1>
-<p>Linea de vida de una persona y comparativa con sus familiares mas cercanos</p>
+<h1>Cronología</h1>
+<p>Linea de vida de una persona y comparativa con sus familiares más cercanos</p>
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="siCro" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
 </div>
 <div class="inf-sel">
@@ -489,19 +539,19 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== GOOGLE DRIVE (documentos) =====
-   1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicacion web").
-   2) Añade aqui abajo tu Client ID, sustituyendo el texto de ejemplo.
+   1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicación web").
+   2) Añade aquí abajo tu Client ID, sustituyendo el texto de ejemplo.
    3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
-/* Carpeta raiz de Google Drive por defecto. Debe contener dos subcarpetas:
+/* Carpeta raíz de Google Drive por defecto. Debe contener dos subcarpetas:
    - "FOTO": con una imagen por persona, nombrada exactamente con su ID.
    - "DOCUMENTOS": con una subcarpeta por cada ID de persona, dentro de la cual van sus documentos.
-   Si el usuario elige otra carpeta desde "Documentos (Google Drive)", esa eleccion se guarda en su navegador y tiene prioridad sobre este valor. */
+   Si el usuario elige otra carpeta desde "Documentos (Google Drive)", esa elección se guarda en su navegador y tiene prioridad sobre este valor. */
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
-/* Clave sencilla para evitar subidas accidentales desde el boton "Subir copia a Drive".
-   OJO: esto NO es seguridad real (es codigo visible en el navegador), es solo un seguro contra clics accidentales. */
+/* Clave sencilla para evitar subidas accidentales desde el botón "Subir copia a Drive".
+   OJO: esto NO es seguridad real (es código visible en el navegador), es solo un seguro contra clics accidentales. */
 var CLAVE_SUBIDA_DRIVE='1962';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
@@ -521,7 +571,7 @@ function extraerIdCarpetaDrive(texto){
 }
 function conectarGoogleDrive(){
     return new Promise(function(resolve,reject){
-        if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){reject(new Error('Falta configurar GOOGLE_CLIENT_ID en el codigo'));return;}
+        if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){reject(new Error('Falta configurar GOOGLE_CLIENT_ID en el código'));return;}
         if(!window.google||!google.accounts||!google.accounts.oauth2){reject(new Error('Google Identity Services no se ha cargado (revisa tu conexion)'));return;}
         if(!googleTokenClient){
             googleTokenClient=google.accounts.oauth2.initTokenClient({
@@ -531,7 +581,7 @@ function conectarGoogleDrive(){
                     if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);resolve(driveAccessToken);}
                     else reject(new Error('No se recibio el token de acceso'));
                 },
-                error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticacion cancelada'));}
+                error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
             });
         }
         try{googleTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});}catch(err){reject(err);}
@@ -548,7 +598,7 @@ async function elegirCarpetaDocumentos(){
     if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
     driveRootFolderId=folderId;
     driveDocumentosFolderId=null;
-    try{await guardarCarpetaDocumentos();toast('Carpeta raiz de Google Drive configurada');if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuracion: '+err.message,true);}
+    try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive configurada');if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
 async function obtenerCarpetaDocumentosId(){
@@ -562,14 +612,14 @@ async function obtenerCarpetaDocumentosId(){
 }
 async function mostrarDocumentos(id){
     var lista=document.getElementById('docsLista');if(!lista)return;
-    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el codigo (variable GOOGLE_CLIENT_ID).</p>';return;}
-    if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raiz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el código (variable GOOGLE_CLIENT_ID).</p>';return;}
+    if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
     if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conectate con Google Drive para ver los documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
     lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>';
     try{
         var carpetaDocsId;
         try{carpetaDocsId=await obtenerCarpetaDocumentosId();}catch(e){if(e.message==='sesion_caducada'){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}throw e;}
-        if(!carpetaDocsId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raiz configurada.</p>';return;}
+        if(!carpetaDocsId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raíz configurada.</p>';return;}
         var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
@@ -589,13 +639,13 @@ async function autorizarDocumentos(id){
     try{await conectarGoogleDrive();mostrarDocumentos(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
 }
 async function abrirCarpetaEnDrive(id){
-    if(!driveRootFolderId){toast('Configura primero la carpeta raiz de Google Drive',true);return;}
+    if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
     if(!tokenDriveValido()){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
     }
     try{
         var carpetaDocsId=await obtenerCarpetaDocumentosId();
-        if(!carpetaDocsId){toast('No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raiz configurada',true);return;}
+        if(!carpetaDocsId){toast('No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raíz configurada',true);return;}
         var q="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         var d=await r.json();
@@ -618,12 +668,105 @@ function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+Strin
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function sv(v){['bus','arb','fic','inf','inv','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
-function initInvestigacion(){actualizarBotonDeshacerAprox();var r=document.getElementById('invRamasResultado');if(r)r.innerHTML='';}
+function sv(v){['bus','arb','fic','inf','inv','est','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='est')initEstadisticas();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
+function initInvestigacion(){actualizarBotonDeshacerAprox();var r=document.getElementById('invRamasResultado');if(r)r.innerHTML='';actualizarInvExtPersonaActiva();}
+
+/* ===== ESTADÍSTICAS =====
+   Reutiliza detectarDuplicados()/detectarInconsistencias()/getYear(), que ya usan el Centro de
+   mando y la pestaña de Investigación, para que estos números coincidan siempre con los demás. */
+function calcularGeneraciones(){
+    if(!D.length)return 0;
+    var gen={};
+    D.forEach(function(p){
+        var padreValido=p.PADRE&&PI[p.PADRE];
+        var madreValida=p.MADRE&&PI[p.MADRE];
+        if(!padreValido&&!madreValida)gen[p.ID]=0;
+    });
+    var cambios=true,vueltas=0;
+    while(cambios&&vueltas<200){
+        cambios=false;vueltas++;
+        D.forEach(function(p){
+            var candidatos=[];
+            if(p.PADRE&&gen[p.PADRE]!==undefined)candidatos.push(gen[p.PADRE]+1);
+            if(p.MADRE&&gen[p.MADRE]!==undefined)candidatos.push(gen[p.MADRE]+1);
+            if(candidatos.length){
+                var g=Math.max.apply(null,candidatos);
+                if(gen[p.ID]===undefined||gen[p.ID]<g){gen[p.ID]=g;cambios=true;}
+            }
+        });
+    }
+    var vals=Object.keys(gen).map(function(k){return gen[k];});
+    if(!vals.length)return 1;
+    return Math.max.apply(null,vals)+1;
+}
+function estContarCampos(campos){
+    var cont={};
+    D.forEach(function(p){
+        campos.forEach(function(c){
+            var v=String(p[c]||'').trim();
+            if(!v)return;
+            var key=v.toUpperCase();
+            if(!cont[key])cont[key]={nombre:v,n:0};
+            cont[key].n++;
+        });
+    });
+    return Object.keys(cont).map(function(k){return cont[k];}).sort(function(a,b){return b.n-a.n;});
+}
+function estRenderBarras(id,items,limite){
+    var el=document.getElementById(id);
+    if(!el)return;
+    if(!items.length){el.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin datos suficientes</p>';return;}
+    var top=limite?items.slice(0,limite):items;
+    var maxN=Math.max.apply(null,top.map(function(x){return x.n;}));
+    el.innerHTML=top.map(function(it){
+        var pct=Math.max(4,Math.round(it.n/maxN*100));
+        return '<div class="est-bar-row"><div class="est-bar-label" title="'+escAttr(it.nombre)+'">'+esc(it.nombre)+'</div><div class="est-bar-track"><div class="est-bar-fill" style="width:'+pct+'%"></div></div><div class="est-bar-num">'+it.n+'</div></div>';
+    }).join('');
+}
+function initEstadisticas(){
+    var grid=document.getElementById('estStatsGrid');
+    if(!grid)return;
+    if(!D.length){
+        grid.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;width:100%">No hay datos cargados</p>';
+        ['estApellidos','estLugares','estPeriodos'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML='';});
+        return;
+    }
+    var total=D.length;
+    var generaciones=calcularGeneraciones();
+    var sinPadres=D.filter(function(p){return !p.PADRE&&!p.MADRE;}).length;
+    var conAprox=D.filter(function(p){return p.APROX&&String(p.APROX).trim()!=='';}).length;
+    var sinFuente=D.filter(function(p){return !p.OBSERVACIONES||!String(p.OBSERVACIONES).trim();}).length;
+    var dupPendientes=detectarDuplicados().filter(function(pr){return !DUP_IGNORADOS[pr.a.ID+'|'+pr.b.ID];}).length;
+    var inconsistencias=detectarInconsistencias().length;
+    var cards=[
+        {n:total,l:'Personas'},
+        {n:generaciones,l:'Generaciones'},
+        {n:sinPadres,l:'Sin padres registrados'},
+        {n:conAprox,l:'Fecha aproximada'},
+        {n:sinFuente,l:'Sin fuente (obs.)'},
+        {n:dupPendientes,l:'Duplicados pendientes'},
+        {n:inconsistencias,l:'Inconsistencias'}
+    ];
+    grid.innerHTML=cards.map(function(c){return '<div class="stat"><div class="stat-num">'+esc(String(c.n))+'</div><div class="stat-label">'+esc(c.l)+'</div></div>';}).join('');
+
+    estRenderBarras('estApellidos',estContarCampos(['APELLIDO1','APELLIDO2']),10);
+    estRenderBarras('estLugares',estContarCampos(['LUGARNAC','LUGARDEF']),10);
+
+    var periodos={};
+    D.forEach(function(p){
+        var y=getYear(p);
+        if(y===null)return;
+        var dec=Math.floor(y/10)*10;
+        if(!periodos[dec])periodos[dec]={nombre:dec+'s',n:0,dec:dec};
+        periodos[dec].n++;
+    });
+    var periodosArr=Object.keys(periodos).map(function(k){return periodos[k];}).sort(function(a,b){return a.dec-b.dec;});
+    estRenderBarras('estPeriodos',periodosArr,null);
+}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();}
-/* Centro de mando: reutiliza las mismas funciones de deteccion que ya usan las herramientas
-   de Investigacion (getYear, detectarInconsistencias, detectarDuplicados), asi que los numeros
-   mostrados aqui siempre coinciden exactamente con lo que se ve al entrar a esas herramientas. */
+/* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
+   de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
+   mostrados aquí siempre coinciden exactamente con lo que se ve al entrar a esas herramientas. */
 function rPanelMando(){
     var elP=document.getElementById('cmdPendientes'),elPr=document.getElementById('cmdProblemas');
     if(!elP||!elPr)return;
@@ -638,7 +781,7 @@ function rPanelMando(){
     if(cardP)cardP.classList.toggle('ok',pendientes===0);
     if(cardPr)cardPr.classList.toggle('ok',problemas===0);
 }
-/* Barra de "persona activa": refleja la variable cid (la persona sobre la que gira el Arbol/Ficha)
+/* Barra de "persona activa": refleja la variable cid (la persona sobre la que gira el Árbol/Ficha)
    de forma permanente, visible en cualquier pantalla, para que siempre quede claro sobre quien
    se esta trabajando. Se actualiza desde sv(), rFic() y rTree(), que son los puntos donde cid cambia. */
 function actualizarBarraActiva(){
@@ -673,14 +816,88 @@ function marcarFallecidosMayores100(){
         var edad=anoActual-y;
         if(edad>100)candidatos.push(p);
     });
-    if(!candidatos.length){toast('No se encontraron personas vivas con mas de 100 años',true);return;}
-    if(!confirm('Se marcaran como fallecidas '+candidatos.length+' persona(s) con mas de 100 años (segun su año de nacimiento o aproximado). ¿Continuar?'))return;
+    if(!candidatos.length){toast('No se encontraron personas vivas con más de 100 años',true);return;}
+    if(!confirm('Se marcaran como fallecidas '+candidatos.length+' persona(s) con más de 100 años (según su año de nacimiento o aproximado). ¿Continuar?'))return;
     candidatos.forEach(function(p){p.FALLECIDO='1';});
     bIdx(D);
     sAll(D).then(function(){
         rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
         toast(candidatos.length+' persona(s) marcada(s) como fallecidas');
     }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+
+/* ===== INVESTIGACIÓN EXTERNA (gratuita): puente al portapapeles para IA + buscadores de archivos =====
+   No escribe nada en la base de datos: solo genera un texto o abre una pestaña de búsqueda.
+   La persona decide qué copiar a la ficha, siguiendo la misma filosofía de "flag, don't auto-correct"
+   que el resto de herramientas de Investigación. */
+function actualizarInvExtPersonaActiva(){
+    var sin=document.getElementById('invExtSinPersona'),con=document.getElementById('invExtConPersona');
+    if(!sin||!con)return;
+    var hay=!!(cid&&PI[cid]);
+    sin.style.display=hay?'none':'block';
+    con.style.display=hay?'block':'none';
+}
+function construirPromptInvestigacion(p){
+    var prompt='Actúa como un genealogista profesional e historiador. Tengo los siguientes datos de un antepasado y necesito que busques en internet registros históricos, padrones municipales, hemerotecas o árboles genealógicos públicos que coincidan exactamente.\n\n';
+    prompt+='DATOS CONOCIDOS:\n';
+    prompt+='- Nombre completo: '+fn(p).trim()+'\n';
+    if(p.SEXO)prompt+='- Sexo: '+p.SEXO+'\n';
+    var yNac=getYear(p);
+    if(yNac!==null)prompt+='- Año de nacimiento: '+yNac+(p.NACA?'':' (aproximado)')+'\n';
+    if(p.LUGARNAC)prompt+='- Lugar de nacimiento: '+p.LUGARNAC+'\n';
+    if(!isAl(p)){
+        if(p.DEFA)prompt+='- Año de defunción: '+p.DEFA+'\n';
+        if(p.LUGARDEF)prompt+='- Lugar de defunción: '+p.LUGARDEF+'\n';
+    }
+    var padre=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
+    var madre=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
+    if(padre)prompt+='- Padre: '+fn(padre).trim()+'\n';
+    if(madre)prompt+='- Madre: '+fn(madre).trim()+'\n';
+    if(p.OBSERVACIONES)prompt+='- Notas/Observaciones: '+p.OBSERVACIONES+'\n';
+    prompt+='\nINSTRUCCIONES ESTRICTAS:\n';
+    prompt+='1. Busca coincidencias cruzando nombre, apellidos, lugar y padres si los hay.\n';
+    prompt+='2. Si encuentras algo fiable, devuelve SOLO un bloque JSON con este formato exacto:\n';
+    prompt+='{"encontrado": true, "fuentes": ["URL1", "URL2"], "sugerencias": {"lugar_nacimiento_exacto": "valor", "fecha_defuncion": "valor", "observaciones_encontradas": "texto"}}\n';
+    prompt+='3. Si no encuentras nada seguro que coincida, devuelve SOLO este JSON: {"encontrado": false, "fuentes": [], "sugerencias": {}}\n';
+    prompt+='4. NUNCA inventes datos, ni adivines fechas, ni rellenes campos por probabilidad. Prefiero que devuelvas "encontrado: false" antes que un dato dudoso.';
+    return prompt;
+}
+function investigarConIA(destino){
+    if(!cid||!PI[cid]){toast('Selecciona primero una persona en Buscar o en el Árbol',true);return;}
+    var p=PI[cid];
+    var prompt=construirPromptInvestigacion(p);
+    // Abrimos la pestaña primero, en el mismo gesto de clic, para evitar que el navegador bloquee el pop-up.
+    var ventana=window.open(destino,'_blank');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(prompt).then(function(){
+            toast('Prompt copiado al portapapeles. Pégalo (Ctrl+V) en la pestaña que se ha abierto.');
+        }).catch(function(){
+            toast('No se pudo copiar automáticamente. Copia el texto manualmente.',true);
+            window.prompt('Copia este texto y pégalo en la IA:',prompt);
+        });
+    }else{
+        window.prompt('Copia este texto y pégalo en la IA:',prompt);
+    }
+    if(!ventana)toast('El navegador pudo haber bloqueado la pestaña nueva; ábrela manualmente y pega el prompt (Ctrl+V)',true);
+}
+function buscarEnArchivos(tipo){
+    if(!cid||!PI[cid]){toast('Selecciona primero una persona en Buscar o en el Árbol',true);return;}
+    var p=PI[cid];
+    var nombreCompleto=fn(p).trim();
+    var nombreEncode=encodeURIComponent(nombreCompleto);
+    var lugarEncode=encodeURIComponent(p.LUGARNAC||'');
+    var url='';
+    if(tipo==='pares'){
+        url='https://pares.mcu.es/ParesBusquedas20/catalogo/search?nm='+nombreEncode+'&lugar='+lugarEncode;
+    }else if(tipo==='familysearch'){
+        var nombreEncodeFS=encodeURIComponent(p.NOMBRE||'');
+        var apellidoEncodeFS=encodeURIComponent(((p.APELLIDO1||'')+' '+(p.APELLIDO2||'')).trim());
+        url='https://www.familysearch.org/search/record/results?givenname='+nombreEncodeFS+'&surname='+apellidoEncodeFS+'&birth_place='+lugarEncode;
+    }else if(tipo==='google_pdfs'){
+        var query=encodeURIComponent('"'+nombreCompleto+'" "'+(p.LUGARNAC||'')+'" filetype:pdf');
+        url='https://www.google.com/search?q='+query;
+    }
+    if(url)window.open(url,'_blank');
 }
 function relacionadosMismaGeneracion(p){
     var r=gHerm(p.ID).slice();
@@ -726,9 +943,9 @@ function estimarAnoPersona(p){
     for(var i=0;i<menor.r44.length;i++){var y=getYear(menor.r44[i]);if(y!==null)return{anio:y-44,motivo:'44 años antes de '+fn(menor.r44[i])+' ('+y+'), de la generación de sus nietos'};}
     return null;
 }
-/* Guarda el ultimo lote de calculos {id, valor, motivo} para poder deshacerlo. Solo vive en memoria
-   (se pierde al recargar la pagina), ya que "deshacer" solo tiene sentido dentro de la misma sesion
-   de trabajo, justo despues de haber pulsado "Calcular años aproximados". */
+/* Guarda el último lote de calculos {id, valor, motivo} para poder deshacerlo. Solo vive en memoria
+   (se pierde al recargar la página), ya que "deshacer" solo tiene sentido dentro de la misma sesion
+   de trabajo, justo después de haber pulsado "Calcular años aproximados". */
 var ultimoCalculoAnios=null;
 function actualizarBotonDeshacerAprox(){
     var btn=document.getElementById('btnDeshacerAprox');
@@ -739,7 +956,7 @@ function calcularAnosAproximados(){
     if(!D.length){toast('No hay datos cargados',true);return;}
     var pendientes=D.filter(function(p){return getYear(p)===null;});
     if(!pendientes.length){toast('Todas las personas ya tienen año de nacimiento o aproximado',true);return;}
-    if(!confirm('Se intentara calcular un año aproximado para '+pendientes.length+' persona(s) que ahora mismo no tienen ningun año registrado.\n\nNo se modificara ningun año de nacimiento confirmado ni ningun año aproximado que ya exista. Se guardara el motivo de cada calculo (visible en la ficha) y podras deshacer el lote completo despues con el boton "Deshacer ultimos años calculados".\n\n¿Continuar?'))return;
+    if(!confirm('Se intentará calcular un año aproximado para '+pendientes.length+' persona(s) que ahora mismo no tienen ningún año registrado.\n\nNo se modificará ningún año de nacimiento confirmado ni ningún año aproximado que ya exista. Se guardará el motivo de cada cálculo (visible en la ficha) y podrás deshacer el lote completo después con el botón "Deshacer últimos años calculados".\n\n¿Continuar?'))return;
     var calculados=[],cambio=true,vueltas=0;
     var fechaCalculo=new Date().toISOString().slice(0,10);
     while(cambio&&vueltas<25){
@@ -755,18 +972,18 @@ function calcularAnosAproximados(){
             }
         });
     }
-    if(!calculados.length){toast('No se pudo estimar ningun año: en toda la rama familiar (hermanos, conyuges, cuñados, primos, padres, tios, suegros, hijos, sobrinos, nietos, abuelos) no hay ni un solo dato de referencia',true);return;}
+    if(!calculados.length){toast('No se pudo estimar ningún año: en toda la rama familiar (hermanos, conyuges, cuñados, primos, padres, tios, suegros, hijos, sobrinos, nietos, abuelos) no hay ni un solo dato de referencia',true);return;}
     bIdx(D);
     sAll(D).then(function(){
         ultimoCalculoAnios=calculados;
         actualizarBotonDeshacerAprox();
         rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
-        toast('Se calcularon '+calculados.length+' año(s) aproximado(s) de '+pendientes.length+' persona(s) pendientes. Puedes deshacerlo con "Deshacer ultimos años calculados".');
+        toast('Se calcularon '+calculados.length+' año(s) aproximado(s) de '+pendientes.length+' persona(s) pendientes. Puedes deshacerlo con "Deshacer últimos años calculados".');
     }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 function deshacerUltimoCalculoAnios(){
-    if(!ultimoCalculoAnios||!ultimoCalculoAnios.length){toast('No hay ningun calculo reciente que deshacer',true);return;}
-    if(!confirm('Se revertira el ultimo lote de años aproximados calculados automaticamente ('+ultimoCalculoAnios.length+' persona(s)).\n\nSolo se revertiran los registros que sigan tal cual los dejo el calculo: si has editado a mano el año aproximado de alguna de esas personas despues, ese cambio se respetara y no se tocara. ¿Continuar?'))return;
+    if(!ultimoCalculoAnios||!ultimoCalculoAnios.length){toast('No hay ningún calculo reciente que deshacer',true);return;}
+    if(!confirm('Se revertirá el último lote de años aproximados calculados automáticamente ('+ultimoCalculoAnios.length+' persona(s)).\n\nSolo se revertirán los registros que sigan tal cual los dejó el cálculo: si has editado a mano el año aproximado de alguna de esas personas después, ese cambio se respetará y no se tocará. ¿Continuar?'))return;
     var revertidos=0,conservados=0;
     ultimoCalculoAnios.forEach(function(item){
         var p=PI[item.id];
@@ -800,7 +1017,7 @@ function doSrch(q){
         h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
     });
     if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
-    else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver mas.</p>';
+    else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
     document.getElementById('rl').innerHTML=h;
 }
 function selP(id){cid=id;sv('arb');rTree(id);}
@@ -820,9 +1037,10 @@ function rFicView(id){
     if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
     var al=isAl(p);
     var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-    h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronologia</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
+    h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
     h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(fDate(p.NACD,p.NACM,p.NACA)?' · Nac: '+esc(fDate(p.NACD,p.NACM,p.NACA)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
-    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(fDate(p.NACD,p.NACM,p.NACA)||'Desconocido')+'</span></div>'+(p.APROX?'<div class="fr"><span class="fl">Año aprox.</span><span class="fv">'+esc(p.APROX)+'</span></div>':'')+(p.APROX&&p.MotivoAprox?'<div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.MotivoAprox)+'</span></div>':'')+'<div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defuncion</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+    h+=htmlAvisosFicha(id);
+    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(fDate(p.NACD,p.NACM,p.NACA)||'Desconocido')+'</span></div>'+(p.APROX?'<div class="fr"><span class="fl">Año aprox.</span><span class="fv">'+esc(p.APROX)+'</span></div>':'')+(p.APROX&&p.MotivoAprox?'<div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.MotivoAprox)+'</span></div>':'')+'<div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
     var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
     var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
     var m1l=p.M1&&PI[p.M1]?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(PI[p.M1]))+'</a>':'Ninguno';
@@ -913,7 +1131,7 @@ function rFicEdit(id){
     h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-defd" type="number" min="1" max="31" value="'+escAttr(p.DEFD||'')+'"></div>';
     h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-defm" type="number" min="1" max="12" value="'+escAttr(p.DEFM||'')+'"></div>';
     h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
-    h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defuncion</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
+    h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defunción</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
     h+='</div></div>';
 
     h+='<div class="fs"><h3>Familia</h3>';
@@ -947,7 +1165,7 @@ function resizeImageToDataURL(file,maxDim,quality){
         reader.onerror=function(){reject(new Error('No se pudo leer el archivo'));};
         reader.onload=function(){
             var img=new Image();
-            img.onerror=function(){reject(new Error('El archivo no es una imagen valida'));};
+            img.onerror=function(){reject(new Error('El archivo no es una imagen válida'));};
             img.onload=function(){
                 var w=img.width,h=img.height;
                 if(w>maxDim||h>maxDim){
@@ -1025,8 +1243,8 @@ async function listarTodosArchivosDrive(query,fields){
 }
 async function importarFotosDesdeDrive(){
     if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
-    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
-    if(!driveRootFolderId){toast('Configura primero la carpeta raiz de Google Drive (boton "Documentos")',true);return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
+    if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos")',true);return;}
     if(!tokenDriveValido()){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
     }
@@ -1036,7 +1254,7 @@ async function importarFotosDesdeDrive(){
         var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
         if(rC.status===401){driveAccessToken=null;toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}
         var dC=await rC.json();
-        if(!dC.files||!dC.files.length){toast('No existe una carpeta llamada "FOTO" dentro de la carpeta raiz configurada',true);return;}
+        if(!dC.files||!dC.files.length){toast('No existe una carpeta llamada "FOTO" dentro de la carpeta raíz configurada',true);return;}
         var folderId=dC.files[0].id;
         toast('Listando archivos de la carpeta FOTO...');
         var todos;
@@ -1085,7 +1303,7 @@ function guardarFicha(id){
     p.LUGARNAC=leerCampo('ef-lugarnac');
     var ap=leerNum('ef-aprox');
     var apNuevo=(ap!==null)?String(ap):'';
-    if(apNuevo!==String(p.APROX||''))p.MotivoAprox=''; // edicion manual: ya no es un calculo automatico
+    if(apNuevo!==String(p.APROX||''))p.MotivoAprox=''; // edición manual: ya no es un calculo automático
     p.APROX=apNuevo;
     var fallecido=document.getElementById('ef-fallecido').checked;
     p.FALLECIDO=fallecido?'1':'';
@@ -1127,7 +1345,7 @@ function eliminarFicha(id){
 }
 
 function crearVinculado(id,campo,sexoNuevo){
-    if(!confirm('Se creara una nueva persona y se vinculara como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderan. Continuar?'))return;
+    if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
     var newId=genNewId();
     var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:''};
     D.push(nuevo);
@@ -1150,7 +1368,7 @@ function editarVinculado(id,campo){
     var actual=PI[id];
     var linkedId=actual?actual[campo]:null;
     if(!linkedId||!PI[linkedId]){toast('No hay nadie vinculado en ese campo',true);return;}
-    if(editMode && !confirm('Se perderan los cambios sin guardar en este formulario. Continuar?'))return;
+    if(editMode && !confirm('Se perderán los cambios sin guardar en este formulario. Continuar?'))return;
     cid=linkedId;
     editMode=true;
     rFic(linkedId);
@@ -1233,11 +1451,11 @@ function mostrarRamasIncompletas(){
 
 /* ===== COMPROBADOR DE CONSISTENCIA =====
    Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error:
-   en genealogia una anomalia no siempre es un fallo de los datos (partos multiples,
-   adopciones, segundas nupcias tardias, longevidad real, etc.), asi que el programa
+   en genealogía una anomalia no siempre es un fallo de los datos (partos multiples,
+   adopciones, segundas nupcias tardias, longevidad real, etc.), así que el programa
    avisa y es la persona quien decide si corregirlo. Solo las comprobaciones que ya
-   tenian una correccion segura y reversible (conyuge sin vinculo, sexo de padre/madre,
-   edad imposible entre progenitor e hijo) ofrecen el boton "Solucionar"; el resto solo
+   tenian una corrección segura y reversible (conyuge sin vínculo, sexo de padre/madre,
+   edad imposible entre progenitor e hijo) ofrecen el botón "Solucionar"; el resto solo
    permite "Ver ficha" para revisar el caso a mano. */
 var EDAD_MIN_PROGENITOR=14;
 var EDAD_MIN_CONYUGE=14;
@@ -1313,8 +1531,8 @@ function detectarInconsistencias(){
                         var diff=yHijo-yProg;
                         if(diff<EDAD_MIN_PROGENITOR){
                             var msg;
-                            if(diff<0) msg=esc(fn(prog))+' ('+yProg+') nace despues que '+esc(fn(p))+' ('+yHijo+'), pero figura como su '+rel+'.';
-                            else msg=esc(fn(prog))+' ('+yProg+') tendria solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.';
+                            if(diff<0) msg=esc(fn(prog))+' ('+yProg+') nace después que '+esc(fn(p))+' ('+yHijo+'), pero figura como su '+rel+'.';
+                            else msg=esc(fn(prog))+' ('+yProg+') tendría solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.';
                             problemas.push({
                                 icono:'fa-calendar-xmark',
                                 etiqueta:'Posible edad incoherente entre padres e hijos',
@@ -1326,7 +1544,7 @@ function detectarInconsistencias(){
                             problemas.push({
                                 icono:'fa-calendar-xmark',
                                 etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria',
-                                mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años despues que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), mas de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.',
+                                mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años después que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), más de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.',
                                 verId:p.ID
                             });
                         }
@@ -1336,14 +1554,14 @@ function detectarInconsistencias(){
                         problemas.push({
                             icono:'fa-calendar-xmark',
                             etiqueta:'Posible inconsistencia: hijo nacido tras la defunción del progenitor',
-                            mensaje:esc(fn(p))+' nace en '+yHijo+', despues de la defuncion de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.',
+                            mensaje:esc(fn(p))+' nace en '+yHijo+', después de la defunción de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.',
                             verId:p.ID
                         });
                     }
                 }
             });
         }
-        /* Matrimonios: fecha posterior a la defuncion propia o del conyuge; edad al casarse extrema;
+        /* Matrimonios: fecha posterior a la defunción propia o del conyuge; edad al casarse extrema;
            diferencia de edad extraordinaria entre conyuges; segundo matrimonio anterior al primero. */
         var matrimonios=[];
         [['M1','MF1'],['M2','MF2']].forEach(function(par){
@@ -1358,7 +1576,7 @@ function detectarInconsistencias(){
             if(conyuge){
                 var yDefConyuge=getDeathYear(conyuge);
                 if(yDefConyuge!==null&&m.anio>yDefConyuge){
-                    problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defuncion de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID});
+                    problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defunción de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID});
                 }
                 var yConyuge=getYear(conyuge);
                 if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
@@ -1366,7 +1584,7 @@ function detectarInconsistencias(){
                 }
             }
             if(yHijo!==null&&(m.anio-yHijo)<EDAD_MIN_CONYUGE){
-                problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habria casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').',verId:p.ID});
+                problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').',verId:p.ID});
             }
         });
         if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
@@ -1376,7 +1594,7 @@ function detectarInconsistencias(){
         if(isAl(p)&&yHijo!==null){
             var edadActual=new Date().getFullYear()-yHijo;
             if(edadActual>EDAD_VIVO_EXTREMA){
-                problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendria '+edadActual+' años (nacido/a en '+yHijo+').',verId:p.ID});
+                problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').',verId:p.ID});
             }
         }
     });
@@ -1425,6 +1643,38 @@ function aplicarFixEdadDesvincular(id,campo){
     p[campo]='';
     return true;
 }
+function inconsistenciasDePersona(id){
+    return detectarInconsistencias().filter(function(pr){return pr.verId===id;});
+}
+function solucionarInconsistenciaFicha(idx){
+    var avisos=window._inconsistenciasFichaActual||[];
+    var pr=avisos[idx];
+    if(!pr||typeof pr.aplicar!=='function')return;
+    if(pr.aplicar()){
+        bIdx(D);
+        sAll(D).then(function(){
+            rStats();
+            toast('Corrección aplicada');
+            if(cid)rFic(cid);
+        }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+    }
+}
+function htmlAvisosFicha(id){
+    var avisos=inconsistenciasDePersona(id);
+    window._inconsistenciasFichaActual=avisos;
+    if(!avisos.length)return'';
+    var h='<div class="fs" style="border:2px solid #c0392b;background:rgba(192,57,43,.05)"><h3 style="color:#c0392b"><i class="fa-solid fa-triangle-exclamation"></i> Posible error ('+avisos.length+')</h3>';
+    avisos.forEach(function(pr,idx){
+        h+='<div class="inc-row"><div class="inc-icon" style="background:rgba(192,57,43,.12);color:#c0392b"><i class="fa-solid '+pr.icono+'"></i></div>';
+        h+='<div class="inc-msg"><span class="inc-tag" style="color:#c0392b">'+esc(pr.etiqueta)+'</span><br>'+pr.mensaje;
+        h+='<div class="inc-actions">';
+        if(typeof pr.aplicar==='function')h+='<button class="ef-btn" style="padding:4px 10px;font-size:11px;background:#c0392b;border-color:#c0392b" onclick="solucionarInconsistenciaFicha('+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>';
+        h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="mostrarInconsistencias()">Revisar en detalle</button>';
+        h+='</div></div></div>';
+    });
+    h+='</div>';
+    return h;
+}
 function guardarTrasCorreccion(mensaje){
     bIdx(D);
     sAll(D).then(function(){
@@ -1471,10 +1721,10 @@ function cerrarInconsistencias(){document.getElementById('modalInconsistencias')
 function solucionarTodasInconsistencias(){
     var problemas=(window._inconsistenciasActuales||detectarInconsistencias()).filter(function(pr){return typeof pr.aplicar==='function';});
     if(!problemas.length){toast('No hay correcciones automáticas disponibles; el resto de posibles inconsistencias requiere revisión manual',true);return;}
-    if(!confirm('Se aplicaran automaticamente '+problemas.length+' correccion(es) de las que tienen una solucion segura: se completaran vinculos de cónyuge, se ajustara el sexo segun el rol de padre/madre y se desvincularan las relaciones padre-hijo con edades incoherentes. El resto de posibles inconsistencias detectadas no se tocan: hay que revisarlas una a una. ¿Continuar?'))return;
+    if(!confirm('Se aplicarán automáticamente '+problemas.length+' corrección(es) de las que tienen una solución segura: se completarán vínculos de cónyuge, se ajustará el sexo según el rol de padre/madre y se desvincularán las relaciones padre-hijo con edades incoherentes. El resto de posibles inconsistencias detectadas no se tocan: hay que revisarlas una a una. ¿Continuar?'))return;
     var aplicadas=0;
     problemas.forEach(function(pr){if(pr.aplicar())aplicadas++;});
-    if(aplicadas)guardarTrasCorreccion(aplicadas+' correccion(es) aplicada(s)');
+    if(aplicadas)guardarTrasCorreccion(aplicadas+' corrección(es) aplicada(s)');
     else toast('No se pudo aplicar ninguna corrección automáticamente',true);
 }
 
@@ -1557,14 +1807,14 @@ function solucionarDuplicado(idx){
     var pares=window._duplicadosActuales||[];
     var par=pares[idx];
     if(!par)return;
-    if(!confirm('Se fusionaran las dos fichas en una sola.\n\nSe conservara: '+fn(par.a)+' (ID '+par.a.ID+')\nSe eliminara: '+fn(par.b)+' (ID '+par.b.ID+')\n\nLos datos vacios del registro conservado se rellenaran con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasaran al registro conservado. Esta accion no se puede deshacer. ¿Continuar?'))return;
+    if(!confirm('Se fusionarán las dos fichas en una sola.\n\nSe conservará: '+fn(par.a)+' (ID '+par.a.ID+')\nSe eliminará: '+fn(par.b)+' (ID '+par.b.ID+')\n\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer. ¿Continuar?'))return;
     if(fusionarPersonas(par.a.ID,par.b.ID))guardarTrasFusion(par.a.ID);
 }
 function solucionarDuplicadoInverso(idx){
     var pares=window._duplicadosActuales||[];
     var par=pares[idx];
     if(!par)return;
-    if(!confirm('Se fusionaran las dos fichas en una sola.\n\nSe conservara: '+fn(par.b)+' (ID '+par.b.ID+')\nSe eliminara: '+fn(par.a)+' (ID '+par.a.ID+')\n\nLos datos vacios del registro conservado se rellenaran con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasaran al registro conservado. Esta accion no se puede deshacer. ¿Continuar?'))return;
+    if(!confirm('Se fusionarán las dos fichas en una sola.\n\nSe conservará: '+fn(par.b)+' (ID '+par.b.ID+')\nSe eliminará: '+fn(par.a)+' (ID '+par.a.ID+')\n\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer. ¿Continuar?'))return;
     if(fusionarPersonas(par.b.ID,par.a.ID))guardarTrasFusion(par.b.ID);
 }
 function ignorarDuplicado(idx){
@@ -1580,7 +1830,7 @@ function guardarTrasFusion(idSuperviviente){
         if(cid===idSuperviviente&&!editMode&&document.getElementById('vFic').classList.contains('active'))rFic(cid);
         toast('Fichas fusionadas correctamente');
         mostrarDuplicados();
-    }).catch(function(err){toast('No se pudo guardar la fusion: '+err.message,true);});
+    }).catch(function(err){toast('No se pudo guardar la fusión: '+err.message,true);});
 }
 function mostrarDuplicados(){
     if(!D.length){toast('No hay datos cargados',true);return;}
@@ -1595,7 +1845,7 @@ function mostrarDuplicados(){
         return;
     }
     var MOSTRAR=150;
-    resumen.textContent=pares.length+' pareja(s) candidata(s) detectada(s), ordenadas por confianza'+(pares.length>MOSTRAR?' (mostrando las '+MOSTRAR+' con mayor puntuacion)':'');
+    resumen.textContent=pares.length+' pareja(s) candidata(s) detectada(s), ordenadas por confianza'+(pares.length>MOSTRAR?' (mostrando las '+MOSTRAR+' con mayor puntuación)':'');
     lista.innerHTML=pares.slice(0,MOSTRAR).map(function(pr,idx){
         var nivel=pr.score>=90?'Muy probable':(pr.score>=65?'Posible':'Baja confianza');
         var color=pr.score>=90?'var(--accent)':(pr.score>=65?'var(--blue)':'var(--muted)');
@@ -1756,7 +2006,7 @@ function rTree(id){
         hijos.forEach(function(hid){
             var hijoP=PI[hid];
             h+=makeCard(hijoP,"");
-            // Conyuge(s) del hijo, debajo de su tarjeta (sin lineas hacia los padres del conyuge, para no cruzar el arbol)
+            // Conyuge(s) del hijo, debajo de su tarjeta (sin lineas hacia los padres del conyuge, para no cruzar el árbol)
             if(hijoP.M1&&PI[hijoP.M1])h+=makeCard(PI[hijoP.M1],"spouse",true);
             if(hijoP.M2&&PI[hijoP.M2])h+=makeCard(PI[hijoP.M2],"spouse",true);
             // Nietos (hijos de los hijos)
@@ -1829,8 +2079,9 @@ function seleccionarPersonaInforme(id){
     document.getElementById('rlInf').innerHTML='';
     document.getElementById('siInf').value='';
 }
-/* ===== CRONOLOGIA ===== */
+/* ===== Cronología ===== */
 var croId=null;
+var croGenAmpliada=false;
 function initCronologia(){
     if(!croId&&cid&&PI[cid])croId=cid;
     var box=document.getElementById('croSelBox');
@@ -1883,20 +2134,20 @@ function construirEventosPersona(p){
     var yDef=(!isAl(p)&&p.DEFA)?parseInt(p.DEFA,10):null;
     if(yDef!==null){
         var fDef=fDate(p.DEFD,p.DEFM,p.DEFA);
-        eventos.push({anio:yDef,txt:'Defuncion'+(fDef?' ('+fDef+')':'')+(p.LUGARDEF?' en '+p.LUGARDEF:'')});
+        eventos.push({anio:yDef,txt:'Defunción'+(fDef?' ('+fDef+')':'')+(p.LUGARDEF?' en '+p.LUGARDEF:'')});
     }
     eventos.sort(function(a,b){return a.anio-b.anio;});
     eventos.forEach(function(e){
         e.warn=false;
         if(yNac!==null&&e.anio<yNac)e.warn='Ocurre antes del nacimiento registrado ('+yNac+')';
-        else if(yDef!==null&&e.anio>yDef)e.warn='Ocurre despues de la defuncion registrada ('+yDef+')';
+        else if(yDef!==null&&e.anio>yDef)e.warn='Ocurre después de la defunción registrada ('+yDef+')';
     });
     return eventos;
 }
 function htmlLineaVida(p){
     var eventos=construirEventosPersona(p);
     var h='<div class="cro-life"><h3>Linea de vida</h3><div class="cro-sub">'+esc(fn(p))+'</div>';
-    if(!eventos.length){h+='<p style="font-size:12px;color:var(--muted)">No hay suficientes datos con año (nacimiento, matrimonio, hijos o defuncion) para construir la linea de vida.</p>';}
+    if(!eventos.length){h+='<p style="font-size:12px;color:var(--muted)">No hay suficientes datos con año (nacimiento, matrimonio, hijos o defunción) para construir la linea de vida.</p>';}
     else{
         eventos.forEach(function(e){
             h+='<div class="cro-event'+(e.warn?' warn':'')+'"><div class="cro-event-year">'+e.anio+'</div><div class="cro-event-txt">'+esc(e.txt)+(e.warn?'<span class="cro-event-warn-tag"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(e.warn)+'</span>':'')+'</div></div>';
@@ -1905,28 +2156,44 @@ function htmlLineaVida(p){
     h+='</div>';
     return h;
 }
-function construirFamiliaCronologia(p){
+function construirFamiliaCronologia(p,ampliada){
     var vistos={},lista=[];
-    function add(x){if(x&&!vistos[x.ID]){vistos[x.ID]=true;lista.push(x);}}
-    if(p.PADRE&&PI[p.PADRE])add(PI[p.PADRE]);
-    if(p.MADRE&&PI[p.MADRE])add(PI[p.MADRE]);
-    gHerm(p.ID).forEach(add);
-    add(p);
-    if(p.M1&&PI[p.M1])add(PI[p.M1]);
-    if(p.M2&&PI[p.M2])add(PI[p.M2]);
-    (HD[p.ID]||[]).forEach(function(hid){add(PI[hid]);});
+    function add(x,label){if(x&&!vistos[x.ID]){vistos[x.ID]=true;lista.push({p:x,label:label||''});}}
+    if(p.PADRE&&PI[p.PADRE])add(PI[p.PADRE],'Padre');
+    if(p.MADRE&&PI[p.MADRE])add(PI[p.MADRE],'Madre');
+    gHerm(p.ID).forEach(function(h){add(h,'Hermano/a');});
+    add(p,'');
+    if(p.M1&&PI[p.M1])add(PI[p.M1],'Cónyuge');
+    if(p.M2&&PI[p.M2])add(PI[p.M2],'Cónyuge');
+    (HD[p.ID]||[]).forEach(function(hid){add(PI[hid],'Hijo/a');});
+    if(ampliada){
+        var padre=p.PADRE?PI[p.PADRE]:null,madre=p.MADRE?PI[p.MADRE]:null;
+        if(padre){
+            if(padre.PADRE&&PI[padre.PADRE])add(PI[padre.PADRE],'Abuelo paterno');
+            if(padre.MADRE&&PI[padre.MADRE])add(PI[padre.MADRE],'Abuela paterna');
+        }
+        if(madre){
+            if(madre.PADRE&&PI[madre.PADRE])add(PI[madre.PADRE],'Abuelo materno');
+            if(madre.MADRE&&PI[madre.MADRE])add(PI[madre.MADRE],'Abuela materna');
+        }
+        (HD[p.ID]||[]).forEach(function(hid){
+            (HD[hid]||[]).forEach(function(nid){add(PI[nid],'Nieto/a');});
+        });
+    }
     return lista;
 }
-function htmlGanttFamilia(p){
-    var familia=construirFamiliaCronologia(p);
-    var datos=familia.map(function(x){
+function htmlGanttFamilia(p,ampliada){
+    var familia=construirFamiliaCronologia(p,ampliada);
+    var datos=familia.map(function(item){
+        var x=item.p;
         var yNac=anioNacimientoPersona(x);
         var vivo=isAl(x);
         var yDef=(!vivo&&x.DEFA)?parseInt(x.DEFA,10):null;
         var yFin=yDef!==null?yDef:(vivo?new Date().getFullYear():null);
-        return{p:x,yNac:yNac,yFin:yFin,vivo:vivo};
+        return{p:x,label:item.label,yNac:yNac,yFin:yFin,vivo:vivo};
     }).filter(function(d){return d.yNac!==null;});
-    var h='<div class="cro-life"><h3>Comparativa familiar</h3><div class="cro-sub">Padres, hermanos, cónyuges e hijos de '+esc(fn(p))+' sobre un mismo eje temporal</div>';
+    var h='<div class="cro-life"><h3>Comparativa familiar</h3><div class="cro-sub">Padres, hermanos, cónyuges e hijos de '+esc(fn(p))+' sobre un mismo eje temporal'+(ampliada?' · incluye abuelos y nietos':'')+'</div>';
+    h+='<div style="text-align:right;margin:-2px 0 10px"><button type="button" class="ef-btn ghost" style="padding:5px 10px;font-size:11px" onclick="alternarGeneracionesCronologia()"><i class="fa-solid fa-arrows-up-down"></i> '+(ampliada?'Ver generaciones normales':'Ampliar generaciones')+'</button></div>';
     if(datos.length<2){
         h+='<p style="font-size:12px;color:var(--muted)">No hay suficientes familiares cercanos con año de nacimiento conocido para comparar.</p></div>';
         return h;
@@ -1948,7 +2215,9 @@ function htmlGanttFamilia(p){
     h+='<div class="cro-gantt-wrap"><div class="cro-gantt">';
     datos.forEach(function(d){
         var left=pct(d.yNac),width=Math.max(0.6,pct(d.yFin!==null?d.yFin:d.yNac)-left);
-        h+='<div class="cro-row"><div class="cro-row-label" title="'+escAttr(fn(d.p))+'" onclick="selPDesdeGantt(\''+safeId(d.p.ID)+'\')">'+esc(fn(d.p))+(d.p.ID===p.ID?' ★':'')+'</div><div class="cro-track">';
+        var esExtendida=d.label==='Abuelo paterno'||d.label==='Abuela paterna'||d.label==='Abuelo materno'||d.label==='Abuela materna'||d.label==='Nieto/a';
+        var prefijo=esExtendida?(d.label+': '):'';
+        h+='<div class="cro-row"><div class="cro-row-label" title="'+escAttr(prefijo+fn(d.p))+'" onclick="selPDesdeGantt(\''+safeId(d.p.ID)+'\')">'+esc(prefijo+fn(d.p))+(d.p.ID===p.ID?' ★':'')+'</div><div class="cro-track">';
         h+='<div class="cro-bar'+(d.vivo?' alive':'')+(d.warn?' warn':'')+'" style="left:'+left.toFixed(2)+'%;width:'+width.toFixed(2)+'%" title="'+d.yNac+(d.yFin!==null?' - '+d.yFin:' - presente')+'"></div>';
         (HD[d.p.ID]||[]).forEach(function(hid){
             var hp=PI[hid],yh=anioNacimientoPersona(hp);
@@ -1968,13 +2237,17 @@ function htmlGanttFamilia(p){
 function renderCronologia(id){
     var p=PI[id];
     if(!p){document.getElementById('croContenido').innerHTML='';return;}
-    document.getElementById('croContenido').innerHTML=htmlLineaVida(p)+htmlGanttFamilia(p);
+    document.getElementById('croContenido').innerHTML=htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada);
+}
+function alternarGeneracionesCronologia(){
+    croGenAmpliada=!croGenAmpliada;
+    if(croId)renderCronologia(croId);
 }
 
-/* ===== RELACION ENTRE DOS PERSONAS (parentesco + camino genealógico) ===== */
+/* ===== Relación ENTRE DOS PERSONAS (parentesco + camino genealógico) ===== */
 function capitalizar(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1);}
 function sexoLetra(p){if(!p)return null;if(p.SEXO==='Hombre')return'M';if(p.SEXO==='Mujer')return'F';return null;}
-/* Combina una forma masculina y femenina segun el sexo conocido; si se desconoce, produce "hijo/a". */
+/* Combina una forma masculina y femenina según el sexo conocido; si se desconoce, produce "hijo/a". */
 function formaSexo(masc,fem,sexoL){
     if(sexoL==='M')return masc;
     if(sexoL==='F')return fem;
@@ -1987,7 +2260,7 @@ var TERMINOS_DIRECTOS=[null,
     {asc:['bisabuelo','bisabuela'],desc:['bisnieto','bisnieta']},
     {asc:['tatarabuelo','tatarabuela'],desc:['tataranieto','tataranieta']}
 ];
-/* n = numero de generaciones. esAscendiente=true -> "abuelo/a" (mirando hacia arriba); false -> "nieto/a" (mirando hacia abajo). */
+/* n = número de generaciones. esAscendiente=true -> "abuelo/a" (mirando hacia arriba); false -> "nieto/a" (mirando hacia abajo). */
 function terminoLineaDirecta(n,esAscendiente,sexoL){
     if(n>=1&&n<TERMINOS_DIRECTOS.length){
         var par=esAscendiente?TERMINOS_DIRECTOS[n].asc:TERMINOS_DIRECTOS[n].desc;
@@ -1995,7 +2268,7 @@ function terminoLineaDirecta(n,esAscendiente,sexoL){
     }
     return(esAscendiente?'ascendiente':'descendiente')+' directo/a ('+n+'ª generación)';
 }
-/* mayor = generaciones desde el sobrino/a hasta el ancestro comun (siempre >=2). esTio=true da la forma "tio/tia [...]"; false da "sobrino/a [...]" */
+/* mayor = generaciones desde el sobrino/a hasta el ancestro común (siempre >=2). esTio=true da la forma "tio/tia [...]"; false da "sobrino/a [...]" */
 function terminoAvuncular(mayor,esTio,sexoL){
     var base=esTio?formaSexo('tío','tía',sexoL):formaSexo('sobrino','sobrina',sexoL);
     if(mayor===2)return base;
@@ -2028,9 +2301,9 @@ function mapaAncestros(id,maxProf){
     }
     return dist;
 }
-/* Calcula el grado de parentesco de sangre entre idA e idB buscando el antepasado comun mas cercano
-   (el que minimiza la suma de generaciones hasta cada uno). Devuelve null si no hay ningun antepasado
-   comun conocido dentro de los datos disponibles. */
+/* Calcula el grado de parentesco de sangre entre idA e idB buscando el antepasado común más cercano
+   (el que minimiza la suma de generaciones hasta cada uno). Devuelve null si no hay ningún antepasado
+   común conocido dentro de los datos disponibles. */
 function calcularParentesco(idA,idB){
     if(idA===idB)return{corto:'Misma persona',texto:'Es la misma persona.'};
     var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
@@ -2082,8 +2355,8 @@ function nombrarParentesco(dA,dB,cuentaComun,idA,idB){
     return{corto:corto,texto:texto};
 }
 /* Vecinos directos de una persona en el grafo de parentesco: padres, hijos, hermanos y conyuges.
-   Se usa para encontrar el camino mas corto y natural entre dos personas (permite atajos como
-   "hermana" en vez de subir y volver a bajar por el antepasado comun). */
+   Se usa para encontrar el camino más corto y natural entre dos personas (permite atajos como
+   "hermana" en vez de subir y volver a bajar por el antepasado común). */
 function vecinosParentesco(id){
     var p=PI[id];
     if(!p)return[];
@@ -2169,11 +2442,11 @@ function calcularYMostrarRelacion(){
         h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
         h+='<p style="font-size:13px;margin-top:10px;line-height:1.5">'+esc(parentesco.texto)+'</p>';
     }else{
-        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningun antepasado comun conocido entre '+esc(fn(PI[relIdA]))+' y '+esc(fn(PI[relIdB]))+'. Puede que no haya relacion de sangre, o que falten datos de ascendencia en alguna de las ramas.</p>';
+        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún antepasado común conocido entre '+esc(fn(PI[relIdA]))+' y '+esc(fn(PI[relIdB]))+'. Puede que no haya relación de sangre, o que falten datos de ascendencia en alguna de las ramas.</p>';
     }
     h+='</div><div class="cro-life"><h3>Camino genealógico</h3>';
     if(camino===null){
-        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningun camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.</p>';
+        h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.</p>';
     }else if(!camino.length){
         h+='<p style="font-size:13px;color:var(--muted)">Es la misma persona.</p>';
     }else{
@@ -2228,15 +2501,15 @@ function buildArbolDescendenteGrafico(id,visitados,gen){
 function descargarArbolDescendente(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
-    var html='<div class="print-report"><h1>Arbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
+    var html='<div class="print-report"><h1>Árbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
 /* ===== POSTER ASCENDENTE A3: PLANTILLA FIJA (SVG) =====
-   VERSION 7 (estetica del vacio): mismo modelo (abanico simetrico, 8ª generacion en
+   VERSION 7 (estetica del vacio): mismo modelo (abanico simetrico, 8ª generación en
    parejas horizontales, año siempre visible). Las casillas SIN datos se atenuan:
    sin relleno, borde punteado claro y "?" decorativa en las grandes; las lineas que
-   conducen a ramas vacias se dibujan mas claras. La parte documentada destaca y la
+   conducen a ramas vacias se dibujan más claras. La parte documentada destaca y la
    vacia queda como esqueleto elegante "por investigar" (leyenda bajo el titulo). */
 var ASC_PAGE_W=420, ASC_PAGE_H=297;
 var ASC_ROWS=32;
@@ -2246,12 +2519,12 @@ var ASC_LINE_COLOR='#3D2C1E';
 var ASC_FAINT_COLOR='#d8d0c0';
 var ASC_ROOT_X=198.0, ASC_ROOT_Y=280.05, ASC_ROOT_W=26.6, ASC_ROOT_H=14.0;
 var ASC_DEPTH_DIMS=[
-{w:19.7,h:25.3,x:188.9},  // d0 = generacion 2 (padre/madre)
-{w:20.3,h:24.6,x:175.1},  // d1 = generacion 3
-{w:27.6,h:10.4,x:154.2},  // d2 = generacion 4
-{w:21.8,h:10.3,x:142.3},  // d3 = generacion 5
-{w:21.5,h:10.2,x:113.8},  // d4 = generacion 6
-{w:34.0,h:ASC_THIN_H,x:67.0}   // d5 = generacion 7 (marca la fila)
+{w:19.7,h:25.3,x:188.9},  // d0 = generación 2 (padre/madre)
+{w:20.3,h:24.6,x:175.1},  // d1 = generación 3
+{w:27.6,h:10.4,x:154.2},  // d2 = generación 4
+{w:21.8,h:10.3,x:142.3},  // d3 = generación 5
+{w:21.5,h:10.2,x:113.8},  // d4 = generación 6
+{w:34.0,h:ASC_THIN_H,x:67.0}   // d5 = generación 7 (marca la fila)
 ];
 var ASC_GEN8_W=27.0, ASC_GEN8_PADRE_X=9.0;          // 8ª: [padre][madre] pegados en la misma fila
 var ASC_GEN8_MADRE_X=ASC_GEN8_PADRE_X+ASC_GEN8_W;
@@ -2424,7 +2697,7 @@ function descargarInformeAscendientes(){
     Object.keys(porGeneracion).forEach(function(g){porGeneracion[g].forEach(function(item){sosaMap[item.sosa]=item.p;});});
     var html='<div class="print-report"><h1>Informe de ascendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
     Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
-        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
+        html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+'</div>';
         porGeneracion[g].forEach(function(item){
             var pp=item.p;
             var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
@@ -2436,7 +2709,7 @@ function descargarInformeAscendientes(){
             }
             html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+(relTxt?' <span style="font-weight:400;color:var(--muted)">('+esc(relTxt)+')</span>':'')+'</div>';
             html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
-            html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+            html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
             if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
             if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
             if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
@@ -2465,7 +2738,7 @@ function htmlPrintPersona(pp){
     var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
     var html='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+'</div>';
     html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(pp,'NAC')||(pp.APROX?'Aprox. '+pp.APROX:'Desconocido'))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
-    html+='<div class="pn-row">Defuncion: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
+    html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
     if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
     if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
     if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
@@ -2493,7 +2766,7 @@ function descargarInformeDescendientes(){
     Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
         if(!porGeneracion[g].length)return;
         huboAlguno=true;
-        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+'</div>';
+        html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+'</div>';
         porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
     });
     if(!huboAlguno)html+='<p style="font-size:12px;color:var(--muted)">No hay descendientes que cumplan el filtro seleccionado.</p>';
@@ -2516,7 +2789,7 @@ function descargarInformePersona(){
     html+='<div class="pn-row">ID: '+esc(p.ID)+(p.SEXO?' · Sexo: '+esc(p.SEXO):'')+' · '+(al?'Vivo':'Fallecido')+'</div>';
     html+='<div class="pn-row">Nacimiento: '+esc(fechaCorta(p,'NAC')||(p.APROX?'Aprox. '+p.APROX:'Desconocido'))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
     if(p.APROX&&p.MotivoAprox)html+='<div class="pn-row">Motivo del año aprox.: '+esc(p.MotivoAprox)+'</div>';
-    html+='<div class="pn-row">Defuncion: '+esc(al?'Vivo':(fechaCorta(p,'DEF')||'Desconocida'))+(p.LUGARDEF?' — '+esc(p.LUGARDEF):'')+'</div>';
+    html+='<div class="pn-row">Defunción: '+esc(al?'Vivo':(fechaCorta(p,'DEF')||'Desconocida'))+(p.LUGARDEF?' — '+esc(p.LUGARDEF):'')+'</div>';
     html+='</div>';
     html+='<div class="print-person" style="border-bottom:0">';
     html+='<div class="pn-name" style="font-size:14px">Familia</div>';
@@ -2551,7 +2824,7 @@ function descargarInformeRama(){
         if(parseInt(g,10)===0)return; // ya se muestra arriba como cabeza de rama
         if(!porGeneracion[g].length)return;
         huboDescendientes=true;
-        html+='<div class="print-gen-title">Generacion '+(parseInt(g,10)+1)+' de la rama</div>';
+        html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+' de la rama</div>';
         porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
     });
     if(!huboDescendientes)html+='<p style="font-size:12px;color:var(--muted)">Esta persona no tiene descendientes registrados.</p>';
@@ -2559,11 +2832,11 @@ function descargarInformeRama(){
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
-/* ===== INFORME CRONOLOGICO (version imprimible de la pestaña Cronologia) ===== */
+/* ===== INFORME Cronológico (version imprimible de la pestaña Cronología) ===== */
 function descargarInformeCronologico(){
     if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
     var p=PI[infId];
-    var html='<div class="print-report"><h1>Informe cronologico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p)+'</div>';
+    var html='<div class="print-report"><h1>Informe cronológico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada)+'</div>';
     document.getElementById('printArea').innerHTML=html;
     setTimeout(function(){window.print();},80);
 }
@@ -2609,7 +2882,7 @@ function descargarInformeDatosFaltantes(){
         lista.slice(0,MOSTRAR).forEach(function(pp){
             html+='<div class="print-node"><span class="pn-name">'+esc(fn(pp))+'</span> <span class="pn-meta">(ID '+esc(pp.ID)+')</span></div>';
         });
-        if(lista.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(lista.length-MOSTRAR)+' mas</span></div>';
+        if(lista.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(lista.length-MOSTRAR)+' más</span></div>';
     });
     html+='</div>';
     document.getElementById('printArea').innerHTML=html;
@@ -2641,7 +2914,7 @@ function descargarInformeDuplicados(){
             var nivel=pr.score>=90?'Muy probable':(pr.score>=65?'Posible':'Baja confianza');
             html+='<div class="print-node"><span class="pn-name">'+esc(nivel)+' · '+pr.score+' pts — '+esc(fn(pr.a))+' (ID '+esc(pr.a.ID)+') vs '+esc(fn(pr.b))+' (ID '+esc(pr.b.ID)+')</span><br><span class="pn-meta">'+esc(pr.motivos.join(' · '))+'</span></div>';
         });
-        if(pares.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(pares.length-MOSTRAR)+' pareja(s) mas. Usa "Posibles duplicados" en Herramientas para verlas todas.</span></div>';
+        if(pares.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(pares.length-MOSTRAR)+' pareja(s) más. Usa "Posibles duplicados" en Herramientas para verlas todas.</span></div>';
     }
     html+='</div>';
     document.getElementById('printArea').innerHTML=html;
@@ -2711,7 +2984,7 @@ function exportarCopia(){
 }
 function restaurarDesdeJSONTexto(texto){
     var copia;
-    try{copia=JSON.parse(texto);}catch(err){toast('El archivo no es una copia valida',true);return;}
+    try{copia=JSON.parse(texto);}catch(err){toast('El archivo no es una copia válida',true);return;}
     var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
     if(!personas){toast('La copia no contiene personas validas',true);return;}
     var ids={};
@@ -2721,7 +2994,7 @@ function restaurarDesdeJSONTexto(texto){
         if(ids[personas[i].ID]){toast('La copia contiene IDs duplicados',true);return;}
         ids[personas[i].ID]=true;
     }
-    if(!confirm('Se reemplazaran los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
+    if(!confirm('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
     sAll(personas).then(function(){
         D=personas;bIdx(D);cid=null;editMode=false;init();
         toast('Copia restaurada correctamente: '+D.length+' personas');
@@ -2765,7 +3038,7 @@ async function subirCopiaADrive(){
     var clave=prompt('Introduce la clave para subir la copia a Drive:');
     if(clave===null)return;
     if(clave.trim()!==CLAVE_SUBIDA_DRIVE){toast('Clave incorrecta',true);return;}
-    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
     if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
     if(!tokenDriveValido()){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
@@ -2782,7 +3055,7 @@ async function subirCopiaADrive(){
     }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 }
 async function restaurarDesdeDrive(){
-    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el codigo',true);return;}
+    if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
     if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
     if(!tokenDriveValido()){
         try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
@@ -2791,9 +3064,9 @@ async function restaurarDesdeDrive(){
     try{
         var archivo;
         try{archivo=await buscarArchivoBackupDrive();}catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
-        if(!archivo){toast('Todavia no hay ninguna copia subida a Drive ('+DRIVE_BACKUP_FILENAME+')',true);return;}
+        if(!archivo){toast('Todavía no hay ninguna copia subida a Drive ('+DRIVE_BACKUP_FILENAME+')',true);return;}
         var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-        if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (codigo '+rContenido.status+')');
+        if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (código '+rContenido.status+')');
         var texto=await rContenido.text();
         restaurarDesdeJSONTexto(texto);
     }catch(err){toast('No se pudo restaurar desde Drive: '+err.message,true);}
@@ -2847,7 +3120,7 @@ function splitCSVLine(line, delim){
 
 /* Parser CSV completo, consciente de comillas: procesa todo el texto (no linea a linea) para que
    los campos entrecomillados que contienen saltos de linea (por ejemplo, observaciones multilinea
-   exportadas desde Access) se interpreten como un unico campo en vez de romper el fichero. */
+   exportadas desde Access) se interpreten como un único campo en vez de romper el fichero. */
 function parseCSVFull(text, delim){
     var rows=[], row=[], field='', inQuotes=false, i=0, len=text.length, sawAny=false;
     while(i<len){
@@ -2891,7 +3164,7 @@ function parseAndLoad(txt){
         row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, '');
         data.push(row);
     }
-    if(!data.length){toast('No se encontraron datos validos en el CSV',true);return;}
+    if(!data.length){toast('No se encontraron datos válidos en el CSV',true);return;}
     var idsSet={}; data.forEach(function(r){idsSet[r.ID]=true;});
     var orphans=0;
     data.forEach(function(r){if(r.PADRE && !idsSet[r.PADRE])orphans++; if(r.MADRE && !idsSet[r.MADRE])orphans++;});
@@ -2900,7 +3173,7 @@ function parseAndLoad(txt){
     sAll(data).then(function(n){
         toast(n+' personas importadas correctamente');
         if(skipped) toast(skipped+' fila(s) omitida(s) por datos incompletos', true);
-        if(dupCount) toast(dupCount+' ID(s) duplicado(s): se conservo el ultimo registro', true);
+        if(dupCount) toast(dupCount+' ID(s) duplicado(s): se conservo el último registro', true);
         if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el archivo', true);
         init();
     });
@@ -2958,7 +3231,7 @@ document.addEventListener('DOMContentLoaded',function(){
   <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
     <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:var(--accent);margin-bottom:14px;display:block"></i>
     <h2 style="font-family:'Cinzel',serif;font-size:18px;margin-bottom:8px;color:var(--text)">Limpiar Cache y Base de Datos</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5">Se eliminaran todos los datos de IndexedDB. Esta accion no se puede deshacer.</p>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5">Se eliminaran todos los datos de IndexedDB. Esta acción no se puede deshacer.</p>
     <div style="display:flex;gap:10px;justify-content:center;">
       <button class="btn" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="document.getElementById('modalLimpiar').style.display='none'">Cancelar</button>
       <button class="btn" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="ejecutarLimpiar()"><i class="fa-solid fa-trash-can"></i> Si, limpiar todo</button>
@@ -2981,15 +3254,15 @@ document.addEventListener('DOMContentLoaded',function(){
     <div style="overflow:auto;margin-top:6px;padding-right:2px">
       <div class="herr-section">Datos</div>
       <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas segun el nombre del archivo (ID)</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raiz y asigna cada imagen por ID</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raiz con los documentos por persona</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la ultima copia subida a Drive y la carga aqui</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
       <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
-      <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogia</div></div></button>
+      <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
     </div>
   </div>
 </div>
@@ -3011,7 +3284,7 @@ document.addEventListener('DOMContentLoaded',function(){
       <div><h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-user-group" style="color:var(--accent)"></i> Posibles duplicados</h2><p id="resumenDuplicados" style="font-size:11px;color:var(--muted);margin-top:2px"></p></div>
       <button class="ef-nbtn" onclick="cerrarDuplicados()">×</button>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin:6px 0">Se comparan personas con el mismo nombre y apellidos. La puntuacion sube si ademas coincide el año, los padres o el lugar de nacimiento. Revisa cada pareja antes de fusionar: la accion no se puede deshacer.</p>
+    <p style="font-size:11px;color:var(--muted);margin:6px 0">Se comparan personas con el mismo nombre y apellidos. La puntuación sube si además coincide el año, los padres o el lugar de nacimiento. Revisa cada pareja antes de fusionar: la acción no se puede deshacer.</p>
     <div id="listaDuplicados" style="overflow:auto;margin-top:6px;padding-right:2px"></div>
   </div>
 </div>
@@ -3023,7 +3296,7 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Plantilla fija en abanico de 8 generaciones, pensada para imprimir en A3 apaisado (horizontal) y enmarcar. No incluye fotos. Las lineas y las casillas son siempre color sepia; puedes elegir el color de fondo:</p>
     <div id="ascColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientacion horizontal y tamaño real (100%, sin "ajustar a la pagina").</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación horizontal y tamaño real (100%, sin "ajustar a la página").</p>
     <button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePoster()"><i class="fa-solid fa-file-pdf"></i> Generar e imprimir</button>
   </div>
 </div>
