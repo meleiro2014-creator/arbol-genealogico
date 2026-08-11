@@ -57,6 +57,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:10px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
+.anocalc-tag{color:var(--accent);font-style:italic}
 .fl2{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:700}.fl2:hover{text-decoration:underline}
 .ul{list-style:none}.ul li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}.ul li:last-child{border:0}
 .ul a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}.ul a:hover{text-decoration:underline}
@@ -312,7 +313,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button data-view="fic" onclick="irFicha()"><i class="fa-solid fa-id-card"></i> <span class="mh">Ficha</span></button>
 <button data-view="inf" onclick="sv('inf')"><i class="fa-solid fa-file-pdf"></i> <span class="mh">Informes</span></button>
 <button data-view="inv" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart"></i> <span class="mh">Investigación</span></button>
-<button data-view="est" onclick="sv('est')"><i class="fa-solid fa-chart-column"></i> <span class="mh">Estadísticas</span></button>
 </nav>
 </header>
 <div class="activebar" id="activeBar">
@@ -431,12 +431,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div class="inf-sel" style="max-width:640px">
 <div class="inf-card">
-<h3><i class="fa-solid fa-list-check"></i> Ramas incompletas</h3>
-<p>Lista personas sin padre ni madre registrados: posibles ramas por completar.</p>
-<button class="ef-btn" onclick="mostrarRamasIncompletas()"><i class="fa-solid fa-magnifying-glass"></i> Ver personas</button>
-<div id="invRamasResultado" style="margin-top:10px"></div>
-</div>
-<div class="inf-card">
 <h3><i class="fa-solid fa-triangle-exclamation"></i> Comprobar consistencia</h3>
 <p>Detecta cónyuges sin vincular, géneros incoherentes, fechas imposibles (nacimientos, defunciones, matrimonios) y otras anomalías. Se muestran como posibles inconsistencias para que decidas tú.</p>
 <button class="ef-btn" onclick="mostrarInconsistencias()"><i class="fa-solid fa-magnifying-glass"></i> Comprobar</button>
@@ -478,29 +472,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button class="ef-btn ghost" onclick="buscarEnArchivos('google_pdfs')"><i class="fa-solid fa-file-pdf"></i> Google (PDFs/libros)</button>
 </div>
 </div>
-</div>
-</div>
-</div>
-<div class="view" id="vEst">
-<div class="hero">
-<h1>Estadísticas</h1>
-<p>Panorama general de tu árbol genealógico</p>
-</div>
-<div class="stats" id="estStatsGrid" style="margin-top:0"></div>
-<div class="inf-sel" style="max-width:640px;margin-top:26px">
-<div class="inf-card">
-<h3><i class="fa-solid fa-signature"></i> Apellidos más frecuentes</h3>
-<div id="estApellidos"></div>
-</div>
-<div class="inf-card">
-<h3><i class="fa-solid fa-location-dot"></i> Lugares más frecuentes</h3>
-<p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Suma de lugares de nacimiento y de defunción</p>
-<div id="estLugares"></div>
-</div>
-<div class="inf-card">
-<h3><i class="fa-solid fa-clock-rotate-left"></i> Periodos históricos</h3>
-<p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5">Nacimientos por década, según año confirmado o aproximado</p>
-<div id="estPeriodos"></div>
 </div>
 </div>
 </div>
@@ -665,8 +636,14 @@ async function abrirCarpetaEnDrive(id){
         }
     }catch(err){toast('Error al abrir Google Drive: '+err.message,true);}
 }
-function bIdx(d){PI={};HD={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }});}
-function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE, r=[];D.forEach(function(x){if(x.ID===id) return;var match = false;if(pa && ma) { match = (x.PADRE === pa && x.MADRE === ma);} else if(pa && !ma) { match = (x.PADRE === pa && !x.MADRE);} else if(!pa && ma) { match = (!x.PADRE && x.MADRE === ma);}if(match) r.push(x);});return r;}
+/* HERM_PM: índice de hermanos, agrupando a todas las personas por la clave literal
+   "PADRE|MADRE" (con '' para el progenitor que falte). Reproduce exactamente el mismo criterio
+   de coincidencia que tenía el gHerm() anterior (mismo padre Y misma madre cuando ambos se
+   conocen; mismo único progenitor conocido cuando solo hay uno; nadie cuando no se conoce
+   ningún progenitor), pero en O(1) por consulta en vez de recorrer todo D cada vez. */
+var HERM_PM={};
+function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});}
+function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE;if(!pa&&!ma)return[];var ids=HERM_PM[(pa||'')+'|'+(ma||'')]||[];var r=[];for(var i=0;i<ids.length;i++){if(ids[i]!==id&&PI[ids[i]])r.push(PI[ids[i]]);}return r;}
 function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
 function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
 function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?::0{2})?(?:\.0+)?Z?$/,'');}
@@ -676,101 +653,9 @@ function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+Strin
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function sv(v){['bus','arb','fic','inf','inv','est','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='est')initEstadisticas();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
-function initInvestigacion(){var r=document.getElementById('invRamasResultado');if(r)r.innerHTML='';actualizarInvExtPersonaActiva();}
+function sv(v){['bus','arb','fic','inf','inv','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
+function initInvestigacion(){actualizarInvExtPersonaActiva();}
 
-/* ===== ESTADÍSTICAS =====
-   Reutiliza detectarDuplicados()/detectarInconsistencias()/getYear(), que ya usan el Centro de
-   mando y la pestaña de Investigación, para que estos números coincidan siempre con los demás. */
-function calcularGeneraciones(){
-    if(!D.length)return 0;
-    var gen={};
-    D.forEach(function(p){
-        var padreValido=p.PADRE&&PI[p.PADRE];
-        var madreValida=p.MADRE&&PI[p.MADRE];
-        if(!padreValido&&!madreValida)gen[p.ID]=0;
-    });
-    var cambios=true,vueltas=0;
-    while(cambios&&vueltas<200){
-        cambios=false;vueltas++;
-        D.forEach(function(p){
-            var candidatos=[];
-            if(p.PADRE&&gen[p.PADRE]!==undefined)candidatos.push(gen[p.PADRE]+1);
-            if(p.MADRE&&gen[p.MADRE]!==undefined)candidatos.push(gen[p.MADRE]+1);
-            if(candidatos.length){
-                var g=Math.max.apply(null,candidatos);
-                if(gen[p.ID]===undefined||gen[p.ID]<g){gen[p.ID]=g;cambios=true;}
-            }
-        });
-    }
-    var vals=Object.keys(gen).map(function(k){return gen[k];});
-    if(!vals.length)return 1;
-    return Math.max.apply(null,vals)+1;
-}
-function estContarCampos(campos){
-    var cont={};
-    D.forEach(function(p){
-        campos.forEach(function(c){
-            var v=String(p[c]||'').trim();
-            if(!v)return;
-            var key=v.toUpperCase();
-            if(!cont[key])cont[key]={nombre:v,n:0};
-            cont[key].n++;
-        });
-    });
-    return Object.keys(cont).map(function(k){return cont[k];}).sort(function(a,b){return b.n-a.n;});
-}
-function estRenderBarras(id,items,limite){
-    var el=document.getElementById(id);
-    if(!el)return;
-    if(!items.length){el.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin datos suficientes</p>';return;}
-    var top=limite?items.slice(0,limite):items;
-    var maxN=Math.max.apply(null,top.map(function(x){return x.n;}));
-    el.innerHTML=top.map(function(it){
-        var pct=Math.max(4,Math.round(it.n/maxN*100));
-        return '<div class="est-bar-row"><div class="est-bar-label" title="'+escAttr(it.nombre)+'">'+esc(it.nombre)+'</div><div class="est-bar-track"><div class="est-bar-fill" style="width:'+pct+'%"></div></div><div class="est-bar-num">'+it.n+'</div></div>';
-    }).join('');
-}
-function initEstadisticas(){
-    var grid=document.getElementById('estStatsGrid');
-    if(!grid)return;
-    if(!D.length){
-        grid.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;width:100%">No hay datos cargados</p>';
-        ['estApellidos','estLugares','estPeriodos'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML='';});
-        return;
-    }
-    var total=D.length;
-    var generaciones=calcularGeneraciones();
-    var sinPadres=D.filter(function(p){return !p.PADRE&&!p.MADRE;}).length;
-    var conEstimado=D.filter(function(p){return esAnioEstimado(p);}).length;
-    var sinFuente=D.filter(function(p){return !p.OBSERVACIONES||!String(p.OBSERVACIONES).trim();}).length;
-    var dupPendientes=detectarDuplicados().filter(function(pr){return !DUP_IGNORADOS[pr.a.ID+'|'+pr.b.ID];}).length;
-    var inconsistencias=detectarInconsistencias().length;
-    var cards=[
-        {n:total,l:'Personas'},
-        {n:generaciones,l:'Generaciones'},
-        {n:sinPadres,l:'Sin padres registrados'},
-        {n:conEstimado,l:'Año estimado automáticamente'},
-        {n:sinFuente,l:'Sin fuente (obs.)'},
-        {n:dupPendientes,l:'Duplicados pendientes'},
-        {n:inconsistencias,l:'Inconsistencias'}
-    ];
-    grid.innerHTML=cards.map(function(c){return '<div class="stat"><div class="stat-num">'+esc(String(c.n))+'</div><div class="stat-label">'+esc(c.l)+'</div></div>';}).join('');
-
-    estRenderBarras('estApellidos',estContarCampos(['APELLIDO1','APELLIDO2']),10);
-    estRenderBarras('estLugares',estContarCampos(['LUGARNAC','LUGARDEF']),10);
-
-    var periodos={};
-    D.forEach(function(p){
-        var y=getYear(p);
-        if(y===null)return;
-        var dec=Math.floor(y/10)*10;
-        if(!periodos[dec])periodos[dec]={nombre:dec+'s',n:0,dec:dec};
-        periodos[dec].n++;
-    });
-    var periodosArr=Object.keys(periodos).map(function(k){return periodos[k];}).sort(function(a,b){return a.dec-b.dec;});
-    estRenderBarras('estPeriodos',periodosArr,null);
-}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
    de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
@@ -938,13 +823,16 @@ function esAnioEstimado(p){
     return!!(p&&getYearReal(p)===null&&p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!=='');
 }
 /* Texto de nacimiento para la ficha: fecha completa si existe; si no, el año real (NACA o
-   APROX, sin distinguirlos ni etiquetarlos); si tampoco hay año real, vacío (el bloque aparte
-   de "Año estimado automáticamente" se encarga de mostrar el ANOCALC cuando exista). */
+   APROX, sin distinguirlos ni etiquetarlos); si tampoco hay año real pero sí hay ANOCALC, se
+   muestra el año estimado enlazado visualmente con el bloque de motivo de más abajo, en vez de
+   dejar el campo vacío/"Desconocido". */
 function textoNacimientoFicha(p){
     var f=fDate(p.NACD,p.NACM,p.NACA);
     if(f)return f;
     var yr=getYearReal(p);
-    return yr!==null?String(yr):'';
+    if(yr!==null)return String(yr);
+    if(esAnioEstimado(p))return'\u2248'+p.ANOCALC+' (estimado — ver motivo abajo)';
+    return'';
 }
 function ancMedia(arr){if(!arr.length)return 0;var s=0;arr.forEach(function(x){s+=x;});return s/arr.length;}
 function ancDesv(arr,m){if(arr.length<2)return 0;var s=0;arr.forEach(function(x){s+=(x-m)*(x-m);});return Math.sqrt(s/(arr.length-1));}
@@ -1117,6 +1005,33 @@ function recalcularAnosEstimados(guardarYActualizarUI){
     }
     return cambios;
 }
+/* Motor de fases reutilizable: el mismo troceado con pequeñas pausas (setTimeout) que antes
+   solo tenia el botón manual, ahora se comparte entre el botón manual y el arranque automático
+   de la app, para que ambos muestren progreso real en vez de bloquear el navegador en silencio.
+   onFase(pct,texto) se llama en cada fase; onDone(cambios) al terminar y guardar; onError(err)
+   si falla el guardado. */
+function ejecutarFasesAnosEstimados(opciones){
+    opciones=opciones||{};
+    var onFase=opciones.onFase||function(){},onDone=opciones.onDone||function(){},onError=opciones.onError||function(){};
+    if(!D.length){onDone(0);return;}
+    onFase(6,'Calculando estadísticas de edad reales del árbol...');
+    setTimeout(function(){
+        var stats=calcularEstadisticasArbol();
+        onFase(35,'Propagando años por parentesco (padres, hijos, cónyuges, hermanos)...');
+        setTimeout(function(){
+            var resultado=calcularAnosEstimados(stats);
+            onFase(70,'Aplicando los resultados a las fichas...');
+            setTimeout(function(){
+                var cambios=aplicarResultadoAnosEstimados(resultado);
+                onFase(90,'Guardando...');
+                sAll(D).then(function(){
+                    onFase(100,'Listo');
+                    onDone(cambios);
+                }).catch(function(err){onError(err);});
+            },20);
+        },20);
+    },20);
+}
 /* Version del botón manual: reparte el trabajo en fases con pequeñas pausas (setTimeout) para
    que el navegador pueda pintar la barra de progreso entre cada una y no parezca colgado,
    incluso con árboles de miles de personas donde el cálculo tarda un momento perceptible. */
@@ -1127,29 +1042,71 @@ function recalcularAnosEstimadosManual(){
     function fase(pct,texto){if(barra)barra.style.width=pct+'%';if(label)label.textContent=texto;}
     if(cont)cont.style.display='block';
     if(btn)btn.disabled=true;
-    fase(6,'Calculando estadísticas de edad reales del árbol...');
-    setTimeout(function(){
-        var stats=calcularEstadisticasArbol();
-        fase(35,'Propagando años por parentesco (padres, hijos, cónyuges, hermanos)...');
-        setTimeout(function(){
-            var resultado=calcularAnosEstimados(stats);
-            fase(70,'Aplicando los resultados a las fichas...');
-            setTimeout(function(){
-                var cambios=aplicarResultadoAnosEstimados(resultado);
-                fase(90,'Guardando...');
-                sAll(D).then(function(){
-                    fase(100,'Listo');
-                    rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
-                    setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
-                    toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
-                }).catch(function(err){
-                    if(cont)cont.style.display='none';
-                    if(btn)btn.disabled=false;
-                    toast('No se pudo guardar: '+err.message,true);
-                });
-            },20);
-        },20);
-    },20);
+    ejecutarFasesAnosEstimados({
+        onFase:fase,
+        onDone:function(cambios){
+            fase(100,'Listo');
+            rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+            setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
+            toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
+        },
+        onError:function(err){
+            if(cont)cont.style.display='none';
+            if(btn)btn.disabled=false;
+            toast('No se pudo guardar: '+err.message,true);
+        }
+    });
+}
+/* Comprobación barata (un solo recorrido, sin gHerm ni Dijkstra) para decidir si hace falta
+   lanzar el motor de ANOCALC al arrancar la app. Se apoya en getYear(), que ya devuelve null
+   solo cuando no hay NACA, ni APROX, ni ANOCALC: si nadie está en ese caso, el motor no tiene
+   nada que mejorar y se puede omitir sin riesgo. */
+function haySinCalcular(){
+    for(var i=0;i<D.length;i++){
+        if(getYear(D[i])===null)return true;
+    }
+    return false;
+}
+/* Overlay de carga inicial: se crea la primera vez que hace falta, se reutiliza después.
+   Solo se muestra cuando el arranque SI necesita ejecutar el motor de años estimados; si no
+   hace falta (caso normal), la app carga al instante y este overlay nunca llega a aparecer. */
+function mostrarOverlayCarga(texto){
+    var ov=document.getElementById('overlayCargaInicial');
+    if(!ov){
+        ov=document.createElement('div');
+        ov.id='overlayCargaInicial';
+        ov.style.cssText='position:fixed;inset:0;background:rgba(251,247,240,.97);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:Lato,sans-serif;';
+        ov.innerHTML='<div style="font-family:Cinzel,serif;font-size:16px;color:var(--text)"><i class="fa-solid fa-tree" style="color:var(--accent);margin-right:8px"></i>Libro de los Ancestros</div><div id="overlayCargaTexto" style="font-size:12px;color:var(--muted)"></div><div class="pb" style="width:220px;margin:0"><div class="pf" id="overlayCargaBarra"></div></div>';
+        document.body.appendChild(ov);
+    }
+    ov.style.display='flex';
+    document.getElementById('overlayCargaTexto').textContent=texto||'';
+}
+function actualizarOverlayCarga(pct,texto){
+    var barra=document.getElementById('overlayCargaBarra'),txt=document.getElementById('overlayCargaTexto');
+    if(barra)barra.style.width=pct+'%';
+    if(txt&&texto)txt.textContent=texto;
+}
+function ocultarOverlayCarga(){
+    var ov=document.getElementById('overlayCargaInicial');
+    if(ov)ov.style.display='none';
+}
+/* Version pensada para el arranque automático: SIEMPRE con progreso visible (overlay), nunca de
+   forma síncrona y muda. Solo se invoca cuando haySinCalcular() ha confirmado que hace falta. */
+function recalcularAnosEstimadosConProgreso(callback){
+    mostrarOverlayCarga('Comprobando años pendientes de estimar...');
+    ejecutarFasesAnosEstimados({
+        onFase:actualizarOverlayCarga,
+        onDone:function(){
+            ocultarOverlayCarga();
+            if(callback)callback();
+        },
+        onError:function(err){
+            ocultarOverlayCarga();
+            console.error('No se pudo calcular los años estimados:',err);
+            if(callback)callback();
+        }
+    });
 }
 function doSrch(q){
     q=q.toLowerCase().trim();
@@ -1160,8 +1117,8 @@ function doSrch(q){
     f=f.slice(0,80);
     var h='';
     f.forEach(function(p){
-        var al=isAl(p),y=p.APROX||p.NACA||'';
-        h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
+        var al=isAl(p),y=pdAnioTexto(p);
+        h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
     });
     if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
     else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
@@ -1185,11 +1142,14 @@ function rFicView(id){
     var al=isAl(p);
     var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
     h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
-    h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(fDate(p.NACD,p.NACM,p.NACA)?' · Nac: '+esc(fDate(p.NACD,p.NACM,p.NACA)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+    var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
+    var nacTexto=textoNacimientoFicha(p);
+    var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
+    h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
     h+=htmlAvisosFicha(id);
-    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv">'+esc(textoNacimientoFicha(p)||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+    h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
     if(esAnioEstimado(p)){
-        h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div></div>';
+        h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div></div>';
     }
     var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
     var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
@@ -1570,25 +1530,6 @@ function crearDescendiente(id,parejaId){
     recalcularAnosEstimados(false);
     sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
 }
-function mostrarRamasIncompletas(){
-    if(!D.length){toast('No hay datos cargados',true);return;}
-    var sinPadres=D.filter(function(p){return !p.PADRE&&!p.MADRE;});
-    var cont=document.getElementById('invRamasResultado');
-    if(!cont)return;
-    sinPadres.sort(function(a,b){return sn(a).localeCompare(sn(b));});
-    var h='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px 0">'+sinPadres.length+' persona(s) sin padre ni madre registrados (posibles ramas por completar)</p>';
-    if(!sinPadres.length){
-        cont.innerHTML=h;
-        return;
-    }
-    sinPadres.slice(0,200).forEach(function(p){
-        var al=isAl(p),y=p.APROX||p.NACA||'';
-        h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';
-    });
-    if(sinPadres.length>200) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 200 de '+sinPadres.length+'.</p>';
-    cont.innerHTML=h;
-}
-
 /* ===== COMPROBADOR DE CONSISTENCIA =====
    Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error:
    en genealogía una anomalia no siempre es un fallo de los datos (partos multiples,
@@ -2210,7 +2151,7 @@ function doSrchInf(q){
     f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
     f=f.slice(0,40);
     var h='';
-    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaInforme(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaInforme(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
     lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaInforme(id){
@@ -2240,7 +2181,7 @@ function doSrchCro(q){
     f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
     f=f.slice(0,40);
     var h='';
-    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaCronologia(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaCronologia(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
     lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaCronologia(id){
@@ -2566,7 +2507,7 @@ function doSrchRel(q,letra){
     f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
     f=f.slice(0,40);
     var h='';
-    f.forEach(function(p){var al=isAl(p),y=p.NACA||p.APROX||'';h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';});
+    f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
     lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaRel(id,letra){
@@ -3763,7 +3704,19 @@ function parseAndLoad(txt){
 function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);}
 
 document.addEventListener('DOMContentLoaded',function(){
-    oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);recalcularAnosEstimados();init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);});}).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(function(data){D=data;bIdx(data);recalcularAnosEstimados();init();cargarCarpetaDocumentos();});},500);});
+    function cargarInicial(data){
+        D=data;bIdx(data);
+        function continuar(){init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);});}
+        if(haySinCalcular()){
+            /* Solo aquí se lanza el motor de ANOCALC en el arranque, y siempre con progreso
+               visible por fases; si no hay nadie pendiente, se omite por completo y la app
+               carga al instante. */
+            recalcularAnosEstimadosConProgreso(continuar);
+        }else{
+            continuar();
+        }
+    }
+    oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial);},500);});
 });
 (function(){
     var srchTimer=null;
