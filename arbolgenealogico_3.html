@@ -300,6 +300,15 @@ main{max-width:100%;margin:0 auto;padding:14px}
   .print-area{position:static!important;left:auto!important}
   body{background:#fff}
 }
+
+/* ===== REGISTRO DE CAMBIOS ===== */
+.cambios-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 auto 14px;max-width:900px}
+.cambios-tabs{display:flex;gap:6px;flex-wrap:wrap}.cambios-tabs .ef-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cambio-card{max-width:900px;margin:0 auto 10px;background:var(--card,#fff);border:1px solid var(--line,#ddd);border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.cambio-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.cambio-user{font-weight:700;color:var(--accent)}.cambio-date{font-size:11px;color:var(--muted)}
+.cambio-desc{margin:8px 0 10px;line-height:1.5}.cambio-actions{display:flex;gap:7px;flex-wrap:wrap}.cambio-empty{text-align:center;padding:35px 15px;color:var(--muted)}
+.cambio-badge{display:inline-flex;min-width:20px;height:20px;padding:0 6px;border-radius:10px;align-items:center;justify-content:center;background:#c0392b;color:#fff;font-size:11px;font-weight:700;margin-left:4px}
+.cambio-sync{font-size:11px;color:var(--muted)}
 </style>
 <base target="_blank">
 </head>
@@ -313,6 +322,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <button data-view="fic" onclick="irFicha()"><i class="fa-solid fa-id-card"></i> <span class="mh">Ficha</span></button>
 <button data-view="inf" onclick="sv('inf')"><i class="fa-solid fa-file-pdf"></i> <span class="mh">Informes</span></button>
 <button data-view="inv" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart"></i> <span class="mh">Investigación</span></button>
+<button data-view="cam" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none">0</span></button>
 </nav>
 </header>
 <div class="activebar" id="activeBar">
@@ -328,6 +338,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 <div class="cmd-grid" id="cmdGrid">
 <div class="cmd-card" onclick="sv('inv')"><div class="cmd-num" id="cmdPendientes">-</div><div class="cmd-label">Pendientes<span class="cmd-sub">sin año conocido</span></div></div>
 <div class="cmd-card cmd-alert" onclick="sv('inv')"><div class="cmd-num" id="cmdProblemas">-</div><div class="cmd-label">Problemas<span class="cmd-sub">inconsistencias y duplicados</span></div></div>
+<div class="cmd-card" onclick="sv('cam')"><div class="cmd-num" id="cmdCambios">-</div><div class="cmd-label">Cambios<span class="cmd-sub">revisión por usuario</span></div></div>
 </div>
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
@@ -513,6 +524,24 @@ main{max-width:100%;margin:0 auto;padding:14px}
 </div>
 <div id="relResultado" class="ficha" style="max-width:640px"></div>
 </div>
+<div class="view" id="vCam">
+<div class="hero">
+<h1>Registro de cambios</h1>
+<p>Revisa las modificaciones realizadas por cada usuario en el árbol.</p>
+</div>
+<div class="cambios-toolbar">
+<div class="cambios-tabs">
+<button class="ef-btn active" id="btnCambiosPend" onclick="mostrarCambios('pendientes')">Pendientes <span id="cambiosPendCount" class="cambio-badge">0</span></button>
+<button class="ef-btn ghost" id="btnCambiosHist" onclick="mostrarCambios('historial')">Historial</button>
+</div>
+<div style="display:flex;gap:7px;flex-wrap:wrap">
+<button class="ef-btn ghost" onclick="pedirNombreUsuarioCambios(true)"><i class="fa-solid fa-user"></i> Usuario</button>
+<button class="ef-btn ghost" onclick="sincronizarCambiosDrive(true)"><i class="fa-brands fa-google-drive"></i> Comprobar cambios en Drive</button>
+</div>
+</div>
+<div id="cambiosEstadoSync" class="cambio-sync" style="max-width:900px;margin:0 auto 10px"></div>
+<div id="listaCambios"></div>
+</div>
 </main>
 <div class="print-area" id="printArea"></div>
 <script>
@@ -534,8 +563,66 @@ var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 var CLAVE_SUBIDA_DRIVE='1962';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
-function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,3);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
-function sAll(d){return new Promise(function(res,rej){var tx=db.transaction([ST,BK],'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);s.clear();d.forEach(function(r){s.put(r);});b.put({id:'ultima',fecha:new Date().toISOString(),personas:d});tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};});}
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,4);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function sAll(d,opciones){
+    opciones=opciones||{};
+    var marcarSucio=opciones.marcarANOCALCSucio!==false;
+    return new Promise(function(res,rej){
+        var stores=[ST,BK];
+        if(db.objectStoreNames.contains(CFG))stores.push(CFG);
+        var tx=db.transaction(stores,'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);
+        s.clear();d.forEach(function(r){s.put(r);});
+        b.put({id:'ultima',fecha:new Date().toISOString(),personas:d});
+        if(db.objectStoreNames.contains(CFG)){
+            var c=tx.objectStore(CFG);
+            var req=c.get('anocalcEstado');
+            req.onsuccess=function(){
+                var e=req.result||{id:'anocalcEstado',datosVersion:0,calculoVersion:0};
+                e.datosVersion=(Number(e.datosVersion)||0)+(marcarSucio?1:0);
+                if(!marcarSucio)e.calculoVersion=e.datosVersion;
+                e.id='anocalcEstado';
+                c.put(e);
+            };
+        }
+        tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};
+    });
+}
+function leerEstadoANOCALC(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res({datosVersion:0,calculoVersion:0});return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('anocalcEstado');r.onsuccess=function(){var e=r.result||{};res({datosVersion:Number(e.datosVersion)||0,calculoVersion:Number(e.calculoVersion)||0});};r.onerror=function(){res({datosVersion:0,calculoVersion:0});};});}
+function anocalcPendiente(){return leerEstadoANOCALC().then(function(e){return e.datosVersion!==e.calculoVersion;});}
+
+/* ===== REGISTRO DE CAMBIOS MULTIUSUARIO ===== */
+var CAMBIOS_STORE='cambios';
+var CAMBIOS_ESTADO='pendiente';
+var CAMBIOS_HISTORIAL='historial';
+var CAMBIOS_SYNC_FILENAME='cambios-arbol.json';
+var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion'];
+var CAMBIOS_LABELS={
+ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
+DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad'
+};
+function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
+function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
+function valorCambio(v){if(v===null||v===undefined||v==='')return '(vacío)';if(typeof v==='boolean')return v?'Sí':'No';return String(v).replace(/\s+/g,' ').trim()||'(vacío)';}
+function nombrePersonaSnapshot(p){return p?fn(p).replace(/\s+/g,' ').trim()||('ID '+p.ID):'';}
+function camposDiferentes(a,b){var keys={},r=[];Object.keys(a||{}).forEach(function(k){keys[k]=1;});Object.keys(b||{}).forEach(function(k){keys[k]=1;});Object.keys(keys).forEach(function(k){if(CAMBIOS_IGNORAR.indexOf(k)>=0)return;var va=a?a[k]:undefined,vb=b?b[k]:undefined;if(JSON.stringify(va)!==JSON.stringify(vb))r.push({campo:k,antes:va===undefined?'':va,despues:vb===undefined?'':vb});});return r;}
+function construirDescripcion(usuario,tipo,p,campos){var nombre=nombrePersonaSnapshot(p)||'persona';var accion={editar:'editó',crear:'creó',eliminar:'eliminó',fusionar:'fusionó',vincular:'modificó vínculos de'}[tipo]||'modificó';if(!campos.length)return usuario+' '+accion+' '+nombre+'.';var partes=campos.slice(0,12).map(function(c){return (CAMBIOS_LABELS[c.campo]||c.campo)+': '+valorCambio(c.antes)+' → «'+valorCambio(c.despues)+'»';});if(campos.length>12)partes.push('… y '+(campos.length-12)+' cambio(s) más');return usuario+' '+accion+' '+nombre+' (ID '+p.ID+'): '+partes.join('; ')+'.';}
+function obtenerNombreUsuarioCambios(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res('Usuario');return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('nombreUsuario');r.onsuccess=function(){res((r.result&&String(r.result.valor||'').trim())||'');};r.onerror=function(){res('');};});}
+function pedirNombreUsuarioCambios(forzar){return obtenerNombreUsuarioCambios().then(function(actual){if(actual&&!forzar){window.nombreUsuarioCambios=actual;return actual;}var n=prompt('¿Cómo te llamas? (aparecerá en el registro de cambios)',actual||'');if(n===null)return actual||'Usuario';n=n.trim()||'Usuario';window.nombreUsuarioCambios=n;return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'nombreUsuario',valor:n});tx.oncomplete=function(){res(n);};tx.onerror=function(){rej(tx.error);};});});}
+function registrarCambiosDesdeSnapshots(antes,despues,tipo){return pedirNombreUsuarioCambios(false).then(function(usuario){var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;registros.push({id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:new Date().toISOString(),usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:CAMBIOS_ESTADO,actualizadoEn:new Date().toISOString()});});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});});}
+function listarCambios(){return new Promise(function(res,rej){var r=db.transaction(CAMBIOS_STORE,'readonly').objectStore(CAMBIOS_STORE).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){rej(r.error);};});}
+function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
+function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
+function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML='<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}lista.innerHTML=mostrar.map(function(c){var acciones='';if(modo==='pendientes'){acciones='<button class="ef-btn" onclick="confirmarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Confirmar</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';if(modo==='pendientes')acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+(c.estado==='confirmado'?' · confirmado':'')+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function initCambios(){actualizarContadorCambios();mostrarCambios('pendientes');obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';});}
+function confirmarCambio(id){var cId=id;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(cId);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio confirmado');};};tx.onerror=function(){toast('No se pudo confirmar el cambio',true);};}
+function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de cambios de la lista. ¿Continuar?'))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
+function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}cid=id;editMode=false;sv('fic');}
+async function obtenerArchivoCambiosDrive(){var q="'"+driveRootFolderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
+async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
+async function subirCambiosDriveDatos(cambios,existente){var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);if(!r.ok)throw new Error('Drive respondió '+r.status);}
+async function sincronizarCambiosDrive(forzar){if(!driveRootFolderId||!tokenDriveValido()){if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
+
 function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
@@ -653,10 +740,10 @@ function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+Strin
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function sv(v){['bus','arb','fic','inf','inv','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
+function sv(v){['bus','arb','fic','inf','inv','cam','cro','rel'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();actualizarBarraActiva();}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
 
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
    de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
    mostrados aquí siempre coinciden exactamente con lo que se ve al entrar a esas herramientas. */
@@ -997,7 +1084,7 @@ function recalcularAnosEstimados(guardarYActualizarUI){
     if(!D.length)return 0;
     var cambios=aplicarResultadoAnosEstimados(calcularAnosEstimados());
     if(guardarYActualizarUI!==false){
-        sAll(D).then(function(){
+        sAll(D,{marcarANOCALCSucio:false}).then(function(){
             rStats();
             var siEl=document.getElementById('si');if(siEl)doSrch(siEl.value);
             if(cid)rFic(cid);
@@ -1024,7 +1111,7 @@ function ejecutarFasesAnosEstimados(opciones){
             setTimeout(function(){
                 var cambios=aplicarResultadoAnosEstimados(resultado);
                 onFase(90,'Guardando...');
-                sAll(D).then(function(){
+                sAll(D,{marcarANOCALCSucio:false}).then(function(){
                     onFase(100,'Listo');
                     onDone(cambios);
                 }).catch(function(err){onError(err);});
@@ -1111,7 +1198,7 @@ function recalcularAnosEstimadosConProgreso(callback){
 function doSrch(q){
     q=q.toLowerCase().trim();
     if(!q){document.getElementById('rl').innerHTML='';return;}
-    var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0||String(p.APROX||'').indexOf(q)>=0;});
+    var f=D.filter(function(p){var an=String(pdAnioTexto(p)||'').toLowerCase();return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0||String(p.APROX||'').indexOf(q)>=0||String(p.NACA||'').indexOf(q)>=0||String(p.ANOCALC||'').indexOf(q)>=0||an.indexOf(q)>=0;});
     f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
     var total=f.length;
     f=f.slice(0,80);
@@ -1394,6 +1481,7 @@ function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloa
 
 function guardarFicha(id){
     var p=PI[id];
+    var antesCambio=clonarPersona(p);
     if(!p){toast('Registro no encontrado',true);return;}
     p.APELLIDO1=leerCampo('ef-ap1');
     p.APELLIDO2=leerCampo('ef-ap2');
@@ -1425,11 +1513,13 @@ function guardarFicha(id){
         rStats();
         rFic(id);
         toast('Cambios guardados');
+        registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
     }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }
 function eliminarFicha(id){
     var persona=PI[id];
     if(!persona){toast('Ficha no encontrada',true);return;}
+    var antesCambioEliminar=mapaPersonas(D);
     if(!confirm('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular. ¿Continuar?'))return;
     var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
         var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
@@ -1439,10 +1529,26 @@ function eliminarFicha(id){
     sAll(nuevos).then(function(){
         D=nuevos;bIdx(D);cid=null;editMode=false;rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
         toast('Ficha eliminada correctamente');
+        registrarCambiosDesdeSnapshots(antesCambioEliminar,nuevos,'eliminar');
     }).catch(function(err){toast('No se pudo eliminar la ficha: '+err.message,true);});
 }
 
+function estimarNodoLocal(id){
+    var p=PI[id];if(!p)return false;
+    var stats=calcularEstadisticasArbol(),base=null,delta=0,tipo='';
+    function anio(q){return q?getYear(q):null;}
+    if(p.PADRE&&PI[p.PADRE]&&anio(PI[p.PADRE])!==null){base=anio(PI[p.PADRE]);delta=stats.padre.media;tipo='hijo';}
+    if(base===null&&p.MADRE&&PI[p.MADRE]&&anio(PI[p.MADRE])!==null){base=anio(PI[p.MADRE]);delta=stats.madre.media;tipo='hija';}
+    if(base===null&&p.M1&&PI[p.M1]&&anio(PI[p.M1])!==null){base=anio(PI[p.M1]);delta=0;tipo='cónyuge';}
+    if(base===null&&p.M2&&PI[p.M2]&&anio(PI[p.M2])!==null){base=anio(PI[p.M2]);delta=0;tipo='cónyuge';}
+    if(base===null)return false;
+    var valor=Math.round(base+delta);
+    p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
+    p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
+    return true;
+}
 function crearVinculado(id,campo,sexoNuevo){
+    var antesCambioCrear=mapaPersonas(D);
     if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
     var newId=genNewId();
     var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
@@ -1453,13 +1559,14 @@ function crearVinculado(id,campo,sexoNuevo){
         if(campo==='M1'||campo==='M2')nuevo.M1=actual.ID;
     }
     bIdx(D);
-    recalcularAnosEstimados(false);
+    estimarNodoLocal(newId);
     sAll(D).then(function(){
         rStats();
         cid=newId;
         editMode=true;
         rFic(newId);
         toast('Nueva persona creada y vinculada');
+        registrarCambiosDesdeSnapshots(antesCambioCrear,D,'vincular');
     }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }
 
@@ -1490,6 +1597,7 @@ function filtrarRelacion(){
     lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
 }
 function elegirRelacion(otroId){
+    var antesRelacion=mapaPersonas(D);
     if(!selectorRelacion)return;
     var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
     if(!actual||!otro)return;
@@ -1504,15 +1612,16 @@ function elegirRelacion(otroId){
     }else{
         actual[campo]=otro.ID;
     }
-    bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
+    bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
 }
 function quitarConyuge(id,campo){
+    var antesRelacion=mapaPersonas(D);
     var actual=PI[id],otroId=actual?actual[campo]:'';
     if(!actual||!otroId)return;
     if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?'))return;
     var otro=PI[otroId];actual[campo]='';
     if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
-    bIdx(D);sAll(D).then(function(){rFic(id);toast('Vínculo de cónyuge eliminado');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);});
+    bIdx(D);sAll(D).then(function(){rFic(id);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);});
 }
 function editarDescendiente(id){
     if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
@@ -1521,14 +1630,16 @@ function editarDescendiente(id){
 function crearDescendiente(id,parejaId){
     var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
     if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
+    var antesCambioDesc=mapaPersonas(D);
     if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?'))return;
     var madre=null,padre=null;
     if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
     else {padre=progenitor;madre=pareja;}
     var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
     D.push(nuevo);bIdx(D);
-    recalcularAnosEstimados(false);
-    sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
+    estimarNodoLocal(nuevo.ID);
+    sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
+        registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
    Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error:
@@ -1729,6 +1840,7 @@ function inconsistenciasDePersona(id){
     return detectarInconsistencias().filter(function(pr){return pr.verId===id;});
 }
 function solucionarInconsistenciaFicha(idx){
+    var antesCorreccion=mapaPersonas(D);
     var avisos=window._inconsistenciasFichaActual||[];
     var pr=avisos[idx];
     if(!pr||typeof pr.aplicar!=='function')return;
@@ -1737,6 +1849,7 @@ function solucionarInconsistenciaFicha(idx){
         sAll(D).then(function(){
             rStats();
             toast('Corrección aplicada');
+            registrarCambiosDesdeSnapshots(antesCorreccion,D,'vincular');
             if(cid)rFic(cid);
         }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
     }
@@ -1757,20 +1870,22 @@ function htmlAvisosFicha(id){
     h+='</div>';
     return h;
 }
-function guardarTrasCorreccion(mensaje){
+function guardarTrasCorreccion(mensaje,antesCorreccion){
     bIdx(D);
     sAll(D).then(function(){
         rStats();
         if(cid&&!editMode&&document.getElementById('vFic').classList.contains('active'))rFic(cid);
         toast(mensaje||'Corrección aplicada');
+        if(antesCorreccion)registrarCambiosDesdeSnapshots(antesCorreccion,D,'vincular');
         mostrarInconsistencias();
     }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 function solucionarInconsistencia(idx){
+    var antesCorreccion=mapaPersonas(D);
     var problemas=window._inconsistenciasActuales||[];
     var pr=problemas[idx];
     if(!pr)return;
-    if(pr.aplicar())guardarTrasCorreccion();
+    if(pr.aplicar())guardarTrasCorreccion(undefined,antesCorreccion);
 }
 function mostrarInconsistencias(){
     if(!D.length){toast('No hay datos cargados',true);return;}
@@ -1890,14 +2005,14 @@ function solucionarDuplicado(idx){
     var par=pares[idx];
     if(!par)return;
     if(!confirm('Se fusionarán las dos fichas en una sola.\n\nSe conservará: '+fn(par.a)+' (ID '+par.a.ID+')\nSe eliminará: '+fn(par.b)+' (ID '+par.b.ID+')\n\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer. ¿Continuar?'))return;
-    if(fusionarPersonas(par.a.ID,par.b.ID))guardarTrasFusion(par.a.ID);
+    var antesFusion=mapaPersonas(D);if(fusionarPersonas(par.a.ID,par.b.ID))guardarTrasFusion(par.a.ID,antesFusion);
 }
 function solucionarDuplicadoInverso(idx){
     var pares=window._duplicadosActuales||[];
     var par=pares[idx];
     if(!par)return;
     if(!confirm('Se fusionarán las dos fichas en una sola.\n\nSe conservará: '+fn(par.b)+' (ID '+par.b.ID+')\nSe eliminará: '+fn(par.a)+' (ID '+par.a.ID+')\n\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer. ¿Continuar?'))return;
-    if(fusionarPersonas(par.b.ID,par.a.ID))guardarTrasFusion(par.b.ID);
+    var antesFusion=mapaPersonas(D);if(fusionarPersonas(par.b.ID,par.a.ID))guardarTrasFusion(par.b.ID,antesFusion);
 }
 function ignorarDuplicado(idx){
     var pares=window._duplicadosActuales||[];
@@ -1906,11 +2021,12 @@ function ignorarDuplicado(idx){
     DUP_IGNORADOS[par.a.ID+'|'+par.b.ID]=true;
     mostrarDuplicados();
 }
-function guardarTrasFusion(idSuperviviente){
+function guardarTrasFusion(idSuperviviente,antesFusion){
     sAll(D).then(function(){
         rStats();
         if(cid===idSuperviviente&&!editMode&&document.getElementById('vFic').classList.contains('active'))rFic(cid);
         toast('Fichas fusionadas correctamente');
+        registrarCambiosDesdeSnapshots(antesFusion,D,'fusionar');
         mostrarDuplicados();
     }).catch(function(err){toast('No se pudo guardar la fusión: '+err.message,true);});
 }
@@ -3516,9 +3632,15 @@ function restaurarDesdeJSONTexto(texto){
         ids[personas[i].ID]=true;
     }
     if(!confirm('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
-    sAll(personas).then(function(){
-        D=personas;bIdx(D);cid=null;editMode=false;recalcularAnosEstimados();init();
-        toast('Copia restaurada correctamente: '+D.length+' personas');
+    sAll(personas,{marcarANOCALCSucio:false}).then(function(){
+        D=personas;bIdx(D);cid=null;editMode=false;
+        recalcularAnosEstimadosConProgreso(function(){
+            // El cálculo acaba de actualizar todos los ANOCALC; dejar el estado persistente como válido.
+            sAll(D,{marcarANOCALCSucio:false}).then(function(){
+                init();
+                toast('Copia restaurada y años estimados recalculados: '+D.length+' personas');
+            }).catch(function(err){toast('Copia restaurada, pero no se pudo cerrar el estado de ANOCALC: '+err.message,true);init();});
+        });
     }).catch(function(err){toast('No se pudo restaurar la copia: '+err.message,true);});
 }
 function restaurarCopia(archivo){
@@ -3692,7 +3814,7 @@ function parseAndLoad(txt){
     D = data;
     bIdx(data);
     recalcularAnosEstimados(false);
-    sAll(data).then(function(n){
+    sAll(data,{marcarANOCALCSucio:false}).then(function(n){
         toast(n+' personas importadas correctamente');
         if(skipped) toast(skipped+' fila(s) omitida(s) por datos incompletos', true);
         if(dupCount) toast(dupCount+' ID(s) duplicado(s): se conservo el último registro', true);
@@ -3701,20 +3823,19 @@ function parseAndLoad(txt){
     });
 }
 
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';if(!n)pedirNombreUsuarioCambios(false);});}
 
 document.addEventListener('DOMContentLoaded',function(){
     function cargarInicial(data){
         D=data;bIdx(data);
-        function continuar(){init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);});}
-        if(haySinCalcular()){
-            /* Solo aquí se lanza el motor de ANOCALC en el arranque, y siempre con progreso
-               visible por fases; si no hay nadie pendiente, se omite por completo y la app
-               carga al instante. */
-            recalcularAnosEstimadosConProgreso(continuar);
-        }else{
-            continuar();
-        }
+        function continuar(){init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);});}
+        Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
+            if(v[0]||v[1]){
+                recalcularAnosEstimadosConProgreso(continuar);
+            }else{
+                continuar();
+            }
+        });
     }
     oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial);},500);});
 });
