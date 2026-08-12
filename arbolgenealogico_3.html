@@ -58,11 +58,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
 .anocalc-tag{color:var(--accent);font-style:italic}
-.etq-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(196,101,58,.1);color:var(--accent);border-radius:999px;padding:4px 10px 4px 12px;font-size:11px;font-weight:700;margin:2px 5px 2px 0;cursor:pointer;border:1px solid rgba(196,101,58,.2)}
-.etq-chip:hover{background:rgba(196,101,58,.18)}
-.etq-chip button{background:none;border:none;color:var(--accent);cursor:pointer;font-weight:700;font-size:13px;line-height:1;padding:0}
-.etq-add-row{display:flex;gap:6px;align-items:center;margin-top:8px}
-.etq-add-row input{flex:1}
 .fl2{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:700}.fl2:hover{text-decoration:underline}
 .ul{list-style:none}.ul li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}.ul li:last-child{border:0}
 .ul a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}.ul a:hover{text-decoration:underline}
@@ -391,12 +386,11 @@ body{background:#fff}
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados"><i class="fa-solid fa-filter"></i></button>
-<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" style="position:relative"><i class="fa-solid fa-toolbox"></i><span id="insigniaNovedades" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
+<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas"><i class="fa-solid fa-toolbox"></i></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
 <div class="bus-filtros-row">
 <div class="ef-field"><span class="ef-label">Lugar (nac. o def.)</span><input class="ef-input" id="busFLugar" placeholder="Ej: Sevilla" autocomplete="off"></div>
-<div class="ef-field"><span class="ef-label">Etiqueta</span><input class="ef-input" id="busFEtiqueta" list="dlEtiquetasGlobal" placeholder="Ej: Migrante" autocomplete="off"></div>
 </div>
 <div class="bus-filtros-row">
 <div class="ef-field"><span class="ef-label">Año desde</span><input class="ef-input" id="busFAnioDesde" type="number" placeholder="1800"></div>
@@ -418,7 +412,6 @@ body{background:#fff}
 <input type="file" id="fi" accept=".csv,.txt" style="display:none">
 <input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
 <input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
-<datalist id="dlEtiquetasGlobal"></datalist>
 </div>
 <div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
 <div class="view" id="vFic"><div class="ficha" id="fco"></div></div>
@@ -588,7 +581,7 @@ body{background:#fff}
 <button class="ef-btn ghost" id="btnCambiosHist" onclick="mostrarCambios('historial')">Historial</button>
 </div>
 <div style="display:flex;gap:7px;flex-wrap:wrap">
-<button class="ef-btn ghost" onclick="mostrarMiIdentidad()"><i class="fa-solid fa-user-check"></i> Mi identidad</button>
+<button class="ef-btn ghost" onclick="pedirNombreUsuarioCambios(true)"><i class="fa-solid fa-user"></i> Usuario</button>
 <button class="ef-btn ghost" onclick="sincronizarCambiosDrive(true)"><i class="fa-brands fa-google-drive"></i> Comprobar cambios en Drive</button>
 </div>
 </div>
@@ -599,90 +592,16 @@ body{background:#fff}
 <div class="print-area" id="printArea"></div>
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
-/* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.12.1';
-var APP_CHANGELOG = [
-  { version:'2026.08.12.1', fecha:'2026-08-12', cambios:[
-    'Copia de seguridad local rotativa (punto 16a): respaldo automático cada 24h en el disco duro, con rotación de 5 copias. Solo el administrador puede activarla/desactivarla.'
-  ]},
-  { version:'2026.08.12', fecha:'2026-08-12', cambios:[
-    'Nuevo: la aplicación muestra su número de versión y el historial de cambios dentro de Herramientas, con un aviso de novedades cuando hay una versión sin consultar.'
-  ]}
-];
 /* ===== GOOGLE DRIVE (documentos) =====
 1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicación web").
 2) Añade aquí abajo tu Client ID, sustituyendo el texto de ejemplo.
 3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
-var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file email profile';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 var CLAVE_SUBIDA_DRIVE='1962';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
-/* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
-var googleIdentidad = null; /* {email, name, picture} de la sesión actual, o null */
-var ADMIN_EMAIL = 'meleiro2014@gmail.com';
-async function obtenerIdentidadGoogle(){
-  if(!tokenDriveValido()){ googleIdentidad=null; return null; }
-  try{
-    var r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
-      headers:{Authorization:'Bearer '+driveAccessToken}
-    });
-    if(!r.ok){ googleIdentidad=null; return null; }
-    var d=await r.json();
-    if(!d.email){ googleIdentidad=null; return null; }
-    googleIdentidad={
-      email:String(d.email).trim().toLowerCase(),
-      name:d.name||'',
-      picture:d.picture||''
-    };
-    return googleIdentidad;
-  }catch(err){
-    googleIdentidad=null;
-    return null;
-  }
-}
-function esAdministrador(){
-  return !!(
-    googleIdentidad &&
-    googleIdentidad.email &&
-    googleIdentidad.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()
-  );
-}
-function usuarioActualParaCambios(){
-  /* SIN FALLBACK ANÓNIMO: si no hay identidad, es un error de programación y
-     la operación debe abortarse (no se registra ni se permite guardar). */
-  if(!googleIdentidad || !googleIdentidad.email){
-    throw new Error('No hay identidad Google para registrar el cambio');
-  }
-  return googleIdentidad.name || googleIdentidad.email;
-}
-async function exigirIdentidadGoogle(){
-  if(googleIdentidad && googleIdentidad.email) return true;
-  if(tokenDriveValido()){
-    await obtenerIdentidadGoogle();
-    if(googleIdentidad && googleIdentidad.email) return true;
-  }
-  try{
-    await conectarGoogleDrive();
-    await obtenerIdentidadGoogle();
-    if(googleIdentidad && googleIdentidad.email) return true;
-  }catch(err){
-    toast('No se pudo conectar con Google: '+err.message,true);
-    return false;
-  }
-  toast('Conecta tu cuenta de Google para poder guardar cambios',true);
-  return false;
-}
-function mostrarMiIdentidad(){
-  if(googleIdentidad && (googleIdentidad.name || googleIdentidad.email)){
-    var txt=googleIdentidad.name||googleIdentidad.email;
-    if(googleIdentidad.email && googleIdentidad.name) txt+=' ('+googleIdentidad.email+')';
-    toast('Identificado como: '+txt);
-  }else{
-    toast('Sin sesión de Google conectada. Conecta para que tus ediciones queden atribuidas.',true);
-  }
-}
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,4);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function sAll(d,opciones){
@@ -719,7 +638,7 @@ var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicio
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas'
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -727,14 +646,14 @@ function valorCambio(v){if(v===null||v===undefined||v==='')return '(vacío)';if(
 function nombrePersonaSnapshot(p){return p?fn(p).replace(/\s+/g,' ').trim()||('ID '+p.ID):'';}
 function camposDiferentes(a,b){var keys={},r=[];Object.keys(a||{}).forEach(function(k){keys[k]=1;});Object.keys(b||{}).forEach(function(k){keys[k]=1;});Object.keys(keys).forEach(function(k){if(CAMBIOS_IGNORAR.indexOf(k)>=0)return;var va=a?a[k]:undefined,vb=b?b[k]:undefined;if(JSON.stringify(va)!==JSON.stringify(vb))r.push({campo:k,antes:va===undefined?'':va,despues:vb===undefined?'':vb});});return r;}
 function construirDescripcion(usuario,tipo,p,campos){var nombre=nombrePersonaSnapshot(p)||'persona';var accion={editar:'editó',crear:'creó',eliminar:'eliminó',fusionar:'fusionó',vincular:'modificó vínculos de'}[tipo]||'modificó';if(!campos.length)return usuario+' '+accion+' '+nombre+'.';var partes=campos.slice(0,12).map(function(c){return (CAMBIOS_LABELS[c.campo]||c.campo)+': '+valorCambio(c.antes)+' → «'+valorCambio(c.despues)+'»';});if(campos.length>12)partes.push('… y '+(campos.length-12)+' cambio(s) más');return usuario+' '+accion+' '+nombre+' (ID '+p.ID+'): '+partes.join('; ')+'.';}
-
-
-function registrarCambiosDesdeSnapshots(antes,despues,tipo){var usuario=usuarioActualParaCambios();var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;registros.push({id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:new Date().toISOString(),usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:CAMBIOS_ESTADO,actualizadoEn:new Date().toISOString()});});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});});}
+function obtenerNombreUsuarioCambios(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res('Usuario');return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('nombreUsuario');r.onsuccess=function(){res((r.result&&String(r.result.valor||'').trim())||'');};r.onerror=function(){res('');};});}
+function pedirNombreUsuarioCambios(forzar){return obtenerNombreUsuarioCambios().then(function(actual){if(actual&&!forzar){window.nombreUsuarioCambios=actual;return actual;}var n=prompt('¿Cómo te llamas? (aparecerá en el registro de cambios)',actual||'');if(n===null)return actual||'Usuario';n=n.trim()||'Usuario';window.nombreUsuarioCambios=n;return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'nombreUsuario',valor:n});tx.oncomplete=function(){res(n);};tx.onerror=function(){rej(tx.error);};});});}
+function registrarCambiosDesdeSnapshots(antes,despues,tipo){return pedirNombreUsuarioCambios(false).then(function(usuario){var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;registros.push({id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:new Date().toISOString(),usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:CAMBIOS_ESTADO,actualizadoEn:new Date().toISOString()});});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});});}
 function listarCambios(){return new Promise(function(res,rej){var r=db.transaction(CAMBIOS_STORE,'readonly').objectStore(CAMBIOS_STORE).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){rej(r.error);};});}
 function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML='<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}lista.innerHTML=mostrar.map(function(c){var acciones='';if(modo==='pendientes'){acciones='<button class="ef-btn" onclick="confirmarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Confirmar</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';if(modo==='pendientes')acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+(c.estado==='confirmado'?' · confirmado':'')+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
-function initCambios(){actualizarContadorCambios();mostrarCambios('pendientes');}
+function initCambios(){actualizarContadorCambios();mostrarCambios('pendientes');obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';});}
 function confirmarCambio(id){var cId=id;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(cId);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio confirmado');};};tx.onerror=function(){toast('No se pudo confirmar el cambio',true);};}
 function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de cambios de la lista. ¿Continuar?'))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}cid=id;editMode=false;sv('fic');}
@@ -742,7 +661,7 @@ async function obtenerArchivoCambiosDrive(){var q="'"+driveRootFolderId+"' in pa
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
 async function subirCambiosDriveDatos(cambios,existente){var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);if(!r.ok)throw new Error('Drive respondió '+r.status);}
 async function sincronizarCambiosDrive(forzar){if(!driveRootFolderId||!tokenDriveValido()){if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
 /* ===== CFG genérico (clave/valor) + estado de Google Drive + recordatorio de copia ===== */
@@ -818,8 +737,8 @@ if(!googleTokenClient){
 googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
-callback:async function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();resolve(driveAccessToken);}
+callback:function(resp){
+if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);resolve(driveAccessToken);}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -911,31 +830,10 @@ function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+Strin
 function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
-/* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
-separado por "|" (evita conflictos con comas en nombres de etiqueta). */
-function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split('|').map(function(s){return s.trim();}).filter(Boolean);}
-function etiquetasTexto(p){return etiquetasArray(p).join(', ');}
-function todasLasEtiquetas(){var set={};D.forEach(function(p){etiquetasArray(p).forEach(function(t){set[t]=(set[t]||0)+1;});});return set;}
-function actualizarDatalistEtiquetas(){
-var dl=document.getElementById('dlEtiquetasGlobal');
-if(!dl)return;
-var set=todasLasEtiquetas();
-var tags=Object.keys(set).sort(function(a,b){return a.localeCompare(b,'es');});
-dl.innerHTML=tags.map(function(t){return '<option value="'+escAttr(t)+'">';}).join('');
-}
-function verFichasConEtiqueta(tag){
-sv('bus');
-var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
-if(panel&&!panel.classList.contains('abierto')){panel.classList.add('abierto');if(btn){btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';}}
-var inp=document.getElementById('busFEtiqueta');
-if(inp)inp.value=tag;
-leerFiltrosBusqueda();
-doSrch(document.getElementById('si').value);
-}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
 function sv(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();actualizarBarraActiva();}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
 de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
 mostrados aquí siempre coinciden exactamente con lo que se ve al entrar al Gestor de datos. */
@@ -963,59 +861,8 @@ bar.style.display='flex';
 bar.style.display='none';
 }
 }
-function mostrarHerramientas(){
-mostrarVersionEnHerramientas();
-/* Mostrar/ocultar botones de copia local según soporte del navegador */
-var btnActivar=document.getElementById('btnActivarCopiaLocal');
-var btnDesactivar=document.getElementById('btnDesactivarCopiaLocal');
-if(btnActivar&&btnDesactivar){
-  if(window.showDirectoryPicker){
-    btnActivar.style.display='flex';
-    btnDesactivar.style.display='flex';
-  }else{
-    btnActivar.style.display='none';
-    btnDesactivar.style.display='none';
-  }
-}
-document.getElementById('modalHerramientas').style.display='flex';
-}
+function mostrarHerramientas(){document.getElementById('modalHerramientas').style.display='flex';}
 function cerrarHerramientas(){document.getElementById('modalHerramientas').style.display='none';}
-/* ===== Version visible + modal de Novedades + insignia (punto 15) ===== */
-function mostrarVersionEnHerramientas(){
-var el=document.getElementById('appVersionTag');
-if(el)el.textContent='v'+APP_VERSION;
-}
-function abrirNovedades(){
-var cont=document.getElementById('novedadesLista');
-if(!cont)return;
-cont.innerHTML=APP_CHANGELOG.map(function(v){
-return '<div style="margin-bottom:16px"><div style="font-weight:700;color:var(--accent);font-size:13px">v'+esc(v.version)+' · <span style="color:var(--muted);font-weight:400">'+esc(v.fecha)+'</span></div>'
-+'<ul style="margin:5px 0 0 18px;font-size:12px;color:var(--text);line-height:1.5">'
-+v.cambios.map(function(c){return '<li>'+esc(c)+'</li>';}).join('')
-+'</ul></div>';
-}).join('');
-var num=document.getElementById('novedadesVersionActual');
-if(num)num.textContent='Versión actual: v'+APP_VERSION;
-document.getElementById('modalNovedades').style.display='flex';
-limpiarInsignaNovedades();
-}
-function cerrarNovedades(){
-var m=document.getElementById('modalNovedades');
-if(m)m.style.display='none';
-}
-function comprobarInsignaNovedades(){
-leerValorCFG('versionVista').then(function(vista){
-var badge=document.getElementById('insigniaNovedades');
-if(!badge)return;
-badge.style.display=(vista!==APP_VERSION)?'inline-block':'none';
-});
-}
-function limpiarInsignaNovedades(){
-guardarValorCFG('versionVista',APP_VERSION).then(function(){
-var badge=document.getElementById('insigniaNovedades');
-if(badge)badge.style.display='none';
-});
-}
 function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}if(p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!==''){var n3=parseInt(p.ANOCALC,10);if(!isNaN(n3))return n3;}return null;}
 function ordenarPersonasPorEdad(personas){
 return (personas||[]).slice().sort(function(pa,pb){
@@ -1030,9 +877,7 @@ return sn(pa).localeCompare(sn(pb));
 function ordenarIdsPorEdad(ids){
 return ordenarPersonasPorEdad((ids||[]).map(function(id){return PI[id];}).filter(Boolean)).map(function(p){return p.ID;});
 }
-async function marcarFallecidosMayores100(){
-    if(!(await exigirIdentidadGoogle()))return;
-    if(!D.length){toast('No hay datos cargados',true);return;}
+function marcarFallecidosMayores100(){
 if(!D.length){toast('No hay datos cargados',true);return;}
 var anoActual=new Date().getFullYear(),candidatos=[];
 D.forEach(function(p){
@@ -1368,7 +1213,7 @@ if(callback)callback();
 }
 });
 }
-var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true,etiqueta:''};
+var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true};
 function alternarFiltrosBusqueda(){
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
 var abierto=panel.classList.toggle('abierto');
@@ -1381,7 +1226,6 @@ document.getElementById('busFAnioDesde').value='';
 document.getElementById('busFAnioHasta').value='';
 document.getElementById('busFVivos').checked=true;
 document.getElementById('busFFallecidos').checked=true;
-document.getElementById('busFEtiqueta').value='';
 leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
@@ -1391,13 +1235,12 @@ lugar:(document.getElementById('busFLugar').value||'').trim().toLowerCase(),
 anioDesde:(document.getElementById('busFAnioDesde').value||'').trim(),
 anioHasta:(document.getElementById('busFAnioHasta').value||'').trim(),
 vivos:document.getElementById('busFVivos').checked,
-fallecidos:document.getElementById('busFFallecidos').checked,
-etiqueta:(document.getElementById('busFEtiqueta').value||'').trim().toLowerCase()
+fallecidos:document.getElementById('busFFallecidos').checked
 };
 }
 function busFiltrosActivos(){
 var f=busFiltros;
-return !!(f.lugar||f.anioDesde||f.anioHasta||!f.vivos||!f.fallecidos||f.etiqueta);
+return !!(f.lugar||f.anioDesde||f.anioHasta||!f.vivos||!f.fallecidos);
 }
 function doSrch(q){
 q=(q||'').toLowerCase().trim();
@@ -1407,16 +1250,12 @@ if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textConte
 var f=D.filter(function(p){
 if(q){
 var an=String(pdAnioTexto(p)||'').toLowerCase();
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.APROX||'')+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.APROX||'')+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase();
 if(texto.indexOf(q)<0)return false;
 }
 if(busFiltros.lugar){
 var lugares=(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||'')).toLowerCase();
 if(lugares.indexOf(busFiltros.lugar)<0)return false;
-}
-if(busFiltros.etiqueta){
-var etqs=etiquetasArray(p).map(function(t){return t.toLowerCase();});
-if(!etqs.some(function(t){return t.indexOf(busFiltros.etiqueta)>=0;}))return false;
 }
 var al=isAl(p);
 if(al&&!busFiltros.vivos)return false;
@@ -1462,10 +1301,6 @@ var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
-var etqsFicha=etiquetasArray(p);
-if(etqsFicha.length){
-h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
-}
 h+=htmlAvisosFicha(id);
 h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
 if(esAnioEstimado(p)){
@@ -1520,7 +1355,6 @@ function rFicEdit(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 fotoPendiente=undefined;
-efEtiquetasEdit=etiquetasArray(p).slice();
 var fallecido=!isAl(p);
 var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
 h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
@@ -1549,7 +1383,6 @@ h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef
 h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
 h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defunción</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
 h+='</div></div>';
-h+='<div class="fs"><h3>Etiquetas</h3><div id="efEtiquetasChips"></div><div class="etq-add-row"><input class="ef-input" id="efEtiquetaInput" list="dlEtiquetasGlobal" placeholder="Ej: Migrante, Línea materna confirmada..." autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();efAnadirEtiqueta();}"><button type="button" class="ef-btn ghost" onclick="efAnadirEtiqueta()"><i class="fa-solid fa-plus"></i> Añadir</button></div></div>';
 h+='<div class="fs"><h3>Familia</h3>';
 h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
 h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
@@ -1570,33 +1403,6 @@ h+='</div></div>';
 h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
-actualizarDatalistEtiquetas();
-efRenderEtiquetas();
-}
-/* ===== Edición de etiquetas dentro de la ficha ===== efEtiquetasEdit vive solo en memoria mientras
-se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar. */
-var efEtiquetasEdit=[];
-function efRenderEtiquetas(){
-var cont=document.getElementById('efEtiquetasChips');
-if(!cont)return;
-if(!efEtiquetasEdit.length){cont.innerHTML='<p style="font-size:11px;color:var(--muted)">Sin etiquetas todavía.</p>';return;}
-cont.innerHTML=efEtiquetasEdit.map(function(t,i){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+' <button type="button" title="Quitar etiqueta" onclick="efQuitarEtiqueta('+i+')">×</button></span>';}).join('');
-}
-function efAnadirEtiqueta(){
-var inp=document.getElementById('efEtiquetaInput');
-if(!inp)return;
-var v=(inp.value||'').trim();
-if(!v){return;}
-if(v.indexOf('|')>=0){toast('Una etiqueta no puede contener el carácter "|"',true);return;}
-if(efEtiquetasEdit.some(function(t){return t.toLowerCase()===v.toLowerCase();})){toast('Esa etiqueta ya está añadida',true);inp.value='';return;}
-efEtiquetasEdit.push(v);
-inp.value='';
-efRenderEtiquetas();
-inp.focus();
-}
-function efQuitarEtiqueta(i){
-efEtiquetasEdit.splice(i,1);
-efRenderEtiquetas();
 }
 function resizeImageToDataURL(file,maxDim,quality){
 return new Promise(function(resolve,reject){
@@ -1644,12 +1450,7 @@ if(prev)prev.innerHTML='<span style="color:var(--muted);font-size:10px;text-alig
 var btn=document.getElementById('ef-foto-quitar-btn');
 if(btn)btn.remove();
 }
-async function solicitarImportarFotosLocal(){
-  if(!(await exigirIdentidadGoogle())) return;
-  document.getElementById('fiFotos').click();
-}
-async function importarFotosCarpeta(fileList){
-    if(!(await exigirIdentidadGoogle()))return;
+function importarFotosCarpeta(fileList){
 var files=Array.prototype.filter.call(fileList,function(f){return f.type&&f.type.indexOf('image/')===0;});
 if(!files.length){toast('No se encontraron imagenes en la carpeta seleccionada',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
@@ -1686,7 +1487,6 @@ pageToken=d.nextPageToken||null;
 return archivos;
 }
 async function importarFotosDesdeDrive(){
-    if(!(await exigirIdentidadGoogle()))return;
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos")',true);return;}
@@ -1734,10 +1534,7 @@ if(cid)rFic(cid);
 }
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
 function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
-async function guardarFicha(id){
-    if(!(await exigirIdentidadGoogle()))return;
-    var p=PI[id];
-    var antesCambio=clonarPersona(p);
+function guardarFicha(id){
 var p=PI[id];
 var antesCambio=clonarPersona(p);
 if(!p){toast('Registro no encontrado',true);return;}
@@ -1762,9 +1559,6 @@ p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
 p.ML1=leerCampo('ef-ml1');p.MF1=leerCampo('ef-mf1');
 p.ML2=leerCampo('ef-ml2');p.MF2=leerCampo('ef-mf2');
 p.OBSERVACIONES=leerCampo('ef-obs');
-var etqPendiente=leerCampo('efEtiquetaInput');
-if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
-p.ETIQUETAS=efEtiquetasEdit.join('|');
 if(fotoPendiente!==undefined){p.FOTO=fotoPendiente;fotoPendiente=undefined;}
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
@@ -1777,9 +1571,7 @@ toast('Cambios guardados');
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }
-async function eliminarFicha(id){
-    if(!(await exigirIdentidadGoogle()))return;
-    var persona=PI[id];
+function eliminarFicha(id){
 var persona=PI[id];
 if(!persona){toast('Ficha no encontrada',true);return;}
 var antesCambioEliminar=mapaPersonas(D);
@@ -1809,13 +1601,11 @@ p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
 p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
 return true;
 }
-async function crearVinculado(id,campo,sexoNuevo){
-    if(!(await exigirIdentidadGoogle()))return;
-    var antesCambioCrear=mapaPersonas(D);
+function crearVinculado(id,campo,sexoNuevo){
 var antesCambioCrear=mapaPersonas(D);
 if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
 var newId=genNewId();
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
 D.push(nuevo);
 var actual=PI[id];
 if(actual){
@@ -1859,9 +1649,7 @@ if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2
 var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCase().indexOf(q)>=0||String(p.ID).indexOf(q)>=0);}).slice(0,80);
 lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
 }
-async function elegirRelacion(otroId){
-    if(!(await exigirIdentidadGoogle()))return;
-    var antesRelacion=mapaPersonas(D);
+function elegirRelacion(otroId){
 var antesRelacion=mapaPersonas(D);
 if(!selectorRelacion)return;
 var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
@@ -1879,9 +1667,7 @@ actual[campo]=otro.ID;
 }
 bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
 }
-async function quitarConyuge(id,campo){
-    if(!(await exigirIdentidadGoogle()))return;
-    var antesRelacion=mapaPersonas(D);
+function quitarConyuge(id,campo){
 var antesRelacion=mapaPersonas(D);
 var actual=PI[id],otroId=actual?actual[campo]:'';
 if(!actual||!otroId)return;
@@ -1894,9 +1680,7 @@ function editarDescendiente(id){
 if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
 cid=id;editMode=true;rFic(id);
 }
-async function crearDescendiente(id,parejaId){
-    if(!(await exigirIdentidadGoogle()))return;
-    var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
+function crearDescendiente(id,parejaId){
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
 var antesCambioDesc=mapaPersonas(D);
@@ -1904,7 +1688,7 @@ if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha s
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -2096,9 +1880,7 @@ return true;
 function inconsistenciasDePersona(id){
 return detectarInconsistencias().filter(function(pr){return pr.verId===id;});
 }
-async function solucionarInconsistenciaFicha(idx){
-    if(!(await exigirIdentidadGoogle()))return;
-    var antesCorreccion=mapaPersonas(D);
+function solucionarInconsistenciaFicha(idx){
 var antesCorreccion=mapaPersonas(D);
 var avisos=window._inconsistenciasFichaActual||[];
 var pr=avisos[idx];
@@ -2176,10 +1958,7 @@ partes.push(hijos+' hijo(s) registrado(s)');
 if(p.OBSERVACIONES)partes.push('Obs: '+p.OBSERVACIONES.slice(0,80)+(p.OBSERVACIONES.length>80?'…':''));
 return partes.join(' · ');
 }
-async function fusionarPersonas(idMantener,idEliminar){
-    if(!(await exigirIdentidadGoogle()))return false;
-    var pM=PI[idMantener],pE=PI[idEliminar];
-    if(!pM||!pE)return false;
+function fusionarPersonas(idMantener,idEliminar){
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE)return false;
 if(idMantener===idEliminar)return false;
@@ -2190,10 +1969,6 @@ var vacioM=(vaM===''||vaM===null||vaM===undefined);
 var vacioE=(vaE===''||vaE===null||vaE===undefined);
 if(vacioM&&!vacioE)pM[c]=vaE;
 });
-var etqUnion={};
-etiquetasArray(pM).forEach(function(t){etqUnion[t]=true;});
-etiquetasArray(pE).forEach(function(t){etqUnion[t]=true;});
-pM.ETIQUETAS=Object.keys(etqUnion).join('|');
 if(pE.OBSERVACIONES&&pE.OBSERVACIONES.trim()&&pE.OBSERVACIONES.trim()!==(pM.OBSERVACIONES||'').trim()){
 pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n---\n':'')+pE.OBSERVACIONES;
 }
@@ -2508,9 +2283,7 @@ var cat=null;
 return cat;
 }
 /* Correccion individual de una inconsistencia (mismo patron que solucionarInconsistenciaFicha) */
-async function gesAplicarItem(catId,idx){
-    if(!(await exigirIdentidadGoogle()))return;
-    var cat=gesCatPorId(catId);if(!cat)return;
+function gesAplicarItem(catId,idx){
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||typeof it.aplicar!=='function')return;
 var antes=mapaPersonas(D);
@@ -2525,9 +2298,7 @@ rGes();
 }
 /* Accion masiva por categoria: aplica .aplicar una a una, re-detectando en cada paso,
 y guarda/registra una sola vez al terminar (igual que hacia solucionarTodasInconsistencias). */
-async function gesAccionMasiva(catId){
-    if(!(await exigirIdentidadGoogle()))return;
-    var cat=gesCatPorId(catId);
+function gesAccionMasiva(catId){
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
 if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGes();return;}
@@ -2567,9 +2338,7 @@ rGes();
 }
 }
 /* Fusion de duplicados desde el Gestor (mismo flujo que el antiguo modal, pareja a pareja) */
-async function gesFusionarDup(catId,idx,inverso){
-    if(!(await exigirIdentidadGoogle()))return;
-    var cat=gesCatPorId(catId);if(!cat)return;
+function gesFusionarDup(catId,idx,inverso){
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 var idMantener=inverso?it.bId:it.aId;
@@ -2620,9 +2389,7 @@ rGes();
 });
 }
 /* Aplicar la unificacion de un grupo de lugares (siempre con confirmacion explicita) */
-async function gesAplicarLugar(clave,idxVariante){
-    if(!(await exigirIdentidadGoogle()))return;
-    var grupos=gesDetectarLugares();
+function gesAplicarLugar(clave,idxVariante){
 var grupos=gesDetectarLugares();
 var g=null;
 grupos.some(function(x){if(gesGrupoKey(x)===clave){g=x;return true;}return false;});
@@ -2654,9 +2421,7 @@ rGes();
 /* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
 unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vista previa y una
 única confirmación en vez de tener que confirmar grupo a grupo. */
-async function gesUnificarTodosNivelA(){
-    if(!(await exigirIdentidadGoogle()))return;
-    var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
+function gesUnificarTodosNivelA(){
 var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
 if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true);rGes();return;}
 var totalFichas=0;
@@ -4253,10 +4018,7 @@ document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
 function confirmLimpiar(){document.getElementById('modalLimpiar').style.display='flex';}
-async function ejecutarLimpiar(){
-    if(!(await exigirIdentidadGoogle()))return;
-    if(!esAdministrador()){toast('Solo el administrador puede limpiar la caché',true);return;}
-    document.getElementById('modalLimpiar').style.display='none';
+function ejecutarLimpiar(){
 document.getElementById('modalLimpiar').style.display='none';
 if(db){try{db.close();}catch(e){}}
 var req=indexedDB.deleteDatabase(DB);
@@ -4328,14 +4090,7 @@ toast('GEDCOM descargado: '+D.length+' personas');
 if(gedFamiliasSexoIndeterminado>0)toast(gedFamiliasSexoIndeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
-async function impCSV(){
-      if(!(await exigirIdentidadGoogle())) return;
-      if(!esAdministrador()){
-        toast('Solo el administrador puede importar CSV',true);
-        return;
-      }
-      document.getElementById('fi').click();
-    }
+function impCSV(){document.getElementById('fi').click();}
 function exportarCopia(){
 if(!D.length){toast('No hay datos para guardar',true);return;}
 var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
@@ -4425,87 +4180,6 @@ registrarUltimaCopia();
 registrarSincronizacionDrive();
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 }
-/* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
-   Copia automática al disco duro local, solo para quien la active en su
-   navegador (Francisco, el administrador). Usa File System Access API
-   (Chrome/Edge/Opera escritorio). Rotación circular de 5 slots; intervalo
-   mínimo 24 horas entre copias. Independiente de Google Drive por completo.
-   NO es un sistema de copia en tiempo real: es una copia periódica al iniciar. */
-
-async function activarCopiaLocalAutomatica(){
-  if(typeof exigirIdentidadGoogle!=='function'){
-    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
-    return;
-  }
-  if(!await exigirIdentidadGoogle()) return;
-  if(typeof esAdministrador!=='function' || !esAdministrador()){
-    toast('Solo el administrador puede activar la copia automática local',true);
-    return;
-  }
-  if(!window.showDirectoryPicker){
-    toast('Tu navegador no permite elegir una carpeta del disco para esto (usa Chrome o Edge). Puedes seguir usando "Guardar copia" manualmente.',true);
-    return;
-  }
-  try{
-    var handle = await window.showDirectoryPicker();
-    await guardarValorCFG('copiaLocalDirHandle', handle);
-    await guardarValorCFG('copiaLocalSiguienteIndice', 1);
-    await guardarValorCFG('copiaLocalUltimaFecha', null);
-    toast('Copia automática local activada en este navegador (carpeta: ' + handle.name + ')');
-  }catch(err){
-    if(err.name !== 'AbortError') toast('No se pudo activar la copia local: ' + err.message, true);
-  }
-}
-
-async function desactivarCopiaLocalAutomatica(){
-  if(typeof exigirIdentidadGoogle!=='function'){
-    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
-    return;
-  }
-  if(!await exigirIdentidadGoogle()) return;
-  if(typeof esAdministrador!=='function' || !esAdministrador()){
-    toast('Solo el administrador puede desactivar la copia automática local',true);
-    return;
-  }
-  await guardarValorCFG('copiaLocalDirHandle', null);
-  await guardarValorCFG('copiaLocalSiguienteIndice', null);
-  await guardarValorCFG('copiaLocalUltimaFecha', null);
-  toast('Copia automática local desactivada');
-}
-
-async function ejecutarCopiaLocalSiToca(){
-  var handle = await leerValorCFG('copiaLocalDirHandle');
-  if(!handle) return;
-  try{
-    var permiso = await handle.queryPermission({ mode: 'readwrite' });
-    if(permiso !== 'granted'){
-      permiso = await handle.requestPermission({ mode: 'readwrite' });
-      if(permiso !== 'granted') return;
-    }
-    var ultima = await leerValorCFG('copiaLocalUltimaFecha');
-    if(ultima && (Date.now() - new Date(ultima).getTime()) < 24 * 3600 * 1000) return;
-    var indice = (await leerValorCFG('copiaLocalSiguienteIndice')) || 1;
-    indice = Math.max(1, Math.min(5, Number(indice) || 1));
-    var nombre = 'libro-ancestros-auto-' + indice + '.json';
-    var copia = {
-      formato: 'Libro de los Ancestros',
-      version: 1,
-      fecha: new Date().toISOString(),
-      personas: D
-    };
-    var fileHandle = await handle.getFileHandle(nombre, { create: true });
-    var writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(copia));
-    await writable.close();
-    await guardarValorCFG('copiaLocalUltimaFecha', new Date().toISOString());
-    await guardarValorCFG('copiaLocalSiguienteIndice', (indice % 5) + 1);
-    toast('Copia local automática guardada (' + nombre + ')');
-  }catch(err){
-    toast('Copia automática local no realizada: ' + err.message, true);
-    console.warn('Copia local automática omitida:', err.message);
-  }
-}
-
 async function restaurarDesdeDrive(){
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
@@ -4607,7 +4281,7 @@ function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; 
 row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
 if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
 var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : ''; row.MotivoAprox = '';
-row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, ''); row.ANOCALC=''; row.ANOCALC_MOTIVO=''; row.ANOCALC_DISTANCIA=''; row.ETIQUETAS='';
+row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, ''); row.ANOCALC=''; row.ANOCALC_MOTIVO=''; row.ANOCALC_DISTANCIA='';
 data.push(row);
 }
 if(!data.length){toast('No se encontraron datos válidos en el CSV',true);return;}
@@ -4625,11 +4299,11 @@ if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el 
 init();
 });
 }
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);comprobarInsignaNovedades();}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';if(!n)pedirNombreUsuarioCambios(false);});}
 document.addEventListener('DOMContentLoaded',function(){
 function cargarInicial(data){
 D=data;bIdx(data);
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);});}
 Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
 if(v[0]||v[1]){
 recalcularAnosEstimadosConProgreso(continuar);
@@ -4649,7 +4323,7 @@ srchTimer=setTimeout(function(){doSrch(val);},150);
 });
 })();
 (function(){
-var ids=['busFLugar','busFEtiqueta','busFAnioDesde','busFAnioHasta','busFVivos','busFFallecidos'];
+var ids=['busFLugar','busFAnioDesde','busFAnioHasta','busFVivos','busFFallecidos'];
 var srchTimerF=null;
 ids.forEach(function(id){
 var el=document.getElementById(id);
@@ -4717,34 +4391,22 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
 <div id="modalHerramientas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas <span id="appVersionTag" onclick="abrirNovedades()" title="Ver novedades y registro de cambios" style="font-family:'Lato',sans-serif;font-size:10px;font-weight:400;color:var(--muted);cursor:pointer;vertical-align:2px"></span></h2>
+<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas</h2>
 <button class="ef-nbtn" onclick="cerrarHerramientas()">×</button>
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button><button class="herr-item" id="btnActivarCopiaLocal" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
-<button class="herr-item" id="btnDesactivarCopiaLocal" onclick="cerrarHerramientas();desactivarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Desactivar copia automática local</div><div class="herr-desc">Detiene futuras copias automáticas (no borra las copias existentes)</div></div></button>
-
+<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
 </div>
-</div>
-</div>
-<div id="modalNovedades" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i> Novedades</h2>
-<button class="ef-nbtn" onclick="cerrarNovedades()">×</button>
-</div>
-<div id="novedadesVersionActual" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
-<div id="novedadesLista" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
 <div id="modalPosterAscendente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
