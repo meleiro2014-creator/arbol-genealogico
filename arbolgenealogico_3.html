@@ -58,6 +58,11 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
 .anocalc-tag{color:var(--accent);font-style:italic}
+.etq-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(196,101,58,.1);color:var(--accent);border-radius:999px;padding:4px 10px 4px 12px;font-size:11px;font-weight:700;margin:2px 5px 2px 0;cursor:pointer;border:1px solid rgba(196,101,58,.2)}
+.etq-chip:hover{background:rgba(196,101,58,.18)}
+.etq-chip button{background:none;border:none;color:var(--accent);cursor:pointer;font-weight:700;font-size:13px;line-height:1;padding:0}
+.etq-add-row{display:flex;gap:6px;align-items:center;margin-top:8px}
+.etq-add-row input{flex:1}
 .fl2{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:700}.fl2:hover{text-decoration:underline}
 .ul{list-style:none}.ul li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}.ul li:last-child{border:0}
 .ul a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}.ul a:hover{text-decoration:underline}
@@ -101,6 +106,19 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .toast.err{border-color:var(--accent)}
 @keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes tout{to{opacity:0;transform:translateY(-10px)}}
+.drive-status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);font-size:11px;font-weight:700;color:var(--text);cursor:pointer;transition:all .2s}
+.drive-status:hover{border-color:var(--accent)}
+.drive-status .dot{width:9px;height:9px;border-radius:50%;background:#c0392b;flex-shrink:0}
+.drive-status.ok .dot{background:var(--green)}
+.drive-status .ds-sub{color:var(--muted);font-weight:400}
+.backup-warn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;border-radius:999px;border:1.5px solid #e0a95c;background:rgba(224,169,92,.12);font-size:11px;font-weight:700;color:#8a5a1a}
+.bus-filtros{max-width:460px;margin:10px auto 0;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 14px;text-align:left;display:none}
+.bus-filtros.abierto{display:block}
+.bus-filtros-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.bus-filtros-row .ef-field{flex:1;min-width:110px}
+.bus-filtros-check{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text)}
+.bus-filtros-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.bus-filtros-count{font-size:11px;color:var(--muted)}
 .cmd-grid{display:flex;justify-content:center;gap:14px;margin-top:18px;flex-wrap:wrap}
 .cmd-card{background:var(--card);border:2px solid var(--border);border-radius:16px;padding:12px 22px;min-width:128px;text-align:center;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.04)}
 .cmd-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.08)}
@@ -369,9 +387,29 @@ body{background:#fff}
 <div class="cmd-card cmd-alert" onclick="sv('ges')"><div class="cmd-num" id="cmdProblemas">-</div><div class="cmd-label">Problemas<span class="cmd-sub">inconsistencias y duplicados</span></div></div>
 <div class="cmd-card" onclick="sv('cam')"><div class="cmd-num" id="cmdCambios">-</div><div class="cmd-label">Cambios<span class="cmd-sub">revisión por usuario</span></div></div>
 </div>
+<div style="text-align:center"><div class="drive-status" id="driveStatusPill" onclick="accionDriveStatusPill()"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div><div id="backupWarnPill"></div></div>
 <div class="search-row">
-<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre o apellido..." autocomplete="off"></div>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
+<button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados"><i class="fa-solid fa-filter"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas"><i class="fa-solid fa-toolbox"></i></button>
+</div>
+<div class="bus-filtros" id="busFiltrosPanel">
+<div class="bus-filtros-row">
+<div class="ef-field"><span class="ef-label">Lugar (nac. o def.)</span><input class="ef-input" id="busFLugar" placeholder="Ej: Sevilla" autocomplete="off"></div>
+<div class="ef-field"><span class="ef-label">Etiqueta</span><input class="ef-input" id="busFEtiqueta" list="dlEtiquetasGlobal" placeholder="Ej: Migrante" autocomplete="off"></div>
+</div>
+<div class="bus-filtros-row">
+<div class="ef-field"><span class="ef-label">Año desde</span><input class="ef-input" id="busFAnioDesde" type="number" placeholder="1800"></div>
+<div class="ef-field"><span class="ef-label">Año hasta</span><input class="ef-input" id="busFAnioHasta" type="number" placeholder="1950"></div>
+</div>
+<div class="bus-filtros-row">
+<label class="bus-filtros-check"><input type="checkbox" id="busFVivos" checked> Vivos</label>
+<label class="bus-filtros-check"><input type="checkbox" id="busFFallecidos" checked> Fallecidos</label>
+</div>
+<div class="bus-filtros-foot">
+<span class="bus-filtros-count" id="busFiltrosCount"></span>
+<button class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="limpiarFiltrosBusqueda()"><i class="fa-solid fa-eraser"></i> Limpiar filtros</button>
+</div>
 </div>
 <div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
 <div class="stats" id="sb"></div>
@@ -380,6 +418,7 @@ body{background:#fff}
 <input type="file" id="fi" accept=".csv,.txt" style="display:none">
 <input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
 <input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
+<datalist id="dlEtiquetasGlobal"></datalist>
 </div>
 <div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
 <div class="view" id="vFic"><div class="ficha" id="fco"></div></div>
@@ -606,7 +645,7 @@ var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicio
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad'
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -628,10 +667,66 @@ function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta
 async function obtenerArchivoCambiosDrive(){var q="'"+driveRootFolderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
 async function subirCambiosDriveDatos(cambios,existente){var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);if(!r.ok)throw new Error('Drive respondió '+r.status);}
-async function sincronizarCambiosDrive(forzar){if(!driveRootFolderId||!tokenDriveValido()){if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+async function sincronizarCambiosDrive(forzar){if(!driveRootFolderId||!tokenDriveValido()){if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
+/* ===== CFG genérico (clave/valor) + estado de Google Drive + recordatorio de copia ===== */
+function guardarValorCFG(id,valor){return new Promise(function(res,rej){if(!db||!db.objectStoreNames.contains(CFG)){res();return;}var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:id,valor:valor});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
+function leerValorCFG(id){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res(null);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get(id);r.onsuccess=function(){res(r.result?r.result.valor:null);};r.onerror=function(){res(null);};});}
+function registrarSincronizacionDrive(){guardarValorCFG('driveUltimaSync',new Date().toISOString()).then(actualizarDriveStatusPill);}
+function registrarUltimaCopia(){guardarValorCFG('ultimaCopiaFecha',new Date().toISOString()).then(actualizarBackupWarnPill);}
+function formatoFechaRelativa(iso){
+if(!iso)return null;
+try{
+var d=new Date(iso);
+return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}catch(e){return null;}
+}
+function actualizarDriveStatusPill(){
+var pill=document.getElementById('driveStatusPill'),dot=document.getElementById('driveStatusDot'),txt=document.getElementById('driveStatusTxt');
+if(!pill)return;
+var conectado=!!(driveRootFolderId&&tokenDriveValido());
+pill.classList.toggle('ok',conectado);
+if(conectado){
+leerValorCFG('driveUltimaSync').then(function(f){
+var rel=formatoFechaRelativa(f);
+txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');
+});
+}else if(!driveRootFolderId){
+txt.textContent='Sin conectar con Google Drive — pulsa para configurar';
+}else{
+txt.textContent='Sesión de Google Drive caducada — pulsa para reconectar';
+}
+}
+function accionDriveStatusPill(){
+if(!driveRootFolderId){
+elegirCarpetaDocumentos().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();});
+return;
+}
+if(!tokenDriveValido()){
+conectarGoogleDrive().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();toast('Conectado a Google Drive');}).catch(function(err){toast('No se pudo conectar con Google Drive: '+err.message,true);});
+return;
+}
+toast('Ya estás conectado a Google Drive');
+actualizarDriveStatusPill();
+}
+function actualizarBackupWarnPill(){
+var cont=document.getElementById('backupWarnPill');
+if(!cont)return;
+leerValorCFG('ultimaCopiaFecha').then(function(f){
+if(!f){
+cont.innerHTML='<div class="backup-warn"><i class="fa-solid fa-triangle-exclamation"></i> Todavía no se ha hecho ninguna copia de seguridad. Usa Herramientas → Guardar copia / Subir copia a Drive.</div>';
+return;
+}
+var dias=Math.floor((Date.now()-new Date(f).getTime())/86400000);
+if(dias>=14){
+cont.innerHTML='<div class="backup-warn"><i class="fa-solid fa-triangle-exclamation"></i> Última copia de seguridad hace '+dias+' día(s) ('+esc(formatoFechaRelativa(f))+'). Conviene hacer una copia nueva.</div>';
+}else{
+cont.innerHTML='';
+}
+});
+}
 function extraerIdCarpetaDrive(texto){
 texto=String(texto||'').trim();
 var m=texto.match(/\/folders\/([a-zA-Z0-9_-]+)/);
@@ -670,7 +765,7 @@ var folderId=extraerIdCarpetaDrive(entrada);
 if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
 driveRootFolderId=folderId;
 driveDocumentosFolderId=null;
-try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive configurada');if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
+try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive configurada');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
 async function obtenerCarpetaDocumentosId(){
@@ -742,10 +837,31 @@ function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+Strin
 function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
+/* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
+separado por "|" (evita conflictos con comas en nombres de etiqueta). */
+function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split('|').map(function(s){return s.trim();}).filter(Boolean);}
+function etiquetasTexto(p){return etiquetasArray(p).join(', ');}
+function todasLasEtiquetas(){var set={};D.forEach(function(p){etiquetasArray(p).forEach(function(t){set[t]=(set[t]||0)+1;});});return set;}
+function actualizarDatalistEtiquetas(){
+var dl=document.getElementById('dlEtiquetasGlobal');
+if(!dl)return;
+var set=todasLasEtiquetas();
+var tags=Object.keys(set).sort(function(a,b){return a.localeCompare(b,'es');});
+dl.innerHTML=tags.map(function(t){return '<option value="'+escAttr(t)+'">';}).join('');
+}
+function verFichasConEtiqueta(tag){
+sv('bus');
+var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
+if(panel&&!panel.classList.contains('abierto')){panel.classList.add('abierto');if(btn){btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';}}
+var inp=document.getElementById('busFEtiqueta');
+if(inp)inp.value=tag;
+leerFiltrosBusqueda();
+doSrch(document.getElementById('si').value);
+}
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
 function sv(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){b.classList.toggle('active',b.getAttribute('data-view')===v);});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();actualizarBarraActiva();}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
 de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
 mostrados aquí siempre coinciden exactamente con lo que se ve al entrar al Gestor de datos. */
@@ -1125,12 +1241,70 @@ if(callback)callback();
 }
 });
 }
+var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true,etiqueta:''};
+function alternarFiltrosBusqueda(){
+var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
+var abierto=panel.classList.toggle('abierto');
+btn.style.color=abierto?'var(--accent)':'';
+btn.style.borderColor=abierto?'var(--accent)':'';
+}
+function limpiarFiltrosBusqueda(){
+document.getElementById('busFLugar').value='';
+document.getElementById('busFAnioDesde').value='';
+document.getElementById('busFAnioHasta').value='';
+document.getElementById('busFVivos').checked=true;
+document.getElementById('busFFallecidos').checked=true;
+document.getElementById('busFEtiqueta').value='';
+leerFiltrosBusqueda();
+doSrch(document.getElementById('si').value);
+}
+function leerFiltrosBusqueda(){
+busFiltros={
+lugar:(document.getElementById('busFLugar').value||'').trim().toLowerCase(),
+anioDesde:(document.getElementById('busFAnioDesde').value||'').trim(),
+anioHasta:(document.getElementById('busFAnioHasta').value||'').trim(),
+vivos:document.getElementById('busFVivos').checked,
+fallecidos:document.getElementById('busFFallecidos').checked,
+etiqueta:(document.getElementById('busFEtiqueta').value||'').trim().toLowerCase()
+};
+}
+function busFiltrosActivos(){
+var f=busFiltros;
+return !!(f.lugar||f.anioDesde||f.anioHasta||!f.vivos||!f.fallecidos||f.etiqueta);
+}
 function doSrch(q){
-q=q.toLowerCase().trim();
-if(!q){document.getElementById('rl').innerHTML='';return;}
-var f=D.filter(function(p){var an=String(pdAnioTexto(p)||'').toLowerCase();return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0||String(p.APROX||'').indexOf(q)>=0||String(p.NACA||'').indexOf(q)>=0||String(p.ANOCALC||'').indexOf(q)>=0||an.indexOf(q)>=0;});
+q=(q||'').toLowerCase().trim();
+var activos=busFiltrosActivos();
+var cEl=document.getElementById('busFiltrosCount');
+if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textContent='';return;}
+var f=D.filter(function(p){
+if(q){
+var an=String(pdAnioTexto(p)||'').toLowerCase();
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.APROX||'')+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
+if(texto.indexOf(q)<0)return false;
+}
+if(busFiltros.lugar){
+var lugares=(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||'')).toLowerCase();
+if(lugares.indexOf(busFiltros.lugar)<0)return false;
+}
+if(busFiltros.etiqueta){
+var etqs=etiquetasArray(p).map(function(t){return t.toLowerCase();});
+if(!etqs.some(function(t){return t.indexOf(busFiltros.etiqueta)>=0;}))return false;
+}
+var al=isAl(p);
+if(al&&!busFiltros.vivos)return false;
+if(!al&&!busFiltros.fallecidos)return false;
+if(busFiltros.anioDesde||busFiltros.anioHasta){
+var y=getYear(p);
+if(y===null)return false;
+if(busFiltros.anioDesde&&y<parseInt(busFiltros.anioDesde,10))return false;
+if(busFiltros.anioHasta&&y>parseInt(busFiltros.anioHasta,10))return false;
+}
+return true;
+});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 var total=f.length;
+if(cEl)cEl.textContent=activos?(total+' resultado(s) con los filtros activos'):'';
 f=f.slice(0,80);
 var h='';
 f.forEach(function(p){
@@ -1161,6 +1335,10 @@ var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+var etqsFicha=etiquetasArray(p);
+if(etqsFicha.length){
+h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
+}
 h+=htmlAvisosFicha(id);
 h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
 if(esAnioEstimado(p)){
@@ -1215,6 +1393,7 @@ function rFicEdit(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 fotoPendiente=undefined;
+efEtiquetasEdit=etiquetasArray(p).slice();
 var fallecido=!isAl(p);
 var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
 h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
@@ -1243,6 +1422,7 @@ h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef
 h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
 h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defunción</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
 h+='</div></div>';
+h+='<div class="fs"><h3>Etiquetas</h3><div id="efEtiquetasChips"></div><div class="etq-add-row"><input class="ef-input" id="efEtiquetaInput" list="dlEtiquetasGlobal" placeholder="Ej: Migrante, Línea materna confirmada..." autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();efAnadirEtiqueta();}"><button type="button" class="ef-btn ghost" onclick="efAnadirEtiqueta()"><i class="fa-solid fa-plus"></i> Añadir</button></div></div>';
 h+='<div class="fs"><h3>Familia</h3>';
 h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
 h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
@@ -1263,6 +1443,33 @@ h+='</div></div>';
 h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
+actualizarDatalistEtiquetas();
+efRenderEtiquetas();
+}
+/* ===== Edición de etiquetas dentro de la ficha ===== efEtiquetasEdit vive solo en memoria mientras
+se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar. */
+var efEtiquetasEdit=[];
+function efRenderEtiquetas(){
+var cont=document.getElementById('efEtiquetasChips');
+if(!cont)return;
+if(!efEtiquetasEdit.length){cont.innerHTML='<p style="font-size:11px;color:var(--muted)">Sin etiquetas todavía.</p>';return;}
+cont.innerHTML=efEtiquetasEdit.map(function(t,i){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+' <button type="button" title="Quitar etiqueta" onclick="efQuitarEtiqueta('+i+')">×</button></span>';}).join('');
+}
+function efAnadirEtiqueta(){
+var inp=document.getElementById('efEtiquetaInput');
+if(!inp)return;
+var v=(inp.value||'').trim();
+if(!v){return;}
+if(v.indexOf('|')>=0){toast('Una etiqueta no puede contener el carácter "|"',true);return;}
+if(efEtiquetasEdit.some(function(t){return t.toLowerCase()===v.toLowerCase();})){toast('Esa etiqueta ya está añadida',true);inp.value='';return;}
+efEtiquetasEdit.push(v);
+inp.value='';
+efRenderEtiquetas();
+inp.focus();
+}
+function efQuitarEtiqueta(i){
+efEtiquetasEdit.splice(i,1);
+efRenderEtiquetas();
 }
 function resizeImageToDataURL(file,maxDim,quality){
 return new Promise(function(resolve,reject){
@@ -1419,6 +1626,9 @@ p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
 p.ML1=leerCampo('ef-ml1');p.MF1=leerCampo('ef-mf1');
 p.ML2=leerCampo('ef-ml2');p.MF2=leerCampo('ef-mf2');
 p.OBSERVACIONES=leerCampo('ef-obs');
+var etqPendiente=leerCampo('efEtiquetaInput');
+if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
+p.ETIQUETAS=efEtiquetasEdit.join('|');
 if(fotoPendiente!==undefined){p.FOTO=fotoPendiente;fotoPendiente=undefined;}
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
@@ -1465,7 +1675,7 @@ function crearVinculado(id,campo,sexoNuevo){
 var antesCambioCrear=mapaPersonas(D);
 if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
 var newId=genNewId();
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);
 var actual=PI[id];
 if(actual){
@@ -1548,7 +1758,7 @@ if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha s
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:''};
+var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -1829,6 +2039,10 @@ var vacioM=(vaM===''||vaM===null||vaM===undefined);
 var vacioE=(vaE===''||vaE===null||vaE===undefined);
 if(vacioM&&!vacioE)pM[c]=vaE;
 });
+var etqUnion={};
+etiquetasArray(pM).forEach(function(t){etqUnion[t]=true;});
+etiquetasArray(pE).forEach(function(t){etqUnion[t]=true;});
+pM.ETIQUETAS=Object.keys(etqUnion).join('|');
 if(pE.OBSERVACIONES&&pE.OBSERVACIONES.trim()&&pE.OBSERVACIONES.trim()!==(pM.OBSERVACIONES||'').trim()){
 pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n---\n':'')+pE.OBSERVACIONES;
 }
@@ -2123,14 +2337,17 @@ accionMasiva:{etiqueta:'Marcar todas como fallecidas ('+cents.length+')'}
 });
 /* §4.5 NUEVO: lugares con escritura no homogenea (LUGARNAC/LUGARDEF) */
 var gruposLug=gesDetectarLugares();
-if(gruposLug.length)cats.push({
+if(gruposLug.length){
+var gruposLugA=gruposLug.filter(function(g){return g.nivel==='A';});
+cats.push({
 id:'lugares_no_homogeneos',fuente:'lugares',grupo:'lugares',
 titulo:'Lugares con escritura no homogénea',
 icono:'fa-location-dot',severidad:'revision',
 descripcion:gruposLug.length+' grupo(s) de topónimos que parecen el mismo lugar escrito de formas distintas en LUGARNAC/LUGARDEF. Nivel A: solo difieren mayúsculas, tildes o puntuación (unificación segura). Niveles B (contención) y C (erratas): sugerencias, revisa antes de aplicar.',
 items:gruposLug.map(function(g){return{tipo:'lugar',grupo:g};}),
-accionMasiva:null
+accionMasiva:gruposLugA.length?{etiqueta:'Unificar automáticamente los '+gruposLugA.length+' grupo(s) de Nivel A'}:null
 });
+}
 return cats;
 }
 /* --- Acciones del Gestor --- */
@@ -2160,6 +2377,7 @@ var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
 if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGes();return;}
 if(cat.fuente==='anocalc'){gesCalcularAnosGes();return;}
+if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
 if(cat.fuente!=='inc')return;
 var conSolucion=cat.items.filter(function(it){return typeof it.aplicar==='function';}).length;
 if(!conSolucion)return;
@@ -2271,6 +2489,39 @@ sAll(D).then(function(){
 rStats();
 registrarCambiosDesdeSnapshots(antes,D,'editar');
 toast('Lugares unificados: '+nIds+' ficha(s) ahora usan "'+forma+'"');
+rGes();
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+/* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
+unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vista previa y una
+única confirmación en vez de tener que confirmar grupo a grupo. */
+function gesUnificarTodosNivelA(){
+var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
+if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true);rGes();return;}
+var totalFichas=0;
+var preview=grupos.slice(0,12).map(function(g){
+var ids={};g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});
+totalFichas+=Object.keys(ids).length;
+return '  · '+g.variantes.map(function(v){return '"'+v.txt+'"';}).join(' / ')+'  →  "'+g.canonica+'" ('+Object.keys(ids).length+' ficha(s))';
+}).join('\n');
+grupos.slice(12).forEach(function(g){var ids={};g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});totalFichas+=Object.keys(ids).length;});
+var extra=grupos.length>12?('\n  … y '+(grupos.length-12)+' grupo(s) más'):'';
+if(!confirm('Se unificarán '+grupos.length+' grupo(s) de Nivel A, afectando a '+totalFichas+' ficha(s) en total:\n\n'+preview+extra+'\n\n¿Continuar?'))return;
+var antes=mapaPersonas(D);
+var fichasTocadas={};
+grupos.forEach(function(g){
+g.variantes.forEach(function(v){
+v.personas.forEach(function(ref){
+var p=PI[ref.id];
+if(p){p[ref.campo]=g.canonica;fichasTocadas[ref.id]=true;}
+});
+});
+});
+bIdx(D);
+sAll(D).then(function(){
+rStats();
+registrarCambiosDesdeSnapshots(antes,D,'editar');
+toast('Lugares unificados: '+grupos.length+' grupo(s), '+Object.keys(fichasTocadas).length+' ficha(s) actualizada(s)');
 rGes();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
@@ -3857,9 +4108,30 @@ setTimeout(function(){
 var today=new Date();
 var headerDate=fDateGed(today.getDate(),today.getMonth()+1,today.getFullYear());
 var ged='0 HEAD\n1 SOUR Libro de los Ancestros\n2 VERS 1.0\n2 NAME Libro de los Ancestros\n1 DATE '+headerDate+'\n1 GEDC\n2 VERS 5.5.1\n2 FORM LINEAGE-LINKED\n1 CHAR UTF-8\n1 LANG Spanish\n0 @SUB1@ SUBM\n1 NAME Usuario\n1 ADDR Espana\n2 CTRY Espana\n';
-var fom={},foc={};
+var foc={};
 D.forEach(function(p){var pk=(p.PADRE||'')+'|'+(p.MADRE||'');if(pk==='||')return;if(!foc[pk]){foc[pk]=Object.keys(foc).length+1;} p._famc='@F'+foc[pk]+'@';});
-D.forEach(function(p){if(p.M1){var k=p.ID+'|'+p.M1;if(!fom[k]){fom[k]={h:p.ID,w:p.M1,n:Object.keys(fom).length};}}if(p.M2){var k2=p.ID+'|'+p.M2;if(!fom[k2]){fom[k2]={h:p.ID,w:p.M2,n:Object.keys(fom).length};}}});
+/* --- Construcción de familias conyugales ---
+   Deduplicadas por pareja (clave simétrica, sin importar quién inició el vínculo)
+   y con HUSB/WIFE asignados según el campo SEXO real de cada persona, no según
+   qué registro tiene el campo M1/M2 relleno. */
+var fom={};
+var gedFamiliasSexoIndeterminado=0;
+function registrarFamiliaConyugal(idA,idB){
+if(!idA||!idB)return;
+var par=[idA,idB].sort();
+var k=par[0]+'|'+par[1];
+if(fom[k])return;
+var pA=PI[idA],pB=PI[idB];
+var husb=idA,wife=idB;
+var determinado=false;
+if(pA&&pB){
+if(pA.SEXO==='Mujer'&&pB.SEXO==='Hombre'){husb=idB;wife=idA;determinado=true;}
+else if(pA.SEXO==='Hombre'&&pB.SEXO==='Mujer'){husb=idA;wife=idB;determinado=true;}
+}
+if(!determinado)gedFamiliasSexoIndeterminado++;
+fom[k]={h:husb,w:wife,n:Object.keys(fom).length};
+}
+D.forEach(function(p){if(p.M1)registrarFamiliaConyugal(p.ID,p.M1);if(p.M2)registrarFamiliaConyugal(p.ID,p.M2);});
 var fmS={};Object.keys(fom).forEach(function(k){var f=fom[k],fn2='@F'+f.n+'@';if(!fmS[f.h])fmS[f.h]=[];if(!fmS[f.w])fmS[f.w]=[];fmS[f.h].push(fn2);fmS[f.w].push(fn2);f._fNum=fn2;});
 D.forEach(function(p){
 var al=isAl(p);
@@ -3889,6 +4161,7 @@ var blob=new Blob([ged],{type:'text/plain;charset=utf-8'});
 var url=URL.createObjectURL(blob);
 var a=document.createElement('a');a.href=url;a.download='FAMILIA.ged';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 toast('GEDCOM descargado: '+D.length+' personas');
+if(gedFamiliasSexoIndeterminado>0)toast(gedFamiliasSexoIndeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
 function impCSV(){document.getElementById('fi').click();}
@@ -3900,6 +4173,7 @@ var fecha=new Date().toISOString().slice(0,10);
 var url=URL.createObjectURL(blob),a=document.createElement('a');
 a.href=url;a.download='copia-arbol-genealogico-'+fecha+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 toast('Copia descargada con '+D.length+' personas y sus fotos');
+registrarUltimaCopia();
 }
 function restaurarDesdeJSONTexto(texto){
 var copia;
@@ -3976,6 +4250,8 @@ var contenido=JSON.stringify(copia);
 var rSubida=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
 if(!rSubida.ok){var errTxt=await rSubida.text();throw new Error('Drive respondio con error '+rSubida.status+': '+errTxt.slice(0,200));}
 toast('Copia subida a Drive correctamente ('+D.length+' personas)');
+registrarUltimaCopia();
+registrarSincronizacionDrive();
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 }
 async function restaurarDesdeDrive(){
@@ -3993,6 +4269,7 @@ var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.
 if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (código '+rContenido.status+')');
 var texto=await rContenido.text();
 restaurarDesdeJSONTexto(texto);
+registrarSincronizacionDrive();
 }catch(err){toast('No se pudo restaurar desde Drive: '+err.message,true);}
 }
 document.getElementById('fi').addEventListener('change',function(e){handleFile(e.target.files[0]);});
@@ -4078,7 +4355,7 @@ function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; 
 row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
 if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
 var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : ''; row.MotivoAprox = '';
-row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, ''); row.ANOCALC=''; row.ANOCALC_MOTIVO=''; row.ANOCALC_DISTANCIA='';
+row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, ''); row.ANOCALC=''; row.ANOCALC_MOTIVO=''; row.ANOCALC_DISTANCIA=''; row.ETIQUETAS='';
 data.push(row);
 }
 if(!data.length){toast('No se encontraron datos válidos en el CSV',true);return;}
@@ -4100,7 +4377,7 @@ function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) r
 document.addEventListener('DOMContentLoaded',function(){
 function cargarInicial(data){
 D=data;bIdx(data);
-function continuar(){init();cargarCarpetaDocumentos().then(function(){if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);});}
 Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
 if(v[0]||v[1]){
 recalcularAnosEstimadosConProgreso(continuar);
@@ -4117,6 +4394,19 @@ document.getElementById('si').addEventListener('input',function(){
 var val=this.value;
 clearTimeout(srchTimer);
 srchTimer=setTimeout(function(){doSrch(val);},150);
+});
+})();
+(function(){
+var ids=['busFLugar','busFEtiqueta','busFAnioDesde','busFAnioHasta','busFVivos','busFFallecidos'];
+var srchTimerF=null;
+ids.forEach(function(id){
+var el=document.getElementById(id);
+if(!el)return;
+var evento=(el.type==='checkbox')?'change':'input';
+el.addEventListener(evento,function(){
+clearTimeout(srchTimerF);
+srchTimerF=setTimeout(function(){leerFiltrosBusqueda();doSrch(document.getElementById('si').value);},150);
+});
 });
 })();
 (function(){
