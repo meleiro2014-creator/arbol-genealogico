@@ -616,8 +616,11 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.13.10';
+var APP_VERSION = '2026.08.13.11';
 var APP_CHANGELOG = [
+  { version:'2026.08.13.11', fecha:'2026-08-13', cambios:[
+    'Corrección: se restauran en el modal de Herramientas la etiqueta de versión y el enlace "Novedades" (se habían perdido del HTML en una implementación anterior, aunque la lógica interna seguía intacta), para poder volver a consultar la versión actual y el historial de cambios.'
+  ]},
   { version:'2026.08.13.10', fecha:'2026-08-13', cambios:[
     'Tarea 2: conversión de la aplicación a PWA instalable mediante manifest.json, un Service Worker (sw.js) e iconos propios (icon-192.png/icon-512.png), manteniendo intactos IndexedDB, Google Drive/OAuth, el motor ANOCALC y el registro de cambios. El Service Worker solo cachea el "shell" estático (el propio HTML, el manifest y los iconos); nunca intercepta peticiones a Drive, a las APIs de Google ni a los CDN externos. Si el navegador no soporta PWA, la aplicación sigue funcionando exactamente igual que antes.'
   ]},
@@ -5045,7 +5048,7 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-APP_VERSION='2026.08.13.10';
+APP_VERSION='2026.08.13.11';
 APP_CHANGELOG.unshift({version:'2026.08.13.8',fecha:'2026-08-13',cambios:['Las fotos guardadas desde la edición de una ficha se sincronizan automáticamente (mejor esfuerzo, en segundo plano) con la carpeta FOTO de Google Drive.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.7',fecha:'2026-08-13',cambios:['"Limpiar caché" pasa a estar disponible para cualquier usuario con identidad Google, no solo el administrador.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.6',fecha:'2026-08-13',cambios:['"Restaurar copia" y "Restaurar desde Drive" pasan a estar disponibles para cualquier usuario con identidad Google, no solo el administrador.']});
@@ -5086,6 +5089,10 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
 <h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas</h2>
 <button class="ef-nbtn" onclick="cerrarHerramientas()">×</button>
+</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin:2px 0 12px">
+<span id="appVersionTag" style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.5px"></span>
+<span onclick="abrirNovedades()" style="font-size:11px;color:var(--accent);font-weight:700;cursor:pointer"><i class="fa-solid fa-clock-rotate-left"></i> Novedades</span>
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Uso general</div>
