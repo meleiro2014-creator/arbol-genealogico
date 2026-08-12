@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Libro de los Ancestros</title>
+<!-- ===== TAREA 2: PWA — manifest y color de tema (mismo --accent de la app) ===== -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#C4653A">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -207,6 +210,19 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .inf-sel-box.empty{color:var(--muted);font-weight:400}
 .print-area{position:fixed;left:-10000px;top:0}
 .print-report h1{font-family:'Cinzel',serif;font-size:20px;margin-bottom:2px}
+/* ===== MANUAL DE USUARIO (punto 22) ===== */
+.manual-portada{text-align:center;padding:40px 0 30px;page-break-after:always}
+.manual-portada h1{font-family:'Cinzel',serif;font-size:28px;margin-bottom:4px}
+.manual-portada h2{font-family:'Cinzel',serif;font-size:18px;color:var(--accent);margin-bottom:12px}
+.manual-intro{font-size:12px;color:var(--muted);max-width:420px;margin:14px auto 0;line-height:1.6}
+.manual-indice{page-break-after:always;padding:10px 0}
+.manual-indice h2{font-family:'Cinzel',serif;font-size:16px;margin-bottom:10px}
+.manual-indice-item{font-size:12px;padding:3px 0;border-bottom:1px dotted var(--border)}
+.manual-admin-badge-inline{font-size:8px;font-weight:700;color:#c0392b;text-transform:uppercase;letter-spacing:.5px;margin-left:6px}
+.manual-seccion{margin-bottom:20px;page-break-inside:avoid}
+.manual-seccion h2{font-family:'Cinzel',serif;font-size:15px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:8px}
+.manual-seccion p{font-size:12px;line-height:1.6;color:var(--text);margin-bottom:6px}
+.manual-admin-badge{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;background:#c0392b;padding:2px 8px;border-radius:6px;margin-bottom:6px}
 .print-report .print-sub{font-size:11px;color:var(--muted);margin-bottom:18px}
 .print-node{margin:0 0 4px 0;padding:6px 0 6px 14px;border-left:2px solid var(--border);font-size:12px}
 .print-node .pn-name{font-weight:700;color:var(--text)}
@@ -600,8 +616,32 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.12.1';
+var APP_VERSION = '2026.08.13.10';
 var APP_CHANGELOG = [
+  { version:'2026.08.13.10', fecha:'2026-08-13', cambios:[
+    'Tarea 2: conversión de la aplicación a PWA instalable mediante manifest.json, un Service Worker (sw.js) e iconos propios (icon-192.png/icon-512.png), manteniendo intactos IndexedDB, Google Drive/OAuth, el motor ANOCALC y el registro de cambios. El Service Worker solo cachea el "shell" estático (el propio HTML, el manifest y los iconos); nunca intercepta peticiones a Drive, a las APIs de Google ni a los CDN externos. Si el navegador no soporta PWA, la aplicación sigue funcionando exactamente igual que antes.'
+  ]},
+  { version:'2026.08.13.9', fecha:'2026-08-13', cambios:[
+    'Tarea 1 — Copias blindadas en Drive: "Subir copia a Drive" ahora crea además una copia fechada (backup-arbol-AAAA-MM-DD.json) en un destino secundario protegido, separado de las carpetas FOTO/DOCUMENTOS. Se conservan siempre las 5 copias históricas fechadas más recientes; al superar ese número se elimina únicamente la más antigua, y solo después de comprobar que la nueva copia se subió correctamente. Una subida fallida nunca borra copias existentes. El alias backup-arbol.json de la carpeta raíz sigue actualizándose al final, para que "Restaurar desde Drive" siga funcionando igual que antes para cualquier usuario.'
+  ]},
+  { version:'2026.08.13.8', fecha:'2026-08-13', cambios:[
+    'Al guardar una ficha con una foto nueva (o quitada) desde el formulario de edición, la aplicación intenta reflejar el cambio automáticamente en la carpeta FOTO de Google Drive (archivo "<ID>.jpg"), en segundo plano y sin bloquear el guardado local si Drive no está disponible.'
+  ]},
+  { version:'2026.08.13.7', fecha:'2026-08-13', cambios:[
+    '"Limpiar caché" pasa del grupo "Solo administrador" al grupo "Uso general" en Herramientas: cualquier usuario con su cuenta de Google conectada puede limpiar la caché local de su propio navegador.'
+  ]},
+  { version:'2026.08.13.6', fecha:'2026-08-13', cambios:[
+    '"Restaurar copia" y "Restaurar desde Drive" pasan del grupo "Solo administrador" al grupo "Uso general" en Herramientas: cualquier usuario con su cuenta de Google conectada puede restaurar un respaldo, igual que ya podía importar fotos. Activar/desactivar la copia local automática y subir copia a Drive siguen siendo exclusivos del administrador.'
+  ]},
+  { version:'2026.08.13.5', fecha:'2026-08-13', cambios:[
+    'El modal de Herramientas se divide en "Uso general" y "Solo administrador" (punto 20): las herramientas administrativas se ocultan y además comprueban permisos internamente; guardar copia y documentos siguen siendo de uso general.'
+  ]},
+  { version:'2026.08.13.4', fecha:'2026-08-13', cambios:[
+    'El aviso de "sin copia de seguridad" en Buscar solo se muestra al administrador (esAdministrador()); los colaboradores ya no lo ven.'
+  ]},
+  { version:'2026.08.13.3', fecha:'2026-08-13', cambios:[
+    'Exportación de la base de datos a CSV para Access (punto 18): 28 columnas (26 originales con APROX en la posición 2 + ANOCALC + ANOCALC_MOTIVO), Windows-1252, separador ";", sin cabecera, solo administrador.'
+  ]},
   { version:'2026.08.12.1', fecha:'2026-08-12', cambios:[
     'Copia de seguridad local rotativa (punto 16a): respaldo automático cada 24h en el disco duro, con rotación de 5 copias. Solo el administrador puede activarla/desactivarla.'
   ]},
@@ -618,6 +658,19 @@ var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 var CLAVE_SUBIDA_DRIVE='1962';
+/* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
+   Destino secundario protegido para las copias fechadas (fuera de FOTO/DOCUMENTOS).
+   El folderId queda fijado explícitamente en el código (no se busca por nombre) y su
+   protección real (que Eduardo no pueda escribir/borrar ahí) se configura en los
+   permisos de Google Drive, no en este archivo. Este destino es independiente de
+   driveRootFolderId y NUNCA se modifica automáticamente por otras funciones de la app. */
+var DRIVE_BACKUP_SECONDARY_FOLDER_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC'; /* Genealogia/Seguridad_json_datos */
+var BACKUP_HISTORICO_PREFIJO='backup-arbol-';
+var BACKUP_HISTORICO_MAX=5;
+/* Nombre exacto: backup-arbol-AAAA-MM-DD.json. Ancla ^...$ para no confundir con otros
+   archivos que solo empiecen parecido (punto 19/20 del informe de la Tarea 1). */
+var BACKUP_HISTORICO_REGEX=/^backup-arbol-(\d{4})-(\d{2})-(\d{2})\.json$/;
+var subiendoCopiaDrive=false;
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
 /* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
 var googleIdentidad=null; /* {email,name,picture} de la sesión actual, o null */
@@ -752,6 +805,7 @@ actualizarDriveStatusPill();
 function actualizarBackupWarnPill(){
 var cont=document.getElementById('backupWarnPill');
 if(!cont)return;
+if(!esAdministrador()){cont.innerHTML='';return;}
 leerValorCFG('ultimaCopiaFecha').then(function(f){
 if(!f){
 cont.innerHTML='<div class="backup-warn"><i class="fa-solid fa-triangle-exclamation"></i> Todavía no se ha hecho ninguna copia de seguridad. Usa Herramientas → Guardar copia / Subir copia a Drive.</div>';
@@ -783,7 +837,7 @@ googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
 callback:async function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();resolve(driveAccessToken);}
+if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -806,6 +860,7 @@ driveDocumentosFolderId=null;
 try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive configurada');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
+var driveFotoFolderId=null;
 async function obtenerCarpetaDocumentosId(){
 if(driveDocumentosFolderId)return driveDocumentosFolderId;
 var q="'"+driveRootFolderId+"' in parents and name='DOCUMENTOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
@@ -929,19 +984,22 @@ bar.style.display='none';
 }
 function mostrarHerramientas(){
 mostrarVersionEnHerramientas();
-/* Mostrar/ocultar botones de copia local según soporte del navegador */
-var btnActivar=document.getElementById('btnActivarCopiaLocal');
-var btnDesactivar=document.getElementById('btnDesactivarCopiaLocal');
-if(btnActivar&&btnDesactivar){
-  if(window.showDirectoryPicker){
-    btnActivar.style.display='flex';
-    btnDesactivar.style.display='flex';
-  }else{
-    btnActivar.style.display='none';
-    btnDesactivar.style.display='none';
-  }
-}
 document.getElementById('modalHerramientas').style.display='flex';
+refrescarGrupoAdminHerramientas();
+}
+function refrescarGrupoAdminHerramientas(){
+var adminGroup=document.getElementById('herrAdminGroup');
+if(!adminGroup)return;
+adminGroup.style.display=esAdministrador()?'block':'none';
+if(!googleIdentidad && tokenDriveValido()){
+obtenerIdentidadGoogle().then(function(){
+var modal=document.getElementById('modalHerramientas');
+if(modal && modal.style.display!=='none'){
+var g=document.getElementById('herrAdminGroup');
+if(g)g.style.display=esAdministrador()?'block':'none';
+}
+});
+}
 }
 function cerrarHerramientas(){document.getElementById('modalHerramientas').style.display='none';}
 /* ===== Version visible + modal de Novedades + insignia (punto 15) ===== */
@@ -1607,6 +1665,80 @@ if(prev)prev.innerHTML='<span style="color:var(--muted);font-size:10px;text-alig
 var btn=document.getElementById('ef-foto-quitar-btn');
 if(btn)btn.remove();
 }
+/* ===== SINCRONIZACION AUTOMATICA DE FOTOS INDIVIDUALES CON DRIVE =====
+   Cuando se guarda una ficha con una foto nueva (o quitada) desde el formulario de
+   edición, se intenta reflejar el cambio en la carpeta FOTO de Drive (mismo nombre
+   de archivo que usa la importación masiva: "<ID>.jpg"), ademas de guardarla en
+   IndexedDB como hasta ahora. Es un "mejor esfuerzo" en segundo plano: si Drive no
+   esta configurado o la sesión ha caducado, no bloquea ni interrumpe el guardado
+   local, igual que el resto de sincronizaciones en segundo plano de la aplicación. */
+function dataURLABlob(dataUrl){
+var partes=String(dataUrl||'').split(',');
+var mimeMatch=partes[0].match(/:(.*?);/);
+var mime=mimeMatch?mimeMatch[1]:'image/jpeg';
+var bstr=atob(partes[1]||'');
+var n=bstr.length,u8=new Uint8Array(n);
+while(n--){u8[n]=bstr.charCodeAt(n);}
+return new Blob([u8],{type:mime});
+}
+async function obtenerCarpetaFotoId(crearSiNoExiste){
+if(driveFotoFolderId)return driveFotoFolderId;
+var q="'"+driveRootFolderId+"' in parents and name='FOTO' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length){driveFotoFolderId=d.files[0].id;return driveFotoFolderId;}
+if(!crearSiNoExiste)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'FOTO',parents:[driveRootFolderId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondio '+rc.status+' al crear la carpeta FOTO');
+var dc=await rc.json();
+driveFotoFolderId=dc.id;
+return driveFotoFolderId;
+}
+async function crearArchivoDriveVacio(nombre,mimeType,folderId){
+var r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[folderId],mimeType:mimeType})});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondio '+r.status);
+var d=await r.json();
+return d.id;
+}
+async function buscarArchivoFotoDrivePorId(nombre,folderId){
+var q="'"+folderId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+return(d.files&&d.files.length)?d.files[0]:null;
+}
+async function subirFotoPersonaADrive(id,dataUrl){
+if(!driveRootFolderId||!tokenDriveValido())return;
+try{
+var folderId=await obtenerCarpetaFotoId(true);
+if(!folderId)return;
+var nombre=String(id)+'.jpg';
+var existente=await buscarArchivoFotoDrivePorId(nombre,folderId);
+var blob=dataURLABlob(dataUrl);
+var fileId=existente?existente.id:await crearArchivoDriveVacio(nombre,'image/jpeg',folderId);
+var resp=await subirArchivoDrive(nombre,blob,'image/jpeg',folderId,fileId);
+if(!resp.ok)throw new Error('Drive respondio '+resp.status);
+}catch(err){
+console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);
+}
+}
+async function eliminarFotoPersonaDeDrive(id){
+if(!driveRootFolderId||!tokenDriveValido())return;
+try{
+var folderId=await obtenerCarpetaFotoId(false);
+if(!folderId)return;
+var nombre=String(id)+'.jpg';
+var existente=await buscarArchivoFotoDrivePorId(nombre,folderId);
+if(!existente)return;
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+existente.id,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
+if(r.status===401){driveAccessToken=null;return;}
+}catch(err){
+console.warn('No se pudo eliminar la foto de la persona '+id+' en Drive:',err.message);
+}
+}
 async function solicitarImportarFotosLocal(){
 if(!(await exigirIdentidadGoogle()))return;
 document.getElementById('fiFotos').click();
@@ -1726,7 +1858,13 @@ p.OBSERVACIONES=leerCampo('ef-obs');
 var etqPendiente=leerCampo('efEtiquetaInput');
 if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
 p.ETIQUETAS=efEtiquetasEdit.join('|');
-if(fotoPendiente!==undefined){p.FOTO=fotoPendiente;fotoPendiente=undefined;}
+if(fotoPendiente!==undefined){
+p.FOTO=fotoPendiente;
+var fotoParaDrive=fotoPendiente,idParaDrive=id;
+fotoPendiente=undefined;
+if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
+else eliminarFotoPersonaDeDrive(idParaDrive);
+}
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 bIdx(D);
@@ -4200,10 +4338,91 @@ html+='</div>';
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
+/* ===== MANUAL DE USUARIO HTML IMPRIMIBLE (punto 22) =====
+   Usa el mecanismo de impresión existente (#printArea + window.print()).
+   NO usa jsPDF. El contenido refleja las decisiones de los puntos 17, 18, 20.
+   La fuente HTML puede sincronizarse a Drive solo si se es administrador. */
+var MANUAL_DRIVE_FILENAME='manual-de-usuario.html';
+var MANUAL_CONTENIDO=[
+{titulo:'1. Qué es la app y cómo entrar',soloAdmin:false,html:'<p>El Libro de los Ancestros es una aplicación de genealogía para gestionar tu árbol familiar. Funciona íntegramente en el navegador: no hay que instalar nada. Para entrar, abre la dirección web de la aplicación. Tus datos se guardan en el propio navegador. Si conectas Google Drive, la aplicación puede utilizarlo para gestionar fotografías, documentos, copias de seguridad y el registro de cambios según las funciones disponibles.</p>'},
+{titulo:'2. Buscar una persona',soloAdmin:false,html:'<p>En la pantalla Buscar escribe en el cuadro de búsqueda un nombre, apellido, lugar u observación. Los resultados aparecen al instante. Puedes afinar con los filtros avanzados (icono de embudo): lugar, etiqueta, año desde y hasta, y vivos o fallecidos.</p>'},
+{titulo:'3. Ver una ficha',soloAdmin:false,html:'<p>Pulsa sobre cualquier persona en los resultados de búsqueda o en el árbol para abrir su ficha. La ficha muestra sus datos, familia (padres y cónyuges), hermanos, hijos, documentos y fotos asociados, y observaciones. Desde la ficha puedes ir a su cronología o calcular su parentesco con otra persona.</p>'},
+{titulo:'4. El árbol genealógico',soloAdmin:false,html:'<p>La pantalla Árbol muestra el árbol de la persona seleccionada: abajo sus hijos y nietos, y hacia arriba sus padres, abuelos y bisabuelos. Puedes acercar o alejar con los botones de zoom, centrar la vista y alternar entre 2 y 4 generaciones hacia arriba. Pulsa cualquier casilla para navegar a esa persona, o el icono de ficha para abrirla.</p>'},
+{titulo:'5. Cronología',soloAdmin:false,html:'<p>La cronología dibuja la línea de vida de una persona (nacimiento, matrimonios, nacimiento de hijos, defunción) y la compara en un mismo eje temporal con sus familiares más cercanos. Avisa de eventos con fechas incoherentes, por ejemplo posteriores a la defunción registrada.</p>'},
+{titulo:'6. Relación entre dos personas',soloAdmin:false,html:'<p>En la pantalla Relación elige dos personas y pulsa Calcular parentesco. La aplicación indica el parentesco exacto (hermanos, primos, tío y sobrino, etc.) y dibuja el camino genealógico entre ambas, paso a paso.</p>'},
+{titulo:'7. Informes imprimibles y guardables como PDF',soloAdmin:false,html:'<p>En Informes puedes generar varios informes imprimibles. Al pulsar Descargar PDF se abre el diálogo de impresión del navegador: elige Guardar como PDF para obtener el archivo. Los tipos disponibles son: ficha de una persona, árbol descendente, informe de una rama, pósters ascendentes (clásico y mejorado, en A3), informes de ascendientes y descendientes, informe cronológico, informe por apellido, y varios informes generales (datos faltantes, inconsistencias, posibles duplicados).</p>'},
+{titulo:'8. Editar una ficha y por qué hace falta Google',soloAdmin:false,html:'<p>Para editar una ficha pulsa el botón Editar, modifica los datos y pulsa Guardar. Consultar datos (buscar, ver fichas, árboles, informes) NO requiere Google. Pero modificar datos (editar, crear, fusionar, importar) SÍ requiere tener conectada tu cuenta de Google. Sin una identidad Google válida, el guardado se bloquea: no existe un usuario anónimo ni un modo de guardar sin identificar. La identidad Google se usa para atribuir cada cambio al usuario real en el registro de cambios, evitando que alguien escriba el nombre de otro. Si no estás conectado, la aplicación te pedirá conectar antes de guardar.</p>'},
+{titulo:'9. Consultar documentos y fotos',soloAdmin:false,html:'<p>Cada persona puede tener una carpeta con documentos en Google Drive (dentro de la carpeta DOCUMENTOS) y una foto asociada. En la ficha verás la sección Documentos, con los archivos disponibles y un enlace para abrirlos, además de la foto de la persona si existe. Cuando subes una foto nueva (o la quitas) desde la edición de una ficha y pulsas Guardar, la foto se guarda siempre en tu dispositivo; además, si tienes Google Drive conectado y configurado, la aplicación intenta guardar también una copia en la carpeta FOTO de Drive (con el nombre "&lt;ID&gt;.jpg"), en segundo plano y sin bloquear el guardado. Si Drive no está disponible en ese momento, la foto queda igualmente guardada en local sin ningún aviso de error.</p>'},
+{titulo:'10. Importar CSV desde Access',soloAdmin:true,html:'<p>El administrador puede cargar o actualizar toda la base de datos desde un archivo CSV. El CSV de exportación del programa tiene SIEMPRE 28 columnas: las 26 originales del formato Access más ANOCALC (columna 27) y ANOCALC_MOTIVO (columna 28). La importación requiere ser administrador. Al importar, el valor de la columna APROX (columna 2) se ignora completamente y NO se incorpora a la base de datos, aunque la columna se conserva en el archivo por compatibilidad estructural. Esta operación está disponible únicamente para el administrador.</p>'},
+{titulo:'11. Importar fotos (carpeta local o Drive)',soloAdmin:false,html:'<p>Puedes asignar fotos masivamente a las personas. Desde una carpeta local: cada archivo debe llamarse con el ID exacto de la persona. Desde Drive: se busca la carpeta FOTO dentro de la carpeta raíz y se asigna cada imagen por su nombre (ID). Las imágenes se redimensionan e incrustan automáticamente en cada ficha. Esta operación requiere tener conectada tu cuenta de Google, pero está disponible para cualquier usuario, no solo para el administrador.</p>'},
+{titulo:'12. Configurar Drive',soloAdmin:true,html:'<p>Para conectar Google Drive, ve a Herramientas, Documentos (Google Drive) y pega el enlace o el ID de la carpeta raíz que contiene las subcarpetas FOTO y DOCUMENTOS. La aplicación guarda ese ID y lo usa para fotos, documentos, copias y el registro de cambios. Esta configuración está disponible para cualquier usuario, ya que solo establece la ubicación de la carpeta y no modifica los datos genealógicos. Se marca aquí como sección administrativa por coherencia con el grupo de herramientas, pero no requiere privilegios especiales.</p>'},
+{titulo:'13. Copias de seguridad y restauración',soloAdmin:false,html:'<p>Hay varias vías de respaldo y de restauración. (1) Guardar copia: descarga un archivo JSON con todos los datos y las fotos incrustadas; disponible para cualquier usuario. (2) Restaurar copia: carga un archivo de respaldo JSON y reemplaza los datos actuales; disponible para cualquier usuario con identidad Google conectada. (3) Restaurar desde Drive: descarga la última copia subida a la carpeta de Drive y la carga en la aplicación; también disponible para cualquier usuario con identidad Google conectada. Restaurar una copia sustituye TODOS los datos actuales, así que conviene hacerlo con cuidado. (4) Copia local automática: función administrativa que cada 24 horas guarda un respaldo en tu disco duro, con rotación de 5 copias (la sexta sobrescribe la primera). No es una copia en tiempo real. Contiene los datos y las fotos incrustadas. Se puede desactivar, y desactivarla no borra las copias ya existentes. Esta función de activarla/desactivarla sí es exclusiva del administrador. (5) Subir copia a Drive: sube el respaldo a la carpeta de Drive con nombres versionados por fecha; se conservan las últimas 5 copias históricas. Requiere ser administrador y la clave de subida.</p>'},
+{titulo:'14. Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas puedes exportar la base de datos completa. Exportar GEDCOM genera un archivo .ged compatible con otros programas de genealogía. Exportar CSV (Access) genera un CSV en codificación Windows-1252 con 28 columnas (las 26 originales más ANOCALC y ANOCALC_MOTIVO). El CSV exportado contiene APROX como columna 2 por compatibilidad estructural, pero APROX no se importa al volver a cargar un CSV. Tras actualizar la especificación GENEALOGIA de Access para las 28 columnas, el archivo se reimporta correctamente.</p>'},
+{titulo:'15. Gestor de datos',soloAdmin:true,html:'<p>El Gestor agrupa el mantenimiento del árbol en categorías: inconsistencias, posibles duplicados, lugares con escritura no homogénea, años estimados pendientes y personas vivas con más de 100 años. Cada problema se muestra como sugerencia: nada se corrige sin tu confirmación. Las correcciones y modificaciones realizadas desde el Gestor requieren identidad Google y quedan registradas en el registro de cambios.</p>'},
+{titulo:'16. Registro de cambios',soloAdmin:true,html:'<p>La pantalla Cambios muestra las modificaciones hechas por cada usuario, con la descripción de qué campos cambiaron. Puedes revisar los cambios pendientes, confirmarlos o eliminar el registro, y sincronizarlos con Google Drive para compartirlos entre colaboradores. Cada cambio queda atribuido a la identidad Google real del usuario que lo realizó.</p>'},
+{titulo:'17. Limpiar caché',soloAdmin:false,html:'<p>Elimina todos los datos guardados en este navegador (IndexedDB). Antes de utilizar esta función asegúrate de tener una copia reciente. Esta operación elimina los datos locales del navegador, pero NO elimina las copias que ya existan en Drive ni los archivos de copia local en tu disco. Después podrás volver a importar el CSV o restaurar una copia para reconstruir la base de datos. Esta acción no se puede deshacer. Requiere tener conectada tu cuenta de Google, pero está disponible para cualquier usuario, no solo para el administrador.</p>'}
+];
+function generarManualHTML(){
+  var h='<div class="print-report manual-usuario">';
+  /* Portada */
+  h+='<div class="manual-portada">';
+  h+='<h1>Manual de usuario</h1>';
+  h+='<h2>El Libro de los Ancestros</h2>';
+  h+='<div class="print-sub">Versión '+esc(APP_VERSION)+' · '+esc(new Date().toLocaleDateString())+'</div>';
+  h+='<p class="manual-intro">Guía completa de uso de la aplicación de genealogía. Las secciones marcadas como «SOLO ADMINISTRADOR» describen funciones exclusivas del administrador; el resto son accesibles para cualquier usuario.</p>';
+  h+='</div>';
+  /* Índice */
+  h+='<div class="manual-indice">';
+  h+='<h2>Índice</h2>';
+  MANUAL_CONTENIDO.forEach(function(sec){
+    h+='<div class="manual-indice-item">'+esc(sec.titulo)+(sec.soloAdmin?'<span class="manual-admin-badge-inline">SOLO ADMINISTRADOR</span>':'')+'</div>';
+  });
+  h+='</div>';
+  /* Secciones */
+  MANUAL_CONTENIDO.forEach(function(sec){
+    h+='<section class="manual-seccion">';
+    if(sec.soloAdmin)h+='<div class="manual-admin-badge">SOLO ADMINISTRADOR</div>';
+    h+='<h2>'+esc(sec.titulo)+'</h2>';
+    h+=sec.html||'';
+    h+='</section>';
+  });
+  h+='</div>';
+  return h;
+}
+function mostrarManualParaImprimir(){
+  var area=document.getElementById('printArea');
+  if(!area)return;
+  area.innerHTML=generarManualHTML();
+  setTimeout(function(){window.print();},80);
+}
+async function buscarArchivoManualDrive(){
+  var q="'"+driveRootFolderId+"' in parents and name='"+MANUAL_DRIVE_FILENAME+"' and trashed=false";
+  var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+  if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+  var d=await r.json();
+  return(d.files&&d.files.length)?d.files[0]:null;
+}
+async function sincronizarManualHTMLADrive(){
+  if(!esAdministrador())return;
+  if(!driveRootFolderId||!tokenDriveValido())return;
+  var versionSubida=await leerValorCFG('manualVersionSubida');
+  if(versionSubida===APP_VERSION)return;
+  try{
+    var html='<!DOCTYPE html><html lang="es"><head>'
+      +'<meta charset="UTF-8"><title>Manual de usuario — El Libro de los Ancestros</title>'
+      +'</head><body>'+generarManualHTML()+'</body></html>';
+    var existente;
+    try{existente=await buscarArchivoManualDrive();}catch(e){if(e.message==='sesion_caducada')return;throw e;}
+    await subirArchivoDrive(MANUAL_DRIVE_FILENAME,html,'text/html',driveRootFolderId,existente?existente.id:null);
+    await guardarValorCFG('manualVersionSubida',APP_VERSION);
+    toast('Manual HTML actualizado en Drive (v'+APP_VERSION+')');
+  }catch(err){
+    console.warn('No se pudo sincronizar el manual HTML (se reintentará):',err.message);
+  }
+}
 function confirmLimpiar(){document.getElementById('modalLimpiar').style.display='flex';}
 async function ejecutarLimpiar(){
 if(!(await exigirIdentidadGoogle()))return;
-if(!esAdministrador()){toast('Solo el administrador puede limpiar la caché',true);return;}
 document.getElementById('modalLimpiar').style.display='none';
 if(db){try{db.close();}catch(e){}}
 var req=indexedDB.deleteDatabase(DB);
@@ -4212,7 +4431,9 @@ req.onerror=function(){toast('Error al eliminar la base de datos',true);};
 }
 function gLine(s){return String(s||'').replace(/\r\n|\r|\n/g,' ').trim();}
 function gSex(s){if(s==='Hombre')return'M';if(s==='Mujer')return'F';return'';}
-function expGed(){
+async function expGed(){
+if(!await exigirIdentidadGoogle())return;
+if(!esAdministrador()){toast('Solo el administrador puede exportar GEDCOM',true);return;}
 if(!D.length){toast('No hay datos',true);return;}
 toast('Generando GEDCOM...');
 setTimeout(function(){
@@ -4275,6 +4496,80 @@ toast('GEDCOM descargado: '+D.length+' personas');
 if(gedFamiliasSexoIndeterminado>0)toast(gedFamiliasSexoIndeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
+/* ===== EXPORTAR A CSV PARA ACCESS (punto 18) =====
+   28 columnas: las 26 de defaultHdr en el mismo orden (APROX incluida en la
+   posicion 2, por compatibilidad con el formato Access) + ANOCALC + ANOCALC_MOTIVO.
+   Windows-1252, separador ';', sin cabecera, CRLF.
+   Exige identidad Google y rol de administrador.
+   IMPORTANTE: no se modifica defaultHdr; se usa esta constante propia. */
+var CSV_EXPORT_HDR=[
+  'ID','APROX','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE',
+  'PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO',
+  'FechaEdicion','NACD','NACM','NACA','DEFD','DEFM','DEFA',
+  'M1','MF1','ML1','M2','MF2','ML2','FALLECIDO',
+  'ANOCALC','ANOCALC_MOTIVO'
+];
+function csvCampo(v){
+  var s=(v===null||v===undefined)?'':String(v);
+  if(s.indexOf(';')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0||s.indexOf('\r')>=0){
+    return '"'+s.replace(/"/g,'""')+'"';
+  }
+  return s;
+}
+/* Tabla de caracteres Unicode cuyo byte Windows-1252 cae en la zona 0x80-0x9F,
+   donde Windows-1252 NO coincide con Unicode. Resuelve la debilidad técnica
+   señalada en la valoración (€, comillas tipográficas, guiones largos, etc.)
+   sin necesidad de ninguna biblioteca externa. */
+var WIN1252_ESPECIALES={
+  '\u20AC':0x80,'\u201A':0x82,'\u0192':0x83,'\u201E':0x84,'\u2026':0x85,
+  '\u2020':0x86,'\u2021':0x87,'\u02C6':0x88,'\u2030':0x89,'\u0160':0x8A,
+  '\u2039':0x8B,'\u0152':0x8C,'\u017D':0x8E,'\u2018':0x91,'\u2019':0x92,
+  '\u201C':0x93,'\u201D':0x94,'\u2022':0x95,'\u2013':0x96,'\u2014':0x97,
+  '\u02DC':0x98,'\u2122':0x99,'\u0161':0x9A,'\u203A':0x9B,'\u0153':0x9C,
+  '\u017E':0x9E,'\u0178':0x9F
+};
+function stringAWindows1252(str){
+  var huboSustitucion=false;
+  var bytes=new Uint8Array(str.length);
+  for(var i=0;i<str.length;i++){
+    var code=str.charCodeAt(i);
+    var ch=str.charAt(i);
+    if(WIN1252_ESPECIALES[ch]!==undefined){
+      bytes[i]=WIN1252_ESPECIALES[ch];
+    }else if(code<0x80){
+      bytes[i]=code; /* ASCII: idéntico en Windows-1252 */
+    }else if(code>=0xA0&&code<=0xFF){
+      bytes[i]=code; /* suplemento Latin-1: coincide con Windows-1252 (áéíóú ñ ü ¿ ¡) */
+    }else{
+      bytes[i]=0x3F; /* '?' para controles C1 (0x80-0x9F) o caracteres sin equivalente */
+      huboSustitucion=true;
+    }
+  }
+  return {bytes:bytes,huboSustitucion:huboSustitucion};
+}
+async function exportarCSVAccess(){
+  if(!await exigirIdentidadGoogle()) return;
+  if(!esAdministrador()){
+    toast('Solo el administrador puede exportar el CSV para Access',true);
+    return;
+  }
+  if(!D.length){ toast('No hay datos para exportar',true); return; }
+  var lineas=D.map(function(p){
+    return CSV_EXPORT_HDR.map(function(campo){return csvCampo(p[campo]);}).join(';');
+  });
+  var contenido=lineas.join('\r\n')+'\r\n';
+  var codificado=stringAWindows1252(contenido);
+  var blob=new Blob([codificado.bytes],{type:'text/csv;charset=windows-1252'});
+  var fecha=new Date().toISOString().slice(0,10);
+  var url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='libro-ancestros-'+fecha+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('CSV de 28 columnas descargado: '+D.length+' personas');
+  if(codificado.huboSustitucion){
+    toast('Algún carácter no representable en Windows-1252 fue sustituido por "?".',true);
+  }
+}
 async function impCSV(){
 if(!(await exigirIdentidadGoogle()))return;
 if(!esAdministrador()){toast('Solo el administrador puede importar CSV',true);return;}
@@ -4313,8 +4608,9 @@ toast('Copia restaurada y años estimados recalculados: '+D.length+' personas');
 });
 }).catch(function(err){toast('No se pudo restaurar la copia: '+err.message,true);});
 }
-function restaurarCopia(archivo){
+async function restaurarCopia(archivo){
 if(!archivo)return;
+if(!await exigirIdentidadGoogle())return;
 var lector=new FileReader();
 lector.onerror=function(){toast('No se pudo leer la copia de seguridad',true);};
 lector.onload=function(e){restaurarDesdeJSONTexto(e.target.result);};
@@ -4346,28 +4642,131 @@ if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
 return (d.files&&d.files.length)?d.files[0]:null;
 }
+/* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
+   Helpers de solo lectura/escritura de copias fechadas en el destino secundario
+   protegido (DRIVE_BACKUP_SECONDARY_FOLDER_ID). Reutilizan subirArchivoDrive() y
+   listarTodosArchivosDrive() ya existentes; no se duplica lógica de subida ni de
+   paginación de Drive. */
+function formatoFechaBackup(d){
+d=d||new Date();
+return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function nombreBackupHistorico(fechaAAAAMMDD){return BACKUP_HISTORICO_PREFIJO+fechaAAAAMMDD+'.json';}
+function esNombreBackupHistorico(nombre){return BACKUP_HISTORICO_REGEX.test(String(nombre||''));}
+/* Fecha en formato ordenable AAAA-MM-DD extraída del propio nombre del archivo, para
+   ordenar por fecha real de la copia y no por el orden en que Drive devuelve la lista
+   (punto 21 del informe de la Tarea 1). Si el nombre no encaja con el patrón exacto,
+   devuelve null: ese archivo nunca se trata como copia histórica. */
+function fechaDeNombreBackup(nombre){
+var m=BACKUP_HISTORICO_REGEX.exec(String(nombre||''));
+if(!m)return null;
+return m[1]+'-'+m[2]+'-'+m[3];
+}
+async function buscarBackupHistoricoPorNombre(nombreExacto){
+if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID)return null;
+var q="'"+DRIVE_BACKUP_SECONDARY_FOLDER_ID+"' in parents and name='"+String(nombreExacto).replace(/'/g,"\\'")+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+return(d.files&&d.files.length)?d.files[0]:null;
+}
+/* Lista SOLO los archivos del destino secundario cuyo nombre encaja exactamente con
+   backup-arbol-AAAA-MM-DD.json. El filtro "name contains" de la consulta a Drive es
+   solo una preselección para no traer archivos irrelevantes; la comprobación real
+   (punto 18/19/51 del informe) es la del regex ancla, aplicada aquí en JS. */
+async function listarBackupsHistoricosDrive(){
+if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID)return[];
+var q="'"+DRIVE_BACKUP_SECONDARY_FOLDER_ID+"' in parents and name contains '"+BACKUP_HISTORICO_PREFIJO+"' and trashed=false";
+var archivos=await listarTodosArchivosDrive(q,'id,name,mimeType,modifiedTime');
+return archivos.filter(function(f){return esNombreBackupHistorico(f.name);});
+}
+/* Elimina (a la papelera) un archivo de Drive. Se usa exclusivamente tras haber
+   verificado, con esNombreBackupHistorico(), que el archivo es realmente una copia
+   histórica del conjunto de backups — nunca se llama a ciegas sobre un fileId. */
+async function eliminarArchivoDriveTrash(fileId){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondio '+r.status+' al eliminar la copia antigua');
+return true;
+}
+/* Limpieza de copias históricas sobrantes (puntos 5, 13, 22, 23 del informe). Se llama
+   SIEMPRE después de haber confirmado que la copia nueva de hoy se subió con éxito, y
+   nunca antes. Ordena por la fecha real contenida en el nombre (no por el orden que
+   devuelve Drive), conserva las BACKUP_HISTORICO_MAX más recientes y elimina solo las
+   más antiguas que sobren, una a una, comprobando cada nombre antes de borrar. Un fallo
+   al borrar una copia antigua no se propaga como error fatal: la copia nueva ya está a
+   salvo y se prefiere dejar una copia de más que arriesgar el resto (punto 17). */
+async function limpiarBackupsHistoricosAntiguos(){
+var backups=await listarBackupsHistoricosDrive();
+backups=backups.filter(function(f){return esNombreBackupHistorico(f.name)&&(!f.mimeType||f.mimeType.indexOf('json')>=0);});
+if(backups.length<=BACKUP_HISTORICO_MAX)return{eliminadas:0,total:backups.length};
+backups.sort(function(a,b){var fa=fechaDeNombreBackup(a.name),fb=fechaDeNombreBackup(b.name);return fa<fb?-1:(fa>fb?1:0);});
+var sobrantes=backups.slice(0,backups.length-BACKUP_HISTORICO_MAX);
+var eliminadas=0,errores=0;
+for(var i=0;i<sobrantes.length;i++){
+if(!esNombreBackupHistorico(sobrantes[i].name))continue;
+try{await eliminarArchivoDriveTrash(sobrantes[i].id);eliminadas++;}
+catch(err){errores++;console.warn('No se pudo eliminar la copia histórica antigua '+sobrantes[i].name+' (se conserva):',err.message);}
+}
+return{eliminadas:eliminadas,errores:errores,total:backups.length};
+}
+/* Subida administrativa blindada (Tarea 1). Orden estricto, tal como exige el informe:
+   1) generar la copia; 2) subir la copia FECHADA al destino secundario protegido;
+   3) verificar que la subida ha terminado correctamente (si falla, no se toca nada
+   más: ninguna copia histórica se borra y el alias no se actualiza); 4) solo entonces,
+   limpiar copias históricas sobrantes conservando las 5 más recientes; 5) por último,
+   actualizar el alias backup-arbol.json de la carpeta raíz (usado por "Restaurar desde
+   Drive" para cualquier usuario). Un fallo en la limpieza o en el alias, una vez la
+   copia fechada ya está confirmada, se informa pero NO deshace ni borra la copia nueva. */
 async function subirCopiaADrive(){
+if(!await exigirIdentidadGoogle())return;
+if(!esAdministrador()){toast('Solo el administrador puede subir copias a Drive',true);return;}
 if(!D.length){toast('No hay datos para subir',true);return;}
+if(subiendoCopiaDrive){toast('Ya hay una subida de copia en curso; espera a que termine',true);return;}
 var clave=prompt('Introduce la clave para subir la copia a Drive:');
 if(clave===null)return;
 if(clave.trim()!==CLAVE_SUBIDA_DRIVE){toast('Clave incorrecta',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
+if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID){toast('No hay configurado el destino secundario protegido de copias',true);return;}
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
-toast('Subiendo copia a Drive...');
+subiendoCopiaDrive=true;
+toast('Subiendo copia blindada a Drive...');
 try{
-var existente;
-try{existente=await buscarArchivoBackupDrive();}catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
 var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
 var contenido=JSON.stringify(copia);
-var rSubida=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
-if(!rSubida.ok){var errTxt=await rSubida.text();throw new Error('Drive respondio con error '+rSubida.status+': '+errTxt.slice(0,200));}
-toast('Copia subida a Drive correctamente ('+D.length+' personas)');
+var fechaHoy=formatoFechaBackup(new Date());
+var nombreHoy=nombreBackupHistorico(fechaHoy);
+/* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
+   representa una única copia independiente, punto 26) la copia fechada al destino
+   secundario protegido. */
+var existenteHoy;
+try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
+catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);subiendoCopiaDrive=false;return;}throw e;}
+var rHistorico=await subirArchivoDrive(nombreHoy,contenido,'application/json',DRIVE_BACKUP_SECONDARY_FOLDER_ID,existenteHoy?existenteHoy.id:null);
+/* 3) Verificación. Si falla aquí, se aborta sin tocar copias históricas ni el alias. */
+if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pudo crear la copia blindada de hoy (Drive respondió '+rHistorico.status+'): '+errTxt.slice(0,200));}
+/* 4) Limpieza: solo ahora que la copia nueva está confirmada. */
+var resultadoLimpieza=null;
+try{resultadoLimpieza=await limpiarBackupsHistoricosAntiguos();}
+catch(errLimpieza){console.warn('No se pudo completar la limpieza de copias antiguas (la copia nueva se conserva de todos modos):',errLimpieza.message);}
+/* 5) Alias de la carpeta raíz, para restauración general (cualquier usuario). */
+var aliasOk=true,aliasError='';
+try{
+var existenteAlias=await buscarArchivoBackupDrive();
+var rAlias=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',driveRootFolderId,existenteAlias?existenteAlias.id:null);
+if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
+}catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
 registrarUltimaCopia();
 registrarSincronizacionDrive();
+var msg='Copia blindada subida a Drive ('+D.length+' personas) · '+nombreHoy;
+if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resultadoLimpieza.eliminadas+' copia(s) histórica(s) más antigua(s)';
+toast(msg);
+if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
+finally{subiendoCopiaDrive=false;}
 }
 /* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
    Copia automática al disco duro local, solo para quien la active en su
@@ -4451,6 +4850,7 @@ async function ejecutarCopiaLocalSiToca(){
 }
 
 async function restaurarDesdeDrive(){
+if(!await exigirIdentidadGoogle())return;
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
 if(!tokenDriveValido()){
@@ -4573,7 +4973,7 @@ function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) r
 document.addEventListener('DOMContentLoaded',function(){
 function cargarInicial(data){
 D=data;bIdx(data);
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
 Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
 if(v[0]||v[1]){
 recalcularAnosEstimadosConProgreso(continuar);
@@ -4639,8 +5039,19 @@ clearTimeout(srchTimerRelB);
 srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
 });
 })();
-/* ===== PUNTO 17 (v2026.08.13.2): IDENTIDAD DE GOOGLE + ROL DE ADMINISTRADOR ===== */
-APP_VERSION='2026.08.13.2';
+/* ===== PUNTO 17 (v2026.08.13.2): IDENTIDAD DE GOOGLE + ROL DE ADMINISTRADOR =====
+   NOTA: esta reasignación se ejecuta después de la declaración de APP_VERSION al
+   principio del script, así que es la que realmente queda en tiempo de ejecución.
+   Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
+   del todo del script) cada vez que se actualice la versión, o el número de versión
+   visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
+APP_VERSION='2026.08.13.10';
+APP_CHANGELOG.unshift({version:'2026.08.13.8',fecha:'2026-08-13',cambios:['Las fotos guardadas desde la edición de una ficha se sincronizan automáticamente (mejor esfuerzo, en segundo plano) con la carpeta FOTO de Google Drive.']});
+APP_CHANGELOG.unshift({version:'2026.08.13.7',fecha:'2026-08-13',cambios:['"Limpiar caché" pasa a estar disponible para cualquier usuario con identidad Google, no solo el administrador.']});
+APP_CHANGELOG.unshift({version:'2026.08.13.6',fecha:'2026-08-13',cambios:['"Restaurar copia" y "Restaurar desde Drive" pasan a estar disponibles para cualquier usuario con identidad Google, no solo el administrador.']});
+APP_CHANGELOG.unshift({version:'2026.08.13.5',fecha:'2026-08-13',cambios:['El modal de Herramientas se divide en Uso general y Solo administrador (punto 20).']});
+APP_CHANGELOG.unshift({version:'2026.08.13.4',fecha:'2026-08-13',cambios:['El aviso de sin copia de seguridad en Buscar solo se muestra al administrador (punto 19).']});
+APP_CHANGELOG.unshift({version:'2026.08.13.3',fecha:'2026-08-13',cambios:['Exportación CSV para Access (punto 18): 28 columnas, Windows-1252, sin cabecera, solo administrador.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.2',fecha:'2026-08-13',cambios:['Punto 17: la identidad para el registro de cambios ya no se pregunta con un prompt de texto; se toma de la cuenta de Google conectada (nombre y email). Editar exige sesión de Google. esAdministrador() se basa en el email de la cuenta conectada y es la base de la aprobación de cambios, la importación de CSV y la limpieza de caché. Botón "Guardar cambios en Drive" y luz de conexión también en Registro de cambios.']});
 function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
 function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio APLICADO y CONFORME. Recuerda: solo tu subes la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
@@ -4673,23 +5084,28 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="modalHerramientas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas <span id="appVersionTag" onclick="abrirNovedades()" title="Ver novedades y registro de cambios" style="font-family:'Lato',sans-serif;font-size:10px;font-weight:400;color:var(--muted);cursor:pointer;vertical-align:2px"></span></h2>
+<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas</h2>
 <button class="ef-nbtn" onclick="cerrarHerramientas()">×</button>
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
-<div class="herr-section">Datos</div>
-<button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
+<div class="herr-section">Uso general</div>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button><button class="herr-item" id="btnActivarCopiaLocal" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
-<button class="herr-item" id="btnDesactivarCopiaLocal" onclick="cerrarHerramientas();desactivarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Desactivar copia automática local</div><div class="herr-desc">Detiene futuras copias automáticas (no borra las copias existentes)</div></div></button>
-
+<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
+<button class="herr-item" id="herrInstalarBtn" style="display:none" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
+<div id="herrAdminGroup" style="display:none">
+<div class="herr-section">Solo administrador</div>
+<button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias (pide clave)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();exportarCSVAccess()"><div class="herr-icon"><i class="fa-solid fa-file-csv"></i></div><div class="herr-text"><div class="herr-title">Exportar CSV (Access)</div><div class="herr-desc">Descarga toda la base de datos en el formato CSV que lee Access (28 columnas)</div></div></button>
+</div>
 </div>
 </div>
 </div>
@@ -4727,5 +5143,44 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePosterV2()"><i class="fa-solid fa-file-pdf"></i> Generar e imprimir</button>
 </div>
 </div>
+<!-- ===== TAREA 2: PWA — registro del Service Worker e instalación opcional =====
+     Autocontenido: no toca IndexedDB, Google Drive, OAuth ni ANOCALC. Si el
+     navegador no soporta service workers, este bloque no hace nada y el resto
+     de la aplicación sigue funcionando exactamente igual que antes. -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(function (err) {
+        console.error('No se pudo registrar el Service Worker:', err);
+      });
+  });
+}
+/* Botón opcional "Instalar aplicación" en Herramientas (punto 29 de la Tarea 2):
+   solo aparece si el propio navegador ofrece el evento beforeinstallprompt; si
+   no lo ofrece, el botón permanece oculto y no se muestra ningún error. */
+var deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  var btn = document.getElementById('herrInstalarBtn');
+  if (btn) btn.style.display = 'flex';
+});
+function instalarPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(function () {
+    deferredInstallPrompt = null;
+    var btn = document.getElementById('herrInstalarBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
+window.addEventListener('appinstalled', function () {
+  deferredInstallPrompt = null;
+  var btn = document.getElementById('herrInstalarBtn');
+  if (btn) btn.style.display = 'none';
+  toast('Libro de los Ancestros instalado correctamente');
+});
+</script>
 </body>
 </html>
