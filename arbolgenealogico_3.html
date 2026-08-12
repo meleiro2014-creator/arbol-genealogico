@@ -391,7 +391,7 @@ body{background:#fff}
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados"><i class="fa-solid fa-filter"></i></button>
-<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas"><i class="fa-solid fa-toolbox"></i></button>
+<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" style="position:relative"><i class="fa-solid fa-toolbox"></i><span id="insigniaNovedades" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
 <div class="bus-filtros-row">
@@ -588,7 +588,7 @@ body{background:#fff}
 <button class="ef-btn ghost" id="btnCambiosHist" onclick="mostrarCambios('historial')">Historial</button>
 </div>
 <div style="display:flex;gap:7px;flex-wrap:wrap">
-<button class="ef-btn ghost" onclick="pedirNombreUsuarioCambios(true)"><i class="fa-solid fa-user"></i> Usuario</button>
+<button class="ef-btn ghost" onclick="mostrarMiIdentidad()"><i class="fa-solid fa-user-check"></i> Mi identidad</button>
 <button class="ef-btn ghost" onclick="sincronizarCambiosDrive(true)"><i class="fa-brands fa-google-drive"></i> Comprobar cambios en Drive</button>
 </div>
 </div>
@@ -599,16 +599,90 @@ body{background:#fff}
 <div class="print-area" id="printArea"></div>
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
+/* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
+var APP_VERSION = '2026.08.12.1';
+var APP_CHANGELOG = [
+  { version:'2026.08.12.1', fecha:'2026-08-12', cambios:[
+    'Copia de seguridad local rotativa (punto 16a): respaldo automático cada 24h en el disco duro, con rotación de 5 copias. Solo el administrador puede activarla/desactivarla.'
+  ]},
+  { version:'2026.08.12', fecha:'2026-08-12', cambios:[
+    'Nuevo: la aplicación muestra su número de versión y el historial de cambios dentro de Herramientas, con un aviso de novedades cuando hay una versión sin consultar.'
+  ]}
+];
 /* ===== GOOGLE DRIVE (documentos) =====
 1) Crea un proyecto en Google Cloud, activa la API de Drive y crea un Client ID de OAuth (tipo "Aplicación web").
 2) Añade aquí abajo tu Client ID, sustituyendo el texto de ejemplo.
 3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
-var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 var CLAVE_SUBIDA_DRIVE='1962';
 var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
+/* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
+var googleIdentidad = null; /* {email, name, picture} de la sesión actual, o null */
+var ADMIN_EMAIL = 'meleiro2014@gmail.com';
+async function obtenerIdentidadGoogle(){
+  if(!tokenDriveValido()){ googleIdentidad=null; return null; }
+  try{
+    var r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{
+      headers:{Authorization:'Bearer '+driveAccessToken}
+    });
+    if(!r.ok){ googleIdentidad=null; return null; }
+    var d=await r.json();
+    if(!d.email){ googleIdentidad=null; return null; }
+    googleIdentidad={
+      email:String(d.email).trim().toLowerCase(),
+      name:d.name||'',
+      picture:d.picture||''
+    };
+    return googleIdentidad;
+  }catch(err){
+    googleIdentidad=null;
+    return null;
+  }
+}
+function esAdministrador(){
+  return !!(
+    googleIdentidad &&
+    googleIdentidad.email &&
+    googleIdentidad.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()
+  );
+}
+function usuarioActualParaCambios(){
+  /* SIN FALLBACK ANÓNIMO: si no hay identidad, es un error de programación y
+     la operación debe abortarse (no se registra ni se permite guardar). */
+  if(!googleIdentidad || !googleIdentidad.email){
+    throw new Error('No hay identidad Google para registrar el cambio');
+  }
+  return googleIdentidad.name || googleIdentidad.email;
+}
+async function exigirIdentidadGoogle(){
+  if(googleIdentidad && googleIdentidad.email) return true;
+  if(tokenDriveValido()){
+    await obtenerIdentidadGoogle();
+    if(googleIdentidad && googleIdentidad.email) return true;
+  }
+  try{
+    await conectarGoogleDrive();
+    await obtenerIdentidadGoogle();
+    if(googleIdentidad && googleIdentidad.email) return true;
+  }catch(err){
+    toast('No se pudo conectar con Google: '+err.message,true);
+    return false;
+  }
+  toast('Conecta tu cuenta de Google para poder guardar cambios',true);
+  return false;
+}
+function mostrarMiIdentidad(){
+  if(googleIdentidad && (googleIdentidad.name || googleIdentidad.email)){
+    var txt=googleIdentidad.name||googleIdentidad.email;
+    if(googleIdentidad.email && googleIdentidad.name) txt+=' ('+googleIdentidad.email+')';
+    toast('Identificado como: '+txt);
+  }else{
+    toast('Sin sesión de Google conectada. Conecta para que tus ediciones queden atribuidas.',true);
+  }
+}
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,4);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function sAll(d,opciones){
@@ -653,14 +727,14 @@ function valorCambio(v){if(v===null||v===undefined||v==='')return '(vacío)';if(
 function nombrePersonaSnapshot(p){return p?fn(p).replace(/\s+/g,' ').trim()||('ID '+p.ID):'';}
 function camposDiferentes(a,b){var keys={},r=[];Object.keys(a||{}).forEach(function(k){keys[k]=1;});Object.keys(b||{}).forEach(function(k){keys[k]=1;});Object.keys(keys).forEach(function(k){if(CAMBIOS_IGNORAR.indexOf(k)>=0)return;var va=a?a[k]:undefined,vb=b?b[k]:undefined;if(JSON.stringify(va)!==JSON.stringify(vb))r.push({campo:k,antes:va===undefined?'':va,despues:vb===undefined?'':vb});});return r;}
 function construirDescripcion(usuario,tipo,p,campos){var nombre=nombrePersonaSnapshot(p)||'persona';var accion={editar:'editó',crear:'creó',eliminar:'eliminó',fusionar:'fusionó',vincular:'modificó vínculos de'}[tipo]||'modificó';if(!campos.length)return usuario+' '+accion+' '+nombre+'.';var partes=campos.slice(0,12).map(function(c){return (CAMBIOS_LABELS[c.campo]||c.campo)+': '+valorCambio(c.antes)+' → «'+valorCambio(c.despues)+'»';});if(campos.length>12)partes.push('… y '+(campos.length-12)+' cambio(s) más');return usuario+' '+accion+' '+nombre+' (ID '+p.ID+'): '+partes.join('; ')+'.';}
-function obtenerNombreUsuarioCambios(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res('Usuario');return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('nombreUsuario');r.onsuccess=function(){res((r.result&&String(r.result.valor||'').trim())||'');};r.onerror=function(){res('');};});}
-function pedirNombreUsuarioCambios(forzar){return obtenerNombreUsuarioCambios().then(function(actual){if(actual&&!forzar){window.nombreUsuarioCambios=actual;return actual;}var n=prompt('¿Cómo te llamas? (aparecerá en el registro de cambios)',actual||'');if(n===null)return actual||'Usuario';n=n.trim()||'Usuario';window.nombreUsuarioCambios=n;return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'nombreUsuario',valor:n});tx.oncomplete=function(){res(n);};tx.onerror=function(){rej(tx.error);};});});}
-function registrarCambiosDesdeSnapshots(antes,despues,tipo){return pedirNombreUsuarioCambios(false).then(function(usuario){var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;registros.push({id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:new Date().toISOString(),usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:CAMBIOS_ESTADO,actualizadoEn:new Date().toISOString()});});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});});}
+
+
+function registrarCambiosDesdeSnapshots(antes,despues,tipo){var usuario=usuarioActualParaCambios();var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;registros.push({id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:new Date().toISOString(),usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:CAMBIOS_ESTADO,actualizadoEn:new Date().toISOString()});});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});});}
 function listarCambios(){return new Promise(function(res,rej){var r=db.transaction(CAMBIOS_STORE,'readonly').objectStore(CAMBIOS_STORE).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){rej(r.error);};});}
 function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML='<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}lista.innerHTML=mostrar.map(function(c){var acciones='';if(modo==='pendientes'){acciones='<button class="ef-btn" onclick="confirmarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Confirmar</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';if(modo==='pendientes')acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+(c.estado==='confirmado'?' · confirmado':'')+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
-function initCambios(){actualizarContadorCambios();mostrarCambios('pendientes');obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';});}
+function initCambios(){actualizarContadorCambios();mostrarCambios('pendientes');}
 function confirmarCambio(id){var cId=id;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(cId);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio confirmado');};};tx.onerror=function(){toast('No se pudo confirmar el cambio',true);};}
 function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de cambios de la lista. ¿Continuar?'))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}cid=id;editMode=false;sv('fic');}
@@ -744,8 +818,8 @@ if(!googleTokenClient){
 googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
-callback:function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);resolve(driveAccessToken);}
+callback:async function(resp){
+if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();resolve(driveAccessToken);}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -889,8 +963,59 @@ bar.style.display='flex';
 bar.style.display='none';
 }
 }
-function mostrarHerramientas(){document.getElementById('modalHerramientas').style.display='flex';}
+function mostrarHerramientas(){
+mostrarVersionEnHerramientas();
+/* Mostrar/ocultar botones de copia local según soporte del navegador */
+var btnActivar=document.getElementById('btnActivarCopiaLocal');
+var btnDesactivar=document.getElementById('btnDesactivarCopiaLocal');
+if(btnActivar&&btnDesactivar){
+  if(window.showDirectoryPicker){
+    btnActivar.style.display='flex';
+    btnDesactivar.style.display='flex';
+  }else{
+    btnActivar.style.display='none';
+    btnDesactivar.style.display='none';
+  }
+}
+document.getElementById('modalHerramientas').style.display='flex';
+}
 function cerrarHerramientas(){document.getElementById('modalHerramientas').style.display='none';}
+/* ===== Version visible + modal de Novedades + insignia (punto 15) ===== */
+function mostrarVersionEnHerramientas(){
+var el=document.getElementById('appVersionTag');
+if(el)el.textContent='v'+APP_VERSION;
+}
+function abrirNovedades(){
+var cont=document.getElementById('novedadesLista');
+if(!cont)return;
+cont.innerHTML=APP_CHANGELOG.map(function(v){
+return '<div style="margin-bottom:16px"><div style="font-weight:700;color:var(--accent);font-size:13px">v'+esc(v.version)+' · <span style="color:var(--muted);font-weight:400">'+esc(v.fecha)+'</span></div>'
++'<ul style="margin:5px 0 0 18px;font-size:12px;color:var(--text);line-height:1.5">'
++v.cambios.map(function(c){return '<li>'+esc(c)+'</li>';}).join('')
++'</ul></div>';
+}).join('');
+var num=document.getElementById('novedadesVersionActual');
+if(num)num.textContent='Versión actual: v'+APP_VERSION;
+document.getElementById('modalNovedades').style.display='flex';
+limpiarInsignaNovedades();
+}
+function cerrarNovedades(){
+var m=document.getElementById('modalNovedades');
+if(m)m.style.display='none';
+}
+function comprobarInsignaNovedades(){
+leerValorCFG('versionVista').then(function(vista){
+var badge=document.getElementById('insigniaNovedades');
+if(!badge)return;
+badge.style.display=(vista!==APP_VERSION)?'inline-block':'none';
+});
+}
+function limpiarInsignaNovedades(){
+guardarValorCFG('versionVista',APP_VERSION).then(function(){
+var badge=document.getElementById('insigniaNovedades');
+if(badge)badge.style.display='none';
+});
+}
 function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}if(p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!==''){var n3=parseInt(p.ANOCALC,10);if(!isNaN(n3))return n3;}return null;}
 function ordenarPersonasPorEdad(personas){
 return (personas||[]).slice().sort(function(pa,pb){
@@ -905,7 +1030,9 @@ return sn(pa).localeCompare(sn(pb));
 function ordenarIdsPorEdad(ids){
 return ordenarPersonasPorEdad((ids||[]).map(function(id){return PI[id];}).filter(Boolean)).map(function(p){return p.ID;});
 }
-function marcarFallecidosMayores100(){
+async function marcarFallecidosMayores100(){
+    if(!(await exigirIdentidadGoogle()))return;
+    if(!D.length){toast('No hay datos cargados',true);return;}
 if(!D.length){toast('No hay datos cargados',true);return;}
 var anoActual=new Date().getFullYear(),candidatos=[];
 D.forEach(function(p){
@@ -1517,7 +1644,12 @@ if(prev)prev.innerHTML='<span style="color:var(--muted);font-size:10px;text-alig
 var btn=document.getElementById('ef-foto-quitar-btn');
 if(btn)btn.remove();
 }
-function importarFotosCarpeta(fileList){
+async function solicitarImportarFotosLocal(){
+  if(!(await exigirIdentidadGoogle())) return;
+  document.getElementById('fiFotos').click();
+}
+async function importarFotosCarpeta(fileList){
+    if(!(await exigirIdentidadGoogle()))return;
 var files=Array.prototype.filter.call(fileList,function(f){return f.type&&f.type.indexOf('image/')===0;});
 if(!files.length){toast('No se encontraron imagenes en la carpeta seleccionada',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
@@ -1554,6 +1686,7 @@ pageToken=d.nextPageToken||null;
 return archivos;
 }
 async function importarFotosDesdeDrive(){
+    if(!(await exigirIdentidadGoogle()))return;
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos")',true);return;}
@@ -1601,7 +1734,10 @@ if(cid)rFic(cid);
 }
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
 function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
-function guardarFicha(id){
+async function guardarFicha(id){
+    if(!(await exigirIdentidadGoogle()))return;
+    var p=PI[id];
+    var antesCambio=clonarPersona(p);
 var p=PI[id];
 var antesCambio=clonarPersona(p);
 if(!p){toast('Registro no encontrado',true);return;}
@@ -1641,7 +1777,9 @@ toast('Cambios guardados');
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }
-function eliminarFicha(id){
+async function eliminarFicha(id){
+    if(!(await exigirIdentidadGoogle()))return;
+    var persona=PI[id];
 var persona=PI[id];
 if(!persona){toast('Ficha no encontrada',true);return;}
 var antesCambioEliminar=mapaPersonas(D);
@@ -1671,7 +1809,9 @@ p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
 p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
 return true;
 }
-function crearVinculado(id,campo,sexoNuevo){
+async function crearVinculado(id,campo,sexoNuevo){
+    if(!(await exigirIdentidadGoogle()))return;
+    var antesCambioCrear=mapaPersonas(D);
 var antesCambioCrear=mapaPersonas(D);
 if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
 var newId=genNewId();
@@ -1719,7 +1859,9 @@ if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2
 var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCase().indexOf(q)>=0||String(p.ID).indexOf(q)>=0);}).slice(0,80);
 lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
 }
-function elegirRelacion(otroId){
+async function elegirRelacion(otroId){
+    if(!(await exigirIdentidadGoogle()))return;
+    var antesRelacion=mapaPersonas(D);
 var antesRelacion=mapaPersonas(D);
 if(!selectorRelacion)return;
 var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
@@ -1737,7 +1879,9 @@ actual[campo]=otro.ID;
 }
 bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
 }
-function quitarConyuge(id,campo){
+async function quitarConyuge(id,campo){
+    if(!(await exigirIdentidadGoogle()))return;
+    var antesRelacion=mapaPersonas(D);
 var antesRelacion=mapaPersonas(D);
 var actual=PI[id],otroId=actual?actual[campo]:'';
 if(!actual||!otroId)return;
@@ -1750,7 +1894,9 @@ function editarDescendiente(id){
 if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
 cid=id;editMode=true;rFic(id);
 }
-function crearDescendiente(id,parejaId){
+async function crearDescendiente(id,parejaId){
+    if(!(await exigirIdentidadGoogle()))return;
+    var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
 var antesCambioDesc=mapaPersonas(D);
@@ -1950,7 +2096,9 @@ return true;
 function inconsistenciasDePersona(id){
 return detectarInconsistencias().filter(function(pr){return pr.verId===id;});
 }
-function solucionarInconsistenciaFicha(idx){
+async function solucionarInconsistenciaFicha(idx){
+    if(!(await exigirIdentidadGoogle()))return;
+    var antesCorreccion=mapaPersonas(D);
 var antesCorreccion=mapaPersonas(D);
 var avisos=window._inconsistenciasFichaActual||[];
 var pr=avisos[idx];
@@ -2028,7 +2176,10 @@ partes.push(hijos+' hijo(s) registrado(s)');
 if(p.OBSERVACIONES)partes.push('Obs: '+p.OBSERVACIONES.slice(0,80)+(p.OBSERVACIONES.length>80?'…':''));
 return partes.join(' · ');
 }
-function fusionarPersonas(idMantener,idEliminar){
+async function fusionarPersonas(idMantener,idEliminar){
+    if(!(await exigirIdentidadGoogle()))return false;
+    var pM=PI[idMantener],pE=PI[idEliminar];
+    if(!pM||!pE)return false;
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE)return false;
 if(idMantener===idEliminar)return false;
@@ -2357,7 +2508,9 @@ var cat=null;
 return cat;
 }
 /* Correccion individual de una inconsistencia (mismo patron que solucionarInconsistenciaFicha) */
-function gesAplicarItem(catId,idx){
+async function gesAplicarItem(catId,idx){
+    if(!(await exigirIdentidadGoogle()))return;
+    var cat=gesCatPorId(catId);if(!cat)return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||typeof it.aplicar!=='function')return;
 var antes=mapaPersonas(D);
@@ -2372,7 +2525,9 @@ rGes();
 }
 /* Accion masiva por categoria: aplica .aplicar una a una, re-detectando en cada paso,
 y guarda/registra una sola vez al terminar (igual que hacia solucionarTodasInconsistencias). */
-function gesAccionMasiva(catId){
+async function gesAccionMasiva(catId){
+    if(!(await exigirIdentidadGoogle()))return;
+    var cat=gesCatPorId(catId);
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
 if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGes();return;}
@@ -2412,7 +2567,9 @@ rGes();
 }
 }
 /* Fusion de duplicados desde el Gestor (mismo flujo que el antiguo modal, pareja a pareja) */
-function gesFusionarDup(catId,idx,inverso){
+async function gesFusionarDup(catId,idx,inverso){
+    if(!(await exigirIdentidadGoogle()))return;
+    var cat=gesCatPorId(catId);if(!cat)return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 var idMantener=inverso?it.bId:it.aId;
@@ -2463,7 +2620,9 @@ rGes();
 });
 }
 /* Aplicar la unificacion de un grupo de lugares (siempre con confirmacion explicita) */
-function gesAplicarLugar(clave,idxVariante){
+async function gesAplicarLugar(clave,idxVariante){
+    if(!(await exigirIdentidadGoogle()))return;
+    var grupos=gesDetectarLugares();
 var grupos=gesDetectarLugares();
 var g=null;
 grupos.some(function(x){if(gesGrupoKey(x)===clave){g=x;return true;}return false;});
@@ -2495,7 +2654,9 @@ rGes();
 /* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
 unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vista previa y una
 única confirmación en vez de tener que confirmar grupo a grupo. */
-function gesUnificarTodosNivelA(){
+async function gesUnificarTodosNivelA(){
+    if(!(await exigirIdentidadGoogle()))return;
+    var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
 var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
 if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true);rGes();return;}
 var totalFichas=0;
@@ -4092,7 +4253,10 @@ document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
 function confirmLimpiar(){document.getElementById('modalLimpiar').style.display='flex';}
-function ejecutarLimpiar(){
+async function ejecutarLimpiar(){
+    if(!(await exigirIdentidadGoogle()))return;
+    if(!esAdministrador()){toast('Solo el administrador puede limpiar la caché',true);return;}
+    document.getElementById('modalLimpiar').style.display='none';
 document.getElementById('modalLimpiar').style.display='none';
 if(db){try{db.close();}catch(e){}}
 var req=indexedDB.deleteDatabase(DB);
@@ -4164,7 +4328,14 @@ toast('GEDCOM descargado: '+D.length+' personas');
 if(gedFamiliasSexoIndeterminado>0)toast(gedFamiliasSexoIndeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
-function impCSV(){document.getElementById('fi').click();}
+async function impCSV(){
+      if(!(await exigirIdentidadGoogle())) return;
+      if(!esAdministrador()){
+        toast('Solo el administrador puede importar CSV',true);
+        return;
+      }
+      document.getElementById('fi').click();
+    }
 function exportarCopia(){
 if(!D.length){toast('No hay datos para guardar',true);return;}
 var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
@@ -4254,6 +4425,87 @@ registrarUltimaCopia();
 registrarSincronizacionDrive();
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 }
+/* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
+   Copia automática al disco duro local, solo para quien la active en su
+   navegador (Francisco, el administrador). Usa File System Access API
+   (Chrome/Edge/Opera escritorio). Rotación circular de 5 slots; intervalo
+   mínimo 24 horas entre copias. Independiente de Google Drive por completo.
+   NO es un sistema de copia en tiempo real: es una copia periódica al iniciar. */
+
+async function activarCopiaLocalAutomatica(){
+  if(typeof exigirIdentidadGoogle!=='function'){
+    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
+    return;
+  }
+  if(!await exigirIdentidadGoogle()) return;
+  if(typeof esAdministrador!=='function' || !esAdministrador()){
+    toast('Solo el administrador puede activar la copia automática local',true);
+    return;
+  }
+  if(!window.showDirectoryPicker){
+    toast('Tu navegador no permite elegir una carpeta del disco para esto (usa Chrome o Edge). Puedes seguir usando "Guardar copia" manualmente.',true);
+    return;
+  }
+  try{
+    var handle = await window.showDirectoryPicker();
+    await guardarValorCFG('copiaLocalDirHandle', handle);
+    await guardarValorCFG('copiaLocalSiguienteIndice', 1);
+    await guardarValorCFG('copiaLocalUltimaFecha', null);
+    toast('Copia automática local activada en este navegador (carpeta: ' + handle.name + ')');
+  }catch(err){
+    if(err.name !== 'AbortError') toast('No se pudo activar la copia local: ' + err.message, true);
+  }
+}
+
+async function desactivarCopiaLocalAutomatica(){
+  if(typeof exigirIdentidadGoogle!=='function'){
+    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
+    return;
+  }
+  if(!await exigirIdentidadGoogle()) return;
+  if(typeof esAdministrador!=='function' || !esAdministrador()){
+    toast('Solo el administrador puede desactivar la copia automática local',true);
+    return;
+  }
+  await guardarValorCFG('copiaLocalDirHandle', null);
+  await guardarValorCFG('copiaLocalSiguienteIndice', null);
+  await guardarValorCFG('copiaLocalUltimaFecha', null);
+  toast('Copia automática local desactivada');
+}
+
+async function ejecutarCopiaLocalSiToca(){
+  var handle = await leerValorCFG('copiaLocalDirHandle');
+  if(!handle) return;
+  try{
+    var permiso = await handle.queryPermission({ mode: 'readwrite' });
+    if(permiso !== 'granted'){
+      permiso = await handle.requestPermission({ mode: 'readwrite' });
+      if(permiso !== 'granted') return;
+    }
+    var ultima = await leerValorCFG('copiaLocalUltimaFecha');
+    if(ultima && (Date.now() - new Date(ultima).getTime()) < 24 * 3600 * 1000) return;
+    var indice = (await leerValorCFG('copiaLocalSiguienteIndice')) || 1;
+    indice = Math.max(1, Math.min(5, Number(indice) || 1));
+    var nombre = 'libro-ancestros-auto-' + indice + '.json';
+    var copia = {
+      formato: 'Libro de los Ancestros',
+      version: 1,
+      fecha: new Date().toISOString(),
+      personas: D
+    };
+    var fileHandle = await handle.getFileHandle(nombre, { create: true });
+    var writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(copia));
+    await writable.close();
+    await guardarValorCFG('copiaLocalUltimaFecha', new Date().toISOString());
+    await guardarValorCFG('copiaLocalSiguienteIndice', (indice % 5) + 1);
+    toast('Copia local automática guardada (' + nombre + ')');
+  }catch(err){
+    toast('Copia automática local no realizada: ' + err.message, true);
+    console.warn('Copia local automática omitida:', err.message);
+  }
+}
+
 async function restaurarDesdeDrive(){
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
@@ -4373,11 +4625,11 @@ if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el 
 init();
 });
 }
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); obtenerNombreUsuarioCambios().then(function(n){window.nombreUsuarioCambios=n||'Usuario';if(!n)pedirNombreUsuarioCambios(false);});}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid);comprobarInsignaNovedades();}
 document.addEventListener('DOMContentLoaded',function(){
 function cargarInicial(data){
 D=data;bIdx(data);
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();});}
 Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
 if(v[0]||v[1]){
 recalcularAnosEstimadosConProgreso(continuar);
@@ -4465,22 +4717,34 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
 <div id="modalHerramientas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas</h2>
+<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i> Herramientas <span id="appVersionTag" onclick="abrirNovedades()" title="Ver novedades y registro de cambios" style="font-family:'Lato',sans-serif;font-size:10px;font-weight:400;color:var(--muted);cursor:pointer;vertical-align:2px"></span></h2>
 <button class="ef-nbtn" onclick="cerrarHerramientas()">×</button>
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiFotos').click()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Sube el respaldo completo a la carpeta de Drive (pide clave)</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button><button class="herr-item" id="btnActivarCopiaLocal" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
+<button class="herr-item" id="btnDesactivarCopiaLocal" onclick="cerrarHerramientas();desactivarCopiaLocalAutomatica()" style="display:none"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Desactivar copia automática local</div><div class="herr-desc">Detiene futuras copias automáticas (no borra las copias existentes)</div></div></button>
+
 <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
 </div>
+</div>
+</div>
+<div id="modalNovedades" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+<h2 style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent)"></i> Novedades</h2>
+<button class="ef-nbtn" onclick="cerrarNovedades()">×</button>
+</div>
+<div id="novedadesVersionActual" style="font-size:11px;color:var(--muted);margin-bottom:12px"></div>
+<div id="novedadesLista" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
 <div id="modalPosterAscendente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
