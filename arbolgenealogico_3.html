@@ -10,6 +10,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- ===== TAREA 3: descarga de informes en PDF real (jsPDF + html2canvas) =====
+     Carga opcional vía CDN con versiones fijas. Si por cualquier motivo no llegan
+     a cargarse (sin conexión, CDN bloqueado, etc.) el resto de la aplicación sigue
+     funcionando exactamente igual y "Imprimir" (window.print) sigue disponible. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <style>
 :root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#9E8E7E;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--dead:#3D2C1E;--alive:#2C5F8A}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -453,17 +459,17 @@ body{background:#fff}
 <div class="inf-card">
 <h3><i class="fa-solid fa-id-card"></i> Informe de una persona</h3>
 <p>Ficha completa e imprimible de la persona seleccionada: datos, familia, cónyuges, hijos y observaciones.</p>
-<button class="ef-btn" onclick="descargarInformePersona()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformePersona()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformePersonaPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-sitemap"></i> Árbol descendente</h3>
 <p>Lista todos los descendientes de la persona seleccionada, generación por generación.</p>
-<button class="ef-btn" onclick="descargarArbolDescendente()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarArbolDescendente()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarArbolDescendentePDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-code-branch"></i> Informe de una rama</h3>
 <p>Situa a la persona seleccionada como cabeza de rama (indicando de quien es hija) y detalla todos sus descendientes.</p>
-<button class="ef-btn" onclick="descargarInformeRama()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeRama()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeRamaPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Árbol ascendente (poster A3)</h3>
@@ -478,7 +484,7 @@ body{background:#fff}
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
 <p>Informe detallado con los datos completos de cada antepasado.</p>
-<button class="ef-btn" onclick="descargarInformeAscendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeAscendientes()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeAscendientesPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de descendientes</h3>
@@ -487,35 +493,35 @@ body{background:#fff}
 <div class="ef-field"><span class="ef-label">Generaciones</span><select class="ef-select" id="infDescGen"><option value="3">Mostrar 3 generaciones</option><option value="5">Mostrar 5 generaciones</option><option value="999" selected>Mostrar todas</option></select></div>
 <div class="ef-field"><span class="ef-label">Filtrar por</span><select class="ef-select" id="infDescFiltro"><option value="todos" selected>Todos</option><option value="vivos">Solo vivos</option><option value="fallecidos">Solo fallecidos</option></select></div>
 </div>
-<button class="ef-btn" onclick="descargarInformeDescendientes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeDescendientes()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeDescendientesPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-timeline"></i> Informe cronológico</h3>
 <p>Linea de vida de la persona seleccionada y comparativa con sus familiares más cercanos, en formato imprimible.</p>
-<button class="ef-btn" onclick="descargarInformeCronologico()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeCronologico()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeCronologicoPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Por apellido</div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-users"></i> Informe por apellido</h3>
 <p>Lista a todas las personas de la base de datos con un apellido concreto, ordenadas por año de nacimiento.</p>
 <div class="ef-row" style="margin-bottom:10px"><div class="ef-field"><span class="ef-label">Apellido</span><input class="ef-input" id="infApellido" placeholder="Ej: Garcia" autocomplete="off"></div></div>
-<button class="ef-btn" onclick="descargarInformePorApellido()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformePorApellido()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformePorApellidoPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Informes generales (toda la base de datos)</div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-list-check"></i> Informe de datos faltantes</h3>
 <p>Recopila, por categorias, las personas a las que falta año de nacimiento, lugar de nacimiento, sexo, padres o foto.</p>
-<button class="ef-btn" onclick="descargarInformeDatosFaltantes()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeDatosFaltantes()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeDatosFaltantesPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-triangle-exclamation"></i> Informe de inconsistencias</h3>
 <p>Version imprimible de las inconsistencias detectadas: conyuges sin vínculo recíproco, géneros y edades incoherentes.</p>
-<button class="ef-btn" onclick="descargarInformeInconsistencias()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeInconsistencias()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeInconsistenciasPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-user-group"></i> Informe de posibles duplicados</h3>
 <p>Version imprimible de las parejas de fichas que podrian ser la misma persona, ordenadas por confianza.</p>
-<button class="ef-btn" onclick="descargarInformeDuplicados()"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
+<button class="ef-btn ghost" onclick="descargarInformeDuplicados()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeDuplicadosPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 </div>
 </div>
@@ -616,8 +622,17 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.13.11';
+var APP_VERSION = '2026.08.13.14';
 var APP_CHANGELOG = [
+  { version:'2026.08.13.14', fecha:'2026-08-13', cambios:[
+    'Tarea 4: refinamiento del motor ANOCALC. Nueva vista "Ver cálculo (de dónde sale este año)" en la ficha de cualquier persona con año estimado, que muestra el camino completo de propagación (persona por persona), el origen real (año de nacimiento o aproximado del que parte todo), la relación y la diferencia de edad aplicada en cada paso, y las medias utilizadas. Nueva pantalla en Herramientas → "Configurar años estimados (ANOCALC)" para fijar manualmente, por tipo de parentesco (padre, madre, hermanos, cónyuges), la diferencia media de edad que usa el motor, guardada en la configuración local; si se deja en blanco, sigue funcionando el cálculo automático a partir de los datos reales del árbol (o el valor por defecto si no hay datos suficientes). Un año estimado nunca se usa para calcular otro año estimado (regla ya existente, verificada y preservada). No se ha modificado ningún año de nacimiento real ni aproximado.'
+  ]},
+  { version:'2026.08.13.13', fecha:'2026-08-13', cambios:[
+    'Tarea 3: los informes de Informes (ficha de una persona, árbol descendente, informe de una rama, ascendientes, descendientes, cronológico, por apellido, datos faltantes, inconsistencias y posibles duplicados) incorporan un botón "Descargar PDF" que genera un archivo PDF binario real y lo descarga directamente, sin pasar por el diálogo de impresión del navegador (usando jsPDF y html2canvas, cargados desde CDN). El botón "Imprimir" (antes "Descargar PDF") sigue funcionando exactamente igual que antes con window.print(). Los informes largos se paginan automáticamente en varias páginas A4. El poster ascendente A3 (clásico y mejorado) y el manual de usuario siguen usando únicamente el mecanismo de impresión, sin cambios. Si las librerías de PDF no llegan a cargarse (por ejemplo sin conexión), la aplicación sigue funcionando con normalidad y el botón de imprimir/guardar como PDF continúa disponible.'
+  ]},
+  { version:'2026.08.13.12', fecha:'2026-08-13', cambios:[
+    'Corrección de la importación masiva de fotografías (local y Google Drive): la detección de imágenes ya no depende solo del tipo MIME del archivo (que en algunos casos llega vacío o inesperado), sino también de su extensión (.jpg, .jpeg, .png, .webp, .gif, .bmp, y de forma experimental .heic/.heif). La importación desde una carpeta del ordenador ya NO requiere tener conectada una cuenta de Google. Ambas importaciones muestran ahora una ventana con progreso en vivo y, al terminar, un resumen claro (archivos encontrados, imágenes reconocidas, fotografías asociadas, sin persona coincidente y errores) con el detalle de cada caso en lenguaje sencillo, sin errores técnicos. La asociación sigue siendo siempre por coincidencia exacta del nombre de archivo con el ID de la persona, nunca aproximada. No se puede iniciar una importación mientras otra está en curso.'
+  ]},
   { version:'2026.08.13.11', fecha:'2026-08-13', cambios:[
     'Corrección: se restauran en el modal de Herramientas la etiqueta de versión y el enlace "Novedades" (se habían perdido del HTML en una implementación anterior, aunque la lógica interna seguía intacta), para poder volver a consultar la versión actual y el historial de cambios.'
   ]},
@@ -723,6 +738,97 @@ toast('Sin sesión de Google conectada. Conecta para que tus ediciones queden at
 }
 }
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
+/* ===== TAREA 3: DESCARGA DE INFORMES EN PDF (jsPDF + html2canvas) =====
+Capa de presentación puramente adicional. No toca D/PI/HD, IndexedDB, Google Drive
+ni el motor ANOCALC: reutiliza el HTML que cada informe ya construye para imprimir
+y lo convierte en un PDF binario real descargable. El mecanismo de "Imprimir"
+(window.print) sigue existiendo tal cual en paralelo, para el poster A3 y el
+manual de usuario, que NO se tocan en esta tarea. */
+var pdfGenerandoEnCurso=false;
+function libreriasPDFDisponibles(){return typeof window.jspdf!=='undefined'&&typeof window.html2canvas!=='undefined';}
+function nombreArchivoPDFSeguro(base){
+return String(base||'informe').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'informe';
+}
+function esperarImagenesPDF(cont){
+var imgs=cont.querySelectorAll('img');
+if(!imgs.length)return Promise.resolve();
+var promesas=Array.prototype.slice.call(imgs).map(function(img){
+if(img.complete)return Promise.resolve();
+return new Promise(function(res){img.onload=res;img.onerror=res;setTimeout(res,3000);});
+});
+return Promise.all(promesas);
+}
+function obtenerAreaPDF(){
+var cont=document.getElementById('pdfArea');
+if(!cont){
+cont=document.createElement('div');
+cont.id='pdfArea';
+cont.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;z-index:-1';
+document.body.appendChild(cont);
+}
+return cont;
+}
+/* Genera y descarga un PDF real a partir de un fragmento HTML de informe (el mismo
+que ya se usa para imprimir). Pagina automáticamente si el contenido no cabe en
+una sola página A4. boton (opcional) se deshabilita y muestra "Generando..." mientras
+dura el proceso, para evitar doble clic; se restaura siempre al terminar. */
+async function generarDescargarPDF(htmlContenido,nombreBase,opciones){
+opciones=opciones||{};
+if(!htmlContenido){toast('Selecciona primero los datos necesarios para este informe',true);return;}
+if(pdfGenerandoEnCurso){toast('Ya se está generando un PDF; espera a que termine',true);return;}
+if(!libreriasPDFDisponibles()){
+toast('La descarga directa de PDF no está disponible ahora mismo (sin conexión al servicio necesario). Usa "Imprimir" y elige "Guardar como PDF".',true);
+return;
+}
+pdfGenerandoEnCurso=true;
+var btn=opciones.boton,textoOriginalBtn=btn?btn.innerHTML:'';
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Generando PDF...';}
+toast('Generando PDF, un momento...');
+var cont=obtenerAreaPDF();
+cont.innerHTML='<div id="pdfAreaInner" style="width:190mm;background:#fff;padding:6mm;font-family:Lato,sans-serif;color:#3D2C1E;box-sizing:border-box">'+htmlContenido+'</div>';
+try{
+await esperarImagenesPDF(cont);
+await new Promise(function(r){setTimeout(r,60);});
+var inner=document.getElementById('pdfAreaInner');
+var canvas=await html2canvas(inner,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+var jsPDFCtor=window.jspdf.jsPDF;
+var orientacion=opciones.orientacion||'portrait';
+var pdf=new jsPDFCtor({orientation:orientacion,unit:'mm',format:'a4'});
+var pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();
+var margin=10;
+var usableW=pageW-margin*2,usableH=pageH-margin*2;
+var imgW=usableW,imgH=canvas.height*imgW/canvas.width;
+if(imgH<=usableH){
+pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',margin,margin,imgW,imgH);
+}else{
+var pxPerMm=canvas.width/imgW;
+var pageHeightPx=Math.max(1,Math.floor(usableH*pxPerMm));
+var totalPaginas=Math.ceil(canvas.height/pageHeightPx);
+for(var i=0;i<totalPaginas;i++){
+var sy=i*pageHeightPx,sh=Math.min(pageHeightPx,canvas.height-sy);
+var pageCanvas=document.createElement('canvas');
+pageCanvas.width=canvas.width;pageCanvas.height=sh;
+var ctx=pageCanvas.getContext('2d');
+ctx.fillStyle='#ffffff';ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+ctx.drawImage(canvas,0,sy,canvas.width,sh,0,0,canvas.width,sh);
+var pageImgH=sh/pxPerMm;
+if(i>0)pdf.addPage();
+pdf.addImage(pageCanvas.toDataURL('image/jpeg',0.92),'JPEG',margin,margin,imgW,pageImgH);
+}
+}
+var fecha=new Date().toISOString().slice(0,10);
+var nombreArchivo='libro-ancestros-'+nombreArchivoPDFSeguro(nombreBase)+'-'+fecha+'.pdf';
+pdf.save(nombreArchivo);
+toast('PDF descargado correctamente');
+}catch(err){
+console.error('Error al generar el PDF:',err);
+toast('No se pudo generar el PDF. Puedes usar "Imprimir" y elegir "Guardar como PDF".',true);
+}finally{
+cont.innerHTML='';
+pdfGenerandoEnCurso=false;
+if(btn){btn.disabled=false;btn.innerHTML=textoOriginalBtn;}
+}
+}
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,4);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function sAll(d,opciones){
 opciones=opciones||{};
@@ -1165,6 +1271,42 @@ return'';
 function ancMedia(arr){if(!arr.length)return 0;var s=0;arr.forEach(function(x){s+=x;});return s/arr.length;}
 function ancDesv(arr,m){if(arr.length<2)return 0;var s=0;arr.forEach(function(x){s+=(x-m)*(x-m);});return Math.sqrt(s/(arr.length-1));}
 var ANOCALC_DEFECTO={padre:28,madre:25,hermanos:3,conyuge:4};
+/* ===== TAREA 4: MEDIAS CONFIGURABLES POR TIPO DE PARENTESCO (CFG) =====
+   Se guardan en un único objeto bajo la clave CFG 'anocalcMediasManual', igual
+   que ya hace anocalcEstado. Un valor null/ausente para un tipo significa "usar
+   el cálculo automático" (estadística real del árbol, o el valor por defecto
+   si no hay datos suficientes). Regla de precedencia: manual > estadística >
+   defecto. Estos valores NUNCA sustituyen la desviación (coste), que sigue
+   calculándose siempre a partir de los datos reales, ni afectan a qué datos
+   alimentan la estadística (getYearReal, nunca ANOCALC: ver aristasParentesco/
+   calcularEstadisticasArbol más abajo, que no cambian su fuente de datos). */
+var ANOCALC_CFG_KEY='anocalcMediasManual';
+var ANOCALC_MEDIAS_MANUAL={padre:null,madre:null,hermanos:null,conyuge:null};
+function anocalcMediaManualValida(tipo){
+var v=ANOCALC_MEDIAS_MANUAL?ANOCALC_MEDIAS_MANUAL[tipo]:null;
+if(v===null||v===undefined)return null;
+v=Number(v);
+if(!isFinite(v)||isNaN(v)||v<=0)return null;
+return v;
+}
+function cargarMediasManualesANOCALC(){
+return leerValorCFG(ANOCALC_CFG_KEY).then(function(v){
+if(v&&typeof v==='object'){
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){
+var n=Number(v[tipo]);
+ANOCALC_MEDIAS_MANUAL[tipo]=(v[tipo]!==null&&v[tipo]!==undefined&&isFinite(n)&&!isNaN(n)&&n>0)?n:null;
+});
+}
+return ANOCALC_MEDIAS_MANUAL;
+}).catch(function(){return ANOCALC_MEDIAS_MANUAL;});
+}
+function guardarMediasManualesANOCALC(){
+return guardarValorCFG(ANOCALC_CFG_KEY,ANOCALC_MEDIAS_MANUAL);
+}
+function etiquetaMediaANOCALC(tipo){
+var m={padre:'Media entre padre e hijo/a',madre:'Media entre madre e hijo/a',hermanos:'Media entre hermanos',conyuge:'Media entre cónyuges'};
+return m[tipo]||tipo;
+}
 function calcularEstadisticasArbol(){
 var diffPadre=[],diffMadre=[],diffConyuge=[],diffHermanos=[];
 D.forEach(function(p){
@@ -1195,15 +1337,28 @@ var yh=getYearReal(h);
 if(yh!==null)diffHermanos.push(Math.abs(yp-yh));
 });
 });
-var mPadre=diffPadre.length>=4?ancMedia(diffPadre):ANOCALC_DEFECTO.padre;
-var mMadre=diffMadre.length>=4?ancMedia(diffMadre):ANOCALC_DEFECTO.madre;
-var mHermanos=diffHermanos.length>=4?ancMedia(diffHermanos):ANOCALC_DEFECTO.hermanos;
-var mConyuge=diffConyuge.length>=4?ancMedia(diffConyuge):ANOCALC_DEFECTO.conyuge;
+/* Media puramente estadística (para no perder el cálculo de desviación, que
+   sigue basándose SIEMPRE en los datos reales, nunca en el valor manual). */
+var statMediaPadre=diffPadre.length>=4?ancMedia(diffPadre):null;
+var statMediaMadre=diffMadre.length>=4?ancMedia(diffMadre):null;
+var statMediaHermanos=diffHermanos.length>=4?ancMedia(diffHermanos):null;
+var statMediaConyuge=diffConyuge.length>=4?ancMedia(diffConyuge):null;
+/* Precedencia (Tarea 4): manual > estadística (>=4 casos reales) > defecto. */
+function resolverMediaTipo(tipo,statMedia,defecto){
+var manual=anocalcMediaManualValida(tipo);
+if(manual!==null)return{media:manual,origen:'manual'};
+if(statMedia!==null)return{media:statMedia,origen:'estadistica'};
+return{media:defecto,origen:'defecto'};
+}
+var rPadre=resolverMediaTipo('padre',statMediaPadre,ANOCALC_DEFECTO.padre);
+var rMadre=resolverMediaTipo('madre',statMediaMadre,ANOCALC_DEFECTO.madre);
+var rHermanos=resolverMediaTipo('hermanos',statMediaHermanos,ANOCALC_DEFECTO.hermanos);
+var rConyuge=resolverMediaTipo('conyuge',statMediaConyuge,ANOCALC_DEFECTO.conyuge);
 return{
-padre:{media:mPadre,desv:Math.max(2,diffPadre.length>=4?ancDesv(diffPadre,mPadre):8),n:diffPadre.length},
-madre:{media:mMadre,desv:Math.max(2,diffMadre.length>=4?ancDesv(diffMadre,mMadre):7),n:diffMadre.length},
-hermanos:{media:mHermanos,desv:Math.max(1,diffHermanos.length>=4?ancDesv(diffHermanos,mHermanos):4),n:diffHermanos.length},
-conyuge:{media:mConyuge,desv:Math.max(1,diffConyuge.length>=4?ancDesv(diffConyuge,mConyuge):5),n:diffConyuge.length}
+padre:{media:rPadre.media,origen:rPadre.origen,estadistica:statMediaPadre,desv:Math.max(2,diffPadre.length>=4?ancDesv(diffPadre,statMediaPadre):8),n:diffPadre.length},
+madre:{media:rMadre.media,origen:rMadre.origen,estadistica:statMediaMadre,desv:Math.max(2,diffMadre.length>=4?ancDesv(diffMadre,statMediaMadre):7),n:diffMadre.length},
+hermanos:{media:rHermanos.media,origen:rHermanos.origen,estadistica:statMediaHermanos,desv:Math.max(1,diffHermanos.length>=4?ancDesv(diffHermanos,statMediaHermanos):4),n:diffHermanos.length},
+conyuge:{media:rConyuge.media,origen:rConyuge.origen,estadistica:statMediaConyuge,desv:Math.max(1,diffConyuge.length>=4?ancDesv(diffConyuge,statMediaConyuge):5),n:diffConyuge.length}
 };
 }
 function aristasParentesco(id,stats){
@@ -1272,6 +1427,37 @@ var rel=etiquetaRelacionEstimada(info.tipo,sexoLetra(nodo));
 var anioPred=resultado.valorNodo[info.pred];
 var predEsReal=getYearReal(pred)!==null;
 return'Calculado automáticamente el '+fecha+': '+fn(nodo).trim()+' es '+rel+' de '+fn(pred).trim()+' ('+(predEsReal?anioPred:('\u2248'+anioPred))+'), usando la diferencia media de edad real calculada en este árbol para ese tipo de parentesco.';
+}
+/* ===== TAREA 4: VISTA DE DEPURACIÓN — reconstrucción del camino =====
+   Reutiliza exclusivamente la información que ya produce calcularAnosEstimados()
+   (origen/valorNodo/saltos): no se ejecuta un segundo algoritmo de trazado. */
+function construirCaminoANOCALC(id,resultado){
+var cadena=[],actual=id,guard=0;
+while(actual&&guard++<2000){
+var info=resultado.origen[actual];
+cadena.unshift({id:actual,valor:resultado.valorNodo[actual],esOrigenReal:!info||!info.pred,relacionDesde:info?info.tipo:null,predId:info?info.pred:null});
+if(!info||!info.pred)break;
+actual=info.pred;
+}
+return cadena;
+}
+/* Determina, para un salto concreto del camino, qué media se aplicó (o, para
+   hermanos/cónyuges, que no se aplica diferencia de año y qué coste se usó).
+   Respeta la semántica actual del motor (puntos 21/58/59 del informe): el
+   delta de padre/madre es la media correspondiente; hermanos y cónyuges usan
+   delta 0 y solo la desviación como coste. */
+function etiquetaMediaPasoANOCALC(tipo,predId,nodoId,stats){
+if(tipo==='padre')return{tipo:'padre',valor:stats.padre.media};
+if(tipo==='madre')return{tipo:'madre',valor:stats.madre.media};
+if(tipo==='hijo'){
+var nodo=PI[nodoId];
+if(nodo&&nodo.PADRE===predId)return{tipo:'padre',valor:stats.padre.media};
+if(nodo&&nodo.MADRE===predId)return{tipo:'madre',valor:stats.madre.media};
+return{tipo:'padre',valor:stats.padre.media};
+}
+if(tipo==='hermano')return{tipo:'hermanos',valor:null,coste:stats.hermanos.desv};
+if(tipo==='conyuge')return{tipo:'conyuge',valor:null,coste:stats.conyuge.desv};
+return{tipo:tipo,valor:null};
 }
 function aplicarResultadoAnosEstimados(resultado){
 var fecha=new Date().toISOString().slice(0,10);
@@ -1350,6 +1536,116 @@ toast('No se pudo guardar: '+err.message,true);
 }
 });
 }
+/* ===== TAREA 4: MODAL DE CONFIGURACIÓN DE MEDIAS (escritura en CFG) =====
+   Consultar el estado es lectura; guardar o restaurar es escritura y exige
+   identidad Google, igual que el resto de operaciones que modifican datos. */
+function abrirModalConfigANOCALC(){
+var modal=document.getElementById('modalConfigANOCALC');
+if(!modal)return;
+renderConfigANOCALC();
+modal.style.display='flex';
+}
+function cerrarModalConfigANOCALC(){var m=document.getElementById('modalConfigANOCALC');if(m)m.style.display='none';}
+function renderConfigANOCALC(){
+var cont=document.getElementById('configANOCALCBody');
+if(!cont)return;
+var stats=null;
+try{stats=D.length?calcularEstadisticasArbol():null;}catch(e){stats=null;}
+var h='<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Estos valores se usan para calcular el año estimado (\u2248) de las personas sin año propio. Deja un campo vacío para usar el cálculo automático a partir de los datos reales de tu árbol (o el valor por defecto si no hay datos suficientes).</p>';
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){
+var manual=ANOCALC_MEDIAS_MANUAL[tipo];
+var auto=stats?stats[tipo]:null;
+var autoTxt=auto?(' — automático actual: '+Math.round(auto.media)+' años ('+(auto.origen==='estadistica'?'calculado de '+auto.n+' caso(s) real(es)':'valor por defecto')+')'):'';
+h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">'+esc(etiquetaMediaANOCALC(tipo))+'</span>';
+h+='<input class="ef-input" type="number" min="0" step="1" id="cfgAnocalc_'+tipo+'" placeholder="Automático" value="'+(manual!==null&&manual!==undefined?esc(String(manual)):'')+'">';
+h+='<span style="font-size:10px;color:var(--muted)">'+esc(autoTxt)+'</span></div></div>';
+});
+cont.innerHTML=h;
+}
+async function guardarConfigANOCALC(){
+if(!(await exigirIdentidadGoogle()))return;
+var valores={},ok=true;
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){
+var el=document.getElementById('cfgAnocalc_'+tipo);
+var txt=el?el.value.trim():'';
+if(txt===''){valores[tipo]=null;return;}
+var n=Number(txt);
+if(!isFinite(n)||isNaN(n)||n<=0||n>=100)ok=false;
+valores[tipo]=n;
+});
+if(!ok){toast('Introduce números positivos razonables (entre 0 y 100 años), o deja el campo vacío para usar el cálculo automático',true);return;}
+var cambios=['padre','madre','hermanos','conyuge'].some(function(tipo){return ANOCALC_MEDIAS_MANUAL[tipo]!==valores[tipo];});
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){ANOCALC_MEDIAS_MANUAL[tipo]=valores[tipo];});
+guardarMediasManualesANOCALC().then(function(){
+toast('Configuración de ANOCALC guardada');
+cerrarModalConfigANOCALC();
+if(cambios&&D.length&&confirm('Has cambiado las medias de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?'))recalcularAnosEstimadosManual();
+}).catch(function(err){toast('No se pudo guardar la configuración: '+err.message,true);});
+}
+async function restaurarConfigANOCALCAutomatica(){
+if(!(await exigirIdentidadGoogle()))return;
+var huboManual=['padre','madre','hermanos','conyuge'].some(function(tipo){return ANOCALC_MEDIAS_MANUAL[tipo]!==null;});
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){ANOCALC_MEDIAS_MANUAL[tipo]=null;});
+guardarMediasManualesANOCALC().then(function(){
+toast('Configuración manual eliminada: se usará el cálculo automático');
+renderConfigANOCALC();
+if(huboManual&&D.length&&confirm('Has restaurado el cálculo automático de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?'))recalcularAnosEstimadosManual();
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}
+/* ===== TAREA 4: VISTA DE DEPURACIÓN POR PERSONA (solo lectura) =====
+   Recalcula bajo demanda (sin mutar D ni guardar nada) para mostrar siempre el
+   estado vigente, incluidas medias manuales aún no aplicadas con un recálculo. */
+function abrirDepuracionANOCALC(id){
+var p=PI[id];
+if(!p){toast('Persona no encontrada',true);return;}
+var cont=document.getElementById('depuracionANOCALCBody'),modal=document.getElementById('modalDepuracionANOCALC');
+if(!cont||!modal)return;
+if(getYearReal(p)!==null){
+cont.innerHTML='<p style="font-size:13px;color:var(--muted)">'+esc(fn(p))+' tiene un año propio ('+esc(String(getYearReal(p)))+'), así que no se ha calculado ningún año estimado automáticamente para esta persona.</p>';
+modal.style.display='flex';
+return;
+}
+var resultado=calcularAnosEstimados();
+if(resultado.valorNodo[id]===undefined){
+cont.innerHTML='<p style="font-size:13px;color:var(--muted)">No se ha podido conectar a '+esc(fn(p))+' con ningún antepasado o familiar con año conocido, así que no tiene año estimado disponible.</p>';
+modal.style.display='flex';
+return;
+}
+var cadena=construirCaminoANOCALC(id,resultado),stats=resultado.stats;
+var origenP=PI[cadena[0].id];
+var h='<div class="fs" style="margin-bottom:12px"><h3>Resumen</h3>';
+h+='<div class="fr"><span class="fl">Persona</span><span class="fv">'+esc(fn(p))+'</span></div>';
+h+='<div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(String(resultado.valorNodo[id]))+'</span></div>';
+h+='<div class="fr"><span class="fl">Pasos</span><span class="fv">'+esc(String(resultado.saltos[id]||0))+'</span></div>';
+h+='<div class="fr"><span class="fl">Origen real</span><span class="fv">'+esc(fn(origenP))+' — '+(origenP.NACA?'año de nacimiento':'año aproximado')+'</span></div>';
+h+='</div><div class="fs"><h3>Camino de propagación</h3>';
+cadena.forEach(function(nodo,idx){
+var pp=PI[nodo.id];
+h+='<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(idx===0?'fa-flag':'fa-arrow-down')+'"></i></div><div class="inc-msg">';
+h+='<b>'+esc(fn(pp))+'</b> <span style="color:var(--muted)">(ID '+esc(pp.ID)+')</span><br>';
+if(idx===0){
+h+='<span style="color:var(--green)">Año conocido: '+esc(String(nodo.valor))+' ('+(pp.NACA?'año de nacimiento':'año aproximado')+')</span>';
+}else{
+var etiqueta=etiquetaRelacionEstimada(nodo.relacionDesde,sexoLetra(pp));
+var med=etiquetaMediaPasoANOCALC(nodo.relacionDesde,nodo.predId,nodo.id,stats);
+h+=esc(fn(pp))+' es '+esc(etiqueta)+' de '+esc(fn(PI[nodo.predId]))+'<br>';
+if(med.valor!==null&&med.valor!==undefined)h+='Diferencia aplicada ('+esc(etiquetaMediaANOCALC(med.tipo))+'): '+esc(String(Math.round(med.valor)))+' años<br>';
+else h+='Sin diferencia de año (misma generación aproximada)<br>';
+h+='Año estimado en este paso: \u2248 '+esc(String(nodo.valor));
+}
+h+='</div></div>';
+});
+h+='</div><div class="fs"><h3>Medias utilizadas en este cálculo</h3>';
+['padre','madre','hermanos','conyuge'].forEach(function(tipo){
+var s=stats[tipo];
+var origenTxt=s.origen==='manual'?'Configurada manualmente':(s.origen==='estadistica'?'Calculada de datos reales del árbol ('+s.n+' caso(s))':'Valor por defecto (datos insuficientes)');
+h+='<div class="fr"><span class="fl">'+esc(etiquetaMediaANOCALC(tipo))+'</span><span class="fv">'+esc(String(Math.round(s.media)))+' años <span style="color:var(--muted);font-weight:400;font-size:11px">— '+esc(origenTxt)+'</span></span></div>';
+});
+h+='</div>';
+cont.innerHTML=h;
+modal.style.display='flex';
+}
+function cerrarDepuracionANOCALC(){var m=document.getElementById('modalDepuracionANOCALC');if(m)m.style.display='none';}
 function haySinCalcular(){
 for(var i=0;i<D.length;i++){
 if(getYear(D[i])===null)return true;
@@ -1493,7 +1789,7 @@ h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span cl
 h+=htmlAvisosFicha(id);
 h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
 if(esAnioEstimado(p)){
-h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div></div>';
+h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
 }
 var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
 var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
@@ -1645,6 +1941,117 @@ img.src=reader.result;
 reader.readAsDataURL(file);
 });
 }
+/* ===== IMPORTACIÓN MASIVA DE FOTOGRAFÍAS (local y Google Drive): CORRECCIÓN =====
+Ver informe "Corrección y mejora — Importación de fotografías". Puntos clave de esta
+corrección, referidos a la ficha individual y a la importación masiva por igual:
+- La detección de imagen NO depende solo de file.type / mimeType: también se
+  reconoce por extensión, porque en algunos entornos el navegador entrega el
+  archivo con el tipo MIME vacío o inesperado aunque sea claramente una imagen.
+- La asociación foto-persona en la importación masiva es SIEMPRE por coincidencia
+  EXACTA del nombre de archivo (sin extensión) con el ID de la persona. Nunca se
+  hacen coincidencias aproximadas ("12345 (1).jpg" NO se asigna a la persona 12345).
+- Los errores se separan en categorías claras (persona no encontrada, formato no
+  compatible, fallo de lectura, fallo de descarga, fallo de guardado) y nunca se
+  muestra al usuario un error técnico de JavaScript.
+- Si una persona ya tenía foto, la importación la SUSTITUYE por la nueva, de forma
+  determinista tanto en local como en Drive (documentado aquí, no es un efecto
+  silencioso ni depende del caso).
+- La importación LOCAL no requiere ninguna sesión de Google: leer una carpeta del
+  propio ordenador no depende de Drive. La importación desde DRIVE sí la requiere,
+  porque necesita descargar los archivos de la cuenta de Google. */
+var EXT_IMAGEN_SOPORTADAS=['jpg','jpeg','png','webp','gif','bmp'];
+var EXT_IMAGEN_EXPERIMENTAL=['heic','heif'];
+function extensionArchivoImportado(nombre){
+var m=String(nombre||'').trim().match(/\.([a-z0-9]+)$/i);
+return m?m[1].toLowerCase():'';
+}
+function nombreSinExtensionImportado(nombre){
+return String(nombre||'').replace(/\.[^./\\]+$/,'').trim();
+}
+function esArchivoImagenImportable(tipoMime,nombre){
+if(tipoMime&&String(tipoMime).indexOf('image/')===0)return true;
+var ext=extensionArchivoImportado(nombre);
+return EXT_IMAGEN_SOPORTADAS.indexOf(ext)>=0||EXT_IMAGEN_EXPERIMENTAL.indexOf(ext)>=0;
+}
+function esExtensionImportadaExperimental(nombre){
+return EXT_IMAGEN_EXPERIMENTAL.indexOf(extensionArchivoImportado(nombre))>=0;
+}
+var importFotosEnCurso=false;
+function fijarBotonesImportFotos(activo){
+['herrBtnImportarLocal','herrBtnImportarDrive'].forEach(function(id){
+var b=document.getElementById(id);
+if(b)b.disabled=!!activo;
+});
+}
+function crearResultadoImportFotos(origen){
+return{origen:origen,encontrados:0,reconocidas:0,asociadas:0,sinPersona:[],errores:[]};
+}
+function abrirModalImportFotos(titulo){
+document.getElementById('impFotosTitulo').textContent=titulo;
+document.getElementById('impFotosProgresoTexto').textContent='Preparando...';
+document.getElementById('impFotosProgresoBarra').style.width='0%';
+document.getElementById('impFotosResumen').style.display='none';
+document.getElementById('impFotosResumen').innerHTML='';
+document.getElementById('impFotosProgresoWrap').style.display='block';
+document.getElementById('impFotosCerrarBtn').style.display='none';
+document.getElementById('modalImportFotos').style.display='flex';
+}
+function cerrarModalImportFotos(){
+if(importFotosEnCurso){toast('Espera a que termine la importación en curso',true);return;}
+document.getElementById('modalImportFotos').style.display='none';
+}
+var impFotosUltimaActualizacion=0;
+function actualizarProgresoImportFotos(hechos,total,textoExtra){
+var ahora=Date.now();
+if(hechos<total&&(ahora-impFotosUltimaActualizacion)<120)return;
+impFotosUltimaActualizacion=ahora;
+var pct=total?Math.round(hechos/total*100):0;
+var barra=document.getElementById('impFotosProgresoBarra');
+if(barra)barra.style.width=pct+'%';
+var txt=document.getElementById('impFotosProgresoTexto');
+if(txt)txt.textContent=(textoExtra||'Procesando fotografías')+' ('+hechos+' de '+total+')';
+}
+function impFotosCategoriaTexto(cat){
+var etq={
+sin_persona:'No se ha encontrado ninguna persona con ese ID.',
+formato_no_compatible:'Formato no compatible en este navegador.',
+lectura:'No se ha podido leer la fotografía.',
+descarga:'No se ha podido descargar la fotografía.',
+almacenamiento:'No se ha podido guardar la fotografía en este dispositivo.',
+otro:'No se ha podido procesar esta fotografía.'
+};
+return etq[cat]||etq.otro;
+}
+function renderDetalleImportFotos(titulo,lista){
+if(!lista.length)return'';
+var LIM=200;
+var h='<div style="margin-top:10px"><div class="ef-label" style="margin-bottom:5px">'+esc(titulo)+' ('+lista.length+')</div>';
+h+='<div style="max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px">';
+lista.slice(0,LIM).forEach(function(it){
+h+='<div style="font-size:11px;padding:3px 0;border-bottom:1px dotted var(--border)"><b>'+esc(it.nombre)+'</b><br><span style="color:var(--muted)">'+esc(it.motivo)+'</span></div>';
+});
+if(lista.length>LIM)h+='<div style="font-size:11px;color:var(--muted);padding:4px 0">... y '+(lista.length-LIM)+' más.</div>';
+h+='</div></div>';
+return h;
+}
+function mostrarResumenImportFotos(res){
+document.getElementById('impFotosProgresoWrap').style.display='none';
+document.getElementById('impFotosCerrarBtn').style.display='inline-flex';
+var cont=document.getElementById('impFotosResumen');
+cont.style.display='block';
+var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
+h+='<span class="ges-pill">Archivos encontrados: '+res.encontrados+'</span>';
+h+='<span class="ges-pill">Imágenes reconocidas: '+res.reconocidas+'</span>';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Asociadas a una persona: '+res.asociadas+'</span>';
+h+='<span class="ges-pill">Sin persona coincidente: '+res.sinPersona.length+'</span>';
+h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: '+res.errores.length+'</span>';
+h+='</div>';
+if(res.asociadas)h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">Si alguna de estas personas ya tenía una fotografía, se ha sustituido por la nueva.</p>';
+h+=renderDetalleImportFotos('Archivos sin persona coincidente (no se adivinan coincidencias aproximadas, por seguridad)',res.sinPersona);
+h+=renderDetalleImportFotos('Fotografías con errores',res.errores);
+if(res.reconocidas&&!res.sinPersona.length&&!res.errores.length)h+='<p style="font-size:12px;color:var(--green);margin-top:10px"><i class="fa-solid fa-circle-check"></i> Todas las fotografías reconocidas se han asociado correctamente.</p>';
+cont.innerHTML=h;
+}
 function handleFotoSeleccionada(ev){
 var file=ev.target.files&&ev.target.files[0];
 if(!file)return;
@@ -1742,34 +2149,78 @@ if(r.status===401){driveAccessToken=null;return;}
 console.warn('No se pudo eliminar la foto de la persona '+id+' en Drive:',err.message);
 }
 }
-async function solicitarImportarFotosLocal(){
-if(!(await exigirIdentidadGoogle()))return;
+function solicitarImportarFotosLocal(){
+/* La lectura de una carpeta del propio ordenador NO requiere ninguna sesión de
+   Google (punto 2 del informe de corrección): solo la importación desde Drive
+   necesita identidad/; conexión con Google. */
+if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
+if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 document.getElementById('fiFotos').click();
 }
-async function importarFotosCarpeta(fileList){
-if(!(await exigirIdentidadGoogle()))return;
-var files=Array.prototype.filter.call(fileList,function(f){return f.type&&f.type.indexOf('image/')===0;});
-if(!files.length){toast('No se encontraron imagenes en la carpeta seleccionada',true);return;}
+function importarFotosCarpeta(fileList){
+if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
+var files=Array.prototype.slice.call(fileList||[]);
+if(!files.length){toast('No se ha seleccionado ninguna carpeta o archivo',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
-toast('Importando '+files.length+' foto(s)...');
-var matched=0,unmatched=0;
-var promises=files.map(function(file){
-var base=file.name.replace(/\.[^/.]+$/,'').trim();
-var persona=PI[base];
-if(!persona){unmatched++;return Promise.resolve();}
-return resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
-persona.FOTO=dataUrl;
-matched++;
-}).catch(function(){unmatched++;});
-});
-Promise.all(promises).then(function(){
-if(!matched){toast('Ninguna foto coincidio con un ID existente. Comprueba que el nombre del archivo sea el ID exacto.',true);return;}
+importFotosEnCurso=true;
+fijarBotonesImportFotos(true);
+abrirModalImportFotos('Importando fotografías desde tu ordenador');
+var res=crearResultadoImportFotos('local');
+res.encontrados=files.length;
+/* Detección robusta: por tipo MIME si está disponible y, si no, por extensión
+   del nombre de archivo. Nunca se considera vacía la carpeta solo porque
+   file.type no empiece por "image/". */
+var imagenes=files.filter(function(f){return esArchivoImagenImportable(f.type,f.name);});
+res.reconocidas=imagenes.length;
+if(!imagenes.length){
+mostrarResumenImportFotos(res);
+importFotosEnCurso=false;fijarBotonesImportFotos(false);
+return;
+}
+var i=0;
+function finalizarImportacionLocal(){
+if(!res.asociadas){
+mostrarResumenImportFotos(res);
+importFotosEnCurso=false;fijarBotonesImportFotos(false);
+return;
+}
+bIdx(D);
 sAll(D).then(function(){
-toast(matched+' foto(s) importada(s) correctamente'+(unmatched?'. '+unmatched+' sin persona coincidente':''));
 rStats();
 if(cid)rFic(cid);
-}).catch(function(e){toast('Error al guardar las fotos: '+e.message,true);});
+mostrarResumenImportFotos(res);
+}).catch(function(){
+res.errores.push({nombre:'(guardado general)',motivo:impFotosCategoriaTexto('almacenamiento')});
+mostrarResumenImportFotos(res);
+}).then(function(){
+importFotosEnCurso=false;fijarBotonesImportFotos(false);
 });
+}
+function procesarSiguiente(){
+if(i>=imagenes.length){finalizarImportacionLocal();return;}
+var file=imagenes[i];
+i++;
+actualizarProgresoImportFotos(i,imagenes.length,'Importando fotografías');
+/* Asociación SIEMPRE por coincidencia exacta del nombre (sin extensión) con el
+   ID de persona; nunca se hacen coincidencias aproximadas. */
+var base=nombreSinExtensionImportado(file.name);
+var persona=PI[base];
+if(!persona){
+res.sinPersona.push({nombre:file.name,motivo:impFotosCategoriaTexto('sin_persona')});
+setTimeout(procesarSiguiente,0);
+return;
+}
+resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
+persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
+res.asociadas++;
+}).catch(function(){
+var cat=esExtensionImportadaExperimental(file.name)?'formato_no_compatible':'lectura';
+res.errores.push({nombre:file.name,motivo:impFotosCategoriaTexto(cat)});
+}).then(function(){
+setTimeout(procesarSiguiente,0);
+});
+}
+procesarSiguiente();
 }
 async function listarTodosArchivosDrive(query,fields){
 var archivos=[],pageToken=null;
@@ -1784,6 +2235,7 @@ pageToken=d.nextPageToken||null;
 return archivos;
 }
 async function importarFotosDesdeDrive(){
+if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
@@ -1791,44 +2243,86 @@ if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
-toast('Buscando la carpeta FOTO en Drive...');
+importFotosEnCurso=true;
+fijarBotonesImportFotos(true);
+abrirModalImportFotos('Importando fotografías desde Google Drive');
+actualizarProgresoImportFotos(0,1,'Buscando la carpeta FOTO en Drive');
+var res=crearResultadoImportFotos('drive');
+var sesionCaducadaDurante=false;
 try{
 var qCarpeta="'"+driveRootFolderId+"' in parents and name='FOTO' and mimeType='application/vnd.google-apps.folder' and trashed=false";
 var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rC.status===401){driveAccessToken=null;toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}
+if(rC.status===401){driveAccessToken=null;throw new Error('Tu conexión con Google Drive ha caducado. Vuelve a conectarla desde el botón de estado de Drive e inténtalo de nuevo.');}
 var dC=await rC.json();
-if(!dC.files||!dC.files.length){toast('No existe una carpeta llamada "FOTO" dentro de la carpeta raíz configurada',true);return;}
+if(!dC.files||!dC.files.length)throw new Error('No existe una carpeta llamada "FOTO" dentro de la carpeta raíz de Google Drive configurada.');
 var folderId=dC.files[0].id;
-toast('Listando archivos de la carpeta FOTO...');
+actualizarProgresoImportFotos(0,1,'Listando archivos de la carpeta FOTO');
 var todos;
 try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');}
-catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
-var archivos=todos.filter(function(f){return f.mimeType&&f.mimeType.indexOf('image/')===0;});
-if(!archivos.length){toast('La carpeta FOTO no contiene imagenes',true);return;}
-toast('Descargando '+archivos.length+' foto(s) desde Drive...');
-var matched=0,unmatched=0;
-for(var i=0;i<archivos.length;i++){
-var f=archivos[i];
-var base=f.name.replace(/\.[^/.]+$/,'').trim();
+catch(e){throw new Error(e.message==='sesion_caducada'?'Tu conexión con Google Drive ha caducado. Vuelve a intentarlo.':('No se pudo listar la carpeta FOTO de Drive: '+e.message));}
+res.encontrados=todos.length;
+/* Detección robusta: por mimeType si está disponible y, si no, por extensión
+   del nombre del archivo (punto 1.2 del informe de corrección). */
+var archivos=todos.filter(function(f){return esArchivoImagenImportable(f.mimeType,f.name);});
+res.reconocidas=archivos.length;
+if(!archivos.length){
+mostrarResumenImportFotos(res);
+return;
+}
+for(var idx=0;idx<archivos.length;idx++){
+var f=archivos[idx];
+actualizarProgresoImportFotos(idx+1,archivos.length,'Descargando y procesando fotografías');
+/* Asociación SIEMPRE por coincidencia exacta del nombre (sin extensión) con el
+   ID de persona; nunca se hacen coincidencias aproximadas. */
+var base=nombreSinExtensionImportado(f.name);
 var persona=PI[base];
-if(!persona){unmatched++;continue;}
+if(!persona){
+res.sinPersona.push({nombre:f.name,motivo:impFotosCategoriaTexto('sin_persona')});
+continue;
+}
+if(sesionCaducadaDurante){
+res.errores.push({nombre:f.name,motivo:'Tu conexión con Google Drive caducó antes de terminar la importación.'});
+continue;
+}
+var blob;
 try{
 var rImg=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!rImg.ok){unmatched++;continue;}
-var blob=await rImg.blob();
-var dataUrl=await resizeImageToDataURL(blob,600,0.85);
-persona.FOTO=dataUrl;
-matched++;
-}catch(e){unmatched++;}
-if((i+1)%200===0)toast('Progreso: '+(i+1)+' de '+archivos.length+' foto(s) procesadas...');
+if(rImg.status===401){driveAccessToken=null;sesionCaducadaDurante=true;res.errores.push({nombre:f.name,motivo:'Tu conexión con Google Drive caducó antes de terminar la importación.'});continue;}
+if(!rImg.ok){res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto('descarga')});continue;}
+blob=await rImg.blob();
+}catch(eDescarga){
+res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto('descarga')});
+continue;
 }
-if(!matched){toast('Ninguna foto de Drive coincidio con un ID existente. Comprueba que el nombre de cada archivo sea el ID exacto de la persona.',true);return;}
+try{
+var dataUrl=await resizeImageToDataURL(blob,600,0.85);
+persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
+res.asociadas++;
+}catch(eProceso){
+var cat=esExtensionImportadaExperimental(f.name)?'formato_no_compatible':'lectura';
+res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto(cat)});
+}
+}
+if(res.asociadas){
 bIdx(D);
+try{
 await sAll(D);
-toast(matched+' foto(s) importada(s) desde Drive'+(unmatched?'. '+unmatched+' sin persona coincidente':''));
 rStats();
 if(cid)rFic(cid);
-}catch(err){toast('Error al importar fotos desde Drive: '+err.message,true);}
+}catch(errGuardar){
+res.errores.push({nombre:'(guardado general)',motivo:impFotosCategoriaTexto('almacenamiento')});
+}
+}
+mostrarResumenImportFotos(res);
+}catch(err){
+document.getElementById('impFotosProgresoWrap').style.display='none';
+document.getElementById('impFotosCerrarBtn').style.display='inline-flex';
+var cont=document.getElementById('impFotosResumen');
+cont.style.display='block';
+cont.innerHTML='<div class="backup-warn" style="display:flex;max-width:none"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(err.message)+'</div>';
+}finally{
+importFotosEnCurso=false;fijarBotonesImportFotos(false);
+}
 }
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
 function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
@@ -3560,12 +4054,21 @@ h+='</ul>';
 h+='</li>';
 return h;
 }
-function descargarArbolDescendente(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+function construirHTMLArbolDescendente(){
+if(!infId||!PI[infId])return null;
 var p=PI[infId];
-var html='<div class="print-report"><h1>Árbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
+return '<div class="print-report"><h1>Árbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
+}
+function descargarArbolDescendente(){
+var html=construirHTMLArbolDescendente();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
+}
+function descargarArbolDescendentePDF(ev){
+var html=construirHTMLArbolDescendente();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'arbol-descendente-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget,orientacion:'landscape'});
 }
 /* ===== POSTER ASCENDENTE A3: PLANTILLA FIJA (SVG) — VERSION 7 ===== */
 var ASC_PAGE_W=420, ASC_PAGE_H=297;
@@ -4113,8 +4616,8 @@ porGeneracion[gen].push({p:p,sosa:sosa});
 recopilarAscendientesInforme(p.PADRE,gen+1,sosa*2,maxGen,visitados,porGeneracion);
 recopilarAscendientesInforme(p.MADRE,gen+1,sosa*2+1,maxGen,visitados,porGeneracion);
 }
-function descargarInformeAscendientes(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+function construirHTMLInformeAscendientes(){
+if(!infId||!PI[infId])return null;
 var p=PI[infId];
 var porGeneracion={};
 recopilarAscendientesInforme(infId,0,1,7,{},porGeneracion);
@@ -4143,8 +4646,18 @@ html+='</div>';
 });
 });
 html+='</div>';
+return html;
+}
+function descargarInformeAscendientes(){
+var html=construirHTMLInformeAscendientes();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
+}
+function descargarInformeAscendientesPDF(ev){
+var html=construirHTMLInformeAscendientes();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'ascendientes-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget});
 }
 function recopilarDescendientesInforme(id,gen,maxGen,visitados,porGeneracion){
 if(!id||gen>maxGen||visitados[id])return;
@@ -4172,8 +4685,8 @@ if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACI
 html+='</div>';
 return html;
 }
-function descargarInformeDescendientes(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+function construirHTMLInformeDescendientes(){
+if(!infId||!PI[infId])return null;
 var p=PI[infId];
 var genSel=document.getElementById('infDescGen');
 var maxGen=genSel?parseInt(genSel.value,10):PD_MAX_GEN;
@@ -4197,11 +4710,21 @@ porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
 });
 if(!huboAlguno)html+='<p style="font-size:12px;color:var(--muted)">No hay descendientes que cumplan el filtro seleccionado.</p>';
 html+='</div>';
+return html;
+}
+function descargarInformeDescendientes(){
+var html=construirHTMLInformeDescendientes();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
-function descargarInformePersona(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+function descargarInformeDescendientesPDF(ev){
+var html=construirHTMLInformeDescendientes();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'descendientes-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget});
+}
+function construirHTMLInformePersona(){
+if(!infId||!PI[infId])return null;
 var p=PI[infId];
 var al=isAl(p);
 var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
@@ -4226,11 +4749,21 @@ if(hij.length)html+='<div class="pn-row">Hijos ('+hij.length+'): '+esc(hij.map(f
 html+='</div>';
 if(p.OBSERVACIONES)html+='<div class="print-person" style="border-bottom:0"><div class="pn-name" style="font-size:14px">Observaciones</div><div class="pn-row">'+esc(p.OBSERVACIONES)+'</div></div>';
 html+='</div>';
+return html;
+}
+function descargarInformePersona(){
+var html=construirHTMLInformePersona();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
-function descargarInformeRama(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+function descargarInformePersonaPDF(ev){
+var html=construirHTMLInformePersona();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'ficha-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget});
+}
+function construirHTMLInformeRama(){
+if(!infId||!PI[infId])return null;
 var p=PI[infId];
 var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
 var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'Desconocida';
@@ -4253,24 +4786,43 @@ porGeneracion[g].forEach(function(pp){html+=htmlPrintPersona(pp);});
 });
 if(!huboDescendientes)html+='<p style="font-size:12px;color:var(--muted)">Esta persona no tiene descendientes registrados.</p>';
 html+='</div>';
+return html;
+}
+function descargarInformeRama(){
+var html=construirHTMLInformeRama();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
+}
+function descargarInformeRamaPDF(ev){
+var html=construirHTMLInformeRama();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'rama-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget});
+}
+function construirHTMLInformeCronologico(){
+if(!infId||!PI[infId])return null;
+var p=PI[infId];
+return '<div class="print-report"><h1>Informe cronológico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada)+'</div>';
 }
 function descargarInformeCronologico(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
-var p=PI[infId];
-var html='<div class="print-report"><h1>Informe cronológico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada)+'</div>';
+var html=construirHTMLInformeCronologico();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
-function descargarInformePorApellido(){
+function descargarInformeCronologicoPDF(ev){
+var html=construirHTMLInformeCronologico();
+if(html===null){toast('Selecciona primero una persona en Informes',true);return;}
+generarDescargarPDF(html,'cronologico-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.currentTarget,orientacion:'landscape'});
+}
+function construirHTMLInformePorApellido(){
 var input=document.getElementById('infApellido');
 var q=input?input.value.trim():'';
-if(!q){toast('Escribe un apellido',true);return;}
-if(!D.length){toast('No hay datos cargados',true);return;}
+if(!q){toast('Escribe un apellido',true);return null;}
+if(!D.length){toast('No hay datos cargados',true);return null;}
 var qn=normTxt(q);
 var coincidencias=D.filter(function(p){return normTxt(p.APELLIDO1)===qn||normTxt(p.APELLIDO2)===qn;});
-if(!coincidencias.length){toast('No se encontraron personas con el apellido "'+q+'"',true);return;}
+if(!coincidencias.length){toast('No se encontraron personas con el apellido "'+q+'"',true);return null;}
 coincidencias=coincidencias.slice().sort(function(a,b){
 var ya=getYear(a),yb=getYear(b);
 if(ya===null&&yb===null)return sn(a).localeCompare(sn(b));
@@ -4279,8 +4831,18 @@ if(ya===null)return 1;if(yb===null)return -1;return ya-yb;
 var html='<div class="print-report"><h1>Informe del apellido '+esc(q)+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+coincidencias.length+' persona(s)</div>';
 coincidencias.forEach(function(pp){html+=htmlPrintPersona(pp);});
 html+='</div>';
-document.getElementById('printArea').innerHTML=html;
+return {html:html,apellido:q};
+}
+function descargarInformePorApellido(){
+var r=construirHTMLInformePorApellido();
+if(!r)return;
+document.getElementById('printArea').innerHTML=r.html;
 setTimeout(function(){window.print();},80);
+}
+function descargarInformePorApellidoPDF(ev){
+var r=construirHTMLInformePorApellido();
+if(!r)return;
+generarDescargarPDF(r.html,'apellido-'+r.apellido,{boton:ev&&ev.currentTarget});
 }
 /* ===== INFORME DE DATOS FALTANTES ===== */
 function datosFaltantesCategorias(){
@@ -4293,8 +4855,8 @@ return[
 {titulo:'Sin foto',personas:D.filter(function(p){return !p.FOTO;})}
 ];
 }
-function descargarInformeDatosFaltantes(){
-if(!D.length){toast('No hay datos cargados',true);return;}
+function construirHTMLInformeDatosFaltantes(){
+if(!D.length){toast('No hay datos cargados',true);return null;}
 var cats=datosFaltantesCategorias();
 var MOSTRAR=300;
 var html='<div class="print-report"><h1>Informe de datos faltantes</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+D.length+' personas en total</div>';
@@ -4308,11 +4870,21 @@ html+='<div class="print-node"><span class="pn-name">'+esc(fn(pp))+'</span> <spa
 if(lista.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(lista.length-MOSTRAR)+' más</span></div>';
 });
 html+='</div>';
+return html;
+}
+function descargarInformeDatosFaltantes(){
+var html=construirHTMLInformeDatosFaltantes();
+if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
-function descargarInformeInconsistencias(){
-if(!D.length){toast('No hay datos cargados',true);return;}
+function descargarInformeDatosFaltantesPDF(ev){
+var html=construirHTMLInformeDatosFaltantes();
+if(html===null)return;
+generarDescargarPDF(html,'datos-faltantes',{boton:ev&&ev.currentTarget});
+}
+function construirHTMLInformeInconsistencias(){
+if(!D.length){toast('No hay datos cargados',true);return null;}
 var problemas=detectarInconsistencias();
 var html='<div class="print-report"><h1>Informe de inconsistencias</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+problemas.length+' inconsistencia(s)</div>';
 if(!problemas.length)html+='<p style="font-size:12px;color:var(--muted)">No se detectaron inconsistencias.</p>';
@@ -4320,11 +4892,21 @@ else problemas.forEach(function(pr){
 html+='<div class="print-node"><span class="pn-name">'+esc(pr.etiqueta)+'</span><br><span class="pn-meta">'+pr.mensaje+'</span></div>';
 });
 html+='</div>';
+return html;
+}
+function descargarInformeInconsistencias(){
+var html=construirHTMLInformeInconsistencias();
+if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
-function descargarInformeDuplicados(){
-if(!D.length){toast('No hay datos cargados',true);return;}
+function descargarInformeInconsistenciasPDF(ev){
+var html=construirHTMLInformeInconsistencias();
+if(html===null)return;
+generarDescargarPDF(html,'inconsistencias',{boton:ev&&ev.currentTarget});
+}
+function construirHTMLInformeDuplicados(){
+if(!D.length){toast('No hay datos cargados',true);return null;}
 var todos=detectarDuplicados();
 var pares=todos.filter(function(p){return !DUP_IGNORADOS[p.a.ID+'|'+p.b.ID];});
 var MOSTRAR=200;
@@ -4338,8 +4920,18 @@ html+='<div class="print-node"><span class="pn-name">'+esc(nivel)+' · '+pr.scor
 if(pares.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(pares.length-MOSTRAR)+' pareja(s) más. Revisa todas en el Gestor de datos.</span></div>';
 }
 html+='</div>';
+return html;
+}
+function descargarInformeDuplicados(){
+var html=construirHTMLInformeDuplicados();
+if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
+}
+function descargarInformeDuplicadosPDF(ev){
+var html=construirHTMLInformeDuplicados();
+if(html===null)return;
+generarDescargarPDF(html,'duplicados',{boton:ev&&ev.currentTarget});
 }
 /* ===== MANUAL DE USUARIO HTML IMPRIMIBLE (punto 22) =====
    Usa el mecanismo de impresión existente (#printArea + window.print()).
@@ -4977,12 +5569,16 @@ document.addEventListener('DOMContentLoaded',function(){
 function cargarInicial(data){
 D=data;bIdx(data);
 function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
+/* Tarea 4: cargar la configuración de medias manuales ANTES de cualquier
+   cálculo de ANOCALC, para que un recálculo inicial ya las respete. */
+cargarMediasManualesANOCALC().then(function(){
 Promise.all([Promise.resolve(haySinCalcular()),anocalcPendiente()]).then(function(v){
 if(v[0]||v[1]){
 recalcularAnosEstimadosConProgreso(continuar);
 }else{
 continuar();
 }
+});
 });
 }
 oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial);},500);});
@@ -5048,7 +5644,10 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-APP_VERSION='2026.08.13.11';
+APP_VERSION='2026.08.13.14';
+APP_CHANGELOG.unshift({version:'2026.08.13.14',fecha:'2026-08-13',cambios:['Tarea 4: refinamiento de ANOCALC con vista de depuración del camino de propagación ("¿De dónde sale este año?" en la ficha) y medias configurables por parentesco (padre, madre, hermanos, cónyuges) guardadas en la configuración local, con retorno al cálculo automático en cualquier momento.']});
+APP_CHANGELOG.unshift({version:'2026.08.13.13',fecha:'2026-08-13',cambios:['Tarea 3: descarga directa de informes en PDF real (jsPDF + html2canvas) junto al botón "Imprimir" existente, en los diez informes de la pantalla Informes; paginación automática, sin cambios en IndexedDB, Google Drive ni ANOCALC.']});
+APP_CHANGELOG.unshift({version:'2026.08.13.12',fecha:'2026-08-13',cambios:['Corrección de la importación masiva de fotografías (local y Drive): detección por extensión además de por MIME, importación local sin sesión de Google, progreso en vivo y resumen final con detalle de incidencias en lenguaje sencillo.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.8',fecha:'2026-08-13',cambios:['Las fotos guardadas desde la edición de una ficha se sincronizan automáticamente (mejor esfuerzo, en segundo plano) con la carpeta FOTO de Google Drive.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.7',fecha:'2026-08-13',cambios:['"Limpiar caché" pasa a estar disponible para cualquier usuario con identidad Google, no solo el administrador.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.6',fecha:'2026-08-13',cambios:['"Restaurar copia" y "Restaurar desde Drive" pasan a estar disponibles para cualquier usuario con identidad Google, no solo el administrador.']});
@@ -5098,11 +5697,12 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-section">Uso general</div>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca una carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID)</div></div></button>
+<button class="herr-item" id="herrBtnImportarDrive" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca la carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID exacto (requiere Google)</div></div></button>
+<button class="herr-item" id="herrBtnImportarLocal" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos (carpeta local)</div><div class="herr-desc">Asigna fotos a personas según el nombre del archivo (ID exacto). No requiere Google</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
 <button class="herr-item" id="herrInstalarBtn" style="display:none" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div id="herrAdminGroup" style="display:none">
@@ -5148,6 +5748,44 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="ascColorSwatchesV2" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
 <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación horizontal y tamaño real (100%, sin "ajustar a la página").</p>
 <button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePosterV2()"><i class="fa-solid fa-file-pdf"></i> Generar e imprimir</button>
+</div>
+</div>
+<div id="modalImportFotos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="impFotosTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-images" style="color:var(--accent)"></i> Importando fotografías</h2>
+<button class="ef-nbtn" id="impFotosCerrarBtn" style="display:none" onclick="cerrarModalImportFotos()">×</button>
+</div>
+<div id="impFotosProgresoWrap">
+<div id="impFotosProgresoTexto" style="font-size:12px;color:var(--muted);margin-bottom:8px">Preparando...</div>
+<div class="pb" style="margin:0;display:block"><div class="pf" id="impFotosProgresoBarra"></div></div>
+<p style="font-size:11px;color:var(--muted);margin-top:10px">No cierres esta ventana ni recargues la página mientras se importan las fotografías.</p>
+</div>
+<div id="impFotosResumen" style="display:none;overflow:auto"></div>
+</div>
+</div>
+<!-- ===== TAREA 4: refinamiento de ANOCALC — modal de configuración de medias ===== -->
+<div id="modalConfigANOCALC" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-calculator" style="color:var(--accent)"></i> Años estimados (ANOCALC)</h2>
+<button class="ef-nbtn" onclick="cerrarModalConfigANOCALC()">×</button>
+</div>
+<div id="configANOCALCBody" style="overflow:auto;padding-right:2px"></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+<button class="ef-btn ghost" onclick="restaurarConfigANOCALCAutomatica()">Restaurar automático (todas)</button>
+<button class="ef-btn save" onclick="guardarConfigANOCALC()"><i class="fa-solid fa-check"></i> Guardar</button>
+</div>
+</div>
+</div>
+<!-- ===== TAREA 4: refinamiento de ANOCALC — modal de vista de depuración ===== -->
+<div id="modalDepuracionANOCALC" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-magnifying-glass-chart" style="color:var(--accent)"></i> ¿De dónde sale este año?</h2>
+<button class="ef-nbtn" onclick="cerrarDepuracionANOCALC()">×</button>
+</div>
+<div id="depuracionANOCALCBody" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
 <!-- ===== TAREA 2: PWA — registro del Service Worker e instalación opcional =====
