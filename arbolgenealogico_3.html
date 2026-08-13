@@ -5326,106 +5326,66 @@ async function subirCopiaADrive(){
   if(!(await exigirIdentidadGoogle()))return;
   if(!esAdministrador()){toast('Solo el administrador puede subir copias a Drive',true);return;}
   if(!D.length){toast('No hay datos para subir',true);return;}
-  if(subiendoCopiaDrive){toast('Ya hay una subida de copia en curso; espera a que termine',true);return;}
+  if(subiendoCopiaDrive){toast('Ya hay una subida en curso',true);return;}
   var clave=prompt('Introduce la clave para subir la copia a Drive:');
   if(clave===null)return;
   if(clave.trim()!==CLAVE_SUBIDA_DRIVE){toast('Clave incorrecta',true);return;}
-  if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
-  
-  // La carpeta RAÍZ es donde debe estar el alias para que "Restaurar" funcione
-  var folderId = driveRootFolderId || DEFAULT_DRIVE_ROOT_FOLDER_ID;
-  if(!folderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
-  
-  if(!tokenDriveValido()){
-    try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
-  }
+  if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta Client ID',true);return;}
+  if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID){toast('No está configurada la carpeta compartida',true);return;}
+  if(!tokenDriveValido()){try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar: '+err.message,true);return;}}
   
   subiendoCopiaDrive=true;
-  toast('Subiendo copia a Drive...');
+  toast('Subiendo copia a carpeta compartida...');
   
   try{
     var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
     var contenido=JSON.stringify(copia);
     var fechaHoy=new Date().toISOString().slice(0,10);
     var nombreFechado=BACKUP_HISTORICO_PREFIJO+fechaHoy+'.json';
+    var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID;
     
-    // --- 1) ALIAS en carpeta RAÍZ (obligatorio, para que Restaurar funcione) ---
-    toast('Guardando copia principal en carpeta compartida...');
     var aliasId=null;
     try{
       var qAlias="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
       var rAliasSearch=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qAlias)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
       if(rAliasSearch.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-      if(rAliasSearch.ok){
-        var dAlias=await rAliasSearch.json();
-        if(dAlias.files&&dAlias.files.length) aliasId=dAlias.files[0].id;
-      }
+      if(rAliasSearch.ok){var dAlias=await rAliasSearch.json();if(dAlias.files&&dAlias.files.length)aliasId=dAlias.files[0].id;}
     }catch(e){}
     
     var boundary='-------314159265358979323846';
     var delimiter='\r\n--'+boundary+'\r\n';
     var close_delim='\r\n--'+boundary+'--';
     var metaAlias={name:DRIVE_BACKUP_FILENAME,mimeType:'application/json'};
-    if(!aliasId) metaAlias.parents=[folderId];
+    if(!aliasId)metaAlias.parents=[folderId];
     var bodyAlias=delimiter+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metaAlias)+delimiter+'Content-Type: application/json\r\n\r\n'+contenido+close_delim;
     
-    var urlAlias=aliasId
-      ? 'https://www.googleapis.com/upload/drive/v3/files/'+aliasId+'?uploadType=multipart'
-      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-    var rAlias=await fetch(urlAlias,{
-      method:aliasId?'PATCH':'POST',
-      headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},
-      body:bodyAlias
-    });
+    var urlAlias=aliasId?'https://www.googleapis.com/upload/drive/v3/files/'+aliasId+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    var rAlias=await fetch(urlAlias,{method:aliasId?'PATCH':'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:bodyAlias});
     if(rAlias.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-    if(rAlias.status===403){throw new Error('No tienes permisos de escritura en la carpeta raíz. Comprueba que la carpeta compartida tenga permisos de edición.');}
-    if(!rAlias.ok){throw new Error('Drive respondió '+rAlias.status+' al guardar la copia principal');}
+    if(rAlias.status===403){throw new Error('No tienes permisos de escritura en la carpeta compartida.');}
+    if(!rAlias.ok){throw new Error('Drive respondió '+rAlias.status);}
     
-    // --- 2) COPIA FECHADA en carpeta SECUNDARIA (opcional, blindaje histórico) ---
-    var copiaFechadaOk=false;
-    if(DRIVE_BACKUP_SECONDARY_FOLDER_ID){
-      try{
-        toast('Guardando copia fechada en Seguridad_json_datos...');
-        var metaFechado={name:nombreFechado,mimeType:'application/json',parents:[DRIVE_BACKUP_SECONDARY_FOLDER_ID]};
-        var bodyFechado=delimiter+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metaFechado)+delimiter+'Content-Type: application/json\r\n\r\n'+contenido+close_delim;
-        var rFechado=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
-          method:'POST',
-          headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},
-          body:bodyFechado
-        });
-        if(rFechado.ok){
-          copiaFechadaOk=true;
-          // Rotar: mantener solo las 5 más recientes
-          var qOld="'"+DRIVE_BACKUP_SECONDARY_FOLDER_ID+"' in parents and name contains '"+BACKUP_HISTORICO_PREFIJO+"' and trashed=false";
-          var rOld=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qOld)+'&fields=files(id,name,createdTime)&orderBy=createdTime desc&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-          if(rOld.ok){
-            var dOld=await rOld.json();
-            var archivos=dOld.files||[];
-            if(archivos.length>BACKUP_HISTORICO_MAX){
-              for(var i=BACKUP_HISTORICO_MAX;i<archivos.length;i++){
-                await fetch('https://www.googleapis.com/drive/v3/files/'+archivos[i].id,{method:'DELETE',headers:{Authorization:'Bearer '+driveAccessToken}});
-              }
-            }
-          }
-        }
-      }catch(err2){
-        console.warn('Copia fechada en carpeta secundaria falló (no crítico):',err2);
-      }
-    }
+    var metaFechado={name:nombreFechado,mimeType:'application/json',parents:[folderId]};
+    var bodyFechado=delimiter+'Content-Type: application/json\r\n\r\n'+JSON.stringify(metaFechado)+delimiter+'Content-Type: application/json\r\n\r\n'+contenido+close_delim;
+    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:bodyFechado});
+    
+    try{
+      var qOld="'"+folderId+"' in parents and name contains '"+BACKUP_HISTORICO_PREFIJO+"' and trashed=false";
+      var rOld=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qOld)+'&fields=files(id,name,createdTime)&orderBy=createdTime desc&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+      if(rOld.ok){var dOld=await rOld.json();var archivos=dOld.files||[];if(archivos.length>BACKUP_HISTORICO_MAX){for(var i=BACKUP_HISTORICO_MAX;i<archivos.length;i++){await fetch('https://www.googleapis.com/drive/v3/files/'+archivos[i].id,{method:'DELETE',headers:{Authorization:'Bearer '+driveAccessToken}});}}}
+    }catch(err2){}
     
     registrarUltimaCopia();
     registrarSincronizacionDrive();
-    var msg='Copia subida correctamente a la carpeta compartida ('+D.length+' personas)';
-    if(copiaFechadaOk) msg+=' · copia fechada guardada en Seguridad_json_datos';
-    else if(DRIVE_BACKUP_SECONDARY_FOLDER_ID) msg+=' · aviso: no se pudo guardar la copia fechada en Seguridad_json_datos';
-    toast(msg);
+    toast('Copia subida a carpeta compartida ('+D.length+' personas)');
   }catch(err){
-    if(err.message==='sesion_caducada') toast('La sesión de Google Drive ha caducado. Vuelve a conectar.',true);
-    else toast('Error al subir copia: '+err.message,true);
+    if(err.message==='sesion_caducada')toast('Sesión caducada',true);
+    else toast('Error: '+err.message,true);
   }finally{
     subiendoCopiaDrive=false;
   }
 }
+
 /* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
    Copia automática al disco duro local, solo para quien la active en su
    navegador (Francisco, el administrador). Usa File System Access API
@@ -5513,19 +5473,14 @@ async function restaurarDesdeDrive(){
     try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
   }
   
-  /* Busca primero en la carpeta raíz (la que tú configuras y compartes),
-     luego en la de seguridad. Así no depende de que la carpeta secundaria
-     esté compartida. */
+  // Busca PRIMERO en la carpeta compartida (Seguridad_json_datos)
   var carpetasBusqueda=[];
-  if(driveRootFolderId)carpetasBusqueda.push({id:driveRootFolderId,nombre:'carpeta raíz'});
-  if(DEFAULT_DRIVE_ROOT_FOLDER_ID&&carpetasBusqueda.every(function(c){return c.id!==DEFAULT_DRIVE_ROOT_FOLDER_ID;}))
-    carpetasBusqueda.push({id:DEFAULT_DRIVE_ROOT_FOLDER_ID,nombre:'carpeta por defecto'});
-  if(DRIVE_BACKUP_SECONDARY_FOLDER_ID&&carpetasBusqueda.every(function(c){return c.id!==DRIVE_BACKUP_SECONDARY_FOLDER_ID;}))
-    carpetasBusqueda.push({id:DRIVE_BACKUP_SECONDARY_FOLDER_ID,nombre:'carpeta Seguridad_json_datos'});
+  if(DRIVE_BACKUP_SECONDARY_FOLDER_ID)carpetasBusqueda.push({id:DRIVE_BACKUP_SECONDARY_FOLDER_ID,nombre:'carpeta compartida (Seguridad_json_datos)'});
+  if(driveRootFolderId&&driveRootFolderId!==DRIVE_BACKUP_SECONDARY_FOLDER_ID)carpetasBusqueda.push({id:driveRootFolderId,nombre:'carpeta raíz'});
   
   if(!carpetasBusqueda.length){toast('No hay ninguna carpeta de Drive configurada para buscar la copia',true);return;}
   
-  toast('Buscando copia de seguridad en Drive...');
+  toast('Buscando copia en carpeta compartida...');
   var archivo=null, carpetaNombre=null;
   
   for(var i=0;i<carpetasBusqueda.length;i++){
@@ -5534,7 +5489,7 @@ async function restaurarDesdeDrive(){
       var q="'"+carpeta.id+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
       var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
       if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-      if(r.status===403){continue;} /* Sin permisos en esta carpeta, probamos la siguiente */
+      if(r.status===403){continue;}
       if(!r.ok){continue;}
       var d=await r.json();
       if(d.files&&d.files.length){archivo=d.files[0];carpetaNombre=carpeta.nombre;break;}
@@ -5544,20 +5499,20 @@ async function restaurarDesdeDrive(){
   }
   
   if(!archivo){
-    toast('No se encontró '+DRIVE_BACKUP_FILENAME+' en ninguna carpeta accesible. Asegúrate de que la carpeta esté compartida contigo en Google Drive.',true);
+    toast('No se encontró '+DRIVE_BACKUP_FILENAME+' en la carpeta compartida. Asegúrate de que Seguridad_json_datos esté compartida contigo.',true);
     return;
   }
   
   try{
     var r2=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
     if(r2.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-    if(r2.status===403){toast('No tienes permisos para descargar la copia. Comprueba que la carpeta "'+carpetaNombre+'" esté compartida contigo.',true);return;}
+    if(r2.status===403){toast('No tienes permisos para descargar. Comprueba que la carpeta esté compartida contigo.',true);return;}
     if(!r2.ok){toast('Error al descargar la copia (HTTP '+r2.status+')',true);return;}
     var contenido=await r2.text();
     var datos;
-    try{datos=JSON.parse(contenido);}catch(e){toast('El archivo de copia no tiene un formato JSON válido',true);return;}
+    try{datos=JSON.parse(contenido);}catch(e){toast('El archivo no tiene formato JSON válido',true);return;}
     
-    if(!datos||!Array.isArray(datos.personas)){toast('El archivo de copia no contiene datos válidos de personas',true);return;}
+    if(!datos||!Array.isArray(datos.personas)){toast('El archivo no contiene datos válidos de personas',true);return;}
     
     if(!confirm('Se restaurará la copia de '+esc(archivo.modifiedTime?new Date(archivo.modifiedTime).toLocaleString('es-ES'):'fecha desconocida')+' ('+datos.personas.length+' personas). Los datos actuales se sobrescribirán. ¿Continuar?'))return;
     
@@ -5567,7 +5522,7 @@ async function restaurarDesdeDrive(){
     rStats();
     doSrch(document.getElementById('si').value);
     if(cid&&PI[cid])rFic(cid);else sv('bus');
-    toast('Copia restaurada correctamente desde Drive ('+carpetaNombre+')');
+    toast('Copia restaurada desde carpeta compartida ('+carpetaNombre+')');
   }catch(err){
     if(err.message==='sesion_caducada')toast('La sesión de Google Drive ha caducado. Vuelve a conectar.',true);
     else toast('Error al restaurar: '+err.message,true);
