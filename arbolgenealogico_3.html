@@ -440,6 +440,10 @@ body{background:#fff}
 <button class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="limpiarFiltrosBusqueda()"><i class="fa-solid fa-eraser" aria-hidden="true"></i> Limpiar filtros</button>
 </div>
 </div>
+<div id="cargaInicialInline" style="display:none;max-width:460px;margin:10px auto 0;text-align:center">
+<div id="cargaInicialTexto" style="font-size:12px;color:var(--muted);margin-bottom:6px"></div>
+<div class="pb" style="margin:0"><div class="pf" id="cargaInicialBarra"></div></div>
+</div>
 <div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
 <div class="stats" id="sb"></div>
 </div>
@@ -682,7 +686,6 @@ var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleu
 var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
-var CLAVE_SUBIDA_DRIVE='1962';
 /* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
    Destino secundario protegido para las copias fechadas (fuera de FOTO/DOCUMENTOS).
    El folderId queda fijado explícitamente en el código (no se busca por nombre) y su
@@ -1660,25 +1663,22 @@ if(getYear(D[i])===null)return true;
 return false;
 }
 function mostrarOverlayCarga(texto){
-var ov=document.getElementById('overlayCargaInicial');
-if(!ov){
-ov=document.createElement('div');
-ov.id='overlayCargaInicial';
-ov.style.cssText='position:fixed;inset:0;background:rgba(251,247,240,.97);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:Lato,sans-serif;';
-ov.innerHTML='<div style="font-family:Cinzel,serif;font-size:16px;color:var(--text)"><i class="fa-solid fa-tree" style="color:var(--accent);margin-right:8px"></i>Libro de los Ancestros</div><div id="overlayCargaTexto" style="font-size:12px;color:var(--muted)"></div><div class="pb" style="width:220px;margin:0"><div class="pf" id="overlayCargaBarra"></div></div>';
-document.body.appendChild(ov);
-}
-ov.style.display='flex';
-document.getElementById('overlayCargaTexto').textContent=texto||'';
+var cont=document.getElementById('cargaInicialInline');
+if(!cont)return;
+cont.style.display='block';
+var barra=document.getElementById('cargaInicialBarra');
+if(barra)barra.style.width='0%';
+var txt=document.getElementById('cargaInicialTexto');
+if(txt)txt.textContent=texto||'';
 }
 function actualizarOverlayCarga(pct,texto){
-var barra=document.getElementById('overlayCargaBarra'),txt=document.getElementById('overlayCargaTexto');
+var barra=document.getElementById('cargaInicialBarra'),txt=document.getElementById('cargaInicialTexto');
 if(barra)barra.style.width=pct+'%';
 if(txt&&texto)txt.textContent=texto;
 }
 function ocultarOverlayCarga(){
-var ov=document.getElementById('overlayCargaInicial');
-if(ov)ov.style.display='none';
+var cont=document.getElementById('cargaInicialInline');
+if(cont)cont.style.display='none';
 }
 function recalcularAnosEstimadosConProgreso(callback){
 mostrarOverlayCarga('Comprobando años pendientes de estimar...');
@@ -4960,7 +4960,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'10. Importar CSV desde Access',soloAdmin:true,html:'<p>El administrador puede cargar o actualizar toda la base de datos desde un archivo CSV. El CSV de exportación del programa tiene SIEMPRE 28 columnas: las 26 originales del formato Access más ANOCALC (columna 27) y ANOCALC_MOTIVO (columna 28). La importación requiere ser administrador. Al importar, el valor de la columna APROX (columna 2) se ignora completamente y NO se incorpora a la base de datos, aunque la columna se conserva en el archivo por compatibilidad estructural. Esta operación está disponible únicamente para el administrador.</p>'},
 {titulo:'11. Importar fotos (carpeta local o Drive)',soloAdmin:false,html:'<p>Puedes asignar fotos masivamente a las personas. Desde una carpeta local: cada archivo debe llamarse con el ID exacto de la persona. Desde Drive: se busca la carpeta FOTO dentro de la carpeta raíz y se asigna cada imagen por su nombre (ID). Las imágenes se redimensionan e incrustan automáticamente en cada ficha. Esta operación requiere tener conectada tu cuenta de Google, pero está disponible para cualquier usuario, no solo para el administrador.</p>'},
 {titulo:'12. Configurar Drive',soloAdmin:true,html:'<p>Para conectar Google Drive, ve a Herramientas, Documentos (Google Drive) y pega el enlace o el ID de la carpeta raíz que contiene las subcarpetas FOTO y DOCUMENTOS. La aplicación guarda ese ID y lo usa para fotos, documentos, copias y el registro de cambios. Esta configuración está disponible para cualquier usuario, ya que solo establece la ubicación de la carpeta y no modifica los datos genealógicos. Se marca aquí como sección administrativa por coherencia con el grupo de herramientas, pero no requiere privilegios especiales.</p>'},
-{titulo:'13. Copias de seguridad y restauración',soloAdmin:false,html:'<p>Hay varias vías de respaldo y de restauración. (1) Guardar copia: descarga un archivo JSON con todos los datos y las fotos incrustadas; disponible para cualquier usuario. (2) Restaurar copia: carga un archivo de respaldo JSON y reemplaza los datos actuales; disponible para cualquier usuario con identidad Google conectada. (3) Restaurar desde Drive: descarga la última copia subida a la carpeta de Drive y la carga en la aplicación; también disponible para cualquier usuario con identidad Google conectada. Restaurar una copia sustituye TODOS los datos actuales, así que conviene hacerlo con cuidado. (4) Copia local automática: función administrativa que cada 24 horas guarda un respaldo en tu disco duro, con rotación de 5 copias (la sexta sobrescribe la primera). No es una copia en tiempo real. Contiene los datos y las fotos incrustadas. Se puede desactivar, y desactivarla no borra las copias ya existentes. Esta función de activarla/desactivarla sí es exclusiva del administrador. (5) Subir copia a Drive: sube el respaldo a la carpeta de Drive con nombres versionados por fecha; se conservan las últimas 5 copias históricas. Requiere ser administrador y la clave de subida.</p>'},
+{titulo:'13. Copias de seguridad y restauración',soloAdmin:false,html:'<p>Hay varias vías de respaldo y de restauración. (1) Guardar copia: descarga un archivo JSON con todos los datos y las fotos incrustadas; disponible para cualquier usuario. (2) Restaurar copia: carga un archivo de respaldo JSON y reemplaza los datos actuales; disponible para cualquier usuario con identidad Google conectada. (3) Restaurar desde Drive: descarga la última copia subida a la carpeta de Drive y la carga en la aplicación; también disponible para cualquier usuario con identidad Google conectada. Restaurar una copia sustituye TODOS los datos actuales, así que conviene hacerlo con cuidado. (4) Copia local automática: función administrativa que cada 24 horas guarda un respaldo en tu disco duro, con rotación de 5 copias (la sexta sobrescribe la primera). No es una copia en tiempo real. Contiene los datos y las fotos incrustadas. Se puede desactivar, y desactivarla no borra las copias ya existentes. Esta función de activarla/desactivarla sí es exclusiva del administrador. (5) Subir copia a Drive: sube el respaldo a la carpeta de Drive con nombres versionados por fecha; se conservan las últimas 5 copias históricas. Requiere ser administrador.</p>'},
 {titulo:'14. Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas puedes exportar la base de datos completa. Exportar GEDCOM genera un archivo .ged compatible con otros programas de genealogía. Exportar CSV (Access) genera un CSV en codificación Windows-1252 con 28 columnas (las 26 originales más ANOCALC y ANOCALC_MOTIVO). El CSV exportado contiene APROX como columna 2 por compatibilidad estructural, pero APROX no se importa al volver a cargar un CSV. Tras actualizar la especificación GENEALOGIA de Access para las 28 columnas, el archivo se reimporta correctamente.</p>'},
 {titulo:'15. Gestor de datos',soloAdmin:true,html:'<p>El Gestor agrupa el mantenimiento del árbol en categorías: inconsistencias, posibles duplicados, lugares con escritura no homogénea, años estimados pendientes y personas vivas con más de 100 años. Cada problema se muestra como sugerencia: nada se corrige sin tu confirmación. Las correcciones y modificaciones realizadas desde el Gestor requieren identidad Google y quedan registradas en el registro de cambios.</p>'},
 {titulo:'16. Registro de cambios',soloAdmin:true,html:'<p>La pantalla Cambios muestra las modificaciones hechas por cada usuario, con la descripción de qué campos cambiaron. Puedes revisar los cambios pendientes, confirmarlos o eliminar el registro, y sincronizarlos con Google Drive para compartirlos entre colaboradores. Cada cambio queda atribuido a la identidad Google real del usuario que lo realizó.</p>'},
@@ -5327,9 +5327,6 @@ if(!await exigirIdentidadGoogle())return;
 if(!esAdministrador()){toast('Solo el administrador puede subir copias a Drive',true);return;}
 if(!D.length){toast('No hay datos para subir',true);return;}
 if(subiendoCopiaDrive){toast('Ya hay una subida de copia en curso; espera a que termine',true);return;}
-var clave=prompt('Introduce la clave para subir la copia a Drive:');
-if(clave===null)return;
-if(clave.trim()!==CLAVE_SUBIDA_DRIVE){toast('Clave incorrecta',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
 if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID){toast('No hay configurado el destino secundario protegido de copias',true);return;}
@@ -5724,7 +5721,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias (pide clave)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCSVAccess()"><div class="herr-icon"><i class="fa-solid fa-file-csv"></i></div><div class="herr-text"><div class="herr-title">Exportar CSV (Access)</div><div class="herr-desc">Descarga toda la base de datos en el formato CSV que lee Access (28 columnas)</div></div></button>
