@@ -888,8 +888,10 @@ function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de 
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}cid=id;editMode=false;sv('fic');}
 async function obtenerArchivoCambiosDrive(){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
-async function subirCambiosDriveDatos(cambios,existente){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);if(!r.ok)throw new Error('Drive respondió '+r.status);}
-async function sincronizarCambiosDrive(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
+async function subirCambiosDriveDatos(cambios,existente){var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});
+var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);if(!r.ok)throw new Error('Drive respondió '+r.status);}
+async function sincronizarCambiosDrive(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){
+if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
 function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
@@ -905,7 +907,6 @@ var d=new Date(iso);
 return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
 }catch(e){return null;}
 }
-
 function accionDriveStatusPill(){
 if(!driveRootFolderId){
 elegirCarpetaDocumentos().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();});
@@ -5240,8 +5241,7 @@ body:multipartBody
 });
 }
 async function buscarArchivoBackupDrive(){
-var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
-var q="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
+var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
@@ -5357,12 +5357,11 @@ if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pud
 var resultadoLimpieza=null;
 try{resultadoLimpieza=await limpiarBackupsHistoricosAntiguos();}
 catch(errLimpieza){console.warn('No se pudo completar la limpieza de copias antiguas (la copia nueva se conserva de todos modos):',errLimpieza.message);}
-/* 5) Alias en la carpeta compartida (Seguridad_json_datos), para restauración general (cualquier usuario). */
+/* 5) Alias de la carpeta raíz, para restauración general (cualquier usuario). */
 var aliasOk=true,aliasError='';
 try{
 var existenteAlias=await buscarArchivoBackupDrive();
-var folderAlias=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
-var rAlias=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',folderAlias,existenteAlias?existenteAlias.id:null);
+var folderAlias=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var rAlias=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',folderAlias,existenteAlias?existenteAlias.id:null);
 if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
 }catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
 registrarUltimaCopia();
@@ -5462,11 +5461,11 @@ if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true)
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
-toast('Buscando la copia en carpeta compartida...');
+toast('Buscando la copia en Drive...');
 try{
 var archivo;
 try{archivo=await buscarArchivoBackupDrive();}catch(e){if(e.message==='sesion_caducada'){toast('La sesion de Google Drive caduco, vuelve a intentarlo',true);return;}throw e;}
-if(!archivo){toast('Todavía no hay ninguna copia subida a la carpeta compartida ('+DRIVE_BACKUP_FILENAME+' en Seguridad_json_datos)',true);return;}
+if(!archivo){toast('Todavía no hay ninguna copia subida a Drive ('+DRIVE_BACKUP_FILENAME+')',true);return;}
 var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (código '+rContenido.status+')');
 var texto=await rContenido.text();
