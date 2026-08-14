@@ -1571,7 +1571,7 @@ resolverAlbumPendiente(encodeURIComponent(clave),encodeURIComponent(id),encodeUR
 }
 
 /* ===== SUBSISTEMA 7: BANDEJA DE DUDAS ===== */
-async async function generarInformeHermano(){
+async function generarInformeHermano(){
 try{
 var elementos=await cAll('elementos');
 var validos=elementos.filter(function(e){return e.estado!=='duda';});
