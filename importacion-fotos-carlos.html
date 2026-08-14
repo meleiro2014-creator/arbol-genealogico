@@ -1347,16 +1347,82 @@ try{
   setTimeout(ocultarProgresoAsignacion,2500);
 }finally{botones.forEach(function(b){b.disabled=false;});}
 }
+
+async function reconstruirPendientesDeCajaDesdeDrive(caja){
+  if(!caja||!caja.partes||!caja.partes.length) throw new Error('La caja no tiene partes ZIP registradas');
+  var encontrados={};
+  for(var i=0;i<caja.partes.length;i++){
+    var parte=caja.partes[i];
+    var blob=await descargarParteConReintentos(parte.fileId);
+    var zip=await JSZip.loadAsync(blob);
+    var entries=Object.keys(zip.files).filter(function(n){return !zip.files[n].dir;});
+    entries.forEach(function(ruta){
+      if(/\.json$/i.test(ruta))return;
+      var tipo=tipoDeArchivo(ruta);
+      if(tipo==='otro')return;
+      var album=extraerNombreAlbumDeRuta(ruta)||caja.id;
+      var clave=normalizarNombreAlbum(album);
+      if(!clave)return;
+      if(!encontrados[clave])encontrados[clave]={nombreOriginal:album,total:0};
+      encontrados[clave].total++;
+    });
+  }
+  var existentes=await pendientesDeCaja(caja.id);
+  for(var j=0;j<existentes.length;j++) await cDel('pendientes',existentes[j].id);
+  var claves=Object.keys(encontrados);
+  for(var k=0;k<claves.length;k++){
+    var clave=claves[k],rp=encontrados[clave];
+    await registrarPendienteAlbum(caja,rp.nombreOriginal,clave,rp.total);
+  }
+  return claves.length;
+}
+
 async function renderAlbumesPendientes(){
-await cargarPendientesPersistentes();
-var claves=Object.keys(colaAlbumesPendientes);
-var card=document.getElementById('cardAlbumesPendientes');
-if(!card)return;
-if(!claves.length){card.style.display='none';return;}
-card.style.display='block';
-var cont=document.getElementById('listaAlbumesPendientes');
-cont.innerHTML=claves.map(function(id){var p=colaAlbumesPendientes[id];return '<div id="bloqueAlbum_'+idSlugAlbum(id)+'" style="padding:10px 0;border-bottom:1px solid var(--border)"><b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.total+' elemento(s)</span><div style="font-size:11px;color:var(--muted);margin:4px 0">Pendiente guardado en este navegador; al asignarlo se volverá a leer la caja desde Drive.</div></div>';}).join('');
-for(var i=0;i<claves.length;i++)await renderBloqueAlbumPendiente(claves[i]);
+  var card=document.getElementById('cardAlbumesPendientes');
+  if(!card)return;
+  try{
+    await cargarPendientesPersistentes();
+    var cajas=await cAll('cajas');
+    /* Si una caja quedó pendiente por una recarga anterior, puede existir solo el
+       marcador __CAJA_COMPLETA__. En ese caso reconstruimos automáticamente los
+       nombres de álbum y sus conteos leyendo de nuevo los ZIP que siguen en Drive. */
+    for(var i=0;i<cajas.length;i++){
+      var caja=cajas[i];
+      if(caja.estado!=='esperando_asignacion_album')continue;
+      var ps=await pendientesDeCaja(caja.id);
+      var reales=ps.filter(function(p){return !p.modoCajaCompleta && p.clave;});
+      if(!reales.length){
+        card.style.display='block';
+        var tmp=document.getElementById('listaAlbumesPendientes');
+        if(tmp)tmp.innerHTML='<div class="note">Reconstruyendo automáticamente los álbumes de <b>'+esc(caja.id)+'</b> desde sus ZIP de Drive…</div>';
+        try{
+          await reconstruirPendientesDeCajaDesdeDrive(caja);
+        }catch(err){
+          if(tmp)tmp.innerHTML='<div class="note" style="color:var(--warn)"><b>No se pudo reconstruir la caja '+esc(caja.id)+'.</b><br>'+esc(err.message)+'<br><small>Los ZIP originales siguen intactos. Puedes pulsar Actualizar para reintentarlo.</small></div>';
+        }
+      }
+    }
+    await cargarPendientesPersistentes();
+    var claves=Object.keys(colaAlbumesPendientes);
+    if(!claves.length){card.style.display='none';return;}
+    card.style.display='block';
+    var cont=document.getElementById('listaAlbumesPendientes');
+    cont.innerHTML=claves.map(function(id){
+      var p=colaAlbumesPendientes[id];
+      return '<div id="bloqueAlbum_'+idSlugAlbum(id)+'" style="padding:10px 0;border-bottom:1px solid var(--border)"><b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.total+' elemento(s)</span><div style="font-size:11px;color:var(--muted);margin:4px 0">Pendiente guardado; al asignarlo se volverá a leer la caja desde Drive.</div></div>';
+    }).join('');
+    for(var j=0;j<claves.length;j++){
+      try{await renderBloqueAlbumPendiente(claves[j]);}
+      catch(err){
+        var b=document.getElementById('bloqueAlbum_'+idSlugAlbum(claves[j]));
+        if(b)b.innerHTML='<b>'+esc(colaAlbumesPendientes[claves[j]].nombreOriginal)+'</b><div class="note" style="color:var(--warn);margin-top:6px"><b>No se pudieron cargar las personas.</b><br>'+esc(err.message)+'<br><button class="btn ghost small" onclick="recargarPersonasDesdeBackup()">Volver a leer backup-arbol.json</button></div>';
+      }
+    }
+  }catch(err){
+    card.style.display='block';
+    var cont2=document.getElementById('listaAlbumesPendientes');
+    if(cont2)cont2.innerHTML='<div class="note" style="color:var(--warn)"><b>No se pudo reconstruir la asignación.</b><br>'+esc(err.message)+'<br><small>La caja no se ha borrado.</small></div>';
+  }
 }
 function idSlugAlbum(clave){return (clave||'x').replace(/\s+/g,'_');}
 async function renderBloqueAlbumPendiente(clave){
