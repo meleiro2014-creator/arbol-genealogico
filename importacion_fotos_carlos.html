@@ -1774,15 +1774,35 @@ for(var i=0;i<ids.length;i++){
   var e=await cGet('elementos',ids[i]);
   if(e)elementos.push(e);
 }
+/* La persona puede estar guardada en la caja aunque el elemento siga en Dudas.
+   Este es el caso normal cuando primero se asignó la caja y después se clasifica
+   una fotografía/documento. Recuperamos la asignación persistente de la caja. */
 var candidatos=elementos.map(function(e){return e.personaAsignadaId;}).filter(Boolean);
+for(var ci=0;ci<elementos.length;ci++){
+  if(!elementos[ci].personaAsignadaId && elementos[ci].cajaId){
+    var cb=await cGet('cajas',elementos[ci].cajaId);
+    if(cb&&cb.personaAsignadaId){
+      elementos[ci].personaAsignadaId=cb.personaAsignadaId;
+      elementos[ci].personaAsignadaNombre=cb.personaAsignadaNombre||null;
+      candidatos.push(cb.personaAsignadaId);
+    }
+  }
+}
 var unicos=Array.from(new Set(candidatos.map(String)));
 
 if(unicos.length===1 && candidatos.length===elementos.length){
   var pid=unicos[0];
   var personas=await cargarPersonasArbol();
   var p=personas.find(function(x){return String(x.ID)===String(pid);});
-  var nombre=p?construirNombrePersonaBackup(p):((elementos[0].personas&&elementos[0].personas[0])||'');
+  var nombre=p?construirNombrePersonaBackup(p):(elementos[0].personaAsignadaNombre||((elementos[0].personas&&elementos[0].personas[0])||''));
   if(!nombre)nombre='Persona ID '+pid;
+  /* Guardamos la persona en cada elemento antes de clasificarlo. Así una recarga
+     posterior tampoco obliga a volver a buscar la ficha. */
+  for(var ei=0;ei<elementos.length;ei++){
+    elementos[ei].personaAsignadaId=pid;
+    elementos[ei].personaAsignadaNombre=nombre;
+    await cPut('elementos',elementos[ei]);
+  }
   if(confirm('Estos '+elementos.length+' documento(s) pertenecen a la ficha:\n\n'+nombre+' (ID '+pid+')\n\n¿Confirmar?')){
     await asignarPersonaSeleccion(pid,nombre);
   }
