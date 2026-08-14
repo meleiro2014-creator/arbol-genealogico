@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js" defer></script>
 <style>
 /* Misma paleta que arbolgenealogico_3.html, para que ambas herramientas se sientan como
    una sola aplicación aunque vivan en archivos separados. */
@@ -78,6 +79,19 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 .colab-estado b{display:block;font-size:14px}
 .colab-estado span{font-size:11px;color:var(--muted)}
 .note{font-size:11px;color:var(--muted);background:rgba(196,101,58,.05);border:1px dashed var(--border);border-radius:10px;padding:8px 12px;margin-top:8px}
+
+/* ===== PROGRESO DE ASIGNACION / IMPORTACION ===== */
+#progresoAsignacionOverlay{display:none;position:fixed;inset:0;background:rgba(30,20,10,.38);z-index:99999;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)}
+#progresoAsignacionBox{width:min(560px,94vw);background:#fffdf8;border:1px solid var(--border,#e5d9ca);border-radius:16px;box-shadow:0 18px 60px rgba(0,0,0,.22);padding:24px}
+#progresoAsignacionBox h3{margin:0 0 6px;font-size:20px}
+#progresoAsignacionEstado{font-size:13px;color:var(--muted,#777);min-height:20px;margin-bottom:12px}
+#progresoAsignacionBarra{height:16px;background:#eee5d9;border-radius:999px;overflow:hidden;border:1px solid #e1d5c6}
+#progresoAsignacionFill{height:100%;width:0%;background:var(--accent,#c96536);transition:width .25s ease;border-radius:999px}
+#progresoAsignacionDatos{display:flex;justify-content:space-between;gap:12px;margin-top:9px;font-size:12px;color:var(--muted,#777)}
+#progresoAsignacionArchivo{font-size:12px;margin-top:12px;padding:9px 11px;background:#f7f1e8;border-radius:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#progresoAsignacionNota{font-size:11px;color:var(--muted,#777);margin-top:12px;line-height:1.45}
+#progresoAsignacionOverlay .spinner{display:inline-block;width:13px;height:13px;border:2px solid #d9cfc2;border-top-color:var(--accent,#c96536);border-radius:50%;animation:progresoSpin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes progresoSpin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -190,6 +204,8 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Esta herramienta pide permiso completo de Drive (lectura y escritura), más amplio que el de la app de árbol genealógico, porque necesita leer una carpeta compartida por tus colaboradores que tu cuenta no creó.</p>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de origen (compartida, ej. FOTOS-CARLOS)</span><input id="cfgOrigen" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaOrigen()">Guardar</button></div>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta raíz de Genealogia (la misma que configuraste en la app principal, con las subcarpetas FOTO y DOCUMENTOS)</span><input id="cfgDestino" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaDestino()">Guardar</button></div>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de base de datos de fotografías (JSON maestro)</span><input id="cfgBaseDatos" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaBaseDatos()">Guardar</button></div>
+<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Aquí se guarda <b>fotografias.json</b>, con todos los descubrimientos: datos de Google Fotos, OCR, persona, hash, duplicados, Takeout y ubicación final en Drive.</p>
 <p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Las fotos de perfil se guardan como FOTO/&lt;ID&gt;.jpg y el resto en DOCUMENTOS/&lt;ID&gt;/, exactamente igual que hace la app principal. Así, en cuanto se copian aquí, ya aparecen en la ficha de la persona sin tocar nada más.</p>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Espacio libre disponible (GB)</span><input id="cfgEspacioGB" type="number" value="75"></div><button class="btn ghost small" onclick="guardarEspacioGB()">Guardar</button></div>
 </div>
@@ -247,7 +263,7 @@ var CARPETA_REVISION_NOMBRE='Sin clasificar';
 var MAX_MINIATURA_PX=220;
 
 var db=null, googleTokenClient=null, driveAccessToken=null, driveTokenExpira=0, googleIdentidad=null;
-var CFG_ORIGEN_ID=null, CFG_DESTINO_ID=null, CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
+var CFG_ORIGEN_ID=null, CFG_DESTINO_ID=null, CFG_BASE_DATOS_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC', CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
 var CFG_OCR_ACTIVO=false, CFG_OCR_MAX_PAGINAS=3;
 var COLABORADORES=[];
 var seleccionDudas={};
@@ -258,6 +274,7 @@ var vistaCajaAbierta={};
    de que el administrador lo asigne una vez desde la pestaña Cajas. */
 var MAPA_ALIAS_ALBUM={};
 var colaAlbumesPendientes={};
+var BASE_DATOS_CACHE=null, BASE_DATOS_FILE_ID=null, BASE_DATOS_GUARDANDO=null;
 
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -360,9 +377,10 @@ var rc=await driveFetch('https://www.googleapis.com/drive/v3/files',{method:'POS
 var dc=await rc.json();
 return dc.id;
 }
-async function subirBinarioADrive(nombre,blob,mimeType,parentId){
+async function subirBinarioADrive(nombre,blob,mimeType,parentId,descripcion){
 var boundary='impcarlos_'+Date.now();
 var metadata={name:nombre,parents:[parentId]};
+if(descripcion)metadata.description=String(descripcion).slice(0,1000);
 var meta=new Blob(['\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n--'+boundary+'\r\nContent-Type: '+mimeType+'\r\n\r\n'],{type:'text/plain'});
 var close=new Blob(['\r\n--'+boundary+'--'],{type:'text/plain'});
 var body=new Blob([meta,blob,close]);
@@ -370,6 +388,104 @@ var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadT
 if(!r.ok)throw new Error('Drive respondió '+r.status+' al subir '+nombre);
 return await r.json();
 }
+
+async function actualizarBinarioADrive(fileId,blob,mimeType){
+var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(fileId)+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mimeType||blob.type||'application/octet-stream'},body:blob});
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al actualizar el archivo');
+return await r.json();
+}
+async function actualizarMetadatosDrive(fileId,campos){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)});
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al actualizar los metadatos');
+return await r.json();
+}
+async function buscarArchivoPorNombreEnCarpeta(nombre,parentId){
+var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and trashed=false";
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,mimeType,size,md5Checksum,parents,modifiedTime)&spaces=drive');
+var d=await leerRespuestaDrive(r,'No se pudo buscar el archivo en Drive');
+return (d.files||[])[0]||null;
+}
+async function cargarBaseDatosDrive(){
+if(BASE_DATOS_CACHE)return BASE_DATOS_CACHE;
+if(!CFG_BASE_DATOS_ID)throw new Error('Falta configurar la carpeta de base de datos');
+var f=await buscarArchivoPorNombreEnCarpeta('fotografias.json',CFG_BASE_DATOS_ID);
+if(!f){BASE_DATOS_FILE_ID=null;BASE_DATOS_CACHE={version:1,creado:new Date().toISOString(),actualizado:new Date().toISOString(),fotografias:{}};return BASE_DATOS_CACHE;}
+BASE_DATOS_FILE_ID=f.id;
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
+if(!r.ok)throw new Error('No se pudo leer la base de datos de fotografías de Drive');
+var txt=await r.text();
+try{BASE_DATOS_CACHE=JSON.parse(txt)||{};}catch(e){throw new Error('La base de datos fotografias.json no contiene JSON válido');}
+if(!BASE_DATOS_CACHE.fotografias)BASE_DATOS_CACHE.fotografias={};
+return BASE_DATOS_CACHE;
+}
+function prepararRegistroBaseDatos(elemento){
+var r=JSON.parse(JSON.stringify(elemento));
+delete r.miniatura; // las miniaturas son solo para la interfaz local; no deben inflar la base maestra
+r.baseDatosActualizado=new Date().toISOString();
+return r;
+}
+async function guardarBaseDatosDrive(elemento){
+if(!elemento)return;
+var bd=await cargarBaseDatosDrive();
+bd.version=1;
+bd.actualizado=new Date().toISOString();
+bd.origen='Importación de fotografías';
+bd.carpetaArchivoFotografico=CFG_DESTINO_ID||null;
+bd.carpetaBaseDatos=CFG_BASE_DATOS_ID||null;
+bd.fotografias[elemento.id]=prepararRegistroBaseDatos(elemento);
+var blob=new Blob([JSON.stringify(bd,null,2)],{type:'application/json;charset=utf-8'});
+if(BASE_DATOS_GUARDANDO){try{await BASE_DATOS_GUARDANDO;}catch(e){}}
+BASE_DATOS_GUARDANDO=(async function(){
+try{
+ if(BASE_DATOS_FILE_ID){
+   await actualizarBinarioADrive(BASE_DATOS_FILE_ID,blob,'application/json');
+ }else{
+   var subida=await subirBinarioADrive('fotografias.json',blob,'application/json',CFG_BASE_DATOS_ID,'Base de datos maestra de fotografías. Se actualiza automáticamente por la aplicación de importación.');
+   BASE_DATOS_FILE_ID=subida.id;
+ }
+}finally{BASE_DATOS_GUARDANDO=null;}
+})();
+await BASE_DATOS_GUARDANDO;
+}
+async function sincronizarBaseDatosLocalDesdeDrive(){
+try{
+ var bd=await cargarBaseDatosDrive();
+ var claves=Object.keys(bd.fotografias||{});
+ for(var i=0;i<claves.length;i++)await cPut('elementos',bd.fotografias[claves[i]]);
+ return claves.length;
+}catch(e){console.warn('No se pudo sincronizar la base de datos maestra:',e.message);return 0;}
+}
+async function calcularMD5(blob){
+if(window.SparkMD5&&SparkMD5.ArrayBuffer){return SparkMD5.ArrayBuffer.hash(await blob.arrayBuffer());}
+return null;
+}
+async function listarArbolDriveRecursivo(parentId,resultado,visitados){
+resultado=resultado||[];visitados=visitados||{};
+if(visitados[parentId])return resultado;visitados[parentId]=true;
+var archivos=await listarTodosArchivosDrive("'"+parentId+"' in parents and trashed=false",'id,name,mimeType,size,md5Checksum,parents,modifiedTime');
+for(var i=0;i<archivos.length;i++){
+ var f=archivos[i];resultado.push(f);
+ if(f.mimeType==='application/vnd.google-apps.folder')await listarArbolDriveRecursivo(f.id,resultado,visitados);
+}
+return resultado;
+}
+var INDICE_DRIVE_DUPLICADOS=null;
+async function buscarDuplicadoDrive(md5,size){
+if(!md5||!CFG_DESTINO_ID)return null;
+var bd=await cargarBaseDatosDrive();
+var claves=Object.keys(bd.fotografias||{});
+for(var i=0;i<claves.length;i++){
+ var e=bd.fotografias[claves[i]];
+ if(e&&e.md5&&e.md5===md5&&e.driveFileId)return {id:e.driveFileId,nombre:e.nombreArchivo||e.nombreOriginal,elemento:e,fuente:'base_datos'};
+}
+if(!INDICE_DRIVE_DUPLICADOS){
+ var todos=await listarArbolDriveRecursivo(CFG_DESTINO_ID,[],{});
+ INDICE_DRIVE_DUPLICADOS={archivos:(todos||[]).filter(function(f){return f.mimeType&&/^image\//i.test(f.mimeType)&&f.md5Checksum;})};
+}
+var candidatos=INDICE_DRIVE_DUPLICADOS.archivos.filter(function(f){return f.md5Checksum===md5 && (!size || !f.size || Number(f.size)===Number(size));});
+return candidatos.length?{id:candidatos[0].id,nombre:candidatos[0].name,driveFile:candidatos[0],fuente:'drive'}:null;
+}
+
 async function moverArchivoDrive(fileId,nuevoParentId,antiguoParentId){
 var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?addParents='+nuevoParentId+'&removeParents='+antiguoParentId,{method:'PATCH'});
 if(!r.ok)throw new Error('No se pudo mover el archivo en Drive');
@@ -391,6 +507,7 @@ async function accionActualizar(){
 if(!CFG_ORIGEN_ID){toast('Configura primero la carpeta de origen',true);sv('cfg');return;}
 try{
 if(!tokenDriveValido())await conectarGoogleDrive();
+if(CFG_BASE_DATOS_ID){try{var nBD=await sincronizarBaseDatosLocalDesdeDrive();if(nBD)console.log('Base de datos maestra sincronizada:',nBD,'registros');}catch(e){console.warn(e.message);}}
 
 // Primero comprobamos que el ID guardado corresponde realmente a una carpeta
 // accesible para la cuenta autenticada. Antes este fallo podía quedar oculto
@@ -650,21 +767,35 @@ async function carpetaRevision(){if(!CFG_REVISION_ID)CFG_REVISION_ID=await obten
 
 async function procesarElementoConPersona(nombreArchivo,tipo,blob,jsonData,caja,esHuerfano,personaId,personaNombre,albumNombre){
 var hash=await calcularHash(blob);
+var md5=await calcularMD5(blob);
 var existente=await cGet('elementos',hash);
+var duplicadoDrive=null;
+if(!existente && md5){try{duplicadoDrive=await buscarDuplicadoDrive(md5,blob.size);}catch(e){console.warn('No se pudo comprobar duplicados en Drive:',e.message);}}
 // El etiquetado de caras del JSON pasa a ser una señal SECUNDARIA: solo avisa si esta foto
 // concreta tiene etiquetada a alguien distinto de la persona del álbum (posible foto de grupo).
 var personasEtiquetadas=(jsonData&&Array.isArray(jsonData.people))?jsonData.people.map(function(p){return p.name;}).filter(Boolean):[];
 var otrasPersonas=personasEtiquetadas.filter(function(n){return normalizarNombreAlbum(n)!==normalizarNombreAlbum(personaNombre);});
 var etiquetas=[];
 if(jsonData&&jsonData.title&&!/^\d{8}_/.test(jsonData.title))etiquetas.push(jsonData.title);
+if(jsonData&&jsonData.description)etiquetas.push(String(jsonData.description));
 var fecha=extraerAnioDeMetadata(jsonData);
 var fechaEstimada=!fecha;
 if(!fecha)fecha=new Date();
 
 if(existente){
+existente.md5=md5||existente.md5||null;
 existente.etiquetas=Array.from(new Set((existente.etiquetas||[]).concat(etiquetas)));
 existente.albumesOrigen=Array.from(new Set((existente.albumesOrigen||[]).concat([albumNombre])));
+if(jsonData){
+  existente.googlePhotosMetadata=jsonData;
+  existente.googlePhotosMetadataDisponible=true;
+  existente.googlePhotosDescription=jsonData.description||existente.googlePhotosDescription||'';
+  existente.googlePhotosUrl=jsonData.url||existente.googlePhotosUrl||'';
+  existente.googlePhotosTitle=jsonData.title||existente.googlePhotosTitle||'';
+  existente.googlePhotosJsonOriginal=JSON.stringify(jsonData,null,2);
+}
 await cPut('elementos',existente);
+await guardarBaseDatosDrive(existente);
 caja.contadores.total=(caja.contadores.total||0)+1;
 await cPut('cajas',caja);
 return;
@@ -677,11 +808,18 @@ else if(otrasPersonas.length)motivoDuda='varias_personas';
 var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDuda);
 
 var elemento={
-id:hash,nombreOriginal:nombreArchivo,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
+id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
 fecha:fecha.toISOString(),fechaEstimada:fechaEstimada,albumesOrigen:[albumNombre],cajaId:caja.id,
 estado:clasificacion.estado,motivoDuda:clasificacion.motivoDuda,tamano:blob.size,
 personaAsignadaId:clasificacion.estado==='duda'?null:personaId,miniatura:await generarMiniatura(blob,tipo),
-rutaDrive:null,driveFileId:null
+rutaDrive:null,driveFileId:null,
+// Conservamos íntegramente los metadatos exportados por Google Fotos.
+googlePhotosMetadata:jsonData||null,
+googlePhotosMetadataDisponible:!!jsonData,
+googlePhotosDescription:jsonData&&jsonData.description?String(jsonData.description):'',
+googlePhotosTitle:jsonData&&jsonData.title?String(jsonData.title):'',
+googlePhotosUrl:jsonData&&jsonData.url?String(jsonData.url):'',
+googlePhotosJsonOriginal:jsonData?JSON.stringify(jsonData,null,2):null
 };
 
 // Regla dura: se sube SIEMPRE a Drive en cuanto se clasifica (a la carpeta final si se sabe,
@@ -705,9 +843,39 @@ carpetaDestino=await carpetaFotoPersona(personaId,personaNombre);
 carpetaDestino=await carpetaDocumentosPersona(personaId,personaNombre);
 }
 
-var subida=await subirBinarioADrive(nombreSubida,subirBlob,mimeSubida,carpetaDestino.id);
+var descripcionDrive=(jsonData&&jsonData.description)?String(jsonData.description):'';
+var subida;
+if(duplicadoDrive){
+  // La fotografía ya existe físicamente: sustituimos su contenido en vez de crear otro archivo.
+  await actualizarBinarioADrive(duplicadoDrive.id,subirBlob,mimeSubida);
+  await actualizarMetadatosDrive(duplicadoDrive.id,{description:descripcionDrive||undefined});
+  subida={id:duplicadoDrive.id};
+  elemento.duplicadoEncontrado=true;
+  elemento.duplicadoNombreAnterior=duplicadoDrive.nombre||null;
+  elemento.duplicadoFuente=duplicadoDrive.fuente||'drive';
+}else{
+  subida=await subirBinarioADrive(nombreSubida,subirBlob,mimeSubida,carpetaDestino.id,descripcionDrive);
+}
 elemento.driveFileId=subida.id;
 elemento.rutaDrive=carpetaDestino.ruta;
+elemento.md5=md5||elemento.md5||null;
+if(duplicadoDrive&&duplicadoDrive.driveFile&&Array.isArray(duplicadoDrive.driveFile.parents)&&duplicadoDrive.driveFile.parents.indexOf(carpetaDestino.id)<0){try{await moverArchivoDrive(duplicadoDrive.id,carpetaDestino.id,duplicadoDrive.driveFile.parents[0]);}catch(e){console.warn('No se pudo mover el duplicado a la carpeta destino:',e.message);}}
+
+// Guardamos también un sidecar JSON junto a la fotografía. Así la información original
+// de Google Fotos sigue siendo recuperable aunque la foto salga de esta aplicación.
+if(jsonData){
+  try{
+    var nombreSidecar=nombreSubida+'.google-photos.json';
+    var sidecarBlob=new Blob([JSON.stringify(jsonData,null,2)],{type:'application/json;charset=utf-8'});
+    var sidecarExistente=await buscarArchivoPorNombreEnCarpeta(nombreSidecar,carpetaDestino.id);
+    if(sidecarExistente){await actualizarBinarioADrive(sidecarExistente.id,sidecarBlob,'application/json');}
+    else{await subirBinarioADrive(nombreSidecar,sidecarBlob,'application/json',carpetaDestino.id,'Metadatos originales exportados por Google Fotos para '+nombreArchivo);}
+    elemento.googlePhotosSidecar=nombreSidecar;
+  }catch(sidecarErr){
+    console.warn('No se pudo guardar el JSON sidecar de Google Fotos para '+nombreArchivo+':',sidecarErr.message);
+    elemento.googlePhotosSidecarError=sidecarErr.message;
+  }
+}
 
 await cPut('elementos',elemento);
 caja.contadores.total=(caja.contadores.total||0)+1;
@@ -715,6 +883,7 @@ if(elemento.estado==='duda')caja.contadores.dudas=(caja.contadores.dudas||0)+1;
 else caja.contadores.copiados=(caja.contadores.copiados||0)+1;
 await cPut('cajas',caja);
 await actualizarEstimacionEspacio(subirBlob.size);
+await guardarBaseDatosDrive(elemento);
 
 // OCR + sugerencias genealógicas: a posteriori del guardado, para que un fallo aquí nunca
 // impida que el archivo quede ya copiado y verificado en Drive (la regla dura no depende de esto).
@@ -729,6 +898,7 @@ elemento.ocrSugerencias=analisis;
 elemento.ocrProcesado=true;
 elemento.posibleDuplicadoDe=dup?dup.elementoId:null;
 await cPut('elementos',elemento);
+await guardarBaseDatosDrive(elemento);
 }
 }catch(err){console.warn('OCR/análisis genealógico omitido para '+nombreArchivo+':',err.message);}
 }
@@ -989,30 +1159,100 @@ return{estado:'documento',motivoDuda:null};
 }
 
 /* ===== ÁLBUMES PENDIENTES DE ASIGNAR (se pregunta una vez por nombre de álbum) ===== */
+
+function mostrarProgresoAsignacion(nombre,total){
+  var ov=document.getElementById('progresoAsignacionOverlay');
+  if(!ov)return;
+  ov.style.display='flex';
+  var fill=document.getElementById('progresoAsignacionFill');
+  var estado=document.getElementById('progresoAsignacionEstado');
+  var cuenta=document.getElementById('progresoAsignacionCuenta');
+  var pct=document.getElementById('progresoAsignacionPorcentaje');
+  var archivo=document.getElementById('progresoAsignacionArchivo');
+  if(fill)fill.style.width='0%';
+  if(estado)estado.innerHTML='<span class="spinner"></span>Preparando "'+esc(nombre)+'"…';
+  if(cuenta)cuenta.textContent='0 de '+total+' elementos';
+  if(pct)pct.textContent='0 %';
+  if(archivo)archivo.textContent='Preparando los archivos…';
+}
+function actualizarProgresoAsignacion(actual,total,archivo,estadoTexto){
+  var fill=document.getElementById('progresoAsignacionFill');
+  var estado=document.getElementById('progresoAsignacionEstado');
+  var cuenta=document.getElementById('progresoAsignacionCuenta');
+  var pct=document.getElementById('progresoAsignacionPorcentaje');
+  var nombre=document.getElementById('progresoAsignacionArchivo');
+  var porcentaje=total?Math.max(0,Math.min(100,Math.round((actual/total)*100))):0;
+  if(fill)fill.style.width=porcentaje+'%';
+  if(estado)estado.innerHTML='<span class="spinner"></span>'+esc(estadoTexto||'Procesando…');
+  if(cuenta)cuenta.textContent=actual+' de '+total+' elementos';
+  if(pct)pct.textContent=porcentaje+' %';
+  if(nombre)nombre.textContent=archivo||'Procesando…';
+}
+function ocultarProgresoAsignacion(){
+  var ov=document.getElementById('progresoAsignacionOverlay');
+  if(ov)ov.style.display='none';
+}
+function finalizarProgresoAsignacion(ok,mensaje){
+  var fill=document.getElementById('progresoAsignacionFill');
+  var estado=document.getElementById('progresoAsignacionEstado');
+  var pct=document.getElementById('progresoAsignacionPorcentaje');
+  if(ok){
+    if(fill)fill.style.width='100%';
+    if(pct)pct.textContent='100 %';
+    if(estado)estado.innerHTML='✓ '+esc(mensaje||'Álbum guardado correctamente.');
+  }else if(estado){
+    estado.innerHTML='⚠ '+esc(mensaje||'Se ha producido un error.');
+  }
+}
+
 async function resolverAlbumPendiente(clave,personaId,personaNombre){
-var pendiente=colaAlbumesPendientes[clave];
-if(!pendiente)return;
-var mapa=await leerCfgValor('mapaAliasAlbum',{});
-mapa[clave]={personaId:personaId,personaNombre:personaNombre};
-await guardarCfgValor('mapaAliasAlbum',mapa);
-MAPA_ALIAS_ALBUM=mapa;
-var caja=await cGet('cajas',pendiente.cajaId);
-for(var i=0;i<pendiente.elementos.length;i++){
-var el=pendiente.elementos[i];
-await procesarElementoConPersona(el.nombreArchivo,el.tipo,el.blob,el.jsonData,caja,el.esHuerfano,personaId,personaNombre,pendiente.nombreOriginal);
-}
-delete colaAlbumesPendientes[clave];
-caja=await cGet('cajas',pendiente.cajaId);
-var quedanPendientes=Object.keys(colaAlbumesPendientes).some(function(k){return colaAlbumesPendientes[k].cajaId===pendiente.cajaId;});
-if(!quedanPendientes){
-caja.estado=(caja.contadores.dudas>0)?'con_dudas':'procesada';
-caja.fechaProcesada=new Date().toISOString();
-await cPut('cajas',caja);
-toast('Álbum "'+pendiente.nombreOriginal+'" asignado a '+personaNombre+' y copiado en tu Drive');
-}else{
-toast('Asignado "'+pendiente.nombreOriginal+'" a '+personaNombre+'. Quedan más álbumes de esta caja por asignar.');
-}
-renderCajas();renderPanel();
+ var pendiente=colaAlbumesPendientes[clave];
+ if(!pendiente)return;
+ var botones=document.querySelectorAll('button');
+ botones.forEach(function(b){
+   if((b.textContent||'').indexOf('Es esta persona')>=0)b.disabled=true;
+ });
+ var total=pendiente.elementos.length;
+ mostrarProgresoAsignacion(pendiente.nombreOriginal,total);
+ var caja=await cGet('cajas',pendiente.cajaId);
+ try{
+   var mapa=await leerCfgValor('mapaAliasAlbum',{});
+   mapa[clave]={personaId:personaId,personaNombre:personaNombre};
+   await guardarCfgValor('mapaAliasAlbum',mapa);
+   MAPA_ALIAS_ALBUM=mapa;
+
+   for(var i=0;i<pendiente.elementos.length;i++){
+     var el=pendiente.elementos[i];
+     actualizarProgresoAsignacion(i,total,el.nombreArchivo,'Procesando y guardando el elemento '+(i+1)+' de '+total+'…');
+     await procesarElementoConPersona(el.nombreArchivo,el.tipo,el.blob,el.jsonData,caja,el.esHuerfano,personaId,personaNombre,pendiente.nombreOriginal);
+     actualizarProgresoAsignacion(i+1,total,el.nombreArchivo,'Elemento '+(i+1)+' de '+total+' guardado');
+   }
+
+   delete colaAlbumesPendientes[clave];
+   caja=await cGet('cajas',pendiente.cajaId);
+   var quedanPendientes=Object.keys(colaAlbumesPendientes).some(function(k){return colaAlbumesPendientes[k].cajaId===pendiente.cajaId;});
+   if(!quedanPendientes){
+     caja.estado=(caja.contadores.dudas>0)?'con_dudas':'procesada';
+     caja.fechaProcesada=new Date().toISOString();
+     await cPut('cajas',caja);
+     finalizarProgresoAsignacion(true,'Álbum guardado: '+total+' elemento(s) procesado(s).');
+     toast('Álbum "'+pendiente.nombreOriginal+'" asignado a '+personaNombre+' y copiado en tu Drive');
+   }else{
+     finalizarProgresoAsignacion(true,'Álbum guardado. Quedan otros álbumes de esta caja por asignar.');
+     toast('Asignado "'+pendiente.nombreOriginal+'" a '+personaNombre+'. Quedan más álbumes de esta caja por asignar.');
+   }
+   renderCajas();renderPanel();
+   setTimeout(ocultarProgresoAsignacion,1400);
+ }catch(err){
+   caja=await cGet('cajas',pendiente.cajaId);
+   if(caja){caja.estado='error';caja.error=err.message;await cPut('cajas',caja);}
+   finalizarProgresoAsignacion(false,'Error: '+err.message);
+   toast('Error asignando "'+pendiente.nombreOriginal+'": '+err.message,true);
+   renderCajas();renderPanel();
+   setTimeout(ocultarProgresoAsignacion,2500);
+ }finally{
+   botones.forEach(function(b){b.disabled=false;});
+ }
 }
 async function renderAlbumesPendientes(){
 var claves=Object.keys(colaAlbumesPendientes);
@@ -1308,6 +1548,23 @@ var avisoTxt=c.estado==='procesada'?'<span class="badge ok">Ya puede borrar la c
 return '<tr><td>'+esc(c.id)+'</td><td>'+esc(c.colaborador||'Sin asignar')+'</td><td><span class="badge '+badge+'">'+esc(badgeTxt)+'</span></td><td>'+((c.contadores&&c.contadores.total)||0)+'</td><td>'+avisoTxt+'</td></tr>';
 }).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">Todavía no se ha detectado ningún álbum. Pulsa Actualizar.</td></tr>';
 }
+async function reiniciarCaja(cajaId){
+var caja=await cGet('cajas',cajaId);
+if(!caja){toast('La caja ya no existe',true);return;}
+var copiados=(caja.contadores&&caja.contadores.copiados)||0;
+var aviso=copiados>0
+? 'Esta caja ya tiene '+copiados+' elemento(s) copiado(s) en Drive. Se eliminará SOLO el registro local de la aplicación; los archivos de Drive NO se borrarán.\n\n¿Quieres quitar la caja local y volver a detectarla desde cero?'
+: 'Se quitará esta caja y sus elementos del registro local. Los ZIP originales de Google Drive NO se borrarán.\n\n¿Continuar?';
+if(!confirm(aviso))return;
+var elementos=await cAll('elementos');
+for(var i=0;i<elementos.length;i++)if(elementos[i].cajaId===cajaId)await cDel('elementos',elementos[i].id);
+Object.keys(colaAlbumesPendientes).forEach(function(k){if(colaAlbumesPendientes[k].cajaId===cajaId)delete colaAlbumesPendientes[k];});
+await cDel('cajas',cajaId);
+await recalcularContadoresDudas();
+renderCajas();renderPanel();
+toast('Caja "'+cajaId+'" eliminada del registro local. Pulsa Actualizar para volver a detectarla.');
+}
+
 async function renderCajas(){
 renderAlbumesPendientes();
 var cajas=await cAll('cajas');
@@ -1323,7 +1580,7 @@ return '<div class="card"><div style="display:flex;justify-content:space-between
 (c.error?'<p style="color:var(--warn);font-size:12px;margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(c.error)+'</p>':'')+
 (c.estado==='completa'?'<button class="btn small" style="margin-top:8px" onclick="procesarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-play"></i> Procesar ahora</button>':'')+
 (c.estado==='esperando_asignacion_album'&&!Object.keys(colaAlbumesPendientes).some(function(k){return colaAlbumesPendientes[k].cajaId===c.id;})?'<p class="note">Si has recargado la página, los álbumes pendientes de esta caja se han perdido de memoria (no se guarda el binario). Pulsa para volver a leerlos del ZIP:</p><button class="btn small" onclick="procesarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-rotate"></i> Volver a leer el ZIP</button>':'')+
-'</div>';
+'<button class="btn ghost small" style="margin-top:8px" onclick="reiniciarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-trash-can"></i> Quitar caja y empezar de nuevo</button>'+'</div>';
 }).join('');
 }
 
@@ -1348,6 +1605,7 @@ async function renderConfig(){
 document.getElementById('cfgClientId').value=GOOGLE_CLIENT_ID_IMPORT||'';
 document.getElementById('cfgOrigen').value=CFG_ORIGEN_ID||'';
 document.getElementById('cfgDestino').value=CFG_DESTINO_ID||'';
+document.getElementById('cfgBaseDatos').value=CFG_BASE_DATOS_ID||'';
 document.getElementById('cfgEspacioGB').value=CFG_ESPACIO_GB;
 document.getElementById('cfgAutoPerfil').checked=CFG_AUTO_PERFIL;
 document.getElementById('cfgOcrActivo').checked=CFG_OCR_ACTIVO;
@@ -1377,7 +1635,8 @@ if(/^[a-zA-Z0-9_-]{10,}$/.test(texto))return texto;
 return null;
 }
 function guardarCarpetaOrigen(){var id=extraerIdCarpeta(document.getElementById('cfgOrigen').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_ORIGEN_ID=id;guardarCfgValor('origenId',id);toast('Carpeta de origen guardada');}
-function guardarCarpetaDestino(){var id=extraerIdCarpeta(document.getElementById('cfgDestino').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_DESTINO_ID=id;CFG_REVISION_ID=null;guardarCfgValor('destinoId',id);toast('Carpeta de destino guardada');}
+function guardarCarpetaDestino(){var id=extraerIdCarpeta(document.getElementById('cfgDestino').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_DESTINO_ID=id;CFG_REVISION_ID=null;CFG_FOTO_ID=null;CFG_DOCUMENTOS_ID=null;INDICE_DRIVE_DUPLICADOS=null;guardarCfgValor('destinoId',id);toast('Carpeta de destino guardada');}
+function guardarCarpetaBaseDatos(){var id=extraerIdCarpeta(document.getElementById('cfgBaseDatos').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_BASE_DATOS_ID=id;BASE_DATOS_CACHE=null;BASE_DATOS_FILE_ID=null;guardarCfgValor('baseDatosId',id);toast('Carpeta de base de datos guardada');}
 function guardarEspacioGB(){CFG_ESPACIO_GB=parseFloat(document.getElementById('cfgEspacioGB').value)||75;guardarCfgValor('espacioGB',CFG_ESPACIO_GB);renderPanel();toast('Guardado');}
 function guardarAutoPerfil(){CFG_AUTO_PERFIL=document.getElementById('cfgAutoPerfil').checked;guardarCfgValor('autoPerfil',CFG_AUTO_PERFIL);toast('Guardado');}
 function guardarOcrActivo(){CFG_OCR_ACTIVO=document.getElementById('cfgOcrActivo').checked;guardarCfgValor('ocrActivo',CFG_OCR_ACTIVO);toast('Guardado');}
@@ -1399,6 +1658,7 @@ oDB().then(async function(){
 GOOGLE_CLIENT_ID_IMPORT=await leerCfgValor('clientId','');
 CFG_ORIGEN_ID=await leerCfgValor('origenId',null);
 CFG_DESTINO_ID=await leerCfgValor('destinoId',null);
+CFG_BASE_DATOS_ID=await leerCfgValor('baseDatosId','1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC');
 CFG_REVISION_ID=await leerCfgValor('revisionId',null);
 CFG_AUTO_PERFIL=await leerCfgValor('autoPerfil',false);
 CFG_OCR_ACTIVO=await leerCfgValor('ocrActivo',false);
@@ -1414,5 +1674,17 @@ setInterval(function(){if(tokenDriveValido())accionActualizar();},5*60*1000);
 });
 });
 </script>
+
+<!-- Indicador visible durante la asignación y copia del álbum -->
+<div id="progresoAsignacionOverlay" aria-live="polite" aria-busy="true">
+  <div id="progresoAsignacionBox">
+    <h3><i class="fa-solid fa-cloud-arrow-up"></i> Guardando el álbum</h3>
+    <div id="progresoAsignacionEstado"><span class="spinner"></span>Preparando la importación…</div>
+    <div id="progresoAsignacionBarra"><div id="progresoAsignacionFill"></div></div>
+    <div id="progresoAsignacionDatos"><span id="progresoAsignacionCuenta">0 de 0 elementos</span><b id="progresoAsignacionPorcentaje">0 %</b></div>
+    <div id="progresoAsignacionArchivo">Esperando…</div>
+    <div id="progresoAsignacionNota">No cierres esta pestaña. Las fotos se descargan, verifican y guardan una a una. En álbumes grandes puede tardar varios minutos.</div>
+  </div>
+</div>
 </body>
 </html>
