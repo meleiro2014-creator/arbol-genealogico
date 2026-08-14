@@ -1370,7 +1370,7 @@ var sugHtml=p.sugeridos.length?p.sugeridos.map(function(c,i){
 return '<div class="colab-item" style="margin-bottom:6px;padding:8px 10px"><div class="colab-estado"><b>'+esc(c.nombre)+'</b><span>ID '+esc(c.id)+(c.anio?' · '+esc(c.anio):'')+(c.fallecido?' · fallecido/a':' · vivo/a')+' · parecido '+Math.round(c.score*100)+'%</span><span id="cotejo_'+idSlug+'_'+i+'" style="font-size:11px;color:var(--muted)"></span></div>'+
 '<button class="btn ghost small" onclick="cotejarYMostrar(\''+idSlug+'\','+i+',\''+esc(c.id)+'\')"><i class="fa-solid fa-magnifying-glass"></i> Cotejar</button> '+
 '<button class="btn small" onclick="resolverAlbumPendiente(\''+clave+'\',\''+esc(c.id)+'\',\''+esc(c.nombre).replace(/'/g,"&#39;")+'\')"><i class="fa-solid fa-check"></i> Es esta persona</button></div>';
-}).join(''):'<p style="font-size:12px;color:var(--muted)">No hay fichas con un nombre parecido.</p>';
+}).join(''):'<p style="font-size:12px;color:var(--muted)">No hay fichas con un nombre parecido. Usa la búsqueda de abajo para localizarla por nombre.</p>';
 bloque.innerHTML='<b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.total+' elemento(s)</span>'+
 '<p style="font-size:11px;color:var(--muted);margin:6px 0 8px">El nombre del álbum no tiene por qué coincidir exactamente con el de la ficha. Sugerencias por parecido:</p>'+
 sugHtml+
@@ -1533,14 +1533,18 @@ async function cargarPersonasArbol(){
   if(!f)throw new Error('No se encuentra '+CFG_BACKUP_ARBOL_NOMBRE+' en la carpeta de base de datos de Drive');
   BACKUP_ARBOL_FILE_ID=f.id;
   var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
-  if(!r.ok)throw new Error('No se pudo leer '+CFG_BACKUP_ARBOL_NOMBRE+' desde Google Drive');
+  if(!r.ok)throw new Error('No se pudo leer '+CFG_BACKUP_ARBOL_NOMBRE+' desde Google Drive (HTTP '+r.status+')');
   var txt=await r.text(),data;
   try{data=JSON.parse(txt);}catch(e){throw new Error(CFG_BACKUP_ARBOL_NOMBRE+' no contiene un JSON válido');}
+  /* El backup real del programa principal tiene la forma {formato,version,fecha,personas:[...]}. */
+  var fuente=Array.isArray(data)?data:(Array.isArray(data.personas)?data.personas:(Array.isArray(data.data)?data.data:null));
   var resultado=[];
-  extraerPersonasRecursivoBackup(data,resultado,[]);
+  if(fuente){fuente.forEach(function(x){var p=normalizarPersonaBackup(x);if(p)resultado.push(p);});}
+  else{extraerPersonasRecursivoBackup(data,resultado,[]);}
   var unicas={},final=[];
   resultado.forEach(function(p){if(!unicas[p.ID]){unicas[p.ID]=true;final.push(p);}});
   final.sort(function(a,b){return a._nombreCompleto.localeCompare(b._nombreCompleto,'es');});
+  if(!final.length)throw new Error('backup-arbol.json se ha leído correctamente, pero no contiene fichas de personas reconocibles');
   CACHE_PERSONAS_ARBOL=final;
   BACKUP_ARBOL_CACHE_META={id:f.id,modifiedTime:f.modifiedTime||null,total:final.length};
   return CACHE_PERSONAS_ARBOL;
@@ -1702,7 +1706,10 @@ toast('Caja "'+cajaId+'" eliminada del registro local. Pulsa Actualizar para vol
 }
 
 async function renderCajas(){
-renderAlbumesPendientes();
+try{await renderAlbumesPendientes();}catch(err){
+  var cardErr=document.getElementById('cardAlbumesPendientes');
+  if(cardErr){cardErr.style.display='block';document.getElementById('listaAlbumesPendientes').innerHTML='<div class="note" style="color:var(--warn)"><b>No se pudo reconstruir la asignación:</b> '+esc(err.message)+'<br><small>La caja no se ha borrado. Puedes volver a intentarlo después de comprobar la conexión con Google Drive y backup-arbol.json.</small></div>';} 
+}
 var cajas=await cAll('cajas');
 var cont=document.getElementById('listaCajas');
 if(!cajas.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:30px">Sin cajas todavía. Ve al Panel y pulsa Actualizar.</p>';return;}
