@@ -929,6 +929,15 @@ if(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')){
 var existente=await cGet('elementos',hash);
 var duplicadoDrive=null;
 if(!existente && md5){try{duplicadoDrive=await buscarDuplicadoDrive(md5,blob.size,personaId,personaNombre);}catch(e){console.warn('No se pudo comprobar duplicados en Drive:',e.message);}}
+// Si la misma imagen ya estaba en la carpeta de la persona pero no estaba registrada
+// todavía en nuestra base local, intentamos localizar su registro por driveFileId para
+// ENRIQUECERLO, en lugar de crear una segunda ficha de la misma fotografía.
+if(!existente && duplicadoDrive && duplicadoDrive.id){
+  try{
+    var todosElementosDup=await cAll('elementos');
+    existente=todosElementosDup.find(function(x){return x&&String(x.driveFileId||'')===String(duplicadoDrive.id);})||null;
+  }catch(eDup){console.warn('No se pudo localizar el registro existente del duplicado:',eDup.message);}
+}
 // El etiquetado de caras del JSON pasa a ser una señal SECUNDARIA: solo avisa si esta foto
 // concreta tiene etiquetada a alguien distinto de la persona del álbum (posible foto de grupo).
 var personasEtiquetadas=(jsonData&&Array.isArray(jsonData.people))?jsonData.people.map(function(p){return p.name;}).filter(Boolean):[];
@@ -941,9 +950,21 @@ var fechaEstimada=!fecha;
 if(!fecha)fecha=new Date();
 
 if(existente){
+// Consolidación: si ya existía físicamente la fotografía, la ficha existente es la principal.
+// No creamos una segunda fotografía; incorporamos los datos nuevos del Takeout.
 existente.md5=md5||existente.md5||null;
 existente.etiquetas=Array.from(new Set((existente.etiquetas||[]).concat(etiquetas)));
 existente.albumesOrigen=Array.from(new Set((existente.albumesOrigen||[]).concat([albumNombre])));
+existente.origenesTakeout=Array.from(new Set((existente.origenesTakeout||[]).concat([nombreArchivo])));
+existente.cajasOrigen=Array.from(new Set((existente.cajasOrigen||[]).concat([caja.id])));
+existente.personaAsignadaId=existente.personaAsignadaId||personaId||null;
+if(!existente.personas||!existente.personas.length)existente.personas=[personaNombre];
+if(duplicadoDrive){
+  existente.duplicadoEncontrado=true;
+  existente.duplicadoNombreAnterior=duplicadoDrive.nombre||existente.nombreOriginal||null;
+  existente.duplicadoFuente=duplicadoDrive.fuente||'carpeta_persona';
+  existente.consolidadoDesdeTakeout=true;
+}
 if(jsonData){
   existente.googlePhotosMetadata=jsonData;
   existente.googlePhotosMetadataDisponible=true;
@@ -968,7 +989,7 @@ var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDu
 
 var elemento={
 id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
-fecha:fecha.toISOString(),fechaEstimada:fechaEstimada,albumesOrigen:[albumNombre],cajaId:caja.id,
+fecha:fecha.toISOString(),fechaEstimada:fechaEstimada,albumesOrigen:[albumNombre],origenesTakeout:[nombreArchivo],cajasOrigen:[caja.id],cajaId:caja.id,
 estado:clasificacion.estado,motivoDuda:clasificacion.motivoDuda,tamano:blob.size,
 personaAsignadaId:clasificacion.estado==='duda'?null:personaId,miniatura:await generarMiniatura(blob,tipo),
 rutaDrive:null,driveFileId:null,
@@ -1286,6 +1307,32 @@ function verTextoOCRCompleto(elementoId){cGet('elementos',elementoId).then(funct
 async function descartarSugerencia(elementoId){var e=await cGet('elementos',elementoId);if(e){e.sugerenciaEnviada=true;await cPut('elementos',e);}renderSugerencias();}
 
 /* ===== POSIBLES DOCUMENTOS DUPLICADOS (panel) ===== */
+async function consolidarDuplicadosYaImportados(){
+  var todos=await cAll('elementos');
+  var personaCount=0, encontrados=0;
+  for(var i=0;i<todos.length;i++){
+    var el=todos[i];
+    if(!el||!el.driveFileId||!el.personaAsignadaId||!el.md5)continue;
+    try{
+      var pnom=(el.personas&&el.personas[0])||'';
+      var dup=await buscarDuplicadoDrive(el.md5,el.tamano||null,el.personaAsignadaId,pnom);
+      if(dup&&String(dup.id)!==String(el.driveFileId)){
+        el.duplicadoEncontrado=true;
+        el.duplicadoNombreAnterior=dup.nombre||null;
+        el.duplicadoFuente=dup.fuente||'carpeta_persona';
+        el.driveFileId=dup.id;
+        el.nombreArchivo=dup.nombre||el.nombreArchivo;
+        el.rutaDrive='DOCUMENTOS/'+el.personaAsignadaId+'/ ('+pnom+')';
+        await cPut('elementos',el);
+        await guardarBaseDatosDrive(el);
+        encontrados++;
+      }
+    }catch(e){}
+  }
+  toast(encontrados+' coincidencia(s) física(s) consolidada(s)');
+  await renderPanel();
+}
+
 async function renderDuplicadosPosibles(){
 var cont=document.getElementById('listaDuplicadosOCR'),card=document.getElementById('cardDuplicadosOCR');
 if(!cont||!card)return;
@@ -1667,6 +1714,7 @@ return '<div class="duda-card'+(sel?' sel':'')+'"><input type="checkbox" class="
 (e.miniatura?'<img class="duda-thumb" src="'+e.miniatura+'">':'<div class="duda-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="fa-solid '+(e.tipo==='pdf'?'fa-file-pdf':e.tipo==='video'?'fa-file-video':'fa-file')+'" style="font-size:26px"></i></div>')+
 '<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+
 (e.personaAsignadaId?'<br><span class="badge" style="margin-top:4px">Destino: '+esc((e.personas&&e.personas[0])||('ID '+e.personaAsignadaId))+'</span>':'')+
+(e.duplicadoEncontrado?'<br><span class="badge" style="margin-top:4px">♻️ Ya existía en el archivo; se ha conservado una sola copia</span>':'')+
 '<div style="margin-top:7px"><button class="btn small" onclick="seleccionarYMarcarDocumento(\''+e.id+'\')"><i class="fa-solid fa-file"></i> Documento</button></div></div></div>';
 }).join('');
 document.getElementById('badgeDudas').style.display=dudas.length?'inline-block':'none';
