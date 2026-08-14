@@ -320,14 +320,21 @@ throw new Error(contexto+' — HTTP '+r.status+': '+mensaje);
 }
 return d;
 }
+async function obtenerUsuarioDrive(){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/about?fields=user');
+var d=await leerRespuestaDrive(r,'No se pudo identificar la cuenta de Google autenticada');
+return d&&d.user?d.user:null;
+}
 async function comprobarCarpetaOrigenDrive(){
-var url='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(CFG_ORIGEN_ID)+'?fields=id,name,mimeType,trashed,parents,driveId&supportsAllDrives=true';
+var usuario=await obtenerUsuarioDrive();
+var identidad=usuario?(usuario.displayName||'Usuario')+' <'+(usuario.emailAddress||'correo no disponible')+'>':'cuenta no identificada';
+var url='https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(CFG_ORIGEN_ID)+'?fields=id,name,mimeType,trashed,parents,driveId,permissions(id,type,emailAddress,role)&supportsAllDrives=true';
 var r=await driveFetch(url);
-var d=await leerRespuestaDrive(r,'No se puede acceder a la carpeta de origen');
-if(!d||!d.id)throw new Error('Google Drive no devolvió la carpeta de origen');
-if(d.trashed)throw new Error('La carpeta de origen está en la papelera');
-if(d.mimeType!=='application/vnd.google-apps.folder')throw new Error('El ID configurado no corresponde a una carpeta');
-return d;
+var d=await leerRespuestaDrive(r,'No se puede acceder a la carpeta de origen (cuenta autenticada: '+identidad+')');
+if(!d||!d.id)throw new Error('Google Drive no devolvió la carpeta de origen (cuenta autenticada: '+identidad+')');
+if(d.trashed)throw new Error('La carpeta de origen está en la papelera (cuenta autenticada: '+identidad+')');
+if(d.mimeType!=='application/vnd.google-apps.folder')throw new Error('El ID configurado no corresponde a una carpeta (cuenta autenticada: '+identidad+')');
+return {folder:d,user:usuario,identity:identidad};
 }
 async function listarTodosArchivosDrive(query,fields){
 var archivos=[],pageToken=null;
@@ -388,7 +395,10 @@ if(!tokenDriveValido())await conectarGoogleDrive();
 // Primero comprobamos que el ID guardado corresponde realmente a una carpeta
 // accesible para la cuenta autenticada. Antes este fallo podía quedar oculto
 // y terminar mostrando simplemente "0 álbumes".
-var carpetaOrigen=await comprobarCarpetaOrigenDrive();
+var comprobacionOrigen=await comprobarCarpetaOrigenDrive();
+var carpetaOrigen=comprobacionOrigen.folder;
+var usuarioDrive=comprobacionOrigen.user;
+var identidadDrive=comprobacionOrigen.identity;
 
 // No dependemos de que Google acepte "name contains takeout" en la consulta.
 // Pedimos todo lo que cuelga directamente de la carpeta y filtramos en JavaScript.
@@ -426,13 +436,13 @@ await cPut('cajas',caja);
 document.getElementById('ultimaActualizacionTxt').textContent='Última comprobación: '+new Date().toLocaleTimeString('es-ES');
 
 var nZip=archivos.length;
-var detalle=nZip+' ZIP de Takeout detectado'+(nZip===1?'':'s')+' en "'+(carpetaOrigen.name||'origen')+'"';
+var detalle=nZip+' ZIP de Takeout detectado'+(nZip===1?'':'s')+' en "'+(carpetaOrigen.name||'origen')+'" por '+identidadDrive;
 if(nZip===0){
 var candidatos=todosEnOrigen.filter(function(f){return /\.zip$/i.test(f.name||'');});
 if(candidatos.length){
- toast('Carpeta accesible, pero los ZIP encontrados no parecen Takeout: '+candidatos.map(function(f){return f.name;}).join(', '),true);
+ toast('Carpeta accesible para '+identidadDrive+', pero los ZIP encontrados no parecen Takeout: '+candidatos.map(function(f){return f.name;}).join(', '),true);
 }else{
- toast('Carpeta accesible, pero Google Drive no devolvió ningún archivo directamente dentro de "'+(carpetaOrigen.name||'origen')+'"',true);
+ toast('Carpeta accesible para '+identidadDrive+', pero Google Drive no devolvió ningún archivo directamente dentro de "'+(carpetaOrigen.name||'origen')+'"',true);
 }
 }else{
  toast('Comprobación completada: '+Object.keys(grupos).length+' álbum(es) detectado(s) · '+detalle);
