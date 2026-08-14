@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Importación de fotos — Carlos · Base Drive</title>
+<title>Importación de fotos — Carlos · Base Drive · v8</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -129,7 +129,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 </div>
 <div class="card">
 <h3><i class="fa-solid fa-box-open"></i> Álbumes / cajas detectadas</h3>
-<button class="btn" onclick="accionActualizar()"><i class="fa-solid fa-rotate"></i> Actualizar</button>
+<button class="btn" onclick="accionActualizar()"><i class="fa-solid fa-rotate"></i> Actualizar</button> <button class="btn ghost" onclick="generarInformeHermano()"><i class="fa-solid fa-file-lines"></i> Informe para mi hermano</button>
 <span id="ultimaActualizacionTxt" style="font-size:11px;color:var(--muted);margin-left:10px"></span>
 <div style="overflow:auto;margin-top:10px"><table id="tablaCajasResumen"><thead><tr><th>Álbum</th><th>Colaborador</th><th>Estado</th><th>Elementos</th><th>Aviso</th></tr></thead><tbody></tbody></table></div>
 </div>
@@ -937,6 +937,7 @@ if(jsonData){
   existente.googlePhotosTitle=jsonData.title||existente.googlePhotosTitle||'';
   existente.googlePhotosJsonOriginal=JSON.stringify(jsonData,null,2);
 }
+if(ocrInfo.text){existente.ocrProcesado=true;existente.ocrTexto=ocrInfo.text.slice(0,12000);existente.ocrConfianza=Number(ocrInfo.confidence||0);existente.ocrSugerencias=ocrInfo.text.trim().length>=20?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]};}
 await cPut('elementos',existente);
 await guardarBaseDatosDrive(existente);
 caja.contadores.total=(caja.contadores.total||0)+1;
@@ -948,7 +949,14 @@ var motivoDuda=null;
 if(esHuerfano)motivoDuda='huerfano';
 else if(otrasPersonas.length)motivoDuda='varias_personas';
 
-var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDuda);
+var ocrInfo={text:'',confidence:0};
+if(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')){
+  try{
+    if(window.actualizarProgresoAsignacion){var na=Number(window.__progresoElementoActual||0);actualizarProgresoAsignacion(na,window.__progresoElementoTotal||0,nombreArchivo,'Analizando OCR para clasificar…');}
+    ocrInfo=await extraerTextoOCRConInfo(blob,tipo);
+  }catch(oe){console.warn('No se pudo analizar OCR antes de clasificar:',oe.message);}
+}
+var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDuda,ocrInfo.text,ocrInfo.confidence);
 
 var elemento={
 id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
@@ -962,7 +970,11 @@ googlePhotosMetadataDisponible:!!jsonData,
 googlePhotosDescription:jsonData&&jsonData.description?String(jsonData.description):'',
 googlePhotosTitle:jsonData&&jsonData.title?String(jsonData.title):'',
 googlePhotosUrl:jsonData&&jsonData.url?String(jsonData.url):'',
-googlePhotosJsonOriginal:jsonData?JSON.stringify(jsonData,null,2):null
+googlePhotosJsonOriginal:jsonData?JSON.stringify(jsonData,null,2):null,
+ocrProcesado:!!(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')),
+ocrTexto:ocrInfo.text?ocrInfo.text.slice(0,12000):'',
+ocrConfianza:Number(ocrInfo.confidence||0),
+ocrSugerencias:ocrInfo.text&&ocrInfo.text.trim().length>=20?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]}
 };
 
 // Regla dura: se sube SIEMPRE a Drive en cuanto se clasifica (a la carpeta final si se sabe,
@@ -1028,23 +1040,9 @@ await cPut('cajas',caja);
 await actualizarEstimacionEspacio(subirBlob.size);
 await guardarBaseDatosDrive(elemento);
 
-// OCR + sugerencias genealógicas: a posteriori del guardado, para que un fallo aquí nunca
-// impida que el archivo quede ya copiado y verificado en Drive (la regla dura no depende de esto).
-if(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')&&elemento.estado!=='perfil'){
-try{
-  if(window.actualizarProgresoAsignacion){var nActual=Number(window.__progresoElementoActual||0); actualizarProgresoAsignacion(nActual,window.__progresoElementoTotal||0,nombreArchivo,'Haciendo OCR (si contiene texto)…');}
-var textoOCR=await extraerTextoOCR(blob,tipo);
-if(textoOCR&&textoOCR.trim().length>=20){
-var analisis=analizarTextoGenealogico(textoOCR);
-var dup=await buscarPosibleDuplicadoOCR(personaId,textoOCR,elemento.id);
-elemento.ocrTexto=textoOCR.slice(0,6000);
-elemento.ocrSugerencias=analisis;
-elemento.ocrProcesado=true;
-elemento.posibleDuplicadoDe=dup?dup.elementoId:null;
-await cPut('elementos',elemento);
-await guardarBaseDatosDrive(elemento);
-}
-}catch(err){console.warn('OCR/análisis genealógico omitido para '+nombreArchivo+':',err.message);}
+// El OCR ya se ha ejecutado antes de decidir la carpeta. Aquí solo completamos la comparación OCR.
+if(elemento.ocrProcesado&&elemento.ocrTexto&&elemento.ocrTexto.trim().length>=20){
+try{var dupOCR=await buscarPosibleDuplicadoOCR(personaId,elemento.ocrTexto,elemento.id);elemento.posibleDuplicadoDe=dupOCR?dupOCR.elementoId:null;await cPut('elementos',elemento);await guardarBaseDatosDrive(elemento);}catch(oe2){console.warn('No se pudo completar la comparación OCR:',oe2.message);}
 }
 }
 function mimeDeTipo(tipo){return{imagen:'image/jpeg',pdf:'application/pdf',video:'video/mp4',otro:'application/octet-stream'}[tipo]||'application/octet-stream';}
@@ -1061,13 +1059,14 @@ async function ocrConTiempoLimite(promise,ms){
   if(r&&r.__timeout)throw new Error('OCR superó el tiempo límite y se continúa sin OCR para esta imagen');
   return r;
 }
-async function ocrImagenBlob(blob){
+async function ocrImagenBlobConInfo(blob){
 try{
 var worker=await obtenerTesseractWorker();
 var r=await ocrConTiempoLimite(worker.recognize(blob),60000);
-return(r&&r.data&&r.data.text)?r.data.text:'';
-}catch(err){console.warn('OCR de imagen omitido:',err.message);return'';}
+return{text:(r&&r.data&&r.data.text)?r.data.text:'',confidence:Number(r&&r.data&&r.data.confidence||0)};
+}catch(err){console.warn('OCR de imagen omitido:',err.message);return{text:'',confidence:0,error:err.message};}
 }
+async function ocrImagenBlob(blob){var r=await ocrImagenBlobConInfo(blob);return r.text;}
 async function ocrPdfBlob(blob){
 try{
 if(typeof pdfjsLib!=='undefined'&&pdfjsLib.GlobalWorkerOptions&&!pdfjsLib.GlobalWorkerOptions.workerSrc)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1092,11 +1091,12 @@ textoTotal+=(await ocrImagenBlob(blobPagina))+'\n';
 return textoTotal;
 }catch(err){console.warn('OCR de PDF falló:',err.message);return'';}
 }
-async function extraerTextoOCR(blob,tipo){
-if(tipo==='pdf')return await ocrPdfBlob(blob);
-if(tipo==='imagen')return await ocrImagenBlob(blob);
-return'';
+async function extraerTextoOCRConInfo(blob,tipo){
+if(tipo==='imagen')return await ocrImagenBlobConInfo(blob);
+if(tipo==='pdf')return{text:await ocrPdfBlob(blob),confidence:50};
+return{text:'',confidence:0};
 }
+async function extraerTextoOCR(blob,tipo){var r=await extraerTextoOCRConInfo(blob,tipo);return r.text;}
 
 /* ===== ANÁLISIS GENEALÓGICO DEL TEXTO (tabla de reglas, en español) =====
    Aproximado por naturaleza (el OCR se equivoca, y un documento antiguo no sigue un formato
@@ -1249,7 +1249,7 @@ var cont=document.getElementById('listaSugerencias');
 if(!cont)return;
 document.getElementById('badgeSug').style.display=lista.length?'inline-block':'none';
 document.getElementById('badgeSug').textContent=lista.length;
-if(!lista.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px">No hay sugerencias pendientes. Activa el OCR en Configuración si quieres que se analicen los documentos.</p>';return;}
+if(!lista.length){cont.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px">No hay sugerencias genealógicas pendientes. El OCR está activo: las imágenes sin texto suficiente o sin datos genealógicos detectables no generan sugerencia, aunque su texto OCR queda guardado.</p>';return;}
 cont.innerHTML=lista.map(function(e){
 var campos=(e.ocrSugerencias.campos||[]).map(function(c){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0"><input type="checkbox" class="sug-check" data-el="'+e.id+'" data-campo="'+c.campo+'" data-valor="'+esc(c.valor)+'" checked> '+esc(c.etiqueta)+': <b>'+esc(c.valor)+'</b> <span style="color:var(--muted)">(«'+esc(c.contexto||'')+'»)</span></label>';}).join('');
 var info=(e.ocrSugerencias.informativas||[]).map(function(t){return '<p style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-circle-info"></i> '+esc(t)+'</p>';}).join('');
@@ -1295,17 +1295,19 @@ async function marcarNoDuplicadoOCR(elementoId){var e=await cGet('elementos',ele
 /* ===== SUBSISTEMA 6: MOTOR DE CLASIFICACIÓN (tabla de reglas explícita) =====
    "personas" aquí es el etiquetado de caras (señal secundaria, casi siempre vacío); el dueño
    real del elemento ya viene decidido por el álbum antes de llegar a esta función. */
-function clasificarElemento(tipo,personas,etiquetas,motivoDudaPrevio){
+function clasificarElemento(tipo,personas,etiquetas,motivoDudaPrevio,ocrTexto,ocrConfianza){
 if(motivoDudaPrevio)return{estado:'duda',motivoDuda:motivoDudaPrevio};
 if(tipo==='video')return{estado:'video',motivoDuda:null};
 if(tipo==='pdf')return{estado:'documento',motivoDuda:null};
 if(tipo==='imagen'){
-var esDocumentoOGrupo=etiquetas.some(function(e){return /documento|postal|grupo/i.test(e);});
-if(esDocumentoOGrupo)return{estado:'documento',motivoDuda:null};
+var texto=String(ocrTexto||'').trim();
+var palabrasDocumento=/(partida|certificad|registro civil|bautis|nacimiento|defunci|fallec|matrimonio|casamiento|esquela|carta|escritura|testamento|acta|documento|expediente|oficio|instancia|sentencia|diario|periódico|prensa|recibo|factura|pasaporte|carnet|libro|folio|archivo|ayuntamiento|parroquia|iglesia|notar)/i.test(texto);
+var longitud=texto.length,conf=Number(ocrConfianza||0);
+if(palabrasDocumento&&longitud>=60&&conf>=25)return{estado:'documento',motivoDuda:null};
+if((palabrasDocumento&&longitud>=25)||(longitud>=160&&conf>=20))return{estado:'duda',motivoDuda:'confianza_media_documento'};
 if(CFG_AUTO_PERFIL)return{estado:'perfil',motivoDuda:null};
-return{estado:'duda',motivoDuda:'confianza_baja'}; // modo conservador por defecto: revisión manual
-}
 return{estado:'documento',motivoDuda:null};
+}
 }
 
 /* ===== ÁLBUMES PENDIENTES DE ASIGNAR (se pregunta una vez por nombre de álbum) ===== */
@@ -1569,6 +1571,20 @@ resolverAlbumPendiente(encodeURIComponent(clave),encodeURIComponent(id),encodeUR
 }
 
 /* ===== SUBSISTEMA 7: BANDEJA DE DUDAS ===== */
+async async function generarInformeHermano(){
+try{
+var elementos=await cAll('elementos');
+var validos=elementos.filter(function(e){return e.estado!=='duda';});
+var grupos={};
+validos.forEach(function(e){var k=e.personaAsignadaId||((e.personas||[])[0])||'Sin persona';(grupos[k]||(grupos[k]=[])).push(e);});
+var html='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de fotografías y documentos</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#222}h1{margin-bottom:4px}h2{border-bottom:1px solid #ccc;padding-bottom:6px;margin-top:28px}.meta{color:#666;font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}.card{border:1px solid #ddd;border-radius:10px;padding:10px;break-inside:avoid}.thumb{max-width:100%;height:150px;object-fit:contain;background:#f5f5f5}.ocr{font-size:11px;white-space:pre-wrap;max-height:130px;overflow:hidden;background:#fafafa;padding:7px}.badge{display:inline-block;padding:3px 7px;border-radius:10px;background:#eee;font-size:11px}</style></head><body>';
+html+='<h1>Informe de fotografías y documentos</h1><p class="meta">Generado el '+new Date().toLocaleString('es-ES')+' · Material procesado por la aplicación de fotografías familiares.</p>';
+Object.keys(grupos).forEach(function(k){var arr=grupos[k],nombre=arr[0]&&arr[0].personas&&arr[0].personas[0]?arr[0].personas[0]:k;html+='<h2>'+esc(nombre)+'</h2><div class="grid">';arr.forEach(function(e){html+='<div class="card">'+(e.miniatura?'<img class="thumb" src="'+e.miniatura+'">':'')+'<b>'+esc(e.nombreOriginal||'')+'</b><p class="meta">'+esc(e.estado||'')+' · '+esc(e.fecha||'')+'</p>'+(e.ocrTexto?'<div class="ocr">'+esc(e.ocrTexto.slice(0,1200))+'</div>':'<p class="meta">Sin texto OCR significativo.</p>')+(e.duplicadoEncontrado?'<p><span class="badge">Coincide con una fotografía ya existente</span></p>':'')+'</div>';});html+='</div>';});
+html+='</body></html>';
+var w=window.open('','_blank');if(!w){toast('El navegador bloqueó el informe. Permite ventanas emergentes para esta página.',true);return;}w.document.open();w.document.write(html);w.document.close();
+}catch(e){toast('No se pudo generar el informe: '+e.message,true);}
+}
+
 async function renderDudas(){
 var todos=await cAll('elementos');
 var dudas=todos.filter(function(e){return e.estado==='duda';});
@@ -1581,7 +1597,7 @@ var grid=document.getElementById('dudaGrid');
 if(!filtradas.length){grid.innerHTML='<p style="color:var(--muted);font-size:12px;grid-column:1/-1;text-align:center;padding:20px">No hay elementos con dudas para este filtro.</p>';}
 else grid.innerHTML=filtradas.map(function(e){
 var sel=!!seleccionDudas[e.id];
-var motivoTxt={varias_personas:'Varias personas',sin_etiquetas:'Sin etiquetas',confianza_baja:'Confianza baja',huerfano:'Sin JSON asociado'}[e.motivoDuda]||e.motivoDuda;
+var motivoTxt={varias_personas:'Varias personas',sin_etiquetas:'Sin etiquetas',confianza_baja:'Confianza baja',confianza_media_documento:'Posible documento (confianza media)',huerfano:'Sin JSON asociado'}[e.motivoDuda]||e.motivoDuda;
 return '<div class="duda-card'+(sel?' sel':'')+'"><input type="checkbox" class="duda-check" '+(sel?'checked':'')+' onchange="toggleSeleccion(\''+e.id+'\')">'+
 (e.miniatura?'<img class="duda-thumb" src="'+e.miniatura+'">':'<div class="duda-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="fa-solid '+(e.tipo==='pdf'?'fa-file-pdf':e.tipo==='video'?'fa-file-video':'fa-file')+'" style="font-size:26px"></i></div>')+
 '<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+'</div></div>';
