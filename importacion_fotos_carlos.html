@@ -1665,10 +1665,17 @@ var sel=!!seleccionDudas[e.id];
 var motivoTxt={varias_personas:'Varias personas',sin_etiquetas:'Sin etiquetas',confianza_baja:'Confianza baja',confianza_media_documento:'Posible documento (confianza media)',huerfano:'Sin JSON asociado'}[e.motivoDuda]||e.motivoDuda;
 return '<div class="duda-card'+(sel?' sel':'')+'"><input type="checkbox" class="duda-check" '+(sel?'checked':'')+' onchange="toggleSeleccion(\''+e.id+'\')">'+
 (e.miniatura?'<img class="duda-thumb" src="'+e.miniatura+'">':'<div class="duda-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="fa-solid '+(e.tipo==='pdf'?'fa-file-pdf':e.tipo==='video'?'fa-file-video':'fa-file')+'" style="font-size:26px"></i></div>')+
-'<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+'</div></div>';
+'<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+
+(e.personaAsignadaId?'<br><span class="badge" style="margin-top:4px">Destino: '+esc((e.personas&&e.personas[0])||('ID '+e.personaAsignadaId))+'</span>':'')+
+'<div style="margin-top:7px"><button class="btn small" onclick="seleccionarYMarcarDocumento(\''+e.id+'\')"><i class="fa-solid fa-file"></i> Documento</button></div></div></div>';
 }).join('');
 document.getElementById('badgeDudas').style.display=dudas.length?'inline-block':'none';
 document.getElementById('badgeDudas').textContent=dudas.length;
+}
+async function seleccionarYMarcarDocumento(id){
+  seleccionDudas={};
+  seleccionDudas[id]=true;
+  await resolverSeleccionComoDocumento();
 }
 function toggleSeleccion(id){seleccionDudas[id]=!seleccionDudas[id];renderDudas();}
 function seleccionarTodosDudas(){document.querySelectorAll('#dudaGrid .duda-check').forEach(function(c){c.checked=true;});cAll('elementos').then(function(todos){todos.filter(function(e){return e.estado==='duda';}).forEach(function(e){seleccionDudas[e.id]=true;});renderDudas();});}
@@ -1693,7 +1700,11 @@ el.estado='documento';el.motivoDuda=null;
 // convención que usa la ficha del programa principal para listar documentos).
 try{
 var destinoFinal=await carpetaDocumentosPersona(id,nombre);
-await moverArchivoDrive(el.driveFileId,destinoFinal.id,CFG_REVISION_ID);
+var actual=el.driveFileId?await obtenerArchivoDrive(el.driveFileId):null;
+var padreActual=actual&&Array.isArray(actual.parents)?actual.parents[0]:CFG_REVISION_ID;
+if(el.driveFileId && padreActual!==destinoFinal.id){
+  await moverArchivoDrive(el.driveFileId,destinoFinal.id,padreActual);
+}
 el.rutaDrive=destinoFinal.ruta;
 }catch(err){console.warn('No se pudo mover el archivo en Drive (queda en Sin clasificar):',err.message);}
 await cPut('elementos',el);
@@ -1703,10 +1714,36 @@ toast(ids.length+' elemento(s) asignado(s) a '+nombre);
 await recalcularContadoresDudas();
 renderDudas();
 }
-function resolverSeleccionComoDocumento(){
+async function resolverSeleccionComoDocumento(){
+var ids=Object.keys(seleccionDudas).filter(function(k){return seleccionDudas[k];});
+if(!ids.length){toast('Selecciona primero uno o varios documentos',true);return;}
+
+/* Si la caja ya fue asignada a una persona, usamos automáticamente esa ficha.
+   Solo pedimos una ficha manualmente cuando los elementos seleccionados no tienen
+   una persona de destino inequívoca. */
+var elementos=[];
+for(var i=0;i<ids.length;i++){
+  var e=await cGet('elementos',ids[i]);
+  if(e)elementos.push(e);
+}
+var candidatos=elementos.map(function(e){return e.personaAsignadaId;}).filter(Boolean);
+var unicos=Array.from(new Set(candidatos.map(String)));
+
+if(unicos.length===1 && candidatos.length===elementos.length){
+  var pid=unicos[0];
+  var personas=await cargarPersonasArbol();
+  var p=personas.find(function(x){return String(x.ID)===String(pid);});
+  var nombre=p?construirNombrePersonaBackup(p):((elementos[0].personas&&elementos[0].personas[0])||'');
+  if(!nombre)nombre='Persona ID '+pid;
+  if(confirm('Estos '+elementos.length+' documento(s) pertenecen a la ficha:\n\n'+nombre+' (ID '+pid+')\n\n¿Confirmar?')){
+    await asignarPersonaSeleccion(pid,nombre);
+  }
+  return;
+}
+
 var nombreGenerico=personasCandidatas.length?personasCandidatas[0]:null;
 if(nombreGenerico){asignarPersonaSeleccion(nombreGenerico.id,nombreGenerico.nombre);return;}
-toast('Busca y elige antes una ficha de destino',true);
+toast('Estos documentos no tienen una ficha de destino inequívoca. Busca y elige la ficha.',true);
 }
 async function descargarArchivoDrive(fileId){
 var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?alt=media');
