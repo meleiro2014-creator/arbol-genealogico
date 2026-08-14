@@ -472,20 +472,40 @@ for(var i=0;i<archivos.length;i++){
 return resultado;
 }
 var INDICE_DRIVE_DUPLICADOS=null;
+/* Busca duplicados por MD5 sin recorrer recursivamente toda la carpeta de destino.
+   La versión anterior se quedaba aparentemente clavada en la primera foto porque
+   intentaba listar TODAS las carpetas y subcarpetas del archivo antes de continuar. */
 async function buscarDuplicadoDrive(md5,size){
-if(!md5||!CFG_DESTINO_ID)return null;
-var bd=await cargarBaseDatosDrive();
-var claves=Object.keys(bd.fotografias||{});
-for(var i=0;i<claves.length;i++){
- var e=bd.fotografias[claves[i]];
- if(e&&e.md5&&e.md5===md5&&e.driveFileId)return {id:e.driveFileId,nombre:e.nombreArchivo||e.nombreOriginal,elemento:e,fuente:'base_datos'};
-}
-if(!INDICE_DRIVE_DUPLICADOS){
- var todos=await listarArbolDriveRecursivo(CFG_DESTINO_ID,[],{});
- INDICE_DRIVE_DUPLICADOS={archivos:(todos||[]).filter(function(f){return f.mimeType&&/^image\//i.test(f.mimeType)&&f.md5Checksum;})};
-}
-var candidatos=INDICE_DRIVE_DUPLICADOS.archivos.filter(function(f){return f.md5Checksum===md5 && (!size || !f.size || Number(f.size)===Number(size));});
-return candidatos.length?{id:candidatos[0].id,nombre:candidatos[0].name,driveFile:candidatos[0],fuente:'drive'}:null;
+  if(!md5)return null;
+  // Primero consultamos la base maestra: es la vía rápida y además conserva el vínculo
+  // con la fotografía ya registrada por esta aplicación.
+  try{
+    var bd=await cargarBaseDatosDrive();
+    var claves=Object.keys(bd.fotografias||{});
+    for(var i=0;i<claves.length;i++){
+      var e=bd.fotografias[claves[i]];
+      if(e&&e.md5&&e.md5===md5&&e.driveFileId){
+        return {id:e.driveFileId,nombre:e.nombreArchivo||e.nombreOriginal,elemento:e,fuente:'base_datos'};
+      }
+    }
+  }catch(e){console.warn('No se pudo consultar fotografias.json:',e.message);}
+
+  // Si todavía no figura en nuestra base de datos, Google Drive puede localizar
+  // directamente el archivo por su huella MD5. Esto evita descargar/listar todo el árbol.
+  try{
+    var q="md5Checksum='"+String(md5).replace(/'/g,"\\'")+"' and trashed=false";
+    var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,size,md5Checksum,parents,mimeType)&spaces=drive&pageSize=20');
+    if(r.ok){
+      var d=await r.json();
+      var candidatos=(d.files||[]).filter(function(f){
+        return /^image\//i.test(f.mimeType||'') && (!size||!f.size||Number(f.size)===Number(size));
+      });
+      if(candidatos.length){
+        return {id:candidatos[0].id,nombre:candidatos[0].name,driveFile:candidatos[0],fuente:'drive'};
+      }
+    }
+  }catch(e){console.warn('No se pudo consultar duplicados por MD5 en Drive:',e.message);}
+  return null;
 }
 
 async function moverArchivoDrive(fileId,nuevoParentId,antiguoParentId){
