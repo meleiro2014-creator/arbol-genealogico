@@ -154,7 +154,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 
 <!-- ===== BANDEJA DE DUDAS (subsistema 7) ===== -->
 <div class="view" id="vDudas">
-<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p></div>
+<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p><p style="font-size:12px;color:var(--muted)"><b>OCR mejorado:</b> para documentos se prueban la imagen original, una versión en gris realzada y otra con contraste/binarización suave. Se conserva el mejor resultado y la confianza, sin borrar los anteriores.</p></div>
 <div class="ef-row">
 <div class="ef-field"><span class="ef-label">Álbum</span><select id="fDudaAlbum" onchange="renderDudas()"><option value="">Todos</option></select></div>
 <div class="ef-field"><span class="ef-label">Tipo</span><select id="fDudaTipo" onchange="renderDudas()"><option value="">Todos</option><option value="imagen">Imagen</option><option value="pdf">PDF</option><option value="video">Vídeo</option><option value="otro">Otro</option></select></div>
@@ -1089,11 +1089,51 @@ async function ocrConTiempoLimite(promise,ms){
   if(r&&r.__timeout)throw new Error('OCR superó el tiempo límite y se continúa sin OCR para esta imagen');
   return r;
 }
+async function crearVariantesOCR(blob){
+  var img=await new Promise(function(resolve,reject){var im=new Image();im.onload=function(){resolve(im);};im.onerror=reject;im.src=URL.createObjectURL(blob);});
+  try{
+    var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+    var escala=Math.min(1.6,2400/Math.max(w,h)); if(escala<1)escala=1;
+    var cw=Math.max(1,Math.round(w*escala)), ch=Math.max(1,Math.round(h*escala));
+    var c=document.createElement('canvas');c.width=cw;c.height=ch;var ctx=c.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(img,0,0,cw,ch);
+    var data=ctx.getImageData(0,0,cw,ch), d=data.data;
+    for(var i=0;i<d.length;i+=4){
+      var g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+      // Realce moderado: mejora texto gris sin destruir sellos ni manuscritos.
+      var v=Math.max(0,Math.min(255,Math.round((g-128)*1.35+128)));
+      d[i]=d[i+1]=d[i+2]=v;
+    }
+    ctx.putImageData(data,0,0);
+    var gris=await new Promise(function(res){c.toBlob(res,'image/png');});
+    // Segunda variante: binarización suave para documentos con fondo amarillento o gris.
+    var b=document.createElement('canvas');b.width=cw;b.height=ch;var bx=b.getContext('2d',{willReadFrequently:true});bx.drawImage(c,0,0);
+    var bd=bx.getImageData(0,0,cw,ch), q=bd.data;
+    for(var j=0;j<q.length;j+=4){var gv=q[j];var t=gv>178?255:(gv<105?0:Math.round((gv-105)*255/73));q[j]=q[j+1]=q[j+2]=t;}
+    bx.putImageData(bd,0,0);
+    var bin=await new Promise(function(res){b.toBlob(res,'image/png');});
+    return [blob,gris,bin];
+  }finally{URL.revokeObjectURL(img.src);}
+}
+function valorarOCRResultado(r){
+  var t=String(r&&r.data&&r.data.text||'').replace(/\s+/g,' ').trim();
+  var conf=Number(r&&r.data&&r.data.confidence||0);
+  var palabras=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3,}/g)||[]).length;
+  var puntuacion=conf + Math.min(25,palabras*1.2) + Math.min(15,t.length/40);
+  return {text:t,confidence:conf,score:puntuacion};
+}
 async function ocrImagenBlobConInfo(blob){
 try{
 var worker=await obtenerTesseractWorker();
-var r=await ocrConTiempoLimite(worker.recognize(blob),60000);
-return{text:(r&&r.data&&r.data.text)?r.data.text:'',confidence:Number(r&&r.data&&r.data.confidence||0)};
+var variantes=await crearVariantesOCR(blob), mejor={text:'',confidence:0,score:-1};
+try{if(worker.setParameters)await worker.setParameters({tessedit_pageseg_mode:'6'});}catch(e){}
+for(var i=0;i<variantes.length;i++){
+  var r=await ocrConTiempoLimite(worker.recognize(variantes[i]),60000);
+  if(r&&r.__timeout)continue;
+  var v=valorarOCRResultado(r);
+  if(v.score>mejor.score)mejor=v;
+}
+return{text:mejor.text,confidence:mejor.confidence};
 }catch(err){console.warn('OCR de imagen omitido:',err.message);return{text:'',confidence:0,error:err.message};}
 }
 async function ocrImagenBlob(blob){var r=await ocrImagenBlobConInfo(blob);return r.text;}
@@ -1844,7 +1884,9 @@ for(var i=0;i<alvo.length;i++){
   if(!el.driveFileId)throw new Error('La imagen no tiene archivo Drive asociado');
   var blob=await descargarArchivoDrive(el.driveFileId);
   var ocr=await extraerTextoOCRConInfo(blob,el.tipo);
-  el.ocrProcesado=true;el.ocrTexto=(ocr.text||'').slice(0,12000);el.ocrConfianza=Number(ocr.confidence||0);
+  if(!Array.isArray(el.ocrHistorial))el.ocrHistorial=[];
+  if(el.ocrTexto||el.ocrConfianza){el.ocrHistorial.push({fecha:new Date().toISOString(),texto:el.ocrTexto||'',confianza:Number(el.ocrConfianza||0)});if(el.ocrHistorial.length>10)el.ocrHistorial=el.ocrHistorial.slice(-10);}
+  el.ocrProcesado=true;el.ocrTexto=(ocr.text||'').slice(0,12000);el.ocrConfianza=Number(ocr.confidence||0);el.ocrMetodo='multi-variante';el.ocrUltimoAnalisis=new Date().toISOString();
   el.ocrSugerencias=el.ocrTexto.trim().length>=20?analizarTextoGenealogico(el.ocrTexto):{campos:[],informativas:[]};
   var personaId=el.personaAsignadaId,personaNombre=(el.personas&&el.personas[0])||'';
   var cl=clasificarElemento(el.tipo,[],el.etiquetas||[],null,el.ocrTexto,el.ocrConfianza);
