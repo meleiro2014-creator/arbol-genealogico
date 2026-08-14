@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Importación de fotos — Carlos</title>
+<title>Importación de fotos — Carlos · Base Drive</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -205,7 +205,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de origen (compartida, ej. FOTOS-CARLOS)</span><input id="cfgOrigen" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaOrigen()">Guardar</button></div>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta raíz de Genealogia (la misma que configuraste en la app principal, con las subcarpetas FOTO y DOCUMENTOS)</span><input id="cfgDestino" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaDestino()">Guardar</button></div>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de base de datos de fotografías (JSON maestro)</span><input id="cfgBaseDatos" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaBaseDatos()">Guardar</button></div>
-<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Aquí se guarda <b>fotografias.json</b>, con todos los descubrimientos: datos de Google Fotos, OCR, persona, hash, duplicados, Takeout y ubicación final en Drive.</p>
+<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Aquí se guarda <b>fotografias.json</b> y desde esta misma carpeta se lee <b>backup-arbol.json</b> como fuente maestra de personas. , con todos los descubrimientos: datos de Google Fotos, OCR, persona, hash, duplicados, Takeout y ubicación final en Drive.</p>
 <p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Las fotos de perfil se guardan como FOTO/&lt;ID&gt;.jpg y el resto en DOCUMENTOS/&lt;ID&gt;/, exactamente igual que hace la app principal. Así, en cuanto se copian aquí, ya aparecen en la ficha de la persona sin tocar nada más.</p>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Espacio libre disponible (GB)</span><input id="cfgEspacioGB" type="number" value="75"></div><button class="btn ghost small" onclick="guardarEspacioGB()">Guardar</button></div>
 </div>
@@ -233,7 +233,8 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <div class="card">
 <h3>Vínculo con el árbol genealógico</h3>
 <p id="estadoVinculoArbol" style="font-size:12px"></p>
-<p style="font-size:11px;color:var(--muted)">Si esta herramienta se abre desde el mismo dominio que arbolgenealogico_3.html, puede leer los nombres de tus fichas para sugerir a quién asignar cada foto. Si no, cada asignación se hace escribiendo el ID de la ficha a mano.</p>
+<p style="font-size:11px;color:var(--muted)">Las personas se leen directamente de <b>backup-arbol.json</b> en la carpeta de base de datos de Drive. No depende de que esta página comparta dominio o navegador con la aplicación principal.</p>
+<button class="btn ghost small" onclick="recargarPersonasDesdeBackup()"><i class="fa-solid fa-rotate"></i> Volver a leer backup-arbol.json</button>
 </div>
 </div>
 </main>
@@ -263,7 +264,7 @@ var CARPETA_REVISION_NOMBRE='Sin clasificar';
 var MAX_MINIATURA_PX=220;
 
 var db=null, googleTokenClient=null, driveAccessToken=null, driveTokenExpira=0, googleIdentidad=null;
-var CFG_ORIGEN_ID=null, CFG_DESTINO_ID=null, CFG_BASE_DATOS_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC', CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
+var CFG_ORIGEN_ID=null, CFG_DESTINO_ID=null, CFG_BASE_DATOS_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC', CFG_BACKUP_ARBOL_NOMBRE='backup-arbol.json', CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
 var CFG_OCR_ACTIVO=false, CFG_OCR_MAX_PAGINAS=3;
 var COLABORADORES=[];
 var seleccionDudas={};
@@ -1407,7 +1408,7 @@ var p=personas.filter(function(x){return String(x.ID)===id;})[0];
 if(!p){toast('No existe ninguna ficha con ese ID',true);return;}
 var nombre=((p.NOMBRE||'')+' '+(p.APELLIDO1||'')).trim();
 if(!confirm('¿Asignar el álbum a '+nombre+' (ID '+id+')?'))return;
-resolverAlbumPendiente(clave,id,nombre);
+resolverAlbumPendiente(encodeURIComponent(clave),encodeURIComponent(id),encodeURIComponent(nombre));
 }
 
 /* ===== SUBSISTEMA 7: BANDEJA DE DUDAS ===== */
@@ -1489,29 +1490,61 @@ await cPut('cajas',cajas[i]);
 renderPanel();renderCajas();
 }
 
-/* ===== VÍNCULO CON EL ÁRBOL GENEALÓGICO (mismo origen → IndexedDB 'Genealogia') =====
-   El nombre de la carpeta de un álbum no tiene por qué coincidir literalmente con el nombre
-   de la ficha (apodos, solo el nombre de pila, erratas de Carlos al nombrar la carpeta...), así
-   que la búsqueda no es un simple "contiene", sino una puntuación por parecido: coincidencia
-   exacta > una cadena contenida en la otra > palabras compartidas > parecido de escritura
-   (distancia de Levenshtein). Además, para cada candidato se puede cotejar en vivo cuántos
-   documentos y qué foto de perfil tiene ya esa ficha en tu Drive, antes de confirmar. */
+/* ===== PERSONAS DEL ÁRBOL: FUENTE MAESTRA = backup-arbol.json EN GOOGLE DRIVE =====
+   El programa de fotografías NO mantiene una segunda lista de personas.
+   Lee la copia de seguridad del programa principal que está en la carpeta de base de datos.
+   Así las asignaciones quedan vinculadas al ID real de la ficha y funcionan aunque esta
+   herramienta se abra en otro dominio, otro ordenador o después de recargar la página. */
 var CACHE_PERSONAS_ARBOL=null;
-function cargarPersonasArbol(){
-if(CACHE_PERSONAS_ARBOL)return Promise.resolve(CACHE_PERSONAS_ARBOL);
-return new Promise(function(resolve){
-var req=indexedDB.open('Genealogia');
-req.onerror=function(){CACHE_PERSONAS_ARBOL=[];resolve([]);};
-req.onsuccess=function(e){
-var d=e.target.result;
-if(!d.objectStoreNames.contains('personas')){CACHE_PERSONAS_ARBOL=[];resolve([]);return;}
-var r=d.transaction('personas','readonly').objectStore('personas').getAll();
-r.onsuccess=function(){CACHE_PERSONAS_ARBOL=r.result||[];resolve(CACHE_PERSONAS_ARBOL);};
-r.onerror=function(){CACHE_PERSONAS_ARBOL=[];resolve([]);};
-};
-});
+var BACKUP_ARBOL_FILE_ID=null;
+var BACKUP_ARBOL_CACHE_META=null;
+function invalidarCachePersonasArbol(){CACHE_PERSONAS_ARBOL=null;BACKUP_ARBOL_FILE_ID=null;BACKUP_ARBOL_CACHE_META=null;}
+function construirNombrePersonaBackup(p){
+  if(!p||typeof p!=='object')return '';
+  var nombre=p.NOMBRE||p.nombre||p.firstName||p.firstname||p.name||'';
+  var a1=p.APELLIDO1||p.apellido1||p.apellido||p.surname||'';
+  var a2=p.APELLIDO2||p.apellido2||'';
+  return String((String(nombre)+' '+String(a1)+' '+String(a2)).trim()).replace(/\s+/g,' ');
 }
-function invalidarCachePersonasArbol(){CACHE_PERSONAS_ARBOL=null;}
+function normalizarPersonaBackup(p){
+  if(!p||typeof p!=='object')return null;
+  var id=p.ID!=null?p.ID:(p.id!=null?p.id:(p.personaId!=null?p.personaId:p.uid));
+  var nombre=construirNombrePersonaBackup(p);
+  if(id==null||!nombre)return null;
+  return {ID:String(id),NOMBRE:String(p.NOMBRE||p.nombre||p.firstName||p.firstname||p.name||''),APELLIDO1:String(p.APELLIDO1||p.apellido1||p.apellido||p.surname||''),APELLIDO2:String(p.APELLIDO2||p.apellido2||''),NACA:p.NACA||p.naca||p.anioNacimiento||p.birthYear||p.APROX||null,FALLECIDO:p.FALLECIDO!=null?p.FALLECIDO:(p.fallecido!=null?p.fallecido:false),_nombreCompleto:nombre};
+}
+function extraerPersonasRecursivoBackup(obj,resultado,vistos){
+  if(!obj||typeof obj!=='object')return;
+  vistos=vistos||[];
+  if(vistos.indexOf(obj)>=0)return;
+  vistos.push(obj);
+  if(Array.isArray(obj)){obj.forEach(function(x){extraerPersonasRecursivoBackup(x,resultado,vistos);});return;}
+  var persona=normalizarPersonaBackup(obj);
+  if(persona)resultado.push(persona);
+  Object.keys(obj).forEach(function(k){
+    var v=obj[k];
+    if(v&&typeof v==='object')extraerPersonasRecursivoBackup(v,resultado,vistos);
+  });
+}
+async function cargarPersonasArbol(){
+  if(CACHE_PERSONAS_ARBOL)return CACHE_PERSONAS_ARBOL;
+  if(!CFG_BASE_DATOS_ID)throw new Error('Falta la carpeta de base de datos para leer backup-arbol.json');
+  var f=await buscarArchivoPorNombreEnCarpeta(CFG_BACKUP_ARBOL_NOMBRE,CFG_BASE_DATOS_ID);
+  if(!f)throw new Error('No se encuentra '+CFG_BACKUP_ARBOL_NOMBRE+' en la carpeta de base de datos de Drive');
+  BACKUP_ARBOL_FILE_ID=f.id;
+  var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
+  if(!r.ok)throw new Error('No se pudo leer '+CFG_BACKUP_ARBOL_NOMBRE+' desde Google Drive');
+  var txt=await r.text(),data;
+  try{data=JSON.parse(txt);}catch(e){throw new Error(CFG_BACKUP_ARBOL_NOMBRE+' no contiene un JSON válido');}
+  var resultado=[];
+  extraerPersonasRecursivoBackup(data,resultado,[]);
+  var unicas={},final=[];
+  resultado.forEach(function(p){if(!unicas[p.ID]){unicas[p.ID]=true;final.push(p);}});
+  final.sort(function(a,b){return a._nombreCompleto.localeCompare(b._nombreCompleto,'es');});
+  CACHE_PERSONAS_ARBOL=final;
+  BACKUP_ARBOL_CACHE_META={id:f.id,modifiedTime:f.modifiedTime||null,total:final.length};
+  return CACHE_PERSONAS_ARBOL;
+}
 function normalizarTextoPersona(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
 function distanciaLevenshtein(a,b){
 if(a===b)return 0;
@@ -1717,9 +1750,12 @@ document.getElementById('listaColabCfg').innerHTML=COLABORADORES.map(function(c,
 await cargarMapaAliasAlbum();
 var claves=Object.keys(MAPA_ALIAS_ALBUM);
 document.getElementById('listaAliasAlbumCfg').innerHTML=claves.length?claves.map(function(k){var m=MAPA_ALIAS_ALBUM[k];return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)"><span><b>'+esc(k)+'</b> → '+esc(m.personaNombre)+' (ID '+esc(m.personaId)+')</span><button class="btn ghost small" onclick="olvidarAliasAlbum(\''+k+'\')">Olvidar</button></div>';}).join(''):'<p style="color:var(--muted)">Todavía no se ha asignado ningún álbum.</p>';
-var testDb=indexedDB.open('Genealogia');
-testDb.onsuccess=function(){document.getElementById('estadoVinculoArbol').innerHTML='<i class="fa-solid fa-circle-check" style="color:var(--green)"></i> Base de datos del árbol genealógico encontrada en este navegador: la búsqueda de fichas funcionará.';};
-testDb.onerror=function(){document.getElementById('estadoVinculoArbol').innerHTML='<i class="fa-solid fa-circle-info"></i> No se encontró la base de datos del árbol en este navegador (¿estás en el mismo dominio y navegador que usas para la app principal?).';};
+try{
+  var personasBackup=await cargarPersonasArbol();
+  document.getElementById('estadoVinculoArbol').innerHTML='<i class="fa-solid fa-circle-check" style="color:var(--green)"></i> backup-arbol.json encontrado en Drive: <b>'+personasBackup.length+'</b> fichas disponibles para asignar.';
+}catch(err){
+  document.getElementById('estadoVinculoArbol').innerHTML='<i class="fa-solid fa-triangle-exclamation" style="color:var(--warn)"></i> No se pudo leer backup-arbol.json: '+esc(err.message);
+}
 document.getElementById('cfgClientId').onchange=function(){GOOGLE_CLIENT_ID_IMPORT=this.value.trim();guardarCfgValor('clientId',GOOGLE_CLIENT_ID_IMPORT);};
 }
 async function olvidarAliasAlbum(clave){
@@ -1730,6 +1766,15 @@ MAPA_ALIAS_ALBUM=mapa;
 renderConfig();
 toast('Alias olvidado: la próxima vez que aparezca ese nombre de álbum, se volverá a preguntar');
 }
+async function recargarPersonasDesdeBackup(){
+  invalidarCachePersonasArbol();
+  try{
+    var personas=await cargarPersonasArbol();
+    toast('Se han cargado '+personas.length+' fichas desde backup-arbol.json');
+    renderCajas();
+    renderConfig();
+  }catch(err){toast('No se pudo leer backup-arbol.json: '+err.message,true);}
+}
 function extraerIdCarpeta(texto){
 texto=String(texto||'').trim();
 var m=texto.match(/\/folders\/([a-zA-Z0-9_-]+)/);if(m)return m[1];
@@ -1739,7 +1784,7 @@ return null;
 }
 function guardarCarpetaOrigen(){var id=extraerIdCarpeta(document.getElementById('cfgOrigen').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_ORIGEN_ID=id;guardarCfgValor('origenId',id);toast('Carpeta de origen guardada');}
 function guardarCarpetaDestino(){var id=extraerIdCarpeta(document.getElementById('cfgDestino').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_DESTINO_ID=id;CFG_REVISION_ID=null;CFG_FOTO_ID=null;CFG_DOCUMENTOS_ID=null;INDICE_DRIVE_DUPLICADOS=null;guardarCfgValor('destinoId',id);toast('Carpeta de destino guardada');}
-function guardarCarpetaBaseDatos(){var id=extraerIdCarpeta(document.getElementById('cfgBaseDatos').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_BASE_DATOS_ID=id;BASE_DATOS_CACHE=null;BASE_DATOS_FILE_ID=null;guardarCfgValor('baseDatosId',id);toast('Carpeta de base de datos guardada');}
+function guardarCarpetaBaseDatos(){var id=extraerIdCarpeta(document.getElementById('cfgBaseDatos').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_BASE_DATOS_ID=id;BASE_DATOS_CACHE=null;BASE_DATOS_FILE_ID=null;invalidarCachePersonasArbol();guardarCfgValor('baseDatosId',id);toast('Carpeta de base de datos guardada');}
 function guardarEspacioGB(){CFG_ESPACIO_GB=parseFloat(document.getElementById('cfgEspacioGB').value)||75;guardarCfgValor('espacioGB',CFG_ESPACIO_GB);renderPanel();toast('Guardado');}
 function guardarAutoPerfil(){CFG_AUTO_PERFIL=document.getElementById('cfgAutoPerfil').checked;guardarCfgValor('autoPerfil',CFG_AUTO_PERFIL);toast('Guardado');}
 function guardarOcrActivo(){CFG_OCR_ACTIVO=document.getElementById('cfgOcrActivo').checked;guardarCfgValor('ocrActivo',CFG_OCR_ACTIVO);toast('Guardado');}
