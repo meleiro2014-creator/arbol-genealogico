@@ -269,11 +269,12 @@ var COLABORADORES=[];
 var seleccionDudas={};
 var vistaCajaAbierta={};
 /* mapaAliasAlbum: {nombreAlbumNormalizado: {personaId, personaNombre}} — persistido en CFG.
-   colaAlbumesPendientes: en memoria (no persiste entre recargas), guarda los elementos ya
-   descargados de un álbum cuyo nombre todavía no está mapeado a ninguna ficha, a la espera
-   de que el administrador lo asigne una vez desde la pestaña Cajas. */
+   Los álbumes pendientes se guardan en IndexedDB (store 'pendientes') solo como metadatos:
+   nombre, caja, clave y número de elementos. NO se guarda el binario. Al asignar una persona,
+   el programa vuelve a leer los ZIP originales de Drive y procesa únicamente ese álbum. */
 var MAPA_ALIAS_ALBUM={};
 var colaAlbumesPendientes={};
+var PENDIENTES_HIDRATADOS=false;
 var BASE_DATOS_CACHE=null, BASE_DATOS_FILE_ID=null, BASE_DATOS_GUARDANDO=null;
 
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);}
@@ -282,7 +283,7 @@ function fmtBytes(n){if(!n)return'0 B';var u=['B','KB','MB','GB','TB'],i=0;while
 function sv(v){['panel','cajas','dudas','buscar','sug','colab','cfg'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');document.querySelectorAll('#mn button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-v')===v);});if(v==='cajas')renderCajas();if(v==='dudas')renderDudas();if(v==='buscar')renderBusqueda();if(v==='sug')renderSugerencias();if(v==='colab')renderVistaColaborador();if(v==='cfg')renderConfig();if(v==='panel')renderPanel();}
 
 /* ===== BASE DE DATOS LOCAL (propia, independiente de la de la app de árbol) ===== */
-function oDB(){return new Promise(function(res,rej){var r=indexedDB.open('ImportacionFotosCarlos',1);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains('cajas'))d.createObjectStore('cajas',{keyPath:'id'});if(!d.objectStoreNames.contains('elementos'))d.createObjectStore('elementos',{keyPath:'id'});if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open('ImportacionFotosCarlos',2);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains('cajas'))d.createObjectStore('cajas',{keyPath:'id'});if(!d.objectStoreNames.contains('elementos'))d.createObjectStore('elementos',{keyPath:'id'});if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'id'});if(!d.objectStoreNames.contains('pendientes'))d.createObjectStore('pendientes',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function cPut(store,obj){return new Promise(function(res,rej){var tx=db.transaction(store,'readwrite');tx.objectStore(store).put(obj);tx.oncomplete=function(){res(obj);};tx.onerror=function(){rej(tx.error);};});}
 function cGet(store,id){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}
 function cAll(store){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){res([]);};});}
@@ -657,7 +658,52 @@ function normalizarNombreAlbum(s){
 return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 }
 function cargarMapaAliasAlbum(){return leerCfgValor('mapaAliasAlbum',{}).then(function(m){MAPA_ALIAS_ALBUM=m;return m;});}
-async function procesarZip(blob,caja){
+async function registrarPendienteAlbum(caja,albumNombre,clave,total){
+var id=caja.id+'::'+clave;
+var existente=await cGet('pendientes',id);
+var p=existente||{id:id,cajaId:caja.id,clave:clave,nombreOriginal:albumNombre,total:0,creado:new Date().toISOString()};
+p.nombreOriginal=albumNombre;
+p.total=Math.max(Number(p.total||0),Number(total||0));
+p.actualizado=new Date().toISOString();
+await cPut('pendientes',p);
+colaAlbumesPendientes[id]={id:id,claveAlias:clave,nombreOriginal:albumNombre,cajaId:caja.id,total:p.total,elementos:[],persistente:true};
+}
+async function cargarPendientesPersistentes(){
+var lista=await cAll('pendientes');
+/* Migración de la versión anterior: una caja podía quedar en 'esperando_asignacion_album'
+   sin haber guardado el binario ni el pendiente. La recuperamos sin pedir al usuario que
+   vuelva a empezar: al asignarla se volverá a leer TODO el ZIP de esa caja desde Drive. */
+var cajas=await cAll('cajas');
+var idsPend={};lista.forEach(function(p){idsPend[p.id]=true;});
+for(var i=0;i<cajas.length;i++){
+  var c=cajas[i];
+  if(c.estado==='esperando_asignacion_album'){
+    var existe=lista.some(function(p){return p.cajaId===c.id;});
+    if(!existe){
+      var migrado={id:c.id+'::__CAJA_COMPLETA__',cajaId:c.id,clave:null,nombreOriginal:c.id,total:Number((c.contadores&&c.contadores.total)||0),modoCajaCompleta:true,creado:new Date().toISOString(),actualizado:new Date().toISOString()};
+      await cPut('pendientes',migrado);lista.push(migrado);idsPend[migrado.id]=true;
+    }
+  }
+}
+colaAlbumesPendientes={};
+lista.forEach(function(p){colaAlbumesPendientes[p.id]={id:p.id,claveAlias:p.clave,nombreOriginal:p.nombreOriginal,cajaId:p.cajaId,total:Number(p.total||0),elementos:[],persistente:true,modoCajaCompleta:!!p.modoCajaCompleta};});
+PENDIENTES_HIDRATADOS=true;
+return lista;
+}
+async function eliminarPendienteAlbum(id){
+await cDel('pendientes',id);
+delete colaAlbumesPendientes[id];
+}
+async function pendientesDeCaja(cajaId){
+var lista=await cAll('pendientes');
+return lista.filter(function(p){return p.cajaId===cajaId;});
+}
+
+/* Lee un ZIP. En el modo normal, los álbumes sin asignar NO guardan los binarios en memoria:
+   solo se registra en IndexedDB qué álbum está pendiente. Al asignarlo, el ZIP se vuelve a leer
+   desde Drive. Así una recarga, cierre o pérdida de memoria no rompe el proceso. */
+async function procesarZip(blob,caja,opciones){
+opciones=opciones||{};
 var zip=await JSZip.loadAsync(blob);
 var entries=Object.keys(zip.files).filter(function(n){return !zip.files[n].dir;});
 var mediaEntries=entries.filter(function(n){return !/\.json$/i.test(n);});
@@ -665,34 +711,54 @@ var jsonEntries=entries.filter(function(n){return /\.json$/i.test(n);});
 var jsonPorBase={};
 jsonEntries.forEach(function(n){jsonPorBase[nombreBaseTakeout(n)]=n;});
 await cargarMapaAliasAlbum();
+var resumenPendientes={};
 for(var i=0;i<mediaEntries.length;i++){
 var ruta=mediaEntries[i];
 var tipo=tipoDeArchivo(ruta);
-if(tipo==='otro')continue; // no se pierde: se ignora silenciosamente (no es foto/doc/vídeo reconocible)
+if(tipo==='otro')continue;
 var nombreArchivo=ruta.split('/').pop();
-var base=nombreBaseTakeout(ruta);
-var nombreJson=jsonPorBase[base]||null;
+var albumNombre=extraerNombreAlbumDeRuta(ruta)||caja.id;
+var clave=normalizarNombreAlbum(albumNombre);
+if(opciones.soloClave && clave!==opciones.soloClave)continue;
+var nombreJson=jsonPorBase[nombreBaseTakeout(ruta)]||null;
 var jsonData=null;
 if(nombreJson){try{jsonData=JSON.parse(await zip.files[nombreJson].async('string'));}catch(e){jsonData=null;}}
-var mediaBlob=await zip.files[ruta].async('blob');
-var motivoHuerfano=!nombreJson;
-var albumNombre=extraerNombreAlbumDeRuta(ruta)||caja.id;
-await encolarElementoDeAlbum(nombreArchivo,tipo,mediaBlob,jsonData,caja,motivoHuerfano,albumNombre);
+var esHuerfano=!nombreJson;
+if(opciones.soloClave){
+  var mediaBlob=await zip.files[ruta].async('blob');
+  if(opciones.progreso){
+    opciones.progreso.actual=(opciones.progreso.actual||0)+1;
+    actualizarProgresoAsignacion(opciones.progreso.actual,opciones.progreso.total,nombreArchivo,'Procesando y guardando el elemento '+opciones.progreso.actual+' de '+opciones.progreso.total+'…');
+  }
+  await procesarElementoConPersona(nombreArchivo,tipo,mediaBlob,jsonData,caja,esHuerfano,opciones.personaId,opciones.personaNombre,albumNombre);
+}else{
+  var mapeo=MAPA_ALIAS_ALBUM[clave];
+  if(mapeo){
+    var mediaBlob2=await zip.files[ruta].async('blob');
+    await procesarElementoConPersona(nombreArchivo,tipo,mediaBlob2,jsonData,caja,esHuerfano,mapeo.personaId,mapeo.personaNombre,albumNombre);
+  }else{
+    resumenPendientes[clave]=(resumenPendientes[clave]||{nombreOriginal:albumNombre,total:0});
+    resumenPendientes[clave].total++;
+  }
 }
 }
-/* Si el álbum ya está mapeado a una persona, se procesa y sube al momento. Si no, el elemento
-   se guarda en memoria (colaAlbumesPendientes) hasta que el administrador conteste una vez, desde
-   la pestaña Cajas, a qué ficha corresponde ese nombre de álbum. */
+if(!opciones.soloClave){
+  var claves=Object.keys(resumenPendientes);
+  for(var j=0;j<claves.length;j++){
+    var k=claves[j],rp=resumenPendientes[k];
+    await registrarPendienteAlbum(caja,rp.nombreOriginal,k,rp.total);
+  }
+  if(claves.length){caja.estado='esperando_asignacion_album';await cPut('cajas',caja);}
+}
+}
+
+/* Compatibilidad con el flujo antiguo: si una asignación ya estaba en memoria, se conserva;
+   en la versión nueva la fuente de verdad es IndexedDB y los ZIP de Drive. */
 async function encolarElementoDeAlbum(nombreArchivo,tipo,blob,jsonData,caja,esHuerfano,albumNombre){
 var clave=normalizarNombreAlbum(albumNombre);
 var mapeo=MAPA_ALIAS_ALBUM[clave];
-if(mapeo){
-await procesarElementoConPersona(nombreArchivo,tipo,blob,jsonData,caja,esHuerfano,mapeo.personaId,mapeo.personaNombre,albumNombre);
-}else{
-if(!colaAlbumesPendientes[clave])colaAlbumesPendientes[clave]={nombreOriginal:albumNombre,cajaId:caja.id,elementos:[]};
-colaAlbumesPendientes[clave].elementos.push({nombreArchivo:nombreArchivo,tipo:tipo,blob:blob,jsonData:jsonData,esHuerfano:esHuerfano});
-if(caja.estado!=='esperando_asignacion_album'){caja.estado='esperando_asignacion_album';await cPut('cajas',caja);}
-}
+if(mapeo){await procesarElementoConPersona(nombreArchivo,tipo,blob,jsonData,caja,esHuerfano,mapeo.personaId,mapeo.personaNombre,albumNombre);return;}
+await registrarPendienteAlbum(caja,albumNombre,clave,1);
 }
 
 /* ===== SUBSISTEMA 4: METADATOS + SUBSISTEMA 5: DEDUPLICACIÓN ===== */
@@ -1205,63 +1271,90 @@ function finalizarProgresoAsignacion(ok,mensaje){
   }
 }
 
-async function resolverAlbumPendiente(clave,personaId,personaNombre){
- var pendiente=colaAlbumesPendientes[clave];
- if(!pendiente)return;
- var botones=document.querySelectorAll('button');
- botones.forEach(function(b){
-   if((b.textContent||'').indexOf('Es esta persona')>=0)b.disabled=true;
- });
- var total=pendiente.elementos.length;
- mostrarProgresoAsignacion(pendiente.nombreOriginal,total);
- var caja=await cGet('cajas',pendiente.cajaId);
- try{
-   var mapa=await leerCfgValor('mapaAliasAlbum',{});
-   mapa[clave]={personaId:personaId,personaNombre:personaNombre};
-   await guardarCfgValor('mapaAliasAlbum',mapa);
-   MAPA_ALIAS_ALBUM=mapa;
+async function procesarZipComoCajaCompleta(blob,caja,personaId,personaNombre,progreso){
+var zip=await JSZip.loadAsync(blob);
+var entries=Object.keys(zip.files).filter(function(n){return !zip.files[n].dir;});
+var mediaEntries=entries.filter(function(n){return !/\.json$/i.test(n);});
+var jsonEntries=entries.filter(function(n){return /\.json$/i.test(n);});
+var jsonPorBase={};jsonEntries.forEach(function(n){jsonPorBase[nombreBaseTakeout(n)]=n;});
+for(var i=0;i<mediaEntries.length;i++){
+ var ruta=mediaEntries[i],tipo=tipoDeArchivo(ruta);if(tipo==='otro')continue;
+ var nombreArchivo=ruta.split('/').pop();
+ var nombreJson=jsonPorBase[nombreBaseTakeout(ruta)]||null,jsonData=null;
+ if(nombreJson){try{jsonData=JSON.parse(await zip.files[nombreJson].async('string'));}catch(e){jsonData=null;}}
+ var mediaBlob=await zip.files[ruta].async('blob');
+ progreso.actual=(progreso.actual||0)+1;
+ if(progreso.total<progreso.actual)progreso.total=progreso.actual;
+ actualizarProgresoAsignacion(progreso.actual,progreso.total,nombreArchivo,'Procesando y guardando el elemento '+progreso.actual+'…');
+ await procesarElementoConPersona(nombreArchivo,tipo,mediaBlob,jsonData,caja,!nombreJson,personaId,personaNombre,extraerNombreAlbumDeRuta(ruta)||caja.id);
+}
+}
 
-   for(var i=0;i<pendiente.elementos.length;i++){
-     var el=pendiente.elementos[i];
-     actualizarProgresoAsignacion(i,total,el.nombreArchivo,'Procesando y guardando el elemento '+(i+1)+' de '+total+'…');
-     await procesarElementoConPersona(el.nombreArchivo,el.tipo,el.blob,el.jsonData,caja,el.esHuerfano,personaId,personaNombre,pendiente.nombreOriginal);
-     actualizarProgresoAsignacion(i+1,total,el.nombreArchivo,'Elemento '+(i+1)+' de '+total+' guardado');
-   }
+async function resolverAlbumPendiente(pendienteId,personaId,personaNombre){
+await cargarPendientesPersistentes();
+var pendiente=colaAlbumesPendientes[pendienteId];
+if(!pendiente){toast('Ese álbum pendiente ya no existe',true);return;}
+var clave=pendiente.claveAlias;
+var modoCajaCompleta=!!pendiente.modoCajaCompleta || !clave;
+var botones=document.querySelectorAll('button');
+botones.forEach(function(b){if((b.textContent||'').indexOf('Es esta persona')>=0)b.disabled=true;});
+var total=Number(pendiente.total||0);
+mostrarProgresoAsignacion(pendiente.nombreOriginal,total);
+var caja=await cGet('cajas',pendiente.cajaId);
+try{
+  var mapa=await leerCfgValor('mapaAliasAlbum',{});
+  mapa[clave]={personaId:personaId,personaNombre:personaNombre};
+  await guardarCfgValor('mapaAliasAlbum',mapa);
+  MAPA_ALIAS_ALBUM=mapa;
 
-   delete colaAlbumesPendientes[clave];
-   caja=await cGet('cajas',pendiente.cajaId);
-   var quedanPendientes=Object.keys(colaAlbumesPendientes).some(function(k){return colaAlbumesPendientes[k].cajaId===pendiente.cajaId;});
-   if(!quedanPendientes){
-     caja.estado=(caja.contadores.dudas>0)?'con_dudas':'procesada';
-     caja.fechaProcesada=new Date().toISOString();
-     await cPut('cajas',caja);
-     finalizarProgresoAsignacion(true,'Álbum guardado: '+total+' elemento(s) procesado(s).');
-     toast('Álbum "'+pendiente.nombreOriginal+'" asignado a '+personaNombre+' y copiado en tu Drive');
-   }else{
-     finalizarProgresoAsignacion(true,'Álbum guardado. Quedan otros álbumes de esta caja por asignar.');
-     toast('Asignado "'+pendiente.nombreOriginal+'" a '+personaNombre+'. Quedan más álbumes de esta caja por asignar.');
-   }
-   renderCajas();renderPanel();
-   setTimeout(ocultarProgresoAsignacion,1400);
- }catch(err){
-   caja=await cGet('cajas',pendiente.cajaId);
-   if(caja){caja.estado='error';caja.error=err.message;await cPut('cajas',caja);}
-   finalizarProgresoAsignacion(false,'Error: '+err.message);
-   toast('Error asignando "'+pendiente.nombreOriginal+'": '+err.message,true);
-   renderCajas();renderPanel();
-   setTimeout(ocultarProgresoAsignacion,2500);
- }finally{
-   botones.forEach(function(b){b.disabled=false;});
- }
+  caja.estado='procesando';caja.error=null;await cPut('cajas',caja);renderCajas();
+  var progreso={actual:0,total:total};
+  for(var i=0;i<caja.partes.length;i++){
+    var parte=caja.partes[i];
+    actualizarProgresoAsignacion(progreso.actual,total,parte.name,'Leyendo la parte '+(i+1)+' de '+caja.partes.length+'…');
+    var blob=await descargarParteConReintentos(parte.fileId);
+    if(modoCajaCompleta){
+      await procesarZipComoCajaCompleta(blob,caja,personaId,personaNombre,progreso);
+    }else{
+      await procesarZip(blob,caja,{soloClave:clave,personaId:personaId,personaNombre:personaNombre,progreso:progreso});
+    }
+    caja=await cGet('cajas',pendiente.cajaId);
+  }
+  if(progreso.actual!==total)total=progreso.actual;
+  await eliminarPendienteAlbum(pendienteId);
+  var restantes=await pendientesDeCaja(pendiente.cajaId);
+  caja=await cGet('cajas',pendiente.cajaId);
+  if(!restantes.length){
+    caja.estado=caja.contadores.dudas>0?'con_dudas':'procesada';
+    caja.fechaProcesada=new Date().toISOString();
+    await cPut('cajas',caja);
+    finalizarProgresoAsignacion(true,'Álbum guardado: '+total+' elemento(s) procesado(s).');
+    toast('Álbum "'+pendiente.nombreOriginal+'" asignado a '+personaNombre+' y copiado en tu Drive');
+  }else{
+    caja.estado='esperando_asignacion_album';await cPut('cajas',caja);
+    finalizarProgresoAsignacion(true,'Álbum guardado. Quedan otros álbumes de esta caja por asignar.');
+    toast('Asignado "'+pendiente.nombreOriginal+'" a '+personaNombre+'. Quedan más álbumes por asignar.');
+  }
+  renderCajas();renderPanel();
+  setTimeout(ocultarProgresoAsignacion,1400);
+}catch(err){
+  caja=await cGet('cajas',pendiente.cajaId);
+  if(caja){caja.estado='esperando_asignacion_album';caja.error='No se completó la asignación: '+err.message;await cPut('cajas',caja);}
+  finalizarProgresoAsignacion(false,'Error: '+err.message);
+  toast('Error asignando "'+pendiente.nombreOriginal+'": '+err.message,true);
+  renderCajas();renderPanel();
+  setTimeout(ocultarProgresoAsignacion,2500);
+}finally{botones.forEach(function(b){b.disabled=false;});}
 }
 async function renderAlbumesPendientes(){
+await cargarPendientesPersistentes();
 var claves=Object.keys(colaAlbumesPendientes);
 var card=document.getElementById('cardAlbumesPendientes');
 if(!card)return;
 if(!claves.length){card.style.display='none';return;}
 card.style.display='block';
 var cont=document.getElementById('listaAlbumesPendientes');
-cont.innerHTML=claves.map(function(clave){var p=colaAlbumesPendientes[clave];return '<div id="bloqueAlbum_'+idSlugAlbum(clave)+'" style="padding:10px 0;border-bottom:1px solid var(--border)"><b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.elementos.length+' elemento(s)</span><div style="font-size:11px;color:var(--muted);margin:4px 0">Buscando fichas parecidas...</div></div>';}).join('');
+cont.innerHTML=claves.map(function(id){var p=colaAlbumesPendientes[id];return '<div id="bloqueAlbum_'+idSlugAlbum(id)+'" style="padding:10px 0;border-bottom:1px solid var(--border)"><b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.total+' elemento(s)</span><div style="font-size:11px;color:var(--muted);margin:4px 0">Pendiente guardado en este navegador; al asignarlo se volverá a leer la caja desde Drive.</div></div>';}).join('');
 for(var i=0;i<claves.length;i++)await renderBloqueAlbumPendiente(claves[i]);
 }
 function idSlugAlbum(clave){return (clave||'x').replace(/\s+/g,'_');}
@@ -1277,7 +1370,7 @@ return '<div class="colab-item" style="margin-bottom:6px;padding:8px 10px"><div 
 '<button class="btn ghost small" onclick="cotejarYMostrar(\''+idSlug+'\','+i+',\''+esc(c.id)+'\')"><i class="fa-solid fa-magnifying-glass"></i> Cotejar</button> '+
 '<button class="btn small" onclick="resolverAlbumPendiente(\''+clave+'\',\''+esc(c.id)+'\',\''+esc(c.nombre).replace(/'/g,"&#39;")+'\')"><i class="fa-solid fa-check"></i> Es esta persona</button></div>';
 }).join(''):'<p style="font-size:12px;color:var(--muted)">No hay fichas con un nombre parecido.</p>';
-bloque.innerHTML='<b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.elementos.length+' elemento(s)</span>'+
+bloque.innerHTML='<b>'+esc(p.nombreOriginal)+'</b> <span class="badge">'+p.total+' elemento(s)</span>'+
 '<p style="font-size:11px;color:var(--muted);margin:6px 0 8px">El nombre del álbum no tiene por qué coincidir exactamente con el de la ficha. Sugerencias por parecido:</p>'+
 sugHtml+
 '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
@@ -1553,16 +1646,26 @@ var caja=await cGet('cajas',cajaId);
 if(!caja){toast('La caja ya no existe',true);return;}
 var copiados=(caja.contadores&&caja.contadores.copiados)||0;
 var aviso=copiados>0
-? 'Esta caja ya tiene '+copiados+' elemento(s) copiado(s) en Drive. Se eliminará SOLO el registro local de la aplicación; los archivos de Drive NO se borrarán.\n\n¿Quieres quitar la caja local y volver a detectarla desde cero?'
-: 'Se quitará esta caja y sus elementos del registro local. Los ZIP originales de Google Drive NO se borrarán.\n\n¿Continuar?';
+? 'Esta caja ya tiene '+copiados+' elemento(s) copiado(s) en Drive. Se eliminará el registro local de la aplicación y las asignaciones pendientes de esta caja; los archivos de Drive y los ZIP originales NO se borrarán.\n\n¿Quieres quitar la caja y volver a detectarla desde cero?'
+: 'Se quitará esta caja, sus elementos y sus asignaciones pendientes del registro local. Los ZIP originales de Google Drive NO se borrarán.\n\n¿Continuar?';
 if(!confirm(aviso))return;
 var elementos=await cAll('elementos');
 for(var i=0;i<elementos.length;i++)if(elementos[i].cajaId===cajaId)await cDel('elementos',elementos[i].id);
-Object.keys(colaAlbumesPendientes).forEach(function(k){if(colaAlbumesPendientes[k].cajaId===cajaId)delete colaAlbumesPendientes[k];});
+var pendientes=await pendientesDeCaja(cajaId);
+var mapa=await leerCfgValor('mapaAliasAlbum',{});
+for(var j=0;j<pendientes.length;j++){
+  delete mapa[pendientes[j].clave];
+  await cDel('pendientes',pendientes[j].id);
+  delete colaAlbumesPendientes[pendientes[j].id];
+}
+// También olvidamos alias cuyo nombre coincide con la caja si no hay un pendiente explícito.
+var claveCaja=normalizarNombreAlbum(cajaId);
+if(mapa[claveCaja])delete mapa[claveCaja];
+await guardarCfgValor('mapaAliasAlbum',mapa);MAPA_ALIAS_ALBUM=mapa;
 await cDel('cajas',cajaId);
 await recalcularContadoresDudas();
 renderCajas();renderPanel();
-toast('Caja "'+cajaId+'" eliminada del registro local. Pulsa Actualizar para volver a detectarla.');
+toast('Caja "'+cajaId+'" eliminada del registro local. Pulsa Actualizar para volver a detectarla desde cero.');
 }
 
 async function renderCajas(){
@@ -1579,7 +1682,7 @@ return '<div class="card"><div style="display:flex;justify-content:space-between
 '<p style="font-size:12px;margin-top:8px">Elementos: '+((c.contadores&&c.contadores.total)||0)+' · Copiados: '+((c.contadores&&c.contadores.copiados)||0)+' · Dudas: '+((c.contadores&&c.contadores.dudas)||0)+'</p>'+
 (c.error?'<p style="color:var(--warn);font-size:12px;margin-top:6px"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(c.error)+'</p>':'')+
 (c.estado==='completa'?'<button class="btn small" style="margin-top:8px" onclick="procesarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-play"></i> Procesar ahora</button>':'')+
-(c.estado==='esperando_asignacion_album'&&!Object.keys(colaAlbumesPendientes).some(function(k){return colaAlbumesPendientes[k].cajaId===c.id;})?'<p class="note">Si has recargado la página, los álbumes pendientes de esta caja se han perdido de memoria (no se guarda el binario). Pulsa para volver a leerlos del ZIP:</p><button class="btn small" onclick="procesarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-rotate"></i> Volver a leer el ZIP</button>':'')+
+(c.estado==='esperando_asignacion_album'?'<p class="note">Asignación pendiente guardada. Puedes recargar la página sin perder la caja; al elegir la persona el programa volverá a leer los ZIP desde Drive.</p>':'')+
 '<button class="btn ghost small" style="margin-top:8px" onclick="reiniciarCaja(\''+esc(c.id)+'\')"><i class="fa-solid fa-trash-can"></i> Quitar caja y empezar de nuevo</button>'+'</div>';
 }).join('');
 }
@@ -1666,6 +1769,7 @@ CFG_OCR_MAX_PAGINAS=await leerCfgValor('ocrMaxPaginas',3);
 CFG_ESPACIO_GB=await leerCfgValor('espacioGB',75);
 COLABORADORES=await leerCfgValor('colaboradores',[]);
 await cargarMapaAliasAlbum();
+await cargarPendientesPersistentes();
 espacioAcumulado=await leerCfgValor('espacioAcumulado',{bytes:0,elementos:0});
 renderPanel();
 actualizarDriveStatusPill();
