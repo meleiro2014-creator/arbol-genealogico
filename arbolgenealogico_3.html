@@ -106,6 +106,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .ef-check input{width:16px;height:16px;cursor:pointer}
 .ef-sub{opacity:.5;pointer-events:none}
 .iz{border:3px dashed var(--border);border-radius:16px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;margin:16px 0}
+.iz.drag,#docsDropZone.drag{border-color:var(--accent);background:rgba(196,101,58,.06)}
 .iz:hover{border-color:var(--accent);background:rgba(196,101,58,.04)}
 .iz p{color:var(--muted);font-size:13px;margin-bottom:8px}
 .pb{width:100%;height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0}
@@ -518,22 +519,6 @@ body{background:#fff}
 <div class="ef-row" style="margin-bottom:10px"><div class="ef-field"><label class="ef-label" for="infApellido">Apellido</label><input class="ef-input" id="infApellido" placeholder="Ej: Garcia" autocomplete="off"></div></div>
 <button class="ef-btn ghost" onclick="descargarInformePorApellido()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformePorApellidoPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
-<div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.5px;color:var(--accent);margin:22px 0 8px">Informes generales (toda la base de datos)</div>
-<div class="inf-card">
-<h3><i class="fa-solid fa-list-check"></i> Informe de datos faltantes</h3>
-<p>Recopila, por categorias, las personas a las que falta año de nacimiento, lugar de nacimiento, sexo, padres o foto.</p>
-<button class="ef-btn ghost" onclick="descargarInformeDatosFaltantes()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeDatosFaltantesPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
-</div>
-<div class="inf-card">
-<h3><i class="fa-solid fa-triangle-exclamation"></i> Informe de inconsistencias</h3>
-<p>Version imprimible de las inconsistencias detectadas: conyuges sin vínculo recíproco, géneros y edades incoherentes.</p>
-<button class="ef-btn ghost" onclick="descargarInformeInconsistencias()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeInconsistenciasPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
-</div>
-<div class="inf-card">
-<h3><i class="fa-solid fa-user-group"></i> Informe de posibles duplicados</h3>
-<p>Version imprimible de las parejas de fichas que podrian ser la misma persona, ordenadas por confianza.</p>
-<button class="ef-btn ghost" onclick="descargarInformeDuplicados()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeDuplicadosPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
-</div>
 </div>
 </div>
 <div class="view" id="vInv">
@@ -633,8 +618,16 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.13.14';
+var APP_VERSION = '2026.08.14.2';
 var APP_CHANGELOG = [
+  { version:'2026.08.14.2', fecha:'2026-08-14', cambios:[
+    'Al guardar la fecha o el lugar de un matrimonio (Cónyuge 1/2) en la ficha, se refleja automáticamente el mismo dato en el registro recíproco del cónyuge. Al crear una nueva persona (vinculada o descendiente), ahora se muestran los huecos libres en la numeración de ID y se puede elegir cuál usar, ofreciendo primero el hueco más bajo. Al cambiar el primer apellido de alguien en la ficha, si ese apellido lo llevan descendientes (por línea paterna como primer apellido, o por línea materna como segundo apellido de los hijos directos), se ofrece actualizarlo también en ellos. Corregida la falta de tilde en "Cónyuge" en varias etiquetas de la ficha y de los informes. Eliminados de Informes los tres informes generales de toda la base de datos (datos faltantes, inconsistencias, posibles duplicados); ese mantenimiento ya vive en el Gestor de datos. Rediseño de la gestión de documentos en la ficha: subida múltiple (botón o arrastrar y soltar), categoría libre opcional para agrupar cuando hay muchos, buscador cuando hay más de 8 documentos, y renombrar/eliminar sin salir de la app; disponible para cualquier usuario con su cuenta de Google conectada.'
+  ]},
+
+  { version:'2026.08.14.1', fecha:'2026-08-14', cambios:[
+    'Tarea 6: nueva copia local de fotografías y documentos de Google Drive (solo administrador). Copia en una carpeta del disco duro elegida por el usuario, dentro de subcarpetas FOTO y DOCUMENTOS, los archivos que existan ahora mismo en esas carpetas de Drive, conservando su estructura, nombres y contenido original (sin redimensionar fotos ni convertir documentos). Es una copia de solo lectura hacia el disco (Drive → local): nunca sube nada de vuelta a Drive y nunca borra automáticamente archivos locales que ya no estén en Drive. Reutiliza la conexión de Google Drive y listarTodosArchivosDrive() ya existentes; no modifica personas, fotos incrustadas, copias de seguridad ni el registro de cambios.'
+  ]},
+
   { version:'2026.08.13.14', fecha:'2026-08-13', cambios:[
     'Tarea 4: refinamiento del motor ANOCALC. Nueva vista "Ver cálculo (de dónde sale este año)" en la ficha de cualquier persona con año estimado, que muestra el camino completo de propagación (persona por persona), el origen real (año de nacimiento o aproximado del que parte todo), la relación y la diferencia de edad aplicada en cada paso, y las medias utilizadas. Nueva pantalla en Herramientas → "Configurar años estimados (ANOCALC)" para fijar manualmente, por tipo de parentesco (padre, madre, hermanos, cónyuges), la diferencia media de edad que usa el motor, guardada en la configuración local; si se deja en blanco, sigue funcionando el cálculo automático a partir de los datos reales del árbol (o el valor por defecto si no hay datos suficientes). Un año estimado nunca se usa para calcular otro año estimado (regla ya existente, verificada y preservada). No se ha modificado ningún año de nacimiento real ni aproximado.'
   ]},
@@ -980,38 +973,261 @@ try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive config
 }
 var driveDocumentosFolderId=null;
 var driveFotoFolderId=null;
-async function obtenerCarpetaDocumentosId(){
+/* obtenerCarpetaDocumentosId(crear): localiza la carpeta "DOCUMENTOS" dentro de la
+carpeta raíz configurada. Si crear=true y no existe, la crea (necesario para poder
+subir el primer documento de toda la base sin tener que crearla a mano en Drive). */
+async function obtenerCarpetaDocumentosId(crear){
 if(driveDocumentosFolderId)return driveDocumentosFolderId;
 var q="'"+driveRootFolderId+"' in parents and name='DOCUMENTOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
 if(d.files&&d.files.length){driveDocumentosFolderId=d.files[0].id;return driveDocumentosFolderId;}
-return null;
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'DOCUMENTOS',parents:[driveRootFolderId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta DOCUMENTOS');
+var dc=await rc.json();
+driveDocumentosFolderId=dc.id;
+return driveDocumentosFolderId;
+}
+/* obtenerCarpetaPersonaDocumentos(id,crear): localiza (y opcionalmente crea) la
+subcarpeta de una persona concreta (con su ID exacto como nombre) dentro de la
+carpeta DOCUMENTOS. Con crear=true, permite subir documentos aunque todavía no
+exista ninguna carpeta para esa persona. */
+async function obtenerCarpetaPersonaDocumentos(id,crear){
+var carpetaDocsId=await obtenerCarpetaDocumentosId(!!crear);
+if(!carpetaDocsId)return null;
+var q="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length)return d.files[0].id;
+if(!crear)return null;
+var rp=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:String(id),parents:[carpetaDocsId],mimeType:'application/vnd.google-apps.folder'})});
+if(rp.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rp.ok)throw new Error('Drive respondió '+rp.status+' al crear la carpeta de documentos de esta persona');
+var dp=await rp.json();
+return dp.id;
+}
+/* Subida de contenido binario en dos pasos (crear metadatos, luego subir el
+contenido con uploadType=media), igual patrón que subirFotoPersonaADrive: evita
+el multipart manual (que solo funciona bien con texto) y admite adjuntar
+"properties" (aquí usado para guardar la categoría del documento). */
+async function crearArchivoDriveVacioConMetadatos(nombre,mimeType,folderId,propiedades){
+var body={name:nombre,parents:[folderId],mimeType:mimeType||'application/octet-stream'};
+if(propiedades)body.properties=propiedades;
+var r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+return d.id;
+}
+async function subirContenidoArchivoDrive(fileId,blob,mimeType){
+var r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mimeType||'application/octet-stream'},body:blob});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+return r;
+}
+/* ===== GESTIÓN DE DOCUMENTOS DESDE LA FICHA =====
+Pensado para poder meter muchos documentos por persona sin salir de la app:
+subida múltiple (botón o arrastrar y soltar), categoría libre opcional (con
+sugerencias) para poder agruparlos cuando hay muchos, buscador dentro de la
+ficha cuando hay más de 8, y renombrar/eliminar sin ir a Drive. Disponible para
+cualquier usuario con su cuenta de Google conectada (igual que las fotos). */
+var DOCS_CATEGORIAS_SUGERIDAS=['Nacimiento','Bautismo','Matrimonio','Defunción','Empadronamiento','Fotografía histórica','Correspondencia','Otros'];
+var docsUltimaListaCache={};
+var docsFiltroTexto='';
+var docsSubidaEnCurso=false;
+function docsIconoPorMime(mime,nombre){
+var m=String(mime||'');
+var ext=(String(nombre||'').match(/\.([a-z0-9]+)$/i)||[])[1]||'';
+ext=ext.toLowerCase();
+if(m.indexOf('pdf')>=0||ext==='pdf')return'fa-file-pdf';
+if(m.indexOf('image/')>=0||['jpg','jpeg','png','gif','webp','bmp','heic','heif'].indexOf(ext)>=0)return'fa-file-image';
+if(m.indexOf('word')>=0||['doc','docx'].indexOf(ext)>=0)return'fa-file-word';
+if(m.indexOf('sheet')>=0||['xls','xlsx','csv'].indexOf(ext)>=0)return'fa-file-excel';
+if(m.indexOf('audio')>=0)return'fa-file-audio';
+if(m.indexOf('video')>=0)return'fa-file-video';
+if(m.indexOf('zip')>=0||m.indexOf('compressed')>=0)return'fa-file-zipper';
+return'fa-file';
+}
+function docsTamanoTexto(bytes){
+bytes=parseInt(bytes,10);
+if(!bytes||isNaN(bytes))return'';
+if(bytes<1024)return bytes+' B';
+if(bytes<1024*1024)return Math.round(bytes/1024)+' KB';
+return(bytes/1024/1024).toFixed(1)+' MB';
+}
+function renderDocumentosPersona(id){
+var lista=document.getElementById('docsLista');if(!lista)return;
+var cache=docsUltimaListaCache[id]||{archivos:[]};
+var archivos=cache.archivos||[];
+var q=docsFiltroTexto.toLowerCase().trim();
+var visibles=archivos.filter(function(f){
+if(!q)return true;
+var cat=(f.properties&&f.properties.categoria)||'';
+return f.name.toLowerCase().indexOf(q)>=0||cat.toLowerCase().indexOf(q)>=0;
+});
+var categoriasUsadas={};
+archivos.forEach(function(f){var c=(f.properties&&f.properties.categoria)||'';if(c)categoriasUsadas[c]=true;});
+var sugerencias=DOCS_CATEGORIAS_SUGERIDAS.concat(Object.keys(categoriasUsadas)).filter(function(v,i,a){return a.indexOf(v)===i;});
+var h='';
+h+='<div id="docsDropZone" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="docsHandleDrop(event,\''+safeId(id)+'\')" class="iz" style="padding:16px;margin:0 0 12px">';
+h+='<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí los documentos, o</p>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center">';
+h+='<input class="ef-input" id="docCategoriaInput" list="dlDocsCategorias" placeholder="Categoría (opcional)" style="max-width:180px" autocomplete="off">';
+h+='<input type="file" id="docsFileInput" multiple style="display:none" onchange="docsHandleInputChange(event,\''+safeId(id)+'\')">';
+h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docsFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button>';
+h+='</div>';
+h+='<datalist id="dlDocsCategorias">'+sugerencias.map(function(c){return'<option value="'+escAttr(c)+'">';}).join('')+'</datalist>';
+h+='<div id="docsProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docsProgresoBarra"></div></div><div id="docsProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>';
+h+='</div>';
+if(!archivos.length){
+h+='<p style="font-size:12px;color:var(--muted)">Todavía no hay documentos para esta persona.</p>';
+lista.innerHTML=h;
+return;
+}
+if(archivos.length>8){
+h+='<div style="margin:0 0 12px"><input class="ef-input" value="'+escAttr(docsFiltroTexto)+'" oninput="docsFiltroTexto=this.value;renderDocumentosPersona(\''+safeId(id)+'\')" placeholder="Buscar documento por nombre o categoría..."></div>';
+}
+if(!visibles.length){
+h+='<p style="font-size:12px;color:var(--muted)">Sin resultados para ese filtro.</p>';
+lista.innerHTML=h;
+return;
+}
+var porCategoria={};
+visibles.forEach(function(f){
+var c=(f.properties&&f.properties.categoria)||'Sin categoría';
+if(!porCategoria[c])porCategoria[c]=[];
+porCategoria[c].push(f);
+});
+var nombresCategoria=Object.keys(porCategoria).sort(function(a,b){
+if(a==='Sin categoría')return 1;if(b==='Sin categoría')return -1;
+return a.localeCompare(b,'es');
+});
+nombresCategoria.forEach(function(cat){
+var docs=porCategoria[cat];
+h+='<div style="margin-bottom:10px">';
+if(nombresCategoria.length>1)h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 4px">'+esc(cat)+' ('+docs.length+')</div>';
+docs.forEach(function(f){
+var icono=docsIconoPorMime(f.mimeType,f.name);
+var tam=docsTamanoTexto(f.size);
+h+='<div class="fr" style="align-items:center;margin-bottom:7px;gap:6px">';
+h+='<span class="fv" style="flex:1;overflow-wrap:anywhere"><i class="fa-regular '+icono+'" style="color:var(--accent);margin-right:6px"></i>'+esc(f.name)+(tam?' <span style="color:var(--muted);font-weight:400;font-size:10px">('+tam+')</span>':'')+'</span>';
+h+='<a class="ef-btn ghost" style="padding:4px 8px;text-decoration:none" href="'+escAttr(f.webViewLink||('https://drive.google.com/file/d/'+f.id+'/view'))+'" target="_blank" rel="noopener">Abrir</a>';
+h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Renombrar" onclick="renombrarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-pen"></i></button>';
+h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Eliminar" onclick="eliminarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-trash-can"></i></button>';
+h+='</div>';
+});
+h+='</div>';
+});
+lista.innerHTML=h;
+}
+function docsHandleDrop(ev,id){
+ev.preventDefault();
+var zona=document.getElementById('docsDropZone');
+if(zona)zona.classList.remove('drag');
+var files=ev.dataTransfer&&ev.dataTransfer.files;
+if(files&&files.length)subirDocumentosPersona(id,files);
+}
+function docsHandleInputChange(ev,id){
+var files=ev.target.files;
+if(files&&files.length)subirDocumentosPersona(id,files);
+ev.target.value='';
+}
+async function subirDocumentosPersona(id,fileList){
+if(docsSubidaEnCurso){toast('Ya hay una subida de documentos en curso; espera a que termine',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos" en Herramientas)',true);return;}
+var files=Array.prototype.slice.call(fileList||[]);
+if(!files.length)return;
+if(!tokenDriveValido()){
+try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+}
+var catEl=document.getElementById('docCategoriaInput');
+var categoria=catEl?catEl.value.trim():'';
+docsSubidaEnCurso=true;
+var prog=document.getElementById('docsProgreso'),barra=document.getElementById('docsProgresoBarra'),txt=document.getElementById('docsProgresoTexto');
+if(prog)prog.style.display='block';
+var subidos=0,errores=0;
+try{
+var folderId=await obtenerCarpetaPersonaDocumentos(id,true);
+for(var i=0;i<files.length;i++){
+var f=files[i];
+if(txt)txt.textContent='Subiendo '+f.name+' ('+(i+1)+' de '+files.length+')';
+if(barra)barra.style.width=Math.round(i/files.length*100)+'%';
+try{
+var propiedades=categoria?{categoria:categoria}:undefined;
+var fileId=await crearArchivoDriveVacioConMetadatos(f.name,f.type||'application/octet-stream',folderId,propiedades);
+await subirContenidoArchivoDrive(fileId,f,f.type||'application/octet-stream');
+subidos++;
+}catch(errUno){
+errores++;
+console.warn('No se pudo subir el documento '+f.name+':',errUno.message);
+}
+}
+if(barra)barra.style.width='100%';
+}catch(err){
+toast('No se pudo preparar la subida a Drive: '+err.message,true);
+}
+docsSubidaEnCurso=false;
+if(prog)prog.style.display='none';
+toast(subidos+' documento(s) subido(s)'+(errores?(' · '+errores+' con error'):''),errores>0&&subidos===0);
+mostrarDocumentos(id);
+}
+async function renombrarDocumentoPersona(id,fileId,nombreActual){
+if(!(await exigirIdentidadGoogle()))return;
+var nuevo=prompt('Nuevo nombre del documento:',nombreActual);
+if(nuevo===null)return;
+nuevo=nuevo.trim();
+if(!nuevo||nuevo===nombreActual)return;
+try{
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nuevo})});
+if(r.status===401){driveAccessToken=null;toast('La sesión de Google Drive caducó, vuelve a conectarla',true);return;}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+toast('Documento renombrado');
+mostrarDocumentos(id);
+}catch(err){toast('No se pudo renombrar el documento: '+err.message,true);}
+}
+async function eliminarDocumentoPersona(id,fileId,nombre){
+if(!(await exigirIdentidadGoogle()))return;
+if(!confirm('Se eliminará el documento "'+nombre+'" (se moverá a la papelera de Drive). ¿Continuar?'))return;
+try{
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
+if(r.status===401){driveAccessToken=null;toast('La sesión de Google Drive caducó, vuelve a conectarla',true);return;}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+toast('Documento eliminado');
+mostrarDocumentos(id);
+}catch(err){toast('No se pudo eliminar el documento: '+err.message,true);}
 }
 async function mostrarDocumentos(id){
 var lista=document.getElementById('docsLista');if(!lista)return;
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el código (variable GOOGLE_CLIENT_ID).</p>';return;}
 if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
-if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conectate con Google Drive para ver los documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
+if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conéctate con Google Drive para ver y subir documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
 lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>';
 try{
 var carpetaDocsId;
-try{carpetaDocsId=await obtenerCarpetaDocumentosId();}catch(e){if(e.message==='sesion_caducada'){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}throw e;}
-if(!carpetaDocsId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raíz configurada.</p>';return;}
+try{carpetaDocsId=await obtenerCarpetaDocumentosId(false);}catch(e){if(e.message==='sesion_caducada'){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}throw e;}
+var archivos=[],folderId=null;
+if(carpetaDocsId){
 var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
 var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesion de Google Drive caduco.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
+if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
 var dC=await rC.json();
 if(cid!==id)return;
-if(!dC.files||!dC.files.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No existe una carpeta de Drive con el ID '+esc(String(id))+' dentro de la carpeta DOCUMENTOS.</p>';return;}
-var folderId=dC.files[0].id;
-var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(dC.files&&dC.files.length){
+folderId=dC.files[0].id;
+var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink,mimeType,size,properties)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 var dF=await rF.json();
 if(cid!==id)return;
-var archivos=dF.files||[];
-if(!archivos.length){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La carpeta '+esc(String(id))+' no contiene documentos.</p>';return;}
-lista.innerHTML=archivos.map(function(f){return '<div class="fr" style="align-items:center;margin-bottom:7px"><span class="fv" style="flex:1;overflow-wrap:anywhere"><i class="fa-regular fa-file" style="color:var(--accent);margin-right:6px"></i>'+esc(f.name)+'</span><a class="ef-btn ghost" style="padding:4px 8px;text-decoration:none" href="'+escAttr(f.webViewLink||('https://drive.google.com/file/d/'+f.id+'/view'))+'" target="_blank" rel="noopener">Abrir</a></div>';}).join('');
+archivos=dF.files||[];
+}
+}
+docsUltimaListaCache[id]={folderId:folderId,archivos:archivos};
+docsFiltroTexto='';
+renderDocumentosPersona(id);
 }catch(err){if(cid!==id)return;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>';}
 }
 async function autorizarDocumentos(id){
@@ -1023,7 +1239,7 @@ if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
 try{
-var carpetaDocsId=await obtenerCarpetaDocumentosId();
+var carpetaDocsId=await obtenerCarpetaDocumentosId(false);
 if(!carpetaDocsId){toast('No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raíz configurada',true);return;}
 var q="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
@@ -1032,7 +1248,7 @@ if(d.files&&d.files.length){
 window.open('https://drive.google.com/drive/folders/'+d.files[0].id,'_blank');
 }else{
 window.open('https://drive.google.com/drive/folders/'+carpetaDocsId,'_blank');
-toast('Aun no existe una carpeta con el ID '+id+'. Creala dentro de la carpeta DOCUMENTOS con ese nombre exacto para poder subir documentos.',true);
+toast('Aun no existe una carpeta con el ID '+id+'. Sube un documento desde la ficha y se creará sola.',true);
 }
 }catch(err){toast('Error al abrir Google Drive: '+err.message,true);}
 }
@@ -1105,6 +1321,7 @@ function mostrarHerramientas(){
 mostrarVersionEnHerramientas();
 document.getElementById('modalHerramientas').style.display='flex';
 refrescarGrupoAdminHerramientas();
+mostrarEstadoCopiaLocalDriveEnHerramientas();
 }
 function refrescarGrupoAdminHerramientas(){
 var adminGroup=document.getElementById('herrAdminGroup');
@@ -1774,6 +1991,47 @@ function selP(id){cid=id;sv('arb');rTree(id);}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
+/* ===== Huecos en la numeración de ID (nuevas personas) =====
+Cuando se crea una persona, en vez de asignar directamente el primer ID libre,
+se muestran los huecos disponibles en la numeración (los ID vacíos que quedan
+entre los ya usados) y se ofrece elegir uno, empezando siempre por el primero. */
+function listaHuecosID(limite){
+limite=limite||60;
+var usados={},maxUsado=0;
+D.forEach(function(p){
+var n=parseInt(p.ID,10);
+if(!isNaN(n)&&String(n)===String(p.ID).trim()){usados[n]=true;if(n>maxUsado)maxUsado=n;}
+});
+var huecos=[];
+for(var i=1;i<maxUsado&&huecos.length<limite;i++){if(!usados[i])huecos.push(String(i));}
+huecos.push(String(maxUsado+1));
+return huecos;
+}
+var _resolverElegirIdNueva=null;
+function elegirIdNueva(){
+return new Promise(function(resolve){
+var huecos=listaHuecosID(60);
+_resolverElegirIdNueva=resolve;
+var lista=document.getElementById('listaHuecosId');
+if(lista)lista.innerHTML=huecos.map(function(idHueco,i){
+return '<button type="button" class="ef-btn'+(i===0?'':' ghost')+'" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="confirmarElegirIdNueva(\''+safeId(idHueco)+'\')">ID '+esc(idHueco)+(i===0?' <span style="margin-left:auto;font-size:11px">Primer hueco libre</span>':'')+'</button>';
+}).join('');
+var modal=document.getElementById('modalHuecoId');
+if(modal)modal.style.display='flex';
+});
+}
+function confirmarElegirIdNueva(idHueco){
+var modal=document.getElementById('modalHuecoId');
+if(modal)modal.style.display='none';
+var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
+if(r)r(idHueco);
+}
+function cancelarElegirIdNueva(){
+var modal=document.getElementById('modalHuecoId');
+if(modal)modal.style.display='none';
+var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
+if(r)r(null);
+}
 function irFicha(){editMode=false;sv('fic');}
 function abrirFichaDesdeArbol(id){cid=id;editMode=false;sv('fic');}
 function rFic(id){
@@ -1803,7 +2061,7 @@ var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\
 var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
 var m1l=p.M1&&PI[p.M1]?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(PI[p.M1]))+'</a>':'Ninguno';
 var m2l=p.M2&&PI[p.M2]?'<a class="fl2" onclick="selP(\''+safeId(p.M2)+'\')">'+esc(fn(PI[p.M2]))+'</a>':'Ninguno';
-h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Conyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Conyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
+h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Cónyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Cónyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
 var her=gHerm(id);
 if(her.length){
 her=ordenarPersonasPorEdad(her);
@@ -1882,9 +2140,9 @@ h+='<div class="fs"><h3>Etiquetas</h3><div id="efEtiquetasChips"></div><div clas
 h+='<div class="fs"><h3>Familia</h3>';
 h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
 h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
-h+=linkFieldHtml(p,'M1','Conyuge 1',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+h+=linkFieldHtml(p,'M1','Cónyuge 1',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
 h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 1</span><input class="ef-input" id="ef-ml1" value="'+escAttr(p.ML1)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 1</span><input class="ef-input" id="ef-mf1" value="'+escAttr(fFechaMatrimonio(p.MF1))+'" placeholder="dd/mm/aaaa"></div></div>';
-h+=linkFieldHtml(p,'M2','Conyuge 2',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+h+=linkFieldHtml(p,'M2','Cónyuge 2',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
 h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 2</span><input class="ef-input" id="ef-ml2" value="'+escAttr(p.ML2)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 2</span><input class="ef-input" id="ef-mf2" value="'+escAttr(fFechaMatrimonio(p.MF2))+'" placeholder="dd/mm/aaaa"></div></div>';
 h+='</div>';
 var descendientes=ordenarIdsPorEdad(HD[id]||[]);
@@ -2335,11 +2593,60 @@ importFotosEnCurso=false;fijarBotonesImportFotos(false);
 }
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
 function leerNum(idc){var v=leerCampo(idc);if(v==='')return null;var n=parseFloat(v);return isNaN(n)?null:n;}
+/* Cuando se guarda la fecha/lugar de matrimonio de una persona con un cónyuge (M1/M2),
+se refleja automáticamente esa misma fecha y lugar en el registro recíproco del cónyuge
+(su propio campo M1/M2 que apunta de vuelta a esta persona), para que ambas fichas
+muestren siempre el mismo dato de matrimonio sin tener que editarlo dos veces. */
+function sincronizarMatrimonioConyuge(persona,campo){
+var conyugeId=persona[campo];
+if(!conyugeId||!PI[conyugeId])return;
+var conyuge=PI[conyugeId];
+var lugar=campo==='M1'?persona.ML1:persona.ML2;
+var fecha=campo==='M1'?persona.MF1:persona.MF2;
+var campoReciproco=(conyuge.M1===persona.ID)?'M1':((conyuge.M2===persona.ID)?'M2':null);
+if(!campoReciproco)return;
+if(campoReciproco==='M1'){conyuge.ML1=lugar;conyuge.MF1=fecha;}
+else{conyuge.ML2=lugar;conyuge.MF2=fecha;}
+}
+/* ===== Propagación del primer apellido a los descendientes =====
+Sigue la convención española de apellidos: el APELLIDO1 de una persona pasa a
+sus hijos como APELLIDO1 (vía PADRE) y como APELLIDO2 (vía MADRE). Al cambiar el
+APELLIDO1 de alguien, se recopilan los descendientes que llevan ese mismo
+apellido "heredado" para poder ofrecer actualizarlo también en ellos. La rama
+paterna (hijo.APELLIDO1 heredado del padre) se sigue recursivamente generación
+tras generación; la rama materna solo afecta al APELLIDO2 de los hijos directos
+(ese apellido no se vuelve a transmitir como tal a los nietos). */
+function normApellido(s){return String(s||'').trim().toLowerCase();}
+function recopilarDescendientesConApellido(personaId,valorAntiguo,resultado,visitados){
+visitados=visitados||{};
+if(visitados[personaId])return resultado;
+visitados[personaId]=true;
+(HD[personaId]||[]).forEach(function(hid){
+var h=PI[hid];
+if(!h)return;
+if(h.PADRE===personaId&&normApellido(h.APELLIDO1)===normApellido(valorAntiguo)){
+resultado.push({id:hid,campo:'APELLIDO1'});
+recopilarDescendientesConApellido(hid,valorAntiguo,resultado,visitados);
+}else if(h.MADRE===personaId&&normApellido(h.APELLIDO2)===normApellido(valorAntiguo)){
+resultado.push({id:hid,campo:'APELLIDO2'});
+}
+});
+return resultado;
+}
+function propagarPrimerApellido(personaId,valorAntiguo,valorNuevo){
+if(!valorAntiguo||normApellido(valorAntiguo)===normApellido(valorNuevo))return 0;
+var afectados=recopilarDescendientesConApellido(personaId,valorAntiguo,[]);
+if(!afectados.length)return 0;
+if(!confirm('Este apellido ("'+valorAntiguo+'") también lo llevan '+afectados.length+' descendiente(s) (heredado como primer o segundo apellido). ¿Cambiarlo también en ellos a "'+valorNuevo+'"?'))return 0;
+afectados.forEach(function(a){var d=PI[a.id];if(d)d[a.campo]=valorNuevo;});
+return afectados.length;
+}
 async function guardarFicha(id){
 if(!(await exigirIdentidadGoogle()))return;
 var p=PI[id];
 var antesCambio=clonarPersona(p);
 if(!p){toast('Registro no encontrado',true);return;}
+var apellido1Anterior=p.APELLIDO1;
 p.APELLIDO1=leerCampo('ef-ap1');
 p.APELLIDO2=leerCampo('ef-ap2');
 p.NOMBRE=leerCampo('ef-nombre');
@@ -2360,6 +2667,8 @@ p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
 }
 p.ML1=leerCampo('ef-ml1');p.MF1=leerCampo('ef-mf1');
 p.ML2=leerCampo('ef-ml2');p.MF2=leerCampo('ef-mf2');
+sincronizarMatrimonioConyuge(p,'M1');
+sincronizarMatrimonioConyuge(p,'M2');
 p.OBSERVACIONES=leerCampo('ef-obs');
 var etqPendiente=leerCampo('efEtiquetaInput');
 if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
@@ -2373,13 +2682,16 @@ else eliminarFotoPersonaDeDrive(idParaDrive);
 }
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+var antesPropagacion=mapaPersonas(D);
+var nPropagados=propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
 sAll(D).then(function(){
 editMode=false;
 rStats();
 rFic(id);
-toast('Cambios guardados');
+toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }
 async function eliminarFicha(id){
@@ -2415,9 +2727,10 @@ return true;
 }
 async function crearVinculado(id,campo,sexoNuevo){
 if(!(await exigirIdentidadGoogle()))return;
-var antesCambioCrear=mapaPersonas(D);
 if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
-var newId=genNewId();
+var newId=await elegirIdNueva();
+if(!newId)return;
+var antesCambioCrear=mapaPersonas(D);
 var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);
 var actual=PI[id];
@@ -2499,12 +2812,14 @@ async function crearDescendiente(id,parejaId){
 if(!(await exigirIdentidadGoogle()))return;
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
-var antesCambioDesc=mapaPersonas(D);
 if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?'))return;
+var newIdDesc=await elegirIdNueva();
+if(!newIdDesc)return;
+var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:genNewId(),APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -3035,9 +3350,12 @@ items:sub.map(function(pr){return{tipo:'dup',aId:pr.a.ID,bId:pr.b.ID,score:pr.sc
 accionMasiva:null
 });
 });
-/* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años */
+/* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años,
+lugar de nacimiento, padre/madre y foto (esas tres últimas se quitaron del Gestor: son
+datos habituales de completar más tarde y no aportaban valor como aviso recurrente). */
 datosFaltantesCategorias().forEach(function(g){
 if(/año|anio/i.test(g.titulo))return;
+if(g.titulo==='Sin lugar de nacimiento'||g.titulo==='Sin padre ni madre registrados'||g.titulo==='Sin foto')return;
 var icono='fa-circle-question';
 var t=g.titulo.toLowerCase();
 if(t.indexOf('lugar')>=0)icono='fa-location-dot';
@@ -3051,6 +3369,30 @@ descripcion:'Fichas con este dato pendiente. Ábrelas para completarlo a mano.',
 items:g.personas.map(function(p){return{verId:p.ID,mensaje:'<b>'+esc(fn(p))+'</b> <span style="color:var(--muted)">(ID '+esc(p.ID)+')</span>'+(getYear(p)!==null?' · '+esc(pdAnioTexto(p)):'')};}),
 accionMasiva:null
 });
+});
+/* Huecos en la numeración de ID: números libres dentro del rango ya usado (de 1 al
+mayor ID existente), por ejemplo fichas eliminadas en el pasado. Puramente informativo
+(no es una inconsistencia): sirve para saber qué ID(s) puede reutilizar el administrador
+al crear una persona nueva. Reutiliza el mismo criterio de "ID numérico puro" que
+listaHuecosID(), pero sin el hueco final "siguiente tras el máximo" (ese no está
+"saltado", es simplemente el próximo libre). */
+var huecosIdGes=(function(){
+var usados={},maxUsado=0;
+D.forEach(function(p){
+var n=parseInt(p.ID,10);
+if(!isNaN(n)&&String(n)===String(p.ID).trim()){usados[n]=true;if(n>maxUsado)maxUsado=n;}
+});
+var r=[];
+for(var i=1;i<maxUsado;i++){if(!usados[i])r.push(i);}
+return r;
+})();
+if(huecosIdGes.length)cats.push({
+id:'huecos_id',fuente:'huecos',grupo:'otros',
+titulo:'Huecos en la numeración de ID',
+icono:'fa-list-ol',severidad:'info',
+descripcion:huecosIdGes.length+' ID libre(s) dentro del rango ya usado (números que se han saltado, por ejemplo por fichas eliminadas). No es un problema: infórmate aquí de qué ID puedes reutilizar al crear una persona nueva.',
+items:huecosIdGes.map(function(n){return{mensaje:'ID <b>'+n+'</b> libre'};}),
+accionMasiva:null
 });
 /* Categoria especifica: sin ningún año, ni siquiera estimable (== contador cmdPendientes) */
 var sinAnio=D.filter(function(p){return getYear(p)===null;});
@@ -4648,8 +4990,8 @@ html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+(relTxt?' <s
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(pp))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
 html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
 if(motivoAnioInforme(pp))html+='<div class="pn-row">Motivo del año estimado: '+esc(motivoAnioInforme(pp))+'</div>';
-if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
-if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
+if(m1)html+='<div class="pn-row">Cónyuge: '+esc(m1)+'</div>';
+if(m2)html+='<div class="pn-row">Cónyuge: '+esc(m2)+'</div>';
 if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
 html+='</div>';
 });
@@ -4688,8 +5030,8 @@ html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(pp))+(pp.LUG
 html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
 if(motivoAnioInforme(pp))html+='<div class="pn-row">Motivo del año estimado: '+esc(motivoAnioInforme(pp))+'</div>';
 if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
-if(m1)html+='<div class="pn-row">Conyuge: '+esc(m1)+'</div>';
-if(m2)html+='<div class="pn-row">Conyuge: '+esc(m2)+'</div>';
+if(m1)html+='<div class="pn-row">Cónyuge: '+esc(m1)+'</div>';
+if(m2)html+='<div class="pn-row">Cónyuge: '+esc(m2)+'</div>';
 if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
 html+='</div>';
 return html;
@@ -4751,8 +5093,8 @@ html+='</div>';
 html+='<div class="print-person" style="border-bottom:0">';
 html+='<div class="pn-name" style="font-size:14px">Familia</div>';
 html+='<div class="pn-row">Padre: '+esc(padre)+'</div><div class="pn-row">Madre: '+esc(madre)+'</div>';
-if(p.M1&&PI[p.M1])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M1]))+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</div>';
-if(p.M2&&PI[p.M2])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M2]))+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</div>';
+if(p.M1&&PI[p.M1])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M1]))+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</div>';
+if(p.M2&&PI[p.M2])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M2]))+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</div>';
 if(her.length)html+='<div class="pn-row">Hermanos ('+her.length+'): '+esc(her.map(function(x){return fn(x);}).join(', '))+'</div>';
 if(hij.length)html+='<div class="pn-row">Hijos ('+hij.length+'): '+esc(hij.map(function(x){return fn(PI[x]);}).join(', '))+'</div>';
 html+='</div>';
@@ -4782,8 +5124,8 @@ var html='<div class="print-report"><h1>Informe de la rama de '+esc(fn(p))+'</h1
 html+='<div class="print-person"><div class="pn-name">Cabeza de rama: '+esc(fn(p))+'</div>';
 html+='<div class="pn-row">Hijo/a de '+esc(padre)+' y '+esc(madre)+'</div>';
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(p))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
-if(p.M1&&PI[p.M1])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M1]))+'</div>';
-if(p.M2&&PI[p.M2])html+='<div class="pn-row">Conyuge: '+esc(fn(PI[p.M2]))+'</div>';
+if(p.M1&&PI[p.M1])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M1]))+'</div>';
+if(p.M2&&PI[p.M2])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M2]))+'</div>';
 html+='</div>';
 var huboDescendientes=false;
 Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
@@ -5449,6 +5791,415 @@ async function ejecutarCopiaLocalSiToca(){
     console.warn('Copia local automática omitida:', err.message);
   }
 }
+
+/* ========== TAREA 6: COPIA LOCAL DE FOTOGRAFÍAS Y DOCUMENTOS ========== */
+/* ---------- Claves de configuración (CFG), namespaced para no chocar con
+   las de la copia local rotativa del JSON (copiaLocalDirHandle, etc.) ---------- */
+var CFG_ESPEJO_HANDLE = 'copiaLocalDriveDirHandle';
+var CFG_ESPEJO_ULTIMA_FECHA = 'copiaLocalDriveUltimaFecha';
+var CFG_ESPEJO_ULTIMO_RESUMEN = 'copiaLocalDriveUltimoResumen';
+
+/* Concurrencia conservadora para no lanzar cientos de descargas a la vez */
+var COPIA_LOCAL_DRIVE_CONCURRENCIA = 3;
+
+var copiaLocalDriveEnCurso = false;
+var copiaLocalDriveCancelar = false;
+
+/* ---------- Sanitización de nombres (protección contra traversal) ----------
+   Cada segmento se limpia de forma independiente: nunca se admite '..', '.',
+   separadores de ruta, ni nombres vacíos. Esto asegura que la escritura
+   siempre queda dentro de la carpeta local elegida por el usuario. */
+function copiaLocalDriveSanearSegmento(nombre) {
+  var s = String(nombre || '').trim();
+  // quitar separadores de ruta y caracteres no válidos en Windows/Mac/Linux
+  s = s.replace(/[\/\\:*?"<>|]/g, '_');
+  s = s.replace(/\u0000/g, '');
+  s = s.trim();
+  if (s === '' || s === '.' || s === '..') s = '_';
+  // límite razonable de longitud por segmento
+  if (s.length > 150) s = s.slice(0, 150);
+  return s;
+}
+
+/* ---------- Persistencia del handle de carpeta local ---------- */
+async function obtenerHandleEspejoDrive() {
+  try {
+    var h = await leerValorCFG(CFG_ESPEJO_HANDLE);
+    return h || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function asegurarPermisoDirectorioLocal(dirHandle) {
+  if (!dirHandle) return false;
+  try {
+    var permiso = await dirHandle.queryPermission({ mode: 'readwrite' });
+    if (permiso !== 'granted') {
+      permiso = await dirHandle.requestPermission({ mode: 'readwrite' });
+    }
+    return permiso === 'granted';
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ---------- Configurar / desconfigurar (operación administrativa) ---------- */
+async function configurarCopiaLocalDrive() {
+  if (!(await exigirIdentidadGoogle())) return false;
+  if (!esAdministrador()) {
+    toast('Solo el administrador puede configurar la copia local de fotografías y documentos', true);
+    return false;
+  }
+  if (!window.showDirectoryPicker) {
+    toast('Tu navegador no permite elegir una carpeta del disco para esto (usa Chrome o Edge en escritorio).', true);
+    return false;
+  }
+  try {
+    var handle = await window.showDirectoryPicker();
+    var ok = await asegurarPermisoDirectorioLocal(handle);
+    if (!ok) {
+      toast('No se concedió permiso de escritura sobre la carpeta elegida', true);
+      return false;
+    }
+    await guardarValorCFG(CFG_ESPEJO_HANDLE, handle);
+    toast('Carpeta de copia configurada: ' + handle.name);
+    return true;
+  } catch (err) {
+    if (err && err.name !== 'AbortError') toast('No se pudo configurar la carpeta: ' + err.message, true);
+    return false;
+  }
+}
+
+async function desconfigurarCopiaLocalDrive() {
+  if (!(await exigirIdentidadGoogle())) return;
+  if (!esAdministrador()) {
+    toast('Solo el administrador puede olvidar la carpeta de copia', true);
+    return;
+  }
+  // Se borra SOLO la referencia CFG; nunca se toca el contenido de la carpeta.
+  await guardarValorCFG(CFG_ESPEJO_HANDLE, null);
+  toast('Se ha olvidado la carpeta de copia. Los archivos que ya se copiaron NO se han borrado.');
+}
+
+/* ---------- Búsqueda de FOTO/DOCUMENTOS dentro de driveRootFolderId ----------
+   Reutiliza el mismo patrón de consulta que ya usa el resto de la app
+   (obtenerCarpetaDocumentosId / obtenerCarpetaFotoId) en vez de duplicar
+   lógica de búsqueda de carpetas. */
+async function copiaLocalDriveBuscarCarpetaRaiz(nombreCarpeta) {
+  var q = "'" + driveRootFolderId + "' in parents and name='" + nombreCarpeta.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&spaces=drive', { headers: { Authorization: 'Bearer ' + driveAccessToken } });
+  if (r.status === 401) { driveAccessToken = null; throw new Error('sesion_caducada'); }
+  var d = await r.json();
+  return (d.files && d.files.length) ? d.files[0] : null;
+}
+
+/* ---------- Descarga de un archivo binario de Drive y escritura local ----------
+   Reutiliza el mismo patrón de fetch+Authorization+blob que ya usa
+   importarFotosDesdeDrive(). Escribe SIEMPRE con createWritable(), y solo
+   sobrescribe el archivo local una vez la descarga ha terminado con éxito
+   (nunca borra antes de tener el contenido nuevo disponible). */
+async function descargarArchivoDriveAArchivoLocal(fileId, nombreLocal, dirHandleDestino, resumenCat) {
+  try {
+    var rImg = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + driveAccessToken } });
+    if (rImg.status === 401) { driveAccessToken = null; throw new Error('sesion_caducada'); }
+    if (!rImg.ok) { resumenCat.errores.push(nombreLocal); return false; }
+    var blob = await rImg.blob();
+  } catch (eDescarga) {
+    if (eDescarga && eDescarga.message === 'sesion_caducada') throw eDescarga;
+    resumenCat.errores.push(nombreLocal);
+    return false;
+  }
+  try {
+    var fileHandle = await dirHandleDestino.getFileHandle(nombreLocal, { create: true });
+    var writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    resumenCat.copiados++;
+    return true;
+  } catch (eEscritura) {
+    // El archivo local anterior (si existía) no se ve afectado por un fallo aquí,
+    // porque no se borra nada antes de tener el blob descargado y validado.
+    resumenCat.errores.push(nombreLocal);
+    return false;
+  }
+}
+
+/* ---------- Sincronización recursiva de una carpeta de Drive con una
+   carpeta local, con concurrencia limitada para archivos ---------- */
+async function copiaLocalDriveSincronizarCarpeta(folderIdDrive, dirHandleLocal, resumenCat, onProgreso) {
+  if (copiaLocalDriveCancelar) return;
+  var q = "'" + folderIdDrive + "' in parents and trashed=false";
+  var items;
+  try {
+    items = await listarTodosArchivosDrive(q, 'id,name,mimeType');
+  } catch (e) {
+    if (e && e.message === 'sesion_caducada') throw e;
+    resumenCat.erroresListado = (resumenCat.erroresListado || 0) + 1;
+    return;
+  }
+  var carpetas = items.filter(function (f) { return f.mimeType === 'application/vnd.google-apps.folder'; });
+  var archivos = items.filter(function (f) { return f.mimeType !== 'application/vnd.google-apps.folder'; });
+  var googleNativos = archivos.filter(function (f) { return String(f.mimeType || '').indexOf('application/vnd.google-apps.') === 0; });
+  archivos = archivos.filter(function (f) { return googleNativos.indexOf(f) === -1; });
+
+  googleNativos.forEach(function (f) {
+    // Punto 20/110/128 del informe: no se inventa formato de exportación para
+    // documentos nativos de Google (Docs, Sheets, Slides...). Se registran
+    // como no soportados en el resumen, sin descargar ninguna versión.
+    resumenCat.noSoportados.push(f.name);
+  });
+
+  resumenCat.encontrados += archivos.length;
+
+  // Subcarpetas: se crean localmente y se recorre en profundidad (sin límite
+  // artificial de profundidad, tal como pide el informe).
+  for (var i = 0; i < carpetas.length; i++) {
+    if (copiaLocalDriveCancelar) return;
+    var nombreLocalCarpeta = copiaLocalDriveSanearSegmento(carpetas[i].name);
+    var subDirHandle;
+    try {
+      subDirHandle = await dirHandleLocal.getDirectoryHandle(nombreLocalCarpeta, { create: true });
+    } catch (eDir) {
+      resumenCat.errores.push(carpetas[i].name + '/');
+      continue;
+    }
+    await copiaLocalDriveSincronizarCarpeta(carpetas[i].id, subDirHandle, resumenCat, onProgreso);
+  }
+
+  // Archivos: concurrencia limitada
+  var indice = 0;
+  async function siguienteLote() {
+    var tareas = [];
+    while (indice < archivos.length && tareas.length < COPIA_LOCAL_DRIVE_CONCURRENCIA) {
+      (function (f) {
+        var nombreLocal = copiaLocalDriveSanearSegmento(f.name);
+        tareas.push(
+          descargarArchivoDriveAArchivoLocal(f.id, nombreLocal, dirHandleLocal, resumenCat).then(function () {
+            resumenCat.procesados++;
+            if (onProgreso) onProgreso(resumenCat.procesados, resumenCat.encontrados);
+          })
+        );
+      })(archivos[indice]);
+      indice++;
+    }
+    if (!tareas.length) return;
+    await Promise.all(tareas);
+    if (!copiaLocalDriveCancelar) await siguienteLote();
+  }
+  await siguienteLote();
+}
+
+/* ---------- Orquestador principal: FOTO + DOCUMENTOS ---------- */
+async function sincronizarCopiaLocalDrive(callbacksUI) {
+  callbacksUI = callbacksUI || {};
+  var onFase = callbacksUI.onFase || function () {};
+  var onDone = callbacksUI.onDone || function () {};
+  var onError = callbacksUI.onError || function () {};
+
+  if (copiaLocalDriveEnCurso) { toast('Ya hay una copia local en curso; espera a que termine', true); return; }
+
+  if (!(await exigirIdentidadGoogle())) return;
+  if (!esAdministrador()) { toast('Solo el administrador puede actualizar la copia local', true); return; }
+  if (!driveRootFolderId) { toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos")', true); return; }
+  if (!tokenDriveValido()) {
+    try { await conectarGoogleDrive(); } catch (err) { toast('No se pudo conectar con Google Drive: ' + err.message, true); return; }
+  }
+
+  var dirHandle = await obtenerHandleEspejoDrive();
+  if (!dirHandle) { toast('Configura primero la carpeta local de copia', true); return; }
+  var permisoOk = await asegurarPermisoDirectorioLocal(dirHandle);
+  if (!permisoOk) { toast('No se pudo obtener permiso de escritura sobre la carpeta local elegida. Vuelve a configurarla.', true); return; }
+
+  copiaLocalDriveEnCurso = true;
+  copiaLocalDriveCancelar = false;
+
+  var resumen = {
+    foto: { encontrados: 0, copiados: 0, procesados: 0, errores: [], noSoportados: [], erroresListado: 0 },
+    documentos: { encontrados: 0, copiados: 0, procesados: 0, errores: [], noSoportados: [], erroresListado: 0 }
+  };
+
+  try {
+    onFase('Buscando la carpeta FOTO en Drive...', 0, 1);
+    var carpetaFotoDrive = await copiaLocalDriveBuscarCarpetaRaiz('FOTO');
+    var carpetaDocsDrive = await copiaLocalDriveBuscarCarpetaRaiz('DOCUMENTOS');
+
+    if (!carpetaFotoDrive && !carpetaDocsDrive) {
+      throw new Error('No se han encontrado las carpetas "FOTO" ni "DOCUMENTOS" dentro de la carpeta raíz de Drive configurada.');
+    }
+
+    if (carpetaFotoDrive) {
+      var dirFotoLocal = await dirHandle.getDirectoryHandle('FOTO', { create: true });
+      onFase('Copiando fotografías', 0, 1);
+      await copiaLocalDriveSincronizarCarpeta(carpetaFotoDrive.id, dirFotoLocal, resumen.foto, function (hechos, total) {
+        onFase('Copiando fotografías', hechos, total);
+      });
+    }
+
+    if (copiaLocalDriveCancelar) throw { cancelado: true };
+
+    if (carpetaDocsDrive) {
+      var dirDocsLocal = await dirHandle.getDirectoryHandle('DOCUMENTOS', { create: true });
+      onFase('Copiando documentos', 0, 1);
+      await copiaLocalDriveSincronizarCarpeta(carpetaDocsDrive.id, dirDocsLocal, resumen.documentos, function (hechos, total) {
+        onFase('Copiando documentos', hechos, total);
+      });
+    }
+
+    if (copiaLocalDriveCancelar) throw { cancelado: true };
+
+    var totalArchivos = resumen.foto.encontrados + resumen.documentos.encontrados;
+    var totalErrores = resumen.foto.errores.length + resumen.documentos.errores.length + resumen.foto.erroresListado + resumen.documentos.erroresListado;
+    var totalNoSoportados = resumen.foto.noSoportados.length + resumen.documentos.noSoportados.length;
+
+    var resumenGuardable = {
+      fecha: new Date().toISOString(),
+      totalArchivos: totalArchivos,
+      copiados: resumen.foto.copiados + resumen.documentos.copiados,
+      errores: totalErrores,
+      noSoportados: totalNoSoportados,
+      completo: totalErrores === 0
+    };
+    await guardarValorCFG(CFG_ESPEJO_ULTIMA_FECHA, resumenGuardable.fecha);
+    await guardarValorCFG(CFG_ESPEJO_ULTIMO_RESUMEN, resumenGuardable);
+
+    onDone(resumen);
+    if (totalErrores === 0 && totalNoSoportados === 0) {
+      toast('Copia local actualizada: ' + totalArchivos + ' archivo(s), sin errores');
+    } else {
+      toast('Copia local actualizada con incidencias: ' + totalErrores + ' error(es), ' + totalNoSoportados + ' archivo(s) no soportado(s) (Google Docs/Sheets/Slides)', totalErrores > 0);
+    }
+  } catch (err) {
+    if (err && err.cancelado) {
+      toast('Copia local cancelada. Los archivos ya copiados se conservan.', true);
+      onDone(resumen, true);
+    } else if (err && err.message === 'sesion_caducada') {
+      toast('La sesión de Google Drive ha caducado. Vuelve a intentarlo tras reconectar.', true);
+      onError(err);
+    } else {
+      toast('No se pudo completar la copia local: ' + (err && err.message ? err.message : 'error desconocido'), true);
+      onError(err);
+    }
+  } finally {
+    copiaLocalDriveEnCurso = false;
+    copiaLocalDriveCancelar = false;
+  }
+}
+
+function cancelarCopiaLocalDrive() {
+  if (!copiaLocalDriveEnCurso) return;
+  copiaLocalDriveCancelar = true;
+  toast('Cancelando... se detendrán las nuevas copias, sin borrar nada');
+}
+
+/* ---------- Estado / texto informativo (para Herramientas) ---------- */
+async function obtenerEstadoCopiaLocalDrive() {
+  var handle = await obtenerHandleEspejoDrive();
+  var fecha = await leerValorCFG(CFG_ESPEJO_ULTIMA_FECHA);
+  var resumen = await leerValorCFG(CFG_ESPEJO_ULTIMO_RESUMEN);
+  return { configurada: !!handle, nombreCarpeta: handle ? handle.name : '', fecha: fecha, resumen: resumen };
+}
+
+async function mostrarEstadoCopiaLocalDriveEnHerramientas() {
+  var el = document.getElementById('herrCopiaLocalDriveEstado');
+  if (!el) return;
+  try {
+    var estado = await obtenerEstadoCopiaLocalDrive();
+    if (!estado.configurada) {
+      el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada';
+      return;
+    }
+    var txt = 'Carpeta configurada: ' + estado.nombreCarpeta;
+    if (estado.fecha) {
+      var rel = formatoFechaRelativa(estado.fecha);
+      txt += rel ? (' · última copia: ' + rel) : '';
+      if (estado.resumen && !estado.resumen.completo) txt += ' (con incidencias)';
+    } else {
+      txt += ' · todavía no se ha ejecutado ninguna copia';
+    }
+    el.textContent = txt;
+  } catch (e) {
+    el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada';
+  }
+}
+
+/* ---------- Envoltorios de interfaz (modal de progreso reutilizando el
+   mismo patrón visual que el modal de importación de fotos) ---------- */
+function configurarCopiaLocalDriveUI() {
+  configurarCopiaLocalDrive().then(function () {
+    mostrarHerramientas();
+  });
+}
+
+function desactivarCopiaLocalDriveUI() {
+  desconfigurarCopiaLocalDrive().then(function () {
+    mostrarHerramientas();
+  });
+}
+
+function abrirModalCopiaLocalDrive() {
+  document.getElementById('copiaLocalDriveTitulo').textContent = 'Copiando fotografías y documentos';
+  document.getElementById('copiaLocalDriveProgresoTexto').textContent = 'Preparando...';
+  document.getElementById('copiaLocalDriveProgresoBarra').style.width = '0%';
+  document.getElementById('copiaLocalDriveResumen').style.display = 'none';
+  document.getElementById('copiaLocalDriveResumen').innerHTML = '';
+  document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'block';
+  document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'none';
+  document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'inline-flex';
+  document.getElementById('modalCopiaLocalDrive').style.display = 'flex';
+}
+
+function cerrarModalCopiaLocalDrive() {
+  if (copiaLocalDriveEnCurso) { toast('Espera a que termine o pulsa Cancelar', true); return; }
+  document.getElementById('modalCopiaLocalDrive').style.display = 'none';
+}
+
+var copiaLocalDriveUltimaActualizacionUI = 0;
+function actualizarCopiaLocalDriveUI() {
+  if (copiaLocalDriveEnCurso) { toast('Ya hay una copia local en curso', true); return; }
+  if (!confirm('Se copiarán localmente los archivos de FOTO y DOCUMENTOS almacenados en Google Drive. El proceso puede tardar y ocupar espacio en disco. ¿Continuar?')) return;
+  abrirModalCopiaLocalDrive();
+  sincronizarCopiaLocalDrive({
+    onFase: function (texto, hechos, total) {
+      var ahora = Date.now();
+      if (hechos < total && (ahora - copiaLocalDriveUltimaActualizacionUI) < 150) return;
+      copiaLocalDriveUltimaActualizacionUI = ahora;
+      var pct = total ? Math.round(hechos / total * 100) : 0;
+      var barra = document.getElementById('copiaLocalDriveProgresoBarra');
+      if (barra) barra.style.width = pct + '%';
+      var txt = document.getElementById('copiaLocalDriveProgresoTexto');
+      if (txt) txt.textContent = texto + (total ? (' (' + hechos + ' de ' + total + ')') : '');
+    },
+    onDone: function (resumen, cancelado) {
+      document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'none';
+      document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'none';
+      document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'inline-flex';
+      var cont = document.getElementById('copiaLocalDriveResumen');
+      cont.style.display = 'block';
+      var h = '';
+      if (cancelado) h += '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Copia cancelada. Los archivos copiados hasta el momento se conservan.</p>';
+      h += '<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
+      h += '<span class="ges-pill">Fotografías encontradas: ' + resumen.foto.encontrados + '</span>';
+      h += '<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Fotografías copiadas: ' + resumen.foto.copiados + '</span>';
+      h += '<span class="ges-pill">Documentos encontrados: ' + resumen.documentos.encontrados + '</span>';
+      h += '<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Documentos copiados: ' + resumen.documentos.copiados + '</span>';
+      var totalErrores = resumen.foto.errores.length + resumen.documentos.errores.length;
+      var totalNoSop = resumen.foto.noSoportados.length + resumen.documentos.noSoportados.length;
+      h += '<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: ' + totalErrores + '</span>';
+      h += '<span class="ges-pill">No soportados (Google Docs/Sheets/Slides): ' + totalNoSop + '</span>';
+      h += '</div>';
+      cont.innerHTML = h;
+      mostrarEstadoCopiaLocalDriveEnHerramientas();
+    },
+    onError: function () {
+      document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'none';
+      document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'none';
+      document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'inline-flex';
+    }
+  });
+}
+/* ========== FIN TAREA 6 ========== */
+
 async function restaurarDesdeDrive(){
 if(!await exigirIdentidadGoogle())return;
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
@@ -5656,7 +6407,8 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-APP_VERSION='2026.08.13.14';
+APP_VERSION='2026.08.14.2';
+APP_CHANGELOG.unshift({version:'2026.08.14.2',fecha:'2026-08-14',cambios:['Sincronización recíproca de fecha/lugar de matrimonio entre cónyuges; selección de hueco de ID libre al crear una persona; propagación opcional del primer apellido a los descendientes; corrección de tilde en "Cónyuge"; eliminados los tres informes generales de toda la base de datos; gestión de documentos en la ficha con subida múltiple/arrastrar-soltar, categorías, buscador y renombrar/eliminar.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.14',fecha:'2026-08-13',cambios:['Tarea 4: refinamiento de ANOCALC con vista de depuración del camino de propagación ("¿De dónde sale este año?" en la ficha) y medias configurables por parentesco (padre, madre, hermanos, cónyuges) guardadas en la configuración local, con retorno al cálculo automático en cualquier momento.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.13',fecha:'2026-08-13',cambios:['Tarea 3: descarga directa de informes en PDF real (jsPDF + html2canvas) junto al botón "Imprimir" existente, en los diez informes de la pantalla Informes; paginación automática, sin cambios en IndexedDB, Google Drive ni ANOCALC.']});
 APP_CHANGELOG.unshift({version:'2026.08.13.12',fecha:'2026-08-13',cambios:['Corrección de la importación masiva de fotografías (local y Drive): detección por extensión además de por MIME, importación local sin sesión de Google, progreso en vivo y resumen final con detalle de incidencias en lenguaje sencillo.']});
@@ -5696,6 +6448,13 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="listaConyuges" style="overflow:auto;margin-top:12px;padding-right:2px"></div>
 </div>
 </div>
+<div id="modalHuecoId" role="dialog" aria-modal="true" aria-labelledby="modalHuecoIdTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:222;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h2 id="modalHuecoIdTitulo" style="font-family:'Cinzel',serif;font-size:16px">Elegir ID para la nueva persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cancelarElegirIdNueva()">×</button></div>
+<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Se muestran primero los huecos libres en la numeración; puedes elegir cualquiera de ellos.</p>
+<div id="listaHuecosId" style="overflow:auto;padding-right:2px"></div>
+</div>
+</div>
 <div id="modalHerramientas" role="dialog" aria-modal="true" aria-labelledby="modalHerramientasTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
@@ -5724,7 +6483,9 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();exportarCSVAccess()"><div class="herr-icon"><i class="fa-solid fa-file-csv"></i></div><div class="herr-text"><div class="herr-title">Exportar CSV (Access)</div><div class="herr-desc">Descarga toda la base de datos en el formato CSV que lee Access (28 columnas)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();configurarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Configurar carpeta de copia (fotos y documentos)</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();actualizarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Actualizar copia local (fotos y documentos)</div><div class="herr-desc">Copia en tu carpeta local los archivos que haya ahora mismo en FOTO y DOCUMENTOS de Drive</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
 </div>
 </div>
 </div>
@@ -5812,6 +6573,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 var MODAL_CLOSERS={
 'modalLimpiar':function(){document.getElementById('modalLimpiar').style.display='none';},
 'modalConyuge':function(){if(typeof cerrarSelectorRelacion==='function')cerrarSelectorRelacion();},
+'modalHuecoId':function(){if(typeof cancelarElegirIdNueva==='function')cancelarElegirIdNueva();},
 'modalHerramientas':function(){if(typeof cerrarHerramientas==='function')cerrarHerramientas();},
 'modalNovedades':function(){if(typeof cerrarNovedades==='function')cerrarNovedades();},
 'modalPosterAscendente':function(){if(typeof cerrarModalAscendentePoster==='function')cerrarModalAscendentePoster();},
@@ -5913,5 +6675,21 @@ window.addEventListener('appinstalled', function () {
   toast('Libro de los Ancestros instalado correctamente');
 });
 </script>
+
+<div id="modalCopiaLocalDrive" role="dialog" aria-modal="true" aria-labelledby="copiaLocalDriveTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="copiaLocalDriveTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-folder-open" aria-hidden="true" style="color:var(--accent)"></i> Copiando fotografías y documentos</h2>
+<button class="ef-nbtn" id="copiaLocalDriveCerrarBtn" aria-label="Cerrar" style="display:none" onclick="cerrarModalCopiaLocalDrive()">×</button>
+</div>
+<div id="copiaLocalDriveProgresoWrap" role="status" aria-live="polite">
+<div id="copiaLocalDriveProgresoTexto" style="font-size:12px;color:var(--muted);margin-bottom:8px">Preparando...</div>
+<div class="pb" style="margin:0;display:block"><div class="pf" id="copiaLocalDriveProgresoBarra"></div></div>
+<p style="font-size:11px;color:var(--muted);margin-top:10px">No cierres esta ventana ni recargues la página mientras se copian los archivos.</p>
+<div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="copiaLocalDriveCancelarBtn" onclick="cancelarCopiaLocalDrive()">Cancelar</button></div>
+</div>
+<div id="copiaLocalDriveResumen" style="display:none;overflow:auto"></div>
+</div>
+</div>
 </body>
 </html>
