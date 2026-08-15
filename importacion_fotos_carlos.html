@@ -93,9 +93,23 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 #progresoAsignacionOverlay .spinner{display:inline-block;width:13px;height:13px;border:2px solid #d9cfc2;border-top-color:var(--accent,#c96536);border-radius:50%;animation:progresoSpin .8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes progresoSpin{to{transform:rotate(360deg)}}
  #vSug,#vColab{display:none!important}
+
+<style>
+#progresoGlobalBox{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;width:min(760px,calc(100vw - 32px));background:#fff;border:1px solid #d9cdbf;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.16);padding:14px 16px;display:none}
+#progresoGlobalBox .pg-title{font-weight:700;font-size:14px;margin-bottom:7px}
+#progresoGlobalBox .pg-sub{font-size:12px;color:#6f6258;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#progresoGlobalBox .pg-track{height:12px;background:#eee7df;border-radius:99px;overflow:hidden}
+#progresoGlobalBox .pg-fill{height:100%;width:0%;background:#7b5a3c;transition:width .25s}
+#progresoGlobalBox .pg-foot{display:flex;justify-content:space-between;gap:12px;margin-top:7px;font-size:11px;color:#6f6258}
+</style>
 </style>
 </head>
-<body>
+<body><div id="progresoGlobalBox">
+  <div class="pg-title" id="pgTitle">Procesando…</div>
+  <div class="pg-sub" id="pgSub">Preparando</div>
+  <div class="pg-track"><div class="pg-fill" id="pgFill"></div></div>
+  <div class="pg-foot"><span id="pgCount">0 de 0</span><span id="pgEta">Calculando tiempo restante…</span></div>
+</div>
 <div class="toast-c" id="toastC"></div>
 <header>
 <div class="logo"><div class="logo-icon"><i class="fa-solid fa-images"></i></div><div class="logo-text">Archivo documental familiar — Carlos</div></div>
@@ -155,7 +169,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 
 <!-- ===== BANDEJA DE DUDAS (subsistema 7) ===== -->
 <div class="view" id="vDudas">
-<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p><p style="font-size:12px;color:var(--muted)"><b>OCR mejorado:</b> para documentos se prueban 7 preparaciones de imagen y 4 modos de lectura (28 pasadas OCR por imagen). Se conserva el mejor resultado y un historial de candidatos, sin borrar los anteriores. Esto puede tardar varios minutos por documento.</p></div>
+<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p><p style="font-size:12px;color:var(--muted)"><b>OCR optimizado:</b> lectura rápida para todas las imágenes y OCR profundo solo cuando hay indicios de documento o texto útil por imagen). Se conserva el mejor resultado y un historial de candidatos, sin borrar los anteriores. Esto puede tardar varios minutos por documento.</p></div>
 <div class="ef-row">
 <div class="ef-field"><span class="ef-label">Álbum</span><select id="fDudaAlbum" onchange="renderDudas()"><option value="">Todos</option></select></div>
 <div class="ef-field"><span class="ef-label">Tipo</span><select id="fDudaTipo" onchange="renderDudas()"><option value="">Todos</option><option value="imagen">Imagen</option><option value="pdf">PDF</option><option value="video">Vídeo</option><option value="otro">Otro</option></select></div>
@@ -219,7 +233,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <h3>OCR y extracción documental</h3>
 <label class="ef-check"><input type="checkbox" id="cfgOcrActivo" onchange="guardarOcrActivo()"> Analizar automáticamente documentos e imágenes con OCR y extraer fechas, lugares, personas e instituciones</label>
 <div class="ef-row"><div class="ef-field" style="max-width:220px"><span class="ef-label">Páginas máximas por PDF</span><input id="cfgOcrMaxPaginas" type="number" min="1" max="20" onchange="guardarOcrMaxPaginas()"></div></div>
-<p style="font-size:11px;color:var(--muted)">Ralentiza bastante la importación (el reconocimiento de texto ocurre en tu propio navegador, sin servidor) — recomendado activarlo solo para lotes con documentos, no para álbumes que son solo fotos. El texto se lee automáticamente si el PDF ya lo trae digital; si es un escaneo, se hace OCR de verdad.</p>
+<p style="font-size:11px;color:var(--muted)">El OCR se ejecuta en tu propio navegador. La aplicación usa una lectura rápida para todas las imágenes y reserva el OCR profundo para documentos o imágenes con texto útil, reduciendo mucho el tiempo total. El texto se lee automáticamente si el PDF ya lo trae digital; si es un escaneo, se hace OCR de verdad.</p>
 </div>
 <div class="card">
 <h3>Fuente de personas</h3>
@@ -269,6 +283,34 @@ var MAPA_ALIAS_ALBUM={};
 var colaAlbumesPendientes={};
 var PENDIENTES_HIDRATADOS=false;
 var BASE_DATOS_CACHE=null, BASE_DATOS_FILE_ID=null, BASE_DATOS_GUARDANDO=null;
+
+
+var PG={inicio:0,total:0,hechos:0,archivo:'',etapa:'',visible:false};
+function mostrarProgresoGlobal(total,hechos,archivo,etapa){
+  PG.total=Math.max(0,Number(total)||0);PG.hechos=Math.max(0,Number(hechos)||0);
+  if(!PG.inicio)PG.inicio=Date.now();
+  PG.archivo=archivo||'';PG.etapa=etapa||'Procesando';
+  PG.visible=true;
+  var box=document.getElementById('progresoGlobalBox');if(!box)return;
+  box.style.display='block';
+  var pct=PG.total?Math.min(100,Math.round(PG.hechos/PG.total*100)):0;
+  document.getElementById('pgTitle').textContent=PG.etapa+' · '+pct+'%';
+  document.getElementById('pgSub').textContent=PG.archivo||'';
+  document.getElementById('pgFill').style.width=pct+'%';
+  document.getElementById('pgCount').textContent=PG.hechos+' de '+PG.total;
+  var eta='Calculando tiempo restante…';
+  if(PG.hechos>0&&PG.total>PG.hechos){
+    var elapsed=(Date.now()-PG.inicio)/1000,remain=elapsed*(PG.total-PG.hechos)/PG.hechos;
+    if(remain<60)eta='Quedan aprox. '+Math.max(1,Math.round(remain))+' s';
+    else if(remain<3600)eta='Quedan aprox. '+Math.round(remain/60)+' min';
+    else eta='Quedan aprox. '+(remain/3600).toFixed(1)+' h';
+  }else if(PG.hechos>=PG.total&&PG.total)eta='Terminando…';
+  document.getElementById('pgEta').textContent=eta;
+}
+function ocultarProgresoGlobal(){
+  var box=document.getElementById('progresoGlobalBox');if(box)box.style.display='none';
+  PG={inicio:0,total:0,hechos:0,archivo:'',etapa:'',visible:false};
+}
 
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -624,6 +666,7 @@ caja=await cGet('cajas',cajaId);caja.estado='error';caja.error=err.message;await
 toast('Error procesando "'+cajaId+'": '+err.message,true);
 }
 renderCajas();renderPanel();
+ocultarProgresoGlobal();
 }
 async function descargarParteConReintentos(fileId,intentos){
 intentos=intentos||3;
@@ -862,7 +905,9 @@ var ocrInfo={text:'',confidence:0};
 if(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')){
   try{
     if(window.actualizarProgresoAsignacion){var na=Number(window.__progresoElementoActual||0);actualizarProgresoAsignacion(na,window.__progresoElementoTotal||0,nombreArchivo,'Analizando OCR…');}
-    ocrInfo=await extraerTextoOCRConInfo(blob,tipo);
+    // OCR en dos etapas: primero una lectura rápida; solo profundizamos si hay texto útil
+    // o si la imagen termina siendo tratada como documento. Evita 28 pasadas por cada foto.
+    ocrInfo=await extraerTextoOCRConInfo(blob,tipo,{rapido:true});
   }catch(oe){console.warn('No se pudo analizar OCR:',oe.message);}
 }
 var existente=await cGet('elementos',hash);
@@ -925,6 +970,23 @@ if(esHuerfano)motivoDuda='huerfano';
 else if(otrasPersonas.length)motivoDuda='varias_personas';
 
 var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDuda,ocrInfo.text,ocrInfo.confidence);
+/* OCR profundo solo para documentos o para imágenes con señales claras de texto.
+   Las fotografías sin texto útil no consumen decenas de pasadas. */
+var necesitaOCRProfundo=(tipo==='pdf') ||
+  clasificacion.estado==='documento' ||
+  (ocrInfo.text&&ocrInfo.text.replace(/\s/g,'').length>=35);
+if(CFG_OCR_ACTIVO&&tipo==='imagen'&&necesitaOCRProfundo){
+  try{
+    if(window.actualizarProgresoAsignacion){
+      actualizarProgresoAsignacion(Number(window.__progresoElementoActual||0),window.__progresoElementoTotal||0,nombreArchivo,'OCR profundo del documento…');
+    }
+    var profundo=await extraerTextoOCRConInfo(blob,tipo,{rapido:false});
+    if(profundo.text&&(!ocrInfo.text||profundo.confidence>=ocrInfo.confidence||profundo.text.length>ocrInfo.text.length)){
+      ocrInfo=profundo;
+    }
+  }catch(eProf){console.warn('OCR profundo falló:',eProf.message);}
+}
+
 
 var elemento={
 id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
@@ -1037,43 +1099,45 @@ if(r&&r.__timeout)throw new Error('OCR superó el tiempo límite y se continúa 
 return r;
 }
 function canvasToBlob(c){return new Promise(function(res){c.toBlob(res,'image/png');});}
-async function crearVariantesOCR(blob){
+async function crearVariantesOCR(blob,modoRapido){
 var img=await new Promise(function(resolve,reject){var im=new Image();im.onload=function(){resolve(im);};im.onerror=reject;im.src=URL.createObjectURL(blob);});
 try{
 var w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
-/* Para OCR de documentos priorizamos tamaño suficiente: hasta 3600 px de lado. */
-var escala=Math.min(3.0,3600/Math.max(w,h)); if(escala<1.35)escala=1.35;
+var maxSide=modoRapido?2200:3200;
+var escala=Math.min(modoRapido?2.0:2.6,maxSide/Math.max(w,h));
+if(escala<1)escala=1;
 var cw=Math.max(1,Math.round(w*escala)),ch=Math.max(1,Math.round(h*escala));
 var base=document.createElement('canvas');base.width=cw;base.height=ch;
-var ctx=base.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,cw,ch);
-var src=ctx.getImageData(0,0,cw,ch),d=src.data;
-var gray=new Uint8Array(cw*ch);
+var ctx=base.getContext('2d',{willReadFrequently:true});
+ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,cw,ch);
+var src=ctx.getImageData(0,0,cw,ch),d=src.data,gray=new Uint8Array(cw*ch);
 for(var i=0,p=0;i<d.length;i+=4,p++)gray[p]=Math.max(0,Math.min(255,Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2])));
 function makeCanvas(mode){
-var c=document.createElement('canvas');c.width=cw;c.height=ch;var x=c.getContext('2d',{willReadFrequently:true});
-var out=x.createImageData(cw,ch),o=out.data;
+var c=document.createElement('canvas');c.width=cw;c.height=ch;
+var x=c.getContext('2d',{willReadFrequently:true}),out=x.createImageData(cw,ch),o=out.data;
 for(var p=0;p<gray.length;p++){
 var g=gray[p],v=g;
 if(mode==='gray')v=g;
-else if(mode==='contrast')v=Math.max(0,Math.min(255,Math.round((g-128)*1.65+128)));
-else if(mode==='threshold')v=g>165?255:0;
-else if(mode==='threshold2')v=g>195?255:(g<120?0:Math.round((g-120)*255/75));
+else if(mode==='contrast')v=Math.max(0,Math.min(255,Math.round((g-128)*1.55+128)));
+else if(mode==='threshold')v=g>170?255:0;
 else if(mode==='adaptive'){
-  /* umbral local aproximado usando vecinos en cruz; mejora papel fotografiado */
-  var x0=p%cw,y0=Math.floor(p/cw),sum=g,cnt=1;
-  for(var dx=-6;dx<=6;dx+=3){var xx=x0+dx;if(xx>=0&&xx<cw){sum+=gray[y0*cw+xx];cnt++;}}
-  for(var dy=-6;dy<=6;dy+=3){var yy=y0+dy;if(yy>=0&&yy<ch){sum+=gray[yy*cw+x0];cnt++;}}
-  var local=sum/cnt;v=g<local-8?0:255;
+var x0=p%cw,y0=Math.floor(p/cw),sum=g,cnt=1;
+for(var dx=-6;dx<=6;dx+=3){var xx=x0+dx;if(xx>=0&&xx<cw){sum+=gray[y0*cw+xx];cnt++;}}
+for(var dy=-6;dy<=6;dy+=3){var yy=y0+dy;if(yy>=0&&yy<ch){sum+=gray[yy*cw+x0];cnt++;}}
+v=g<(sum/cnt)-8?0:255;
 }
-else if(mode==='darktext')v=g<150?Math.max(0,Math.round(g*.55)):Math.min(255,Math.round(255-(255-g)*.35));
 o[p*4]=o[p*4+1]=o[p*4+2]=v;o[p*4+3]=255;
 }
 x.putImageData(out,0,0);return c;
 }
+var modesRapidos=['original','gray'];
+var modesProfundos=['original','gray','contrast','adaptive'];
+var lista=modoRapido?modesRapidos:modesProfundos;
 var variants=[];
-for(var mode of ['gray','contrast','threshold','threshold2','adaptive','darktext'])variants.push({name:mode,blob:await canvasToBlob(makeCanvas(mode))});
-/* Añadimos original al final para conservar color/sellos cuando ayuden. */
-variants.unshift({name:'original',blob:blob});
+for(var z=0;z<lista.length;z++){
+var name=lista[z];
+variants.push({name:name,blob:name==='original'?blob:await canvasToBlob(makeCanvas(name))});
+}
 return variants;
 }finally{URL.revokeObjectURL(img.src);}
 }
@@ -1084,23 +1148,25 @@ var conf=Number(r&&r.data&&r.data.confidence||0);
 var palabras=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3,}/g)||[]).length;
 var lineas=(t.match(/\n/g)||[]).length+1;
 var alnum=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]/g)||[]).length;
-/* Penaliza resultados casi vacíos o basura y premia texto consistente. */
 var densidad=t.length?alnum/t.length:0;
 var puntuacion=conf + Math.min(30,palabras*1.5) + Math.min(20,t.length/35) + Math.min(10,lineas*1.5) + densidad*10;
 if(t.length<12)puntuacion-=35;
 return {text:t,confidence:conf,score:puntuacion,words:palabras};
 }
-async function ocrImagenBlobConInfo(blob){
+async function ocrImagenBlobConInfo(blob,opciones){
+opciones=opciones||{};
+var modoRapido=!!opciones.rapido;
 try{
 var worker=await obtenerTesseractWorker();
-var variantes=await crearVariantesOCR(blob),mejor={text:'',confidence:0,score:-1},historial=[];
-var modos=[6,11,12,3];
+var variantes=await crearVariantesOCR(blob,modoRapido);
+var mejor={text:'',confidence:0,score:-1},historial=[];
+var modos=modoRapido?[6,11]:[6,11];
 for(var i=0;i<variantes.length;i++){
   for(var mi=0;mi<modos.length;mi++){
     var psm=modos[mi];
     try{if(worker.setParameters)await worker.setParameters({tessedit_pageseg_mode:String(psm),preserve_interword_spaces:'1'});}catch(e){}
     try{
-      var r=await ocrConTiempoLimite(worker.recognize(variantes[i].blob),90000);
+      var r=await ocrConTiempoLimite(worker.recognize(variantes[i].blob),60000);
       if(r&&r.__timeout)continue;
       var v=valorarOCRResultado(r);v.variante=variantes[i].name;v.psm=psm;
       if(v.text)historial.push(v);
@@ -1108,11 +1174,35 @@ for(var i=0;i<variantes.length;i++){
     }catch(e){console.warn('Prueba OCR falló',variantes[i].name,'PSM',psm,e.message);}
   }
 }
-/* El mejor texto se guarda junto a todos los candidatos útiles para revisión futura. */
 historial.sort(function(a,b){return b.score-a.score;});
 return{text:mejor.text,confidence:mejor.confidence,ocrHistorial:historial.slice(0,12)};
 }catch(err){console.warn('OCR de imagen omitido:',err.message);return{text:'',confidence:0,ocrHistorial:[],error:err.message};}
 }
+async function ocrImagenBlob(blob){var r=await ocrImagenBlobConInfo(blob);return r.text;}
+async function ocrPdfBlob(blob){
+try{
+if(typeof pdfjsLib!=='undefined'&&pdfjsLib.GlobalWorkerOptions&&!pdfjsLib.GlobalWorkerOptions.workerSrc)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+var buf=await blob.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,textoTotal='',hist=[];
+var maxPag=Math.min(pdf.numPages,CFG_OCR_MAX_PAGINAS||3);
+for(var i=1;i<=maxPag;i++){
+var page=await pdf.getPage(i),contenido=await page.getTextContent(),textoPagina=contenido.items.map(function(it){return it.str;}).join(' ');
+if(textoPagina.trim().length>30){textoTotal+=textoPagina+'\n';}
+else{
+var viewport=page.getViewport({scale:2.2}),canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;
+await page.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise;
+var blobPagina=await new Promise(function(res){canvas.toBlob(res,'image/png');}),rr=await ocrImagenBlobConInfo(blobPagina,{rapido:false});
+textoTotal+=(rr.text||'')+'\n';hist=hist.concat(rr.ocrHistorial||[]);
+}
+}
+return{text:textoTotal.trim(),confidence:hist.length?Math.max.apply(null,hist.map(function(x){return x.confidence||0;})):90,ocrHistorial:hist.slice(0,20)};
+}catch(err){console.warn('OCR de PDF falló:',err.message);return{text:'',confidence:0,ocrHistorial:[]};}
+}
+async function extraerTextoOCRConInfo(blob,tipo,opciones){
+if(tipo==='imagen')return await ocrImagenBlobConInfo(blob,opciones);
+if(tipo==='pdf')return await ocrPdfBlob(blob);
+return{text:'',confidence:0,ocrHistorial:[]};
+}
+async function extraerTextoOCR(blob,tipo){var r=await extraerTextoOCRConInfo(blob,tipo);return r.text;}
 async function ocrImagenBlob(blob){var r=await ocrImagenBlobConInfo(blob);return r.text;}
 async function ocrPdfBlob(blob){
 try{
@@ -2213,7 +2303,7 @@ async function generarInformeFamiliar(){
       total+=arr.length; docs+=arr.filter(function(e){return e.tipo==='pdf'||e.estado==='documento';}).length;ocr+=arr.filter(function(e){return e.ocrTexto&&e.ocrTexto.trim().length>=20;}).length;
       bloques.push({p:p,nombre:pn,arr:arr});
     }
-    var html='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Archivo documental familiar</title><style>body{font-family:Arial,sans-serif;background:#fbf7f0;color:#3d2c1e;max-width:1000px;margin:auto;padding:30px}h1,h2{font-family:Georgia,serif}h1{text-align:center} .res{display:flex;gap:12px;flex-wrap:wrap}.k{background:white;border:1px solid #e8dfd4;border-radius:12px;padding:15px;min-width:150px}.item{background:white;border:1px solid #e8dfd4;border-radius:14px;padding:18px;margin:18px 0}.thumb{max-width:320px;max-height:260px;border-radius:8px}.meta{color:#756657;font-size:13px}.ocr{white-space:pre-wrap;background:#f5efe7;padding:12px;border-radius:8px;font-size:13px;line-height:1.5}.hall{background:#f8efe5;padding:10px;border-radius:8px;margin:8px 0}</style></head><body><h1>Archivo documental familiar</h1><p style="text-align:center">Informe generado el '+new Date().toLocaleString('es-ES')+'</p><div class="res"><div class="k"><b>'+total+'</b><br>archivos analizados</div><div class="k"><b>'+docs+'</b><br>documentos</div><div class="k"><b>'+ocr+'</b><br>con OCR útil</div><div class="k"><b>'+bloques.length+'</b><br>personas con resultados</div></div>';
+    var html='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Archivo documental familiar v2</title><style>body{font-family:Arial,sans-serif;background:#fbf7f0;color:#3d2c1e;max-width:1000px;margin:auto;padding:30px}h1,h2{font-family:Georgia,serif}h1{text-align:center} .res{display:flex;gap:12px;flex-wrap:wrap}.k{background:white;border:1px solid #e8dfd4;border-radius:12px;padding:15px;min-width:150px}.item{background:white;border:1px solid #e8dfd4;border-radius:14px;padding:18px;margin:18px 0}.thumb{max-width:320px;max-height:260px;border-radius:8px}.meta{color:#756657;font-size:13px}.ocr{white-space:pre-wrap;background:#f5efe7;padding:12px;border-radius:8px;font-size:13px;line-height:1.5}.hall{background:#f8efe5;padding:10px;border-radius:8px;margin:8px 0}</style></head><body><h1>Archivo documental familiar v2</h1><p style="text-align:center">Informe generado el '+new Date().toLocaleString('es-ES')+'</p><div class="res"><div class="k"><b>'+total+'</b><br>archivos analizados</div><div class="k"><b>'+docs+'</b><br>documentos</div><div class="k"><b>'+ocr+'</b><br>con OCR útil</div><div class="k"><b>'+bloques.length+'</b><br>personas con resultados</div></div>';
     bloques.forEach(function(b){html+='<h2>'+esc(b.nombre)+'</h2>';b.arr.sort(function(a,b){return String(a.nombreOriginal||'').localeCompare(String(b.nombreOriginal||''));}).forEach(function(e){var link=e.driveFileId?'https://drive.google.com/file/d/'+encodeURIComponent(e.driveFileId)+'/view':'';html+='<div class="item"><h3>'+esc(e.nombreOriginal||'Archivo')+'</h3><p class="meta">'+esc(e.estado||'')+' · OCR '+Number(e.ocrConfianza||0).toFixed(0)+'%</p>'+(link?'<p><a href="'+link+'" target="_blank">Abrir archivo en Google Drive</a></p>':'')+(e.ocrHallazgos?'<div class="hall"><b>Hallazgos</b><pre class="ocr">'+esc(JSON.stringify(e.ocrHallazgos,null,2))+'</pre></div>':'')+(e.ocrTexto?'<h4>Texto OCR</h4><div class="ocr">'+esc(e.ocrTexto)+'</div>':'')+'</div>';});});html+='</body></html>';
     var blob=new Blob([html],{type:'text/html;charset=utf-8'});var f=await buscarArchivoPorNombreEnCarpeta('INFORME_ARCHIVO_FAMILIAR.html',CFG_DESTINO_ID);var up=f?await actualizarBinarioADrive(f.id,blob,'text/html'):await subirBinarioADrive('INFORME_ARCHIVO_FAMILIAR.html',blob,'text/html',CFG_DESTINO_ID,'Informe familiar del archivo documental');var link='https://drive.google.com/file/d/'+up.id+'/view';if(out)out.innerHTML='<h3>Informe generado</h3><p style="font-size:12px;color:var(--muted)">Se ha guardado en la carpeta raíz de destino.</p><a class="btn" target="_blank" href="'+link+'">Abrir informe</a>';toast('Informe familiar generado y guardado en Drive');
   }catch(e){if(out)out.innerHTML='<p style="color:var(--warn)"><b>Error:</b> '+esc(e.message)+'</p>';toast(e.message,true);}
