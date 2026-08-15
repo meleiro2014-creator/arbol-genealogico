@@ -154,7 +154,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 
 <!-- ===== BANDEJA DE DUDAS (subsistema 7) ===== -->
 <div class="view" id="vDudas">
-<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p><p style="font-size:12px;color:var(--muted)"><b>OCR mejorado:</b> para documentos se prueban la imagen original, una versión en gris realzada y otra con contraste/binarización suave. Se conserva el mejor resultado y la confianza, sin borrar los anteriores.</p></div>
+<div class="hero"><h1>Bandeja de dudas</h1><p>Elementos que no se pudieron clasificar automáticamente. Puedes reanalizarlos con OCR antes de decidir.</p><p style="font-size:12px;color:var(--muted)"><b>OCR mejorado:</b> para documentos se prueban 7 preparaciones de imagen y 4 modos de lectura (28 pasadas OCR por imagen). Se conserva el mejor resultado y un historial de candidatos, sin borrar los anteriores. Esto puede tardar varios minutos por documento.</p></div>
 <div class="ef-row">
 <div class="ef-field"><span class="ef-label">Álbum</span><select id="fDudaAlbum" onchange="renderDudas()"><option value="">Todos</option></select></div>
 <div class="ef-field"><span class="ef-label">Tipo</span><select id="fDudaTipo" onchange="renderDudas()"><option value="">Todos</option><option value="imagen">Imagen</option><option value="pdf">PDF</option><option value="video">Vídeo</option><option value="otro">Otro</option></select></div>
@@ -973,7 +973,7 @@ if(jsonData){
   existente.googlePhotosTitle=jsonData.title||existente.googlePhotosTitle||'';
   existente.googlePhotosJsonOriginal=JSON.stringify(jsonData,null,2);
 }
-if(ocrInfo.text){existente.ocrProcesado=true;existente.ocrTexto=ocrInfo.text.slice(0,12000);existente.ocrConfianza=Number(ocrInfo.confidence||0);existente.ocrSugerencias=ocrInfo.text.trim().length>=20?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]};}
+if(ocrInfo.text){existente.ocrProcesado=true;existente.ocrTexto=ocrInfo.text.slice(0,12000);existente.ocrConfianza=Number(ocrInfo.confidence||0);existente.ocrHistorial=ocrInfo.ocrHistorial||existente.ocrHistorial||[];existente.ocrSugerencias=ocrInfo.text.trim().length>=20?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]};}
 await cPut('elementos',existente);
 await guardarBaseDatosDrive(existente);
 caja.contadores.total=(caja.contadores.total||0)+1;
@@ -1003,6 +1003,7 @@ googlePhotosJsonOriginal:jsonData?JSON.stringify(jsonData,null,2):null,
 ocrProcesado:!!(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')),
 ocrTexto:ocrInfo.text?ocrInfo.text.slice(0,12000):'',
 ocrConfianza:Number(ocrInfo.confidence||0),
+ocrHistorial:ocrInfo.ocrHistorial||[],
 ocrSugerencias:ocrInfo.text&&ocrInfo.text.trim().length>=20?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]}
 };
 
@@ -1077,97 +1078,125 @@ try{var dupOCR=await buscarPosibleDuplicadoOCR(personaId,elemento.ocrTexto,eleme
 }
 function mimeDeTipo(tipo){return{imagen:'image/jpeg',pdf:'application/pdf',video:'video/mp4',otro:'application/octet-stream'}[tipo]||'application/octet-stream';}
 
-/* ===== OCR (Tesseract.js + pdf.js) — lectura de texto, siempre en el propio navegador ===== */
+/* ===== OCR AVANZADO (Tesseract.js + pdf.js) =====
+   Estrategia: varias preparaciones + varios modos de segmentacion.
+   Se conserva el mejor texto y, ademas, un historial de candidatos para poder revisar.
+*/
 var tesseractWorkerPromise=null;
 function obtenerTesseractWorker(){
-if(!tesseractWorkerPromise)tesseractWorkerPromise=Tesseract.createWorker('spa').catch(function(err){tesseractWorkerPromise=null;throw err;});
+if(!tesseractWorkerPromise)tesseractWorkerPromise=Tesseract.createWorker('spa+eng').catch(function(err){
+  console.warn('No se pudo cargar spa+eng; se intenta spa:',err.message);
+  return Tesseract.createWorker('spa');
+});
 return tesseractWorkerPromise;
 }
 async function ocrConTiempoLimite(promise,ms){
-  var limite=new Promise(function(resolve){setTimeout(function(){resolve({__timeout:true});},ms||60000);});
-  var r=await Promise.race([promise,limite]);
-  if(r&&r.__timeout)throw new Error('OCR superó el tiempo límite y se continúa sin OCR para esta imagen');
-  return r;
+var limite=new Promise(function(resolve){setTimeout(function(){resolve({__timeout:true});},ms||90000);});
+var r=await Promise.race([promise,limite]);
+if(r&&r.__timeout)throw new Error('OCR superó el tiempo límite y se continúa con la siguiente prueba');
+return r;
 }
+function canvasToBlob(c){return new Promise(function(res){c.toBlob(res,'image/png');});}
 async function crearVariantesOCR(blob){
-  var img=await new Promise(function(resolve,reject){var im=new Image();im.onload=function(){resolve(im);};im.onerror=reject;im.src=URL.createObjectURL(blob);});
-  try{
-    var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-    var escala=Math.min(1.6,2400/Math.max(w,h)); if(escala<1)escala=1;
-    var cw=Math.max(1,Math.round(w*escala)), ch=Math.max(1,Math.round(h*escala));
-    var c=document.createElement('canvas');c.width=cw;c.height=ch;var ctx=c.getContext('2d',{willReadFrequently:true});
-    ctx.drawImage(img,0,0,cw,ch);
-    var data=ctx.getImageData(0,0,cw,ch), d=data.data;
-    for(var i=0;i<d.length;i+=4){
-      var g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
-      // Realce moderado: mejora texto gris sin destruir sellos ni manuscritos.
-      var v=Math.max(0,Math.min(255,Math.round((g-128)*1.35+128)));
-      d[i]=d[i+1]=d[i+2]=v;
-    }
-    ctx.putImageData(data,0,0);
-    var gris=await new Promise(function(res){c.toBlob(res,'image/png');});
-    // Segunda variante: binarización suave para documentos con fondo amarillento o gris.
-    var b=document.createElement('canvas');b.width=cw;b.height=ch;var bx=b.getContext('2d',{willReadFrequently:true});bx.drawImage(c,0,0);
-    var bd=bx.getImageData(0,0,cw,ch), q=bd.data;
-    for(var j=0;j<q.length;j+=4){var gv=q[j];var t=gv>178?255:(gv<105?0:Math.round((gv-105)*255/73));q[j]=q[j+1]=q[j+2]=t;}
-    bx.putImageData(bd,0,0);
-    var bin=await new Promise(function(res){b.toBlob(res,'image/png');});
-    return [blob,gris,bin];
-  }finally{URL.revokeObjectURL(img.src);}
+var img=await new Promise(function(resolve,reject){var im=new Image();im.onload=function(){resolve(im);};im.onerror=reject;im.src=URL.createObjectURL(blob);});
+try{
+var w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+/* Para OCR de documentos priorizamos tamaño suficiente: hasta 3600 px de lado. */
+var escala=Math.min(3.0,3600/Math.max(w,h)); if(escala<1.35)escala=1.35;
+var cw=Math.max(1,Math.round(w*escala)),ch=Math.max(1,Math.round(h*escala));
+var base=document.createElement('canvas');base.width=cw;base.height=ch;
+var ctx=base.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,cw,ch);
+var src=ctx.getImageData(0,0,cw,ch),d=src.data;
+var gray=new Uint8Array(cw*ch);
+for(var i=0,p=0;i<d.length;i+=4,p++)gray[p]=Math.max(0,Math.min(255,Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2])));
+function makeCanvas(mode){
+var c=document.createElement('canvas');c.width=cw;c.height=ch;var x=c.getContext('2d',{willReadFrequently:true});
+var out=x.createImageData(cw,ch),o=out.data;
+for(var p=0;p<gray.length;p++){
+var g=gray[p],v=g;
+if(mode==='gray')v=g;
+else if(mode==='contrast')v=Math.max(0,Math.min(255,Math.round((g-128)*1.65+128)));
+else if(mode==='threshold')v=g>165?255:0;
+else if(mode==='threshold2')v=g>195?255:(g<120?0:Math.round((g-120)*255/75));
+else if(mode==='adaptive'){
+  /* umbral local aproximado usando vecinos en cruz; mejora papel fotografiado */
+  var x0=p%cw,y0=Math.floor(p/cw),sum=g,cnt=1;
+  for(var dx=-6;dx<=6;dx+=3){var xx=x0+dx;if(xx>=0&&xx<cw){sum+=gray[y0*cw+xx];cnt++;}}
+  for(var dy=-6;dy<=6;dy+=3){var yy=y0+dy;if(yy>=0&&yy<ch){sum+=gray[yy*cw+x0];cnt++;}}
+  var local=sum/cnt;v=g<local-8?0:255;
+}
+else if(mode==='darktext')v=g<150?Math.max(0,Math.round(g*.55)):Math.min(255,Math.round(255-(255-g)*.35));
+o[p*4]=o[p*4+1]=o[p*4+2]=v;o[p*4+3]=255;
+}
+x.putImageData(out,0,0);return c;
+}
+var variants=[];
+for(var mode of ['gray','contrast','threshold','threshold2','adaptive','darktext'])variants.push({name:mode,blob:await canvasToBlob(makeCanvas(mode))});
+/* Añadimos original al final para conservar color/sellos cuando ayuden. */
+variants.unshift({name:'original',blob:blob});
+return variants;
+}finally{URL.revokeObjectURL(img.src);}
 }
 function valorarOCRResultado(r){
-  var t=String(r&&r.data&&r.data.text||'').replace(/\s+/g,' ').trim();
-  var conf=Number(r&&r.data&&r.data.confidence||0);
-  var palabras=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3,}/g)||[]).length;
-  var puntuacion=conf + Math.min(25,palabras*1.2) + Math.min(15,t.length/40);
-  return {text:t,confidence:conf,score:puntuacion};
+var raw=String(r&&r.data&&r.data.text||'');
+var t=raw.replace(/\r/g,'\n').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+var conf=Number(r&&r.data&&r.data.confidence||0);
+var palabras=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{3,}/g)||[]).length;
+var lineas=(t.match(/\n/g)||[]).length+1;
+var alnum=(t.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]/g)||[]).length;
+/* Penaliza resultados casi vacíos o basura y premia texto consistente. */
+var densidad=t.length?alnum/t.length:0;
+var puntuacion=conf + Math.min(30,palabras*1.5) + Math.min(20,t.length/35) + Math.min(10,lineas*1.5) + densidad*10;
+if(t.length<12)puntuacion-=35;
+return {text:t,confidence:conf,score:puntuacion,words:palabras};
 }
 async function ocrImagenBlobConInfo(blob){
 try{
 var worker=await obtenerTesseractWorker();
-var variantes=await crearVariantesOCR(blob), mejor={text:'',confidence:0,score:-1};
-try{if(worker.setParameters)await worker.setParameters({tessedit_pageseg_mode:'6'});}catch(e){}
+var variantes=await crearVariantesOCR(blob),mejor={text:'',confidence:0,score:-1},historial=[];
+var modos=[6,11,12,3];
 for(var i=0;i<variantes.length;i++){
-  var r=await ocrConTiempoLimite(worker.recognize(variantes[i]),60000);
-  if(r&&r.__timeout)continue;
-  var v=valorarOCRResultado(r);
-  if(v.score>mejor.score)mejor=v;
+  for(var mi=0;mi<modos.length;mi++){
+    var psm=modos[mi];
+    try{if(worker.setParameters)await worker.setParameters({tessedit_pageseg_mode:String(psm),preserve_interword_spaces:'1'});}catch(e){}
+    try{
+      var r=await ocrConTiempoLimite(worker.recognize(variantes[i].blob),90000);
+      if(r&&r.__timeout)continue;
+      var v=valorarOCRResultado(r);v.variante=variantes[i].name;v.psm=psm;
+      if(v.text)historial.push(v);
+      if(v.score>mejor.score)mejor=v;
+    }catch(e){console.warn('Prueba OCR falló',variantes[i].name,'PSM',psm,e.message);}
+  }
 }
-return{text:mejor.text,confidence:mejor.confidence};
-}catch(err){console.warn('OCR de imagen omitido:',err.message);return{text:'',confidence:0,error:err.message};}
+/* El mejor texto se guarda junto a todos los candidatos útiles para revisión futura. */
+historial.sort(function(a,b){return b.score-a.score;});
+return{text:mejor.text,confidence:mejor.confidence,ocrHistorial:historial.slice(0,12)};
+}catch(err){console.warn('OCR de imagen omitido:',err.message);return{text:'',confidence:0,ocrHistorial:[],error:err.message};}
 }
 async function ocrImagenBlob(blob){var r=await ocrImagenBlobConInfo(blob);return r.text;}
 async function ocrPdfBlob(blob){
 try{
 if(typeof pdfjsLib!=='undefined'&&pdfjsLib.GlobalWorkerOptions&&!pdfjsLib.GlobalWorkerOptions.workerSrc)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-var buf=await blob.arrayBuffer();
-var pdf=await pdfjsLib.getDocument({data:buf}).promise;
-var textoTotal='';
+var buf=await blob.arrayBuffer(),pdf=await pdfjsLib.getDocument({data:buf}).promise,textoTotal='',hist=[];
 var maxPag=Math.min(pdf.numPages,CFG_OCR_MAX_PAGINAS||3);
 for(var i=1;i<=maxPag;i++){
-var page=await pdf.getPage(i);
-var contenido=await page.getTextContent();
-var textoPagina=contenido.items.map(function(it){return it.str;}).join(' ');
-if(textoPagina.trim().length>30){
-textoTotal+=textoPagina+'\n'; // el PDF ya trae texto digital: no hace falta OCR en esta página
-}else{
-var viewport=page.getViewport({scale:2});
-var canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;
+var page=await pdf.getPage(i),contenido=await page.getTextContent(),textoPagina=contenido.items.map(function(it){return it.str;}).join(' ');
+if(textoPagina.trim().length>30){textoTotal+=textoPagina+'\n';}
+else{
+var viewport=page.getViewport({scale:2.5}),canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;
 await page.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise;
-var blobPagina=await new Promise(function(res){canvas.toBlob(res,'image/png');});
-textoTotal+=(await ocrImagenBlob(blobPagina))+'\n';
+var blobPagina=await new Promise(function(res){canvas.toBlob(res,'image/png');}),rr=await ocrImagenBlobConInfo(blobPagina);textoTotal+=(rr.text||'')+'\n';hist=hist.concat(rr.ocrHistorial||[]);
 }
 }
-return textoTotal;
-}catch(err){console.warn('OCR de PDF falló:',err.message);return'';}
+return{text:textoTotal.trim(),confidence:hist.length?Math.max.apply(null,hist.map(function(x){return x.confidence||0;})):90,ocrHistorial:hist.slice(0,20)};
+}catch(err){console.warn('OCR de PDF falló:',err.message);return{text:'',confidence:0,ocrHistorial:[]};}
 }
 async function extraerTextoOCRConInfo(blob,tipo){
 if(tipo==='imagen')return await ocrImagenBlobConInfo(blob);
-if(tipo==='pdf')return{text:await ocrPdfBlob(blob),confidence:50};
-return{text:'',confidence:0};
+if(tipo==='pdf')return await ocrPdfBlob(blob);
+return{text:'',confidence:0,ocrHistorial:[]};
 }
 async function extraerTextoOCR(blob,tipo){var r=await extraerTextoOCRConInfo(blob,tipo);return r.text;}
-
 /* ===== ANÁLISIS GENEALÓGICO DEL TEXTO (tabla de reglas, en español) =====
    Aproximado por naturaleza (el OCR se equivoca, y un documento antiguo no sigue un formato
    fijo): por eso todo esto termina siempre como sugerencia editable, nunca como escritura
@@ -1749,13 +1778,14 @@ for(var mi=0;mi<filtradas.length;mi++){
 if(!filtradas.length){grid.innerHTML='<p style="color:var(--muted);font-size:12px;grid-column:1/-1;text-align:center;padding:20px">No hay elementos con dudas para este filtro.</p>';}
 else grid.innerHTML=filtradas.map(function(e){
 var sel=!!seleccionDudas[e.id];
-var motivoTxt={varias_personas:'Varias personas',sin_etiquetas:'Sin etiquetas',confianza_baja:'Confianza baja',confianza_media_documento:'Posible documento (confianza media)',huerfano:'Sin JSON asociado'}[e.motivoDuda]||e.motivoDuda;
+var motivoTxt={varias_personas:'Varias personas',sin_etiquetas:'Sin etiquetas',confianza_baja:'Confianza baja',confianza_media_documento:'Posible documento (confianza media)',posible_documento_confirmable:'Documento detectado: confirmar manualmente',revisar_clasificacion:'Revisar clasificación',huerfano:'Sin JSON asociado'}[e.motivoDuda]||e.motivoDuda;
 return '<div class="duda-card'+(sel?' sel':'')+'"><input type="checkbox" class="duda-check" '+(sel?'checked':'')+' onchange="toggleSeleccion(\''+e.id+'\')">'+
 (e.miniatura?'<img class="duda-thumb" src="'+e.miniatura+'">':'<div class="duda-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--muted)"><i class="fa-solid '+(e.tipo==='pdf'?'fa-file-pdf':e.tipo==='video'?'fa-file-video':'fa-file')+'" style="font-size:26px"></i></div>')+
 '<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+
 (e.personaAsignadaId?'<br><span class="badge" style="margin-top:4px">Destino: '+esc((e.personas&&e.personas[0])||('ID '+e.personaAsignadaId))+'</span>':'')+
 (e.duplicadoEncontrado?'<br><span class="badge" style="margin-top:4px">♻️ Ya existía en el archivo; se ha conservado una sola copia</span>':'')+
-'<div style="margin-top:7px"><button class="btn small" onclick="seleccionarYMarcarDocumento(\''+e.id+'\')"><i class="fa-solid fa-file"></i> Documento</button></div></div></div>';
+(e.ocrProcesado?'<div class="ocr-duda" style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel)"><div style="font-size:11px;font-weight:700">Texto OCR · '+esc((e.ocrConfianza!=null?('confianza '+(Math.round(Number(e.ocrConfianza)||0))+'%'):'analizado'))+'</div><div style="font-size:11px;line-height:1.4;margin-top:4px;white-space:pre-wrap">'+esc(e.ocrTexto?(e.ocrTexto.length>500?e.ocrTexto.slice(0,500)+'…':e.ocrTexto):'(El OCR no ha recuperado texto legible)')+'</div><button class="btn ghost small" style="margin-top:6px" onclick="verTextoOCRCompleto(\''+e.id+'\')"><i class="fa-solid fa-file-lines"></i> Ver OCR completo</button></div>':'')+
+'<div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn small" onclick="seleccionarYMarcarDocumento(\''+e.id+'\')"><i class="fa-solid fa-file"></i> Documento</button>'+(e.ocrProcesado?'<button class="btn ghost small" onclick="reanalisarUnaDudaOCR(\''+e.id+'\')"><i class="fa-solid fa-wand-magic-sparkles"></i> Reanalizar OCR</button>':'')+'</div></div></div>';
 }).join('');
 document.getElementById('badgeDudas').style.display=dudas.length?'inline-block':'none';
 document.getElementById('badgeDudas').textContent=dudas.length;
@@ -1863,6 +1893,10 @@ async function recargarMiniaturasDudas(){
  var n=0;for(var i=0;i<dudas.length;i++){try{var antes=dudas[i].miniatura;await asegurarMiniaturaElemento(dudas[i]);if(!antes&&dudas[i].miniatura)n++;}catch(e){}}
  toast(n+' miniatura(s) recuperada(s)');renderDudas();
 }
+async function reanalisarUnaDudaOCR(id){
+  seleccionDudas={};seleccionDudas[id]=true;
+  await reanalisarDudasOCR();
+}
 async function reanalisarDudasOCR(){
 var todos=await cAll('elementos');
 var ids=Object.keys(seleccionDudas).filter(function(k){return seleccionDudas[k];});
@@ -1890,31 +1924,26 @@ for(var i=0;i<alvo.length;i++){
   el.ocrSugerencias=el.ocrTexto.trim().length>=20?analizarTextoGenealogico(el.ocrTexto):{campos:[],informativas:[]};
   var personaId=el.personaAsignadaId,personaNombre=(el.personas&&el.personas[0])||'';
   var cl=clasificarElemento(el.tipo,[],el.etiquetas||[],null,el.ocrTexto,el.ocrConfianza);
-  // Una imagen sin señales documentales deja de ser duda y se conserva como fotografía normal.
-  if(el.tipo==='imagen' && cl.estado==='fotografia'){
-    el.estado='fotografia';el.motivoDuda=null;
-  }else if(cl.estado==='documento'){
-    el.estado='documento';el.motivoDuda=null;
-  }else if(cl.estado==='duda'){
-    el.estado='duda';el.motivoDuda=cl.motivoDuda;
+  /* IMPORTANTE: reanalizar OCR es una operación de análisis, NO una decisión del usuario.
+     La imagen debe permanecer en la bandeja de Dudas hasta que el usuario pulse
+     explícitamente Documento, Fotografía/Asignar o Descartar. Esto evita que los
+     reversos y otros documentos desaparezcan de Dudas solo porque el OCR los haya
+     clasificado automáticamente como fotografía o haya cambiado la confianza. */
+  if(el.estado==='duda'){
+    el.motivoDuda=cl.estado==='duda' ? cl.motivoDuda :
+      (cl.estado==='documento' ? 'posible_documento_confirmable' : 'revisar_clasificacion');
+  }else{
+    // Protección adicional para registros antiguos que hayan llegado aquí con otro estado:
+    // si se están reanalizando desde Dudas, vuelven a quedar visibles hasta decisión manual.
+    el.estado='duda';
+    el.motivoDuda=cl.estado==='documento' ? 'posible_documento_confirmable' :
+      (cl.estado==='duda' ? cl.motivoDuda : 'revisar_clasificacion');
   }
-  // Si deja de ser duda, moverla desde Sin clasificar a DOCUMENTOS/<ID>.
-  if(el.estado!=='duda'&&personaId){
-    var dest=await carpetaDocumentosPersona(personaId,personaNombre);
-    var actual=await obtenerArchivoDrive(el.driveFileId);
-    var duplicado=null;
-    if(el.md5)duplicado=await buscarDuplicadoDrive(el.md5,blob.size,personaId,personaNombre);
-    if(duplicado&&duplicado.id!==el.driveFileId){
-      el.duplicadoEncontrado=true;el.duplicadoNombreAnterior=duplicado.nombre||null;el.duplicadoFuente=duplicado.fuente||'carpeta_persona';
-      await eliminarArchivoDrive(el.driveFileId);
-      el.driveFileId=duplicado.id;el.nombreArchivo=duplicado.nombre||el.nombreOriginal;el.rutaDrive=dest.ruta;
-    }else{
-      var oldParent=(actual.parents&&actual.parents[0])||null;
-      if(oldParent!==dest.id)await moverArchivoDrive(el.driveFileId,dest.id,oldParent);
-      el.rutaDrive=dest.ruta;
-    }
-  }
-  await cPut('elementos',el);await guardarBaseDatosDrive(el);
+  // Nunca mover, sobrescribir ni eliminar el archivo físico durante el reanálisis OCR.
+  // El movimiento a la carpeta de persona solo se realiza al confirmar manualmente
+  // Documento/Fotografía mediante las acciones correspondientes.
+  await cPut('elementos',el);
+  await guardarBaseDatosDrive(el);
  }catch(err){console.warn('Reanálisis fallido para '+(el.nombreOriginal||el.id),err);el.reanalisisError=err.message;await cPut('elementos',el);}
 }
 if(fill)fill.style.width='100%';if(cuenta)cuenta.textContent=alvo.length+' de '+alvo.length+' elementos';if(pct)pct.textContent='100 %';if(estado)estado.textContent='✓ Reanálisis terminado';
