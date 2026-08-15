@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Importación de fotos — Carlos · Base Drive · v19 · OCR e informe familiar</title>
+<title>Importación de fotos — Carlos · Base Drive · v1.0 · Archivo documental familiar · desde cero</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -92,19 +92,20 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 #progresoAsignacionNota{font-size:11px;color:var(--muted,#777);margin-top:12px;line-height:1.45}
 #progresoAsignacionOverlay .spinner{display:inline-block;width:13px;height:13px;border:2px solid #d9cfc2;border-top-color:var(--accent,#c96536);border-radius:50%;animation:progresoSpin .8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes progresoSpin{to{transform:rotate(360deg)}}
+ #vSug,#vColab{display:none!important}
 </style>
 </head>
 <body>
 <div class="toast-c" id="toastC"></div>
 <header>
-<div class="logo"><div class="logo-icon"><i class="fa-solid fa-images"></i></div><div class="logo-text">Importación de fotos — Carlos</div></div>
+<div class="logo"><div class="logo-icon"><i class="fa-solid fa-images"></i></div><div class="logo-text">Archivo documental familiar — Carlos</div></div>
 <nav id="mn">
 <button class="active" data-v="panel" onclick="sv('panel')"><i class="fa-solid fa-gauge"></i> Panel</button>
 <button data-v="cajas" onclick="sv('cajas')"><i class="fa-solid fa-box-open"></i> Cajas</button>
 <button data-v="dudas" onclick="sv('dudas')"><i class="fa-solid fa-triangle-exclamation"></i> Dudas <span id="badgeDudas" class="badge warn" style="display:none">0</span></button>
-<button data-v="sug" onclick="sv('sug')"><i class="fa-solid fa-file-magnifying-glass"></i> Sugerencias <span id="badgeSug" class="badge" style="display:none">0</span></button>
 <button data-v="buscar" onclick="sv('buscar')"><i class="fa-solid fa-magnifying-glass"></i> Buscador</button>
-<button data-v="colab" onclick="sv('colab')"><i class="fa-solid fa-user-group"></i> Colaboradores</button>
+<button data-v="analizar" onclick="sv('analizar')"><i class="fa-solid fa-folder-tree"></i> Analizar documentos</button>
+<button data-v="informe" onclick="sv('informe')"><i class="fa-solid fa-file-lines"></i> Informe familiar</button>
 <button data-v="cfg" onclick="sv('cfg')"><i class="fa-solid fa-gear"></i> Configuración</button>
 </nav>
 </header>
@@ -112,7 +113,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 
 <!-- ===== PANEL DEL ADMINISTRADOR (10.1) ===== -->
 <div class="view active" id="vPanel">
-<div class="hero"><h1>Panel de importación</h1><p>Fotos y documentos de colaboradores, desde su Google Drive al tuyo</p>
+<div class="hero"><h1>Panel de importación</h1><p>Archivo documental familiar independiente del árbol genealógico</p>
 <div style="text-align:center;margin-top:8px"><span class="drive-status" id="driveStatusPill" onclick="accionConectar()"><span class="dot" id="driveDot"></span><span id="driveTxt">Comprobando Google Drive...</span></span></div>
 </div>
 <div class="metrics">
@@ -158,7 +159,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <div class="ef-row">
 <div class="ef-field"><span class="ef-label">Álbum</span><select id="fDudaAlbum" onchange="renderDudas()"><option value="">Todos</option></select></div>
 <div class="ef-field"><span class="ef-label">Tipo</span><select id="fDudaTipo" onchange="renderDudas()"><option value="">Todos</option><option value="imagen">Imagen</option><option value="pdf">PDF</option><option value="video">Vídeo</option><option value="otro">Otro</option></select></div>
-<div class="ef-field"><span class="ef-label">Motivo</span><select id="fDudaMotivo" onchange="renderDudas()"><option value="">Todos</option><option value="varias_personas">Varias personas</option><option value="sin_etiquetas">Sin etiquetas</option><option value="confianza_baja">Confianza baja</option><option value="confianza_media_documento">Posible documento (confianza media)</option><option value="posible_documento_confirmable">Documento detectado: confirmar manualmente</option><option value="revisar_clasificacion">Revisar clasificación</option><option value="huerfano">Archivo sin JSON</option></select></div>
+<div class="ef-field"><span class="ef-label">Motivo</span><select id="fDudaMotivo" onchange="renderDudas()"><option value="">Todos</option><option value="varias_personas">Varias personas</option><option value="sin_etiquetas">Sin etiquetas</option><option value="confianza_baja">Confianza baja</option><option value="huerfano">Archivo sin JSON</option></select></div>
 </div>
 <div class="ef-row" style="align-items:center">
 <button class="btn ghost small" onclick="seleccionarTodosDudas()"><i class="fa-solid fa-check-double"></i> Seleccionar visibles</button>
@@ -182,21 +183,17 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <div class="duda-grid" id="bqGrid"></div>
 </div>
 
-<!-- ===== SUGERENCIAS GENEALÓGICAS EXTRAÍDAS POR OCR ===== -->
-<div class="view" id="vSug">
-<div class="hero"><h1>Sugerencias genealógicas</h1><p>Datos detectados por OCR en documentos, pendientes de tu confirmación</p></div>
-<div class="note" style="max-width:640px;margin:0 auto 14px"><i class="fa-solid fa-circle-info"></i> Nada se escribe solo en ninguna ficha. Lo que marques aquí se envía como un "cambio pendiente" a la pestaña Cambios de la app principal, exactamente igual que una edición manual: lo confirmas allí. Solo se proponen campos que están vacíos; nunca se sobrescribe un dato que ya tengas.</div>
-<div id="listaSugerencias" style="max-width:640px;margin:0 auto"></div>
-</div>
-
-<!-- ===== VISTA DEL COLABORADOR (10.3) ===== -->
-<div class="view" id="vColab">
-<div class="hero"><h1>Colaboradores</h1><p>Lo que ve cada colaborador: solo estado, en lenguaje llano</p></div>
-<div class="ef-row"><div class="ef-field"><span class="ef-label">Ver como</span><select id="colabSelect" onchange="renderVistaColaborador()"></select></div></div>
-<div id="vistaColaborador"></div>
-</div>
-
 <!-- ===== CONFIGURACIÓN ===== -->
+<div class="view" id="vAnalizar">
+<div class="hero"><h1>Analizar documentos existentes</h1><p>Revisa las carpetas DOCUMENTOS/&lt;ID&gt; y analiza los archivos que todavía no estén registrados.</p></div>
+<div class="card"><h3>¿Qué hace esta utilidad?</h3><p style="font-size:12px;color:var(--muted);line-height:1.6">Lee las personas de <b>backup-arbol.json</b>, entra en <b>DOCUMENTOS/&lt;ID&gt;</b>, detecta archivos nuevos y les aplica el mismo tratamiento: OCR, metadatos, detección de documentos, fechas, lugares, personas e instituciones. No modifica nunca el árbol genealógico.</p><button class="btn" onclick="analizarDocumentosExistentes()"><i class="fa-solid fa-wand-magic-sparkles"></i> Analizar documentos existentes</button></div>
+<div class="card" id="resultadoAnalisisExistentes"><p style="color:var(--muted);font-size:12px">Todavía no se ha iniciado ningún análisis.</p></div>
+</div>
+<div class="view" id="vInforme">
+<div class="hero"><h1>Informe para la familia</h1><p>Presentación de lo que ha conseguido recuperar el archivo documental.</p></div>
+<div class="card"><p style="font-size:12px;color:var(--muted);line-height:1.6">El informe reúne fotografías, documentos, OCR, fechas, lugares, personas, instituciones y descubrimientos. Se guarda como un HTML en Drive para poder compartirlo con tu hermano.</p><button class="btn" onclick="generarInformeFamiliar()"><i class="fa-solid fa-file-export"></i> Generar informe y guardarlo en Drive</button></div>
+<div class="card" id="resultadoInforme"><p style="color:var(--muted);font-size:12px">Todavía no hay un informe generado.</p></div>
+</div>
 <div class="view" id="vCfg">
 <div class="hero"><h1>Configuración</h1><p>Solo hace falta rellenar esto una vez</p></div>
 <div class="card">
@@ -204,41 +201,35 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Client ID de Google (el mismo que usa la app principal)</span><input id="cfgClientId" placeholder="xxxxx.apps.googleusercontent.com"></div></div>
 <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Esta herramienta pide permiso completo de Drive (lectura y escritura), más amplio que el de la app de árbol genealógico, porque necesita leer una carpeta compartida por tus colaboradores que tu cuenta no creó.</p>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de origen (compartida, ej. FOTOS-CARLOS)</span><input id="cfgOrigen" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaOrigen()">Guardar</button></div>
-<div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta raíz de Genealogia (la misma que configuraste en la app principal, con las subcarpetas FOTO y DOCUMENTOS)</span><input id="cfgDestino" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaDestino()">Guardar</button></div>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta raíz de destino en Drive (aquí se crea DOCUMENTOS/<ID>)</span><input id="cfgDestino" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaDestino()">Guardar</button></div>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Carpeta de base de datos de fotografías (JSON maestro)</span><input id="cfgBaseDatos" placeholder="Enlace o ID de la carpeta"></div><button class="btn ghost small" onclick="guardarCarpetaBaseDatos()">Guardar</button></div>
-<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Aquí se guarda <b>fotografias.json</b> y desde esta misma carpeta se lee <b>backup-arbol.json</b> como fuente maestra de personas. , con todos los descubrimientos: datos de Google Fotos, OCR, persona, hash, duplicados, Takeout y ubicación final en Drive.</p>
-<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Las fotos de perfil se guardan como FOTO/&lt;ID&gt;.jpg y el resto en DOCUMENTOS/&lt;ID&gt;/, exactamente igual que hace la app principal. Así, en cuanto se copian aquí, ya aparecen en la ficha de la persona sin tocar nada más.</p>
+<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Aquí <b>NO se guarda fotografias.json</b>. La aplicación usa <b>backup-arbol.json</b> únicamente como fuente de lectura de las personas y guarda el archivo documental dentro de <b>DOCUMENTOS/&lt;ID&gt;/</b>.</p>
+<p style="font-size:11px;color:var(--muted);margin:-4px 0 0">Esta aplicación no modifica ni actualiza el árbol. Solo deposita los archivos y su información documental en DOCUMENTOS/&lt;ID&gt;/.</p>
 <div class="ef-row"><div class="ef-field"><span class="ef-label">Espacio libre disponible (GB)</span><input id="cfgEspacioGB" type="number" value="75"></div><button class="btn ghost small" onclick="guardarEspacioGB()">Guardar</button></div>
 </div>
 <div class="card">
 <h3>Álbum = persona</h3>
-<p style="font-size:12px;color:var(--muted);margin-bottom:8px">Cada álbum que te pase un colaborador se asume que es de una sola persona. La primera vez que aparece el nombre de un álbum nuevo, se pregunta una vez a qué ficha corresponde (pestaña Cajas); a partir de ahí se recuerda y no se vuelve a preguntar para ese mismo nombre de álbum.</p>
+<p style="font-size:12px;color:var(--muted);margin-bottom:8px">Cada caja de Takeout se asigna a una persona del backup. No existe el concepto de colaborador en esta aplicación.</p>
 <div id="listaAliasAlbumCfg" style="font-size:11px"></div>
 </div>
 <div class="card">
-<h3>Clasificación automática</h3>
-<label class="ef-check"><input type="checkbox" id="cfgAutoPerfil" onchange="guardarAutoPerfil()"> Asignar automáticamente como foto de perfil cuando la foto tiene solo la persona del álbum etiquetada y ninguna etiqueta de documento/grupo</label>
-<p style="font-size:11px;color:var(--muted)">Recomendado empezar desactivado (todo a revisión manual como documento) hasta ver el ratio de aciertos del primer álbum. Si una foto concreta tiene etiquetada, además, a otra persona distinta de la del álbum, siempre va a la bandeja de dudas, esté o no activada esta opción.</p>
+<h3>Clasificación</h3><p style="font-size:12px;color:var(--muted)">La aplicación no modifica el árbol ni crea sugerencias. La clasificación solo organiza el archivo documental.</p>
 </div>
 <div class="card">
-<h3>OCR y datos genealógicos</h3>
-<label class="ef-check"><input type="checkbox" id="cfgOcrActivo" onchange="guardarOcrActivo()"> Leer el texto de los documentos (OCR) y buscar fechas, lugares y filiación</label>
+<h3>OCR y extracción documental</h3>
+<label class="ef-check"><input type="checkbox" id="cfgOcrActivo" onchange="guardarOcrActivo()"> Analizar automáticamente documentos e imágenes con OCR y extraer fechas, lugares, personas e instituciones</label>
 <div class="ef-row"><div class="ef-field" style="max-width:220px"><span class="ef-label">Páginas máximas por PDF</span><input id="cfgOcrMaxPaginas" type="number" min="1" max="20" onchange="guardarOcrMaxPaginas()"></div></div>
 <p style="font-size:11px;color:var(--muted)">Ralentiza bastante la importación (el reconocimiento de texto ocurre en tu propio navegador, sin servidor) — recomendado activarlo solo para lotes con documentos, no para álbumes que son solo fotos. El texto se lee automáticamente si el PDF ya lo trae digital; si es un escaneo, se hace OCR de verdad.</p>
 </div>
 <div class="card">
-<h3>Colaboradores</h3>
-<div id="listaColabCfg"></div>
-<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre</span><input id="nuevoColabNombre"></div><div class="ef-field"><span class="ef-label">Email de Google</span><input id="nuevoColabEmail"></div><button class="btn small" onclick="anadirColaborador()">Añadir</button></div>
-</div>
-<div class="card">
-<h3>Vínculo con el árbol genealógico</h3>
+<h3>Fuente de personas</h3>
 <p id="estadoVinculoArbol" style="font-size:12px"></p>
 <p style="font-size:11px;color:var(--muted)">Las personas se leen directamente de <b>backup-arbol.json</b> en la carpeta de base de datos de Drive. No depende de que esta página comparta dominio o navegador con la aplicación principal.</p>
 <button class="btn ghost small" onclick="recargarPersonasDesdeBackup()"><i class="fa-solid fa-rotate"></i> Volver a leer backup-arbol.json</button>
 </div>
 </div>
 </main>
+
 <script>
 /* =====================================================================
    IMPORTACIÓN DE FOTOS — CARLOS · v7 (y otros colaboradores)
@@ -256,23 +247,6 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
      solo de "copiado y verificado", nunca de si ya se decidió la ficha.
    - No se persisten los binarios entre sesiones (ya están seguros en
      Drive); solo se guarda una miniatura para la bandeja de dudas.
-
-   v19 — arreglos:
-   - Los nombres sueltos en otrasPersonasEtiquetadas (fotos de grupo) ahora
-     se buscan en el árbol (resolverOtrasPersonasEtiquetadas). Si hay una
-     coincidencia clara se propone para confirmar con un clic; si hay
-     ambigüedad se listan los candidatos; nunca se asigna a ciegas.
-   - El nombre de archivo subido a DOCUMENTOS/<ID>/ (y a "Sin clasificar")
-     ahora lleva el ID de la persona por delante. La foto de perfil sigue
-     igual (<ID>.jpg).
-   - buscarDuplicadoDrive() ya no descarta los PDF por su mimeType: el MD5
-     ya garantiza la coincidencia exacta, filtrar además por "image/" solo
-     hacía que nunca se detectaran duplicados de documentos.
-   - Añadidos al filtro de la Bandeja de dudas los motivos que ya existían
-     como etiqueta pero no se podían filtrar (confianza_media_documento,
-     posible_documento_confirmable, revisar_clasificacion).
-   - Eliminado código muerto sin ningún uso: listarArbolDriveRecursivo(),
-     INDICE_DRIVE_DUPLICADOS y normalizarNombrePersona().
    ===================================================================== */
 
 var GOOGLE_CLIENT_ID_IMPORT=''; // se rellena desde Configuración (o precarga aquí si prefieres)
@@ -282,7 +256,7 @@ var CARPETA_REVISION_NOMBRE='Sin clasificar';
 var MAX_MINIATURA_PX=220;
 
 var db=null, googleTokenClient=null, driveAccessToken=null, driveTokenExpira=0, googleIdentidad=null;
-var CFG_ORIGEN_ID=null, CFG_DESTINO_ID=null, CFG_BASE_DATOS_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC', CFG_BACKUP_ARBOL_NOMBRE='backup-arbol.json', CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
+var CFG_ORIGEN_ID=null, CFG_DESTINO_ID='1Jb7whlTVNC2S4x3Mgrluoh3QlMjcgGIm', CFG_BASE_DATOS_ID='1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC', CFG_BACKUP_ARBOL_NOMBRE='backup-arbol.json', CFG_REVISION_ID=null, CFG_FOTO_ID=null, CFG_DOCUMENTOS_ID=null, CFG_AUTO_PERFIL=false, CFG_ESPACIO_GB=75;
 var CFG_OCR_ACTIVO=false, CFG_OCR_MAX_PAGINAS=3;
 var COLABORADORES=[];
 var seleccionDudas={};
@@ -299,10 +273,10 @@ var BASE_DATOS_CACHE=null, BASE_DATOS_FILE_ID=null, BASE_DATOS_GUARDANDO=null;
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},4000);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmtBytes(n){if(!n)return'0 B';var u=['B','KB','MB','GB','TB'],i=0;while(n>=1024&&i<u.length-1){n/=1024;i++;}return n.toFixed(1)+' '+u[i];}
-function sv(v){['panel','cajas','dudas','buscar','sug','colab','cfg'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');document.querySelectorAll('#mn button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-v')===v);});if(v==='cajas')renderCajas();if(v==='dudas')renderDudas();if(v==='buscar')renderBusqueda();if(v==='sug')renderSugerencias();if(v==='colab')renderVistaColaborador();if(v==='cfg')renderConfig();if(v==='panel')renderPanel();}
+function sv(v){['panel','cajas','dudas','buscar','analizar','informe','cfg'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');document.querySelectorAll('#mn button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-v')===v);});if(v==='cajas')renderCajas();if(v==='dudas')renderDudas();if(v==='buscar')renderBusqueda();if(v==='cfg')renderConfig();if(v==='informe')renderInformeVista();if(v==='panel')renderPanel();}
 
 /* ===== BASE DE DATOS LOCAL (propia, independiente de la de la app de árbol) ===== */
-function oDB(){return new Promise(function(res,rej){var r=indexedDB.open('ImportacionFotosCarlos',2);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains('cajas'))d.createObjectStore('cajas',{keyPath:'id'});if(!d.objectStoreNames.contains('elementos'))d.createObjectStore('elementos',{keyPath:'id'});if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'id'});if(!d.objectStoreNames.contains('pendientes'))d.createObjectStore('pendientes',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open('ArchivoDocumentalFamiliar_v1',1);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains('cajas'))d.createObjectStore('cajas',{keyPath:'id'});if(!d.objectStoreNames.contains('elementos'))d.createObjectStore('elementos',{keyPath:'id'});if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'id'});if(!d.objectStoreNames.contains('pendientes'))d.createObjectStore('pendientes',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function cPut(store,obj){return new Promise(function(res,rej){var tx=db.transaction(store,'readwrite');tx.objectStore(store).put(obj);tx.oncomplete=function(){res(obj);};tx.onerror=function(){rej(tx.error);};});}
 function cGet(store,id){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}
 function cAll(store){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){res([]);};});}
@@ -426,75 +400,51 @@ var d=await leerRespuestaDrive(r,'No se pudo buscar el archivo en Drive');
 return (d.files||[])[0]||null;
 }
 async function cargarBaseDatosDrive(){
-if(BASE_DATOS_CACHE)return BASE_DATOS_CACHE;
-if(!CFG_BASE_DATOS_ID)throw new Error('Falta configurar la carpeta de base de datos');
-var f=await buscarArchivoPorNombreEnCarpeta('fotografias.json',CFG_BASE_DATOS_ID);
-if(!f){BASE_DATOS_FILE_ID=null;BASE_DATOS_CACHE={version:1,creado:new Date().toISOString(),actualizado:new Date().toISOString(),fotografias:{}};return BASE_DATOS_CACHE;}
-BASE_DATOS_FILE_ID=f.id;
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
-if(!r.ok)throw new Error('No se pudo leer la base de datos de fotografías de Drive');
-var txt=await r.text();
-try{BASE_DATOS_CACHE=JSON.parse(txt)||{};}catch(e){throw new Error('La base de datos fotografias.json no contiene JSON válido');}
-if(!BASE_DATOS_CACHE.fotografias)BASE_DATOS_CACHE.fotografias={};
-return BASE_DATOS_CACHE;
+  // v1.0: ya no existe fotografias.json. Se conserva esta función solo por compatibilidad interna.
+  return {version:2,actualizado:new Date().toISOString(),personas:{}};
 }
-async function guardarRegistroCajaEnDrive(caja){
-  if(!caja||!CFG_BASE_DATOS_ID)return;
-  var bd=await cargarBaseDatosDrive();
-  bd.version=1; bd.actualizado=new Date().toISOString();
-  bd.cajas=bd.cajas||{};
-  bd.cajas[caja.id]={id:caja.id,estado:caja.estado,partes:caja.partes||[],personaAsignadaId:caja.personaAsignadaId||null,personaAsignadaNombre:caja.personaAsignadaNombre||null,albumesAsignados:caja.albumesAsignados||{},fechaDeteccion:caja.fechaDeteccion||null,actualizado:new Date().toISOString()};
-  var blob=new Blob([JSON.stringify(bd,null,2)],{type:'application/json;charset=utf-8'});
-  if(BASE_DATOS_GUARDANDO){try{await BASE_DATOS_GUARDANDO;}catch(e){}}
-  BASE_DATOS_GUARDANDO=(async function(){
-    try{
-      if(BASE_DATOS_FILE_ID) await actualizarBinarioADrive(BASE_DATOS_FILE_ID,blob,'application/json');
-      else {var subida=await subirBinarioADrive('fotografias.json',blob,'application/json',CFG_BASE_DATOS_ID,'Base de datos maestra de fotografías.'); BASE_DATOS_FILE_ID=subida.id;}
-    }finally{BASE_DATOS_GUARDANDO=null;}
-  })();
-  await BASE_DATOS_GUARDANDO;
-}
+async function guardarRegistroCajaEnDrive(caja){ return; }
 function prepararRegistroBaseDatos(elemento){
-var r=JSON.parse(JSON.stringify(elemento));
-delete r.miniatura; // las miniaturas son solo para la interfaz local; no deben inflar la base maestra
-r.baseDatosActualizado=new Date().toISOString();
-return r;
+  var r=JSON.parse(JSON.stringify(elemento)); delete r.miniatura; return r;
+}
+async function cargarArchivoDocumentalPersona(personaId,personaNombre){
+  var carpeta=await carpetaDocumentosPersona(personaId,personaNombre);
+  var f=await buscarArchivoPorNombreEnCarpeta('archivo-documental.json',carpeta.id);
+  if(!f)return {file:null,carpeta:carpeta,bd:{version:1,personaId:String(personaId),personaNombre:personaNombre,actualizado:new Date().toISOString(),archivos:{}}};
+  var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(f.id)+'?alt=media');
+  if(!r.ok)throw new Error('No se pudo leer archivo-documental.json de '+personaNombre);
+  var bd={}; try{bd=JSON.parse(await r.text())||{};}catch(e){throw new Error('archivo-documental.json no contiene JSON válido');}
+  if(!bd.archivos)bd.archivos={}; return {file:f,carpeta:carpeta,bd:bd};
 }
 async function guardarBaseDatosDrive(elemento){
-if(!elemento)return;
-var bd=await cargarBaseDatosDrive();
-bd.version=1;
-bd.actualizado=new Date().toISOString();
-bd.origen='Importación de fotografías';
-bd.carpetaArchivoFotografico=CFG_DESTINO_ID||null;
-bd.carpetaBaseDatos=CFG_BASE_DATOS_ID||null;
-bd.fotografias[elemento.id]=prepararRegistroBaseDatos(elemento);
-var blob=new Blob([JSON.stringify(bd,null,2)],{type:'application/json;charset=utf-8'});
-if(BASE_DATOS_GUARDANDO){try{await BASE_DATOS_GUARDANDO;}catch(e){}}
-BASE_DATOS_GUARDANDO=(async function(){
-try{
- if(BASE_DATOS_FILE_ID){
-   await actualizarBinarioADrive(BASE_DATOS_FILE_ID,blob,'application/json');
- }else{
-   var subida=await subirBinarioADrive('fotografias.json',blob,'application/json',CFG_BASE_DATOS_ID,'Base de datos maestra de fotografías. Se actualiza automáticamente por la aplicación de importación.');
-   BASE_DATOS_FILE_ID=subida.id;
- }
-}finally{BASE_DATOS_GUARDANDO=null;}
-})();
-await BASE_DATOS_GUARDANDO;
+  if(!elemento || !elemento.personaAsignadaId)return;
+  var personaId=elemento.personaAsignadaId;
+  var personaNombre=(elemento.personas&&elemento.personas[0])||elemento.personaAsignadaNombre||('Persona '+personaId);
+  var obj=await cargarArchivoDocumentalPersona(personaId,personaNombre);
+  var r=prepararRegistroBaseDatos(elemento);
+  r.registradoEnArchivoDocumental=new Date().toISOString();
+  obj.bd.version=1; obj.bd.tipo='archivo-documental-personal'; obj.bd.personaId=String(personaId); obj.bd.personaNombre=personaNombre; obj.bd.actualizado=new Date().toISOString();
+  obj.bd.archivos[elemento.id]=r;
+  var blob=new Blob([JSON.stringify(obj.bd,null,2)],{type:'application/json;charset=utf-8'});
+  if(obj.file) await actualizarBinarioADrive(obj.file.id,blob,'application/json');
+  else {var subida=await subirBinarioADrive('archivo-documental.json',blob,'application/json',obj.carpeta.id,'Archivo documental de '+personaNombre+'. Solo lectura respecto al árbol genealógico.');}
 }
-async function sincronizarBaseDatosLocalDesdeDrive(){
-try{
- var bd=await cargarBaseDatosDrive();
- var claves=Object.keys(bd.fotografias||{});
- for(var i=0;i<claves.length;i++)await cPut('elementos',bd.fotografias[claves[i]]);
- return claves.length;
-}catch(e){console.warn('No se pudo sincronizar la base de datos maestra:',e.message);return 0;}
-}
+async function sincronizarBaseDatosLocalDesdeDrive(){ return 0; }
 async function calcularMD5(blob){
 if(window.SparkMD5&&SparkMD5.ArrayBuffer){return SparkMD5.ArrayBuffer.hash(await blob.arrayBuffer());}
 return null;
 }
+async function listarArbolDriveRecursivo(parentId,resultado,visitados){
+resultado=resultado||[];visitados=visitados||{};
+if(visitados[parentId])return resultado;visitados[parentId]=true;
+var archivos=await listarTodosArchivosDrive("'"+parentId+"' in parents and trashed=false",'id,name,mimeType,size,md5Checksum,parents,modifiedTime');
+for(var i=0;i<archivos.length;i++){
+ var f=archivos[i];resultado.push(f);
+ if(f.mimeType==='application/vnd.google-apps.folder')await listarArbolDriveRecursivo(f.id,resultado,visitados);
+}
+return resultado;
+}
+var INDICE_DRIVE_DUPLICADOS=null;
 /* Busca duplicados por MD5 sin recorrer recursivamente toda la carpeta de destino.
    La versión anterior se quedaba aparentemente clavada en la primera foto porque
    intentaba listar TODAS las carpetas y subcarpetas del archivo antes de continuar. */
@@ -509,11 +459,7 @@ async function buscarDuplicadoDrive(md5,size,personaId,personaNombre){
       var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,size,md5Checksum,parents,mimeType,modifiedTime)&spaces=drive&pageSize=20');
       if(r.ok){
         var d=await r.json();
-        // El MD5 ya garantiza coincidencia exacta byte a byte, sea imagen, PDF o cualquier
-        // otro tipo: filtrar además por mimeType 'image/' solo servía para excluir por error
-        // los documentos PDF de esta comprobación. El tamaño se mantiene como red de seguridad
-        // adicional (barata) por si Drive devolviera algún falso positivo de MD5.
-        var candidatos=(d.files||[]).filter(function(f){return !size||!f.size||Number(f.size)===Number(size);});
+        var candidatos=(d.files||[]).filter(function(f){return /^image\//i.test(f.mimeType||'')&&(!size||!f.size||Number(f.size)===Number(size));});
         if(candidatos.length)return{id:candidatos[0].id,nombre:candidatos[0].name,driveFile:candidatos[0],fuente:'carpeta_persona'};
       }
     }
@@ -559,29 +505,12 @@ base=base.replace(/-\d+$/i,'');
 return base;
 }
 function numeroDeParte(nombre){var m=String(nombre).match(/-(\d{3})\.zip$/i);return m?parseInt(m[1],10):1;}
-async function sincronizarCajasDesdeDrive(){
-  try{
-    var bd=await cargarBaseDatosDrive();
-    var mapa=bd&&bd.cajas?bd.cajas:{};
-    var ids=Object.keys(mapa);
-    for(var i=0;i<ids.length;i++){
-      var r=mapa[ids[i]];
-      var local=await cGet('cajas',ids[i]);
-      if(!local){
-        local={id:r.id,estado:r.estado||'esperando_asignacion_album',partes:r.partes||[],contadores:{total:0,copiados:0,dudas:0},fechaDeteccion:r.fechaDeteccion||new Date().toISOString(),avisoEnviado:false};
-      }
-      if(r.personaAsignadaId){local.personaAsignadaId=r.personaAsignadaId;local.personaAsignadaNombre=r.personaAsignadaNombre;local.albumesAsignados=r.albumesAsignados||local.albumesAsignados||{};}
-      if(r.partes&&r.partes.length)local.partes=r.partes;
-      if(r.estado==='procesando'&&local.estado!=='procesada'&&local.estado!=='con_dudas')local.estado='procesando';
-      await cPut('cajas',local);
-    }
-  }catch(e){console.warn('No se pudieron sincronizar las cajas desde fotografias.json:',e.message);}
-}
+async function sincronizarCajasDesdeDrive(){ return; }
 async function accionActualizar(){
 if(!CFG_ORIGEN_ID){toast('Configura primero la carpeta de origen',true);sv('cfg');return;}
 try{
 if(!tokenDriveValido())await conectarGoogleDrive();
-if(CFG_BASE_DATOS_ID){try{var nBD=await sincronizarBaseDatosLocalDesdeDrive();if(nBD)console.log('Base de datos maestra sincronizada:',nBD,'registros');await sincronizarCajasDesdeDrive();}catch(e){console.warn(e.message);}}
+
 
 // Primero comprobamos que el ID guardado corresponde realmente a una carpeta
 // accesible para la cuenta autenticada. Antes este fallo podía quedar oculto
@@ -862,6 +791,7 @@ var buf=await blob.arrayBuffer();
 var hashBuf=await crypto.subtle.digest('SHA-256',buf);
 return Array.prototype.map.call(new Uint8Array(hashBuf),function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
+async function normalizarNombrePersona(nombre){return String(nombre||'').trim();} // ya no decide la persona; se conserva solo por si se usa en el futuro para limpiar nombres sueltos
 function extraerAnioDeMetadata(jsonData){
 if(jsonData&&jsonData.photoTakenTime&&jsonData.photoTakenTime.timestamp){
 return new Date(parseInt(jsonData.photoTakenTime.timestamp,10)*1000);
@@ -951,9 +881,6 @@ if(!existente && duplicadoDrive && duplicadoDrive.id){
 // concreta tiene etiquetada a alguien distinto de la persona del álbum (posible foto de grupo).
 var personasEtiquetadas=(jsonData&&Array.isArray(jsonData.people))?jsonData.people.map(function(p){return p.name;}).filter(Boolean):[];
 var otrasPersonas=personasEtiquetadas.filter(function(n){return normalizarNombreAlbum(n)!==normalizarNombreAlbum(personaNombre);});
-// Para cada nombre suelto se busca en el árbol (backup-arbol.json), pero solo como sugerencia:
-// nunca se asigna a nadie automáticamente. Ver resolverOtrasPersonasEtiquetadas() más abajo.
-var otrasPersonasSugeridas=await resolverOtrasPersonasEtiquetadas(otrasPersonas);
 var etiquetas=[];
 if(jsonData&&jsonData.title&&!/^\d{8}_/.test(jsonData.title))etiquetas.push(jsonData.title);
 if(jsonData&&jsonData.description)etiquetas.push(String(jsonData.description));
@@ -971,11 +898,6 @@ existente.origenesTakeout=Array.from(new Set((existente.origenesTakeout||[]).con
 existente.cajasOrigen=Array.from(new Set((existente.cajasOrigen||[]).concat([caja.id])));
 existente.personaAsignadaId=existente.personaAsignadaId||personaId||null;
 if(!existente.personas||!existente.personas.length)existente.personas=[personaNombre];
-if(otrasPersonasSugeridas.length){
-  var nombresYaSugeridos={};(existente.otrasPersonasSugeridas||[]).forEach(function(s){nombresYaSugeridos[normalizarNombreAlbum(s.nombreOriginal)]=true;});
-  var sugerenciasNuevas=otrasPersonasSugeridas.filter(function(s){return !nombresYaSugeridos[normalizarNombreAlbum(s.nombreOriginal)];});
-  existente.otrasPersonasSugeridas=(existente.otrasPersonasSugeridas||[]).concat(sugerenciasNuevas);
-}
 if(duplicadoDrive){
   existente.duplicadoEncontrado=true;
   existente.duplicadoNombreAnterior=duplicadoDrive.nombre||existente.nombreOriginal||null;
@@ -1005,7 +927,7 @@ else if(otrasPersonas.length)motivoDuda='varias_personas';
 var clasificacion=clasificarElemento(tipo,personasEtiquetadas,etiquetas,motivoDuda,ocrInfo.text,ocrInfo.confidence);
 
 var elemento={
-id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,otrasPersonasSugeridas:otrasPersonasSugeridas,etiquetas:etiquetas,
+id:hash,nombreOriginal:nombreArchivo,md5:md5||null,tipo:tipo,personas:[personaNombre],otrasPersonasEtiquetadas:otrasPersonas,etiquetas:etiquetas,
 fecha:fecha.toISOString(),fechaEstimada:fechaEstimada,albumesOrigen:[albumNombre],origenesTakeout:[nombreArchivo],cajasOrigen:[caja.id],cajaId:caja.id,
 estado:clasificacion.estado,motivoDuda:clasificacion.motivoDuda,tamano:blob.size,
 personaAsignadaId:clasificacion.estado==='duda'?null:personaId,miniatura:await generarMiniatura(blob,tipo),
@@ -1027,20 +949,15 @@ ocrHallazgos:generarHallazgosOCR(ocrInfo.text,ocrInfo.confidence)
 
 // Regla dura: se sube SIEMPRE a Drive en cuanto se clasifica (a la carpeta final si se sabe,
 // o a "Sin clasificar" si hay duda), para que el aviso a Carlos nunca dependa de la revisión manual.
-// El nombre de archivo lleva el ID de la persona por delante (salvo la foto de perfil, que ya
-// sigue su propia convención <ID>.jpg): así el archivo es identificable por su nombre incluso
-// fuera de la carpeta DOCUMENTOS/<ID>/, por ejemplo si se descarga suelto o se ve en "Sin clasificar".
 var subirBlob=blob,nombreSubida=nombreArchivo,mimeSubida=mimeDeTipo(tipo),carpetaDestino;
 if(clasificacion.estado==='duda'){
 carpetaDestino=await carpetaRevision();
-if(personaId)nombreSubida=String(personaId)+'_'+nombreArchivo;
 }else if(clasificacion.estado==='perfil'){
 var yaTieneFoto=await personaTieneFotoDePerfil(personaId);
 if(yaTieneFoto){
 // No se pisa una foto de perfil que ya exista: se guarda como documento normal.
 elemento.estado='documento';
 carpetaDestino=await carpetaDocumentosPersona(personaId,personaNombre);
-if(personaId)nombreSubida=String(personaId)+'_'+nombreArchivo;
 }else{
 var jpeg=await convertirAJPEG(blob);
 if(jpeg){subirBlob=jpeg;mimeSubida='image/jpeg';}
@@ -1049,7 +966,6 @@ carpetaDestino=await carpetaFotoPersona(personaId,personaNombre);
 }
 }else{
 carpetaDestino=await carpetaDocumentosPersona(personaId,personaNombre);
-if(personaId)nombreSubida=String(personaId)+'_'+nombreArchivo;
 }
 
 var descripcionDrive=(jsonData&&jsonData.description)?String(jsonData.description):'';
@@ -1067,7 +983,6 @@ if(duplicadoDrive){
   subida=await subirBinarioADrive(nombreSubida,subirBlob,mimeSubida,carpetaDestino.id,descripcionDrive);
 }
 elemento.driveFileId=subida.id;
-if(!elemento.nombreArchivo)elemento.nombreArchivo=nombreSubida;
 elemento.rutaDrive=carpetaDestino.ruta;
 elemento.md5=md5||elemento.md5||null;
 if(duplicadoDrive&&duplicadoDrive.driveFile&&Array.isArray(duplicadoDrive.driveFile.parents)&&duplicadoDrive.driveFile.parents.indexOf(carpetaDestino.id)<0){try{await moverArchivoDrive(duplicadoDrive.id,carpetaDestino.id,duplicadoDrive.driveFile.parents[0]);}catch(e){console.warn('No se pudo mover el duplicado a la carpeta destino:',e.message);}}
@@ -1367,101 +1282,10 @@ candidatos.forEach(function(e){var s=similitudJaccard(texto,e.ocrTexto);if(s>mej
 return(mejor&&mejorScore>=0.6)?{elementoId:mejor.id,score:mejorScore}:null;
 }
 
-/* ===== ENVÍO DE SUGERENCIAS COMO "CAMBIO PENDIENTE" AL PROGRAMA PRINCIPAL =====
-   No se escribe nunca la ficha directamente: se inserta un registro en el mismo store
-   'cambios' que ya usa arbolgenealogico_3.html (mismo esquema exacto), con estado
-   'pendiente'. Así el administrador lo revisa y confirma en su propia pestaña Cambios,
-   con el mismo mecanismo que usa para las ediciones de un colaborador. Solo se proponen
-   campos que en la ficha están vacíos: nunca se sobrescribe un dato ya existente. */
-var identidadGoogleImport=null;
-async function obtenerIdentidadGoogleImport(){
-if(!tokenDriveValido()){identidadGoogleImport=null;return null;}
-try{
-var r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok){identidadGoogleImport=null;return null;}
-var d=await r.json();
-identidadGoogleImport={email:(d.email||'').toLowerCase(),name:d.name||''};
-return identidadGoogleImport;
-}catch(err){identidadGoogleImport=null;return null;}
-}
-function crearCambioPendienteEnArbol(personaId,camposSeleccionados,elementoOrigenNombre){
-return new Promise(function(resolve,reject){
-var req=indexedDB.open('Genealogia');
-req.onerror=function(){reject(new Error('No se pudo abrir la base de datos del árbol en este navegador'));};
-req.onsuccess=function(e){
-var d=e.target.result;
-if(!d.objectStoreNames.contains('personas')||!d.objectStoreNames.contains('cambios')){reject(new Error('La base de datos del árbol no tiene el formato esperado'));return;}
-var rp=d.transaction('personas','readonly').objectStore('personas').get(personaId);
-rp.onsuccess=async function(){
-var persona=rp.result;
-if(!persona){reject(new Error('No se encontró la ficha ID '+personaId));return;}
-var campos=[];
-Object.keys(camposSeleccionados).forEach(function(campo){
-var actual=persona[campo];
-if(actual===undefined||actual===null||actual==='')campos.push({campo:campo,antes:'',despues:camposSeleccionados[campo]});
-});
-if(!campos.length){reject(new Error('Esos campos ya tienen un valor en la ficha; no se envía nada para no sobrescribir datos existentes'));return;}
-await obtenerIdentidadGoogleImport();
-var usuario=(identidadGoogleImport&&(identidadGoogleImport.name||identidadGoogleImport.email))||'Herramienta de importación de fotos';
-var nombrePersona=((persona.NOMBRE||'')+' '+(persona.APELLIDO1||'')).trim();
-var descripcion=usuario+' propuso, a partir del documento "'+elementoOrigenNombre+'", rellenar en '+nombrePersona+' (ID '+personaId+'): '+campos.map(function(c){return c.campo+': «'+c.despues+'»';}).join('; ')+'.';
-var registro={id:(crypto.randomUUID?crypto.randomUUID():('ocr-'+Date.now()+'-'+Math.random().toString(36).slice(2))),fecha:new Date().toISOString(),usuario:usuario,tipo:'editar',personaId:personaId,personaNombre:nombrePersona,campos:campos,descripcion:descripcion,estado:'pendiente',actualizadoEn:new Date().toISOString()};
-var tx=d.transaction('cambios','readwrite');
-tx.objectStore('cambios').put(registro);
-tx.oncomplete=function(){resolve(campos.length);};
-tx.onerror=function(){reject(tx.error);};
-};
-rp.onerror=function(){reject(rp.error);};
-};
-});
-}
-async function renderSugerencias(){
- var todos=await cAll('elementos');
- var pendientes=todos.filter(function(e){return e.ocrProcesado&&!e.sugerenciaEnviada&&e.ocrSugerencias&&((e.ocrSugerencias.campos&&e.ocrSugerencias.campos.length)||(e.ocrSugerencias.informativas&&e.ocrSugerencias.informativas.length));});
- var documentos=todos.filter(function(e){return e.ocrProcesado&&(e.estado==='documento'||(e.ocrHallazgos&&e.ocrHallazgos.util));});
- var cont=document.getElementById('listaSugerencias');if(!cont)return;
- document.getElementById('badgeSug').style.display=pendientes.length?'inline-block':'none';document.getElementById('badgeSug').textContent=pendientes.length;
- var html='<div class="card" style="margin-bottom:14px"><h3>¿Para qué sirve «Sugerencias»?</h3><p style="font-size:13px;line-height:1.5;margin:0">El OCR lee los documentos y esta pantalla convierte ese texto en <b>pistas para la investigación</b>: fechas, lugares, posibles familiares, instituciones y otros hallazgos. <b>No modifica el árbol automáticamente.</b> El texto OCR original se conserva siempre.</p></div>';
- if(!pendientes.length)html+='<div class="card" style="margin-bottom:14px"><b>✓ No hay cambios genealógicos pendientes de confirmar.</b><p style="color:var(--muted);font-size:12px;margin:6px 0 0">Puede haber, no obstante, información histórica útil detectada por el OCR. Se muestra a continuación.</p></div>';
- else html+='<h3 style="margin:12px 0">Cambios genealógicos pendientes</h3>';
- html+=pendientes.map(function(e){
-   var campos=(e.ocrSugerencias.campos||[]).map(function(c){return '<label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0"><input type="checkbox" class="sug-check" data-el="'+e.id+'" data-campo="'+c.campo+'" data-valor="'+esc(c.valor)+'" checked> '+esc(c.etiqueta)+': <b>'+esc(c.valor)+'</b> <span style="color:var(--muted)">(«'+esc(c.contexto||'')+'»)</span></label>';}).join('');
-   var info=(e.ocrSugerencias.informativas||[]).map(function(t){return '<p style="font-size:11px;color:var(--muted)"><i class="fa-solid fa-circle-info"></i> '+esc(t)+'</p>';}).join('');
-   return '<div class="card"><h3>'+esc(e.nombreOriginal||'')+'</h3><p style="font-size:11px;color:var(--muted)">Ficha: '+esc((e.personas||[])[0]||e.personaAsignadaNombre||'')+'</p>'+campos+info+'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" onclick="enviarSugerenciasComoCambio(\''+e.id+'\')">Enviar como cambio pendiente</button><button class="btn ghost small" onclick="verTextoOCRCompleto(\''+e.id+'\')">Ver texto OCR</button><button class="btn ghost small" onclick="descartarSugerencia(\''+e.id+'\')">Descartar</button></div></div>';
- }).join('');
- html+='<h3 style="margin:22px 0 10px">Hallazgos documentales del OCR</h3>';
- if(!documentos.length)html+='<div class="card"><p style="color:var(--muted)">Todavía no hay documentos con OCR útil guardado.</p></div>';
- html+=documentos.map(function(e){
-   var h=e.ocrHallazgos||generarHallazgosOCR(e.ocrTexto,e.ocrConfianza);
-   return '<div class="card" style="margin-bottom:12px"><h3 style="margin-bottom:4px">📄 '+esc(e.nombreOriginal||'')+'</h3><p style="font-size:11px;color:var(--muted)">'+esc(e.personaAsignadaNombre||((e.personas||[])[0])||'')+' · OCR '+Math.round(Number(e.ocrConfianza||0))+'%</p>'+
-   (h.tipos&&h.tipos.length?'<p><b>Tipo detectado:</b> '+esc(h.tipos.join(' · '))+'</p>':'')+
-   (h.fechas&&h.fechas.length?'<p><b>Fechas:</b> '+esc(h.fechas.join(' · '))+'</p>':'')+
-   (h.lugares&&h.lugares.length?'<p><b>Lugares posibles:</b> '+esc(h.lugares.join(' · '))+'</p>':'')+
-   (h.instituciones&&h.instituciones.length?'<p><b>Instituciones:</b> '+esc(h.instituciones.join(' · '))+'</p>':'')+
-   (h.personas&&h.personas.length?'<p><b>Personas detectadas:</b> '+esc(h.personas.slice(0,12).join(' · '))+'</p>':'')+
-   (h.resumen?'<div style="background:var(--panel);padding:9px;border-radius:8px;font-size:12px;line-height:1.45"><b>Resumen del OCR:</b><br>'+esc(h.resumen.slice(0,1200))+'</div>':'')+
-   '<div style="margin-top:8px"><button class="btn ghost small" onclick="verTextoOCRCompleto(\''+e.id+'\')">Ver OCR completo</button></div></div>';
- }).join('');
- cont.innerHTML=html;
-}
-async function enviarSugerenciasComoCambio(elementoId){
-var el=await cGet('elementos',elementoId);
-if(!el||!el.personaAsignadaId){toast('Este documento no tiene una ficha de destino clara',true);return;}
-var checks=document.querySelectorAll('.sug-check[data-el="'+elementoId+'"]:checked');
-if(!checks.length){toast('Marca al menos un campo',true);return;}
-var campos={};
-checks.forEach(function(c){campos[c.getAttribute('data-campo')]=c.getAttribute('data-valor');});
-try{
-var n=await crearCambioPendienteEnArbol(el.personaAsignadaId,campos,el.nombreOriginal);
-el.sugerenciaEnviada=true;
-await cPut('elementos',el);
-toast(n+' campo(s) enviado(s) como cambio pendiente. Confírmalo en la pestaña Cambios de la app principal.');
-renderSugerencias();
-}catch(err){toast('No se pudo enviar: '+err.message,true);}
-}
-function verTextoOCRCompleto(elementoId){cGet('elementos',elementoId).then(function(e){if(e)alert('Texto reconocido (puede tener errores de OCR):\n\n'+(e.ocrTexto||'(vacío)'));});}
-async function descartarSugerencia(elementoId){var e=await cGet('elementos',elementoId);if(e){e.sugerenciaEnviada=true;await cPut('elementos',e);}renderSugerencias();}
-
+/* ===== INDEPENDENCIA DEL ÁRBOL =====
+   Esta aplicación NO abre la IndexedDB "Genealogia" y NO crea cambios pendientes.
+   backup-arbol.json es la única fuente de lectura de personas. ===== */
+function verTextoOCRCompleto(elementoId){cGet('elementos',elementoId).then(function(e){if(e)alert('Texto reconocido (puede contener errores de OCR):\n\n'+(e.ocrTexto||'(vacío)'));});}
 /* ===== POSIBLES DOCUMENTOS DUPLICADOS (panel) ===== */
 async function consolidarDuplicadosYaImportados(){
   var todos=await cAll('elementos');
@@ -1871,7 +1695,6 @@ return '<div class="duda-card'+(sel?' sel':'')+'"><input type="checkbox" class="
 '<div class="duda-meta"><b>'+esc(e.nombreOriginal)+'</b><br>'+esc(motivoTxt)+'<br>'+(e.personas.length?esc(e.personas.join(', ')):'sin personas')+(e.etiquetas.length?' · '+esc(e.etiquetas.join(', ')):'')+
 (e.personaAsignadaId?'<br><span class="badge" style="margin-top:4px">Destino: '+esc((e.personas&&e.personas[0])||('ID '+e.personaAsignadaId))+'</span>':'')+
 (e.duplicadoEncontrado?'<br><span class="badge" style="margin-top:4px">♻️ Ya existía en el archivo; se ha conservado una sola copia</span>':'')+
-renderOtrasPersonasSugeridas(e)+
 (e.ocrProcesado?'<div class="ocr-duda" style="margin-top:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel)"><div style="font-size:11px;font-weight:700">Texto OCR · '+esc((e.ocrConfianza!=null?('confianza '+(Math.round(Number(e.ocrConfianza)||0))+'%'):'analizado'))+'</div><div style="font-size:11px;line-height:1.4;margin-top:4px;white-space:pre-wrap">'+esc(e.ocrTexto?(e.ocrTexto.length>500?e.ocrTexto.slice(0,500)+'…':e.ocrTexto):'(El OCR no ha recuperado texto legible)')+'</div><button class="btn ghost small" style="margin-top:6px" onclick="verTextoOCRCompleto(\''+e.id+'\')"><i class="fa-solid fa-file-lines"></i> Ver OCR completo</button></div>':'')+
 '<div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn small" onclick="seleccionarYMarcarDocumento(\''+e.id+'\')"><i class="fa-solid fa-file"></i> Documento</button>'+(e.ocrProcesado?'<button class="btn ghost small" onclick="reanalisarUnaDudaOCR(\''+e.id+'\')"><i class="fa-solid fa-wand-magic-sparkles"></i> Reanalizar OCR</button>':'')+'</div></div></div>';
 }).join('');
@@ -2157,79 +1980,6 @@ candidatos.sort(function(a,b){return b.score-a.score;});
 return candidatos.slice(0,maxResultados);
 }
 function buscarEnArbolGenealogico(q){return buscarCoincidenciasArbol(q,15);}
-
-/* ===== CASAR "OTRAS PERSONAS ETIQUETADAS" (nombres sueltos de fotos de grupo) CON EL ÁRBOL =====
-   Regla dura: esta función NUNCA decide ni asigna. Solo busca candidatos por nombre en el
-   árbol (mismo motor de similitud que usa el buscador de "Asignar persona") y devuelve, para
-   cada nombre suelto, o bien una única coincidencia lo bastante clara como para proponerla
-   (el usuario sigue teniendo que confirmarla con un clic), o la lista de candidatos cuando hay
-   ambigüedad, o ningún candidato si no se encuentra a nadie parecido. La decisión final —
-   confirmar, elegir entre varios, o descartar— siempre la toma la persona que revisa la
-   Bandeja de dudas (ver confirmarOtraPersonaEtiquetada / descartarOtraPersonaEtiquetada). */
-async function resolverOtrasPersonasEtiquetadas(nombres){
-if(!nombres||!nombres.length)return[];
-var resultado=[];
-for(var i=0;i<nombres.length;i++){
-var nombre=nombres[i];
-var candidatos=[];
-try{candidatos=await buscarCoincidenciasArbol(nombre,5);}catch(e){candidatos=[];}
-// "Coincidencia clara" = un candidato con nombre prácticamente idéntico y ningún otro
-// candidato pisándole los talones. Cualquier otra situación (ambigüedad, coincidencia
-// parcial, varios candidatos con puntuación parecida) se deja para decisión manual.
-var claro=null;
-if(candidatos.length){
-var mejor=candidatos[0],segundo=candidatos[1];
-if(mejor.score>=0.92&&(!segundo||segundo.score<mejor.score-0.15))claro={id:mejor.id,nombre:mejor.nombre};
-}
-resultado.push({nombreOriginal:nombre,candidatos:candidatos,sugerenciaClara:claro,confirmada:null});
-}
-return resultado;
-}
-/* Marca una de las "otras personas etiquetadas" de un elemento como confirmada (ya sea la
-   sugerencia clara, o una elegida a mano entre varios candidatos). No mueve ni renombra
-   ningún archivo: es solo un dato genealógico adicional ("esta persona también sale en la
-   foto"), independiente de personaAsignadaId (que sigue siendo siempre el álbum/carpeta). */
-async function confirmarOtraPersonaEtiquetada(elementoId,indice,personaId,personaNombre){
-var el=await cGet('elementos',elementoId);
-if(!el||!el.otrasPersonasSugeridas||!el.otrasPersonasSugeridas[indice])return;
-el.otrasPersonasSugeridas[indice].confirmada={id:personaId,nombre:personaNombre};
-await cPut('elementos',el);
-try{await guardarBaseDatosDrive(el);}catch(e){console.warn('No se pudo sincronizar la confirmación con la base de datos de Drive:',e.message);}
-toast('Persona etiquetada confirmada: '+personaNombre);
-renderDudas();
-}
-async function descartarOtraPersonaEtiquetada(elementoId,indice){
-var el=await cGet('elementos',elementoId);
-if(!el||!el.otrasPersonasSugeridas||!el.otrasPersonasSugeridas[indice])return;
-el.otrasPersonasSugeridas[indice].confirmada={descartada:true};
-await cPut('elementos',el);
-renderDudas();
-}
-/* Fragmento HTML para la tarjeta de una duda: una línea por cada nombre suelto detectado,
-   con la acción disponible según el caso (confirmar la sugerencia clara, elegir entre varios
-   candidatos, o avisar de que no se ha encontrado a nadie parecido en el árbol). */
-function renderOtrasPersonasSugeridas(e){
-if(!e.otrasPersonasSugeridas||!e.otrasPersonasSugeridas.length)return'';
-var h='<div style="margin-top:8px;padding:8px;border:1px dashed var(--border);border-radius:8px">';
-h+='<div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Otras personas etiquetadas en la foto</div>';
-e.otrasPersonasSugeridas.forEach(function(s,i){
-if(s.confirmada&&s.confirmada.descartada){h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+esc(s.nombreOriginal)+' — descartado</div>';return;}
-if(s.confirmada){h+='<div style="font-size:11px;margin-bottom:4px">'+esc(s.nombreOriginal)+' → <b>'+esc(s.confirmada.nombre)+'</b> <span class="badge ok">confirmado</span></div>';return;}
-if(s.sugerenciaClara){
-h+='<div style="font-size:11px;margin-bottom:4px">'+esc(s.nombreOriginal)+' → ¿'+esc(s.sugerenciaClara.nombre)+'? '+
-'<button class="btn small" style="padding:2px 8px" onclick="confirmarOtraPersonaEtiquetada(\''+e.id+'\','+i+',\''+esc(s.sugerenciaClara.id)+'\',\''+esc(s.sugerenciaClara.nombre).replace(/'/g,"&#39;")+'\')">Sí</button> '+
-'<button class="btn ghost small" style="padding:2px 8px" onclick="descartarOtraPersonaEtiquetada(\''+e.id+'\','+i+')">No</button></div>';
-}else if(s.candidatos&&s.candidatos.length){
-h+='<div style="font-size:11px;margin-bottom:4px">'+esc(s.nombreOriginal)+' — varias coincidencias, elige una: '+
-s.candidatos.map(function(c){return '<span class="badge" style="cursor:pointer;margin-right:3px" onclick="confirmarOtraPersonaEtiquetada(\''+e.id+'\','+i+',\''+esc(c.id)+'\',\''+esc(c.nombre).replace(/'/g,"&#39;")+'\')">'+esc(c.nombre)+'</span>';}).join('')+
-' <button class="btn ghost small" style="padding:2px 8px" onclick="descartarOtraPersonaEtiquetada(\''+e.id+'\','+i+')">Ninguna</button></div>';
-}else{
-h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px">'+esc(s.nombreOriginal)+' — sin coincidencias en el árbol <button class="btn ghost small" style="padding:2px 8px" onclick="descartarOtraPersonaEtiquetada(\''+e.id+'\','+i+')">Descartar aviso</button></div>';
-}
-});
-h+='</div>';
-return h;
-}
 var CACHE_COTEJO_PERSONA={};
 async function cotejarPersonaEnDrive(personaId){
 if(CACHE_COTEJO_PERSONA[personaId])return CACHE_COTEJO_PERSONA[personaId];
@@ -2392,10 +2142,9 @@ document.getElementById('cfgOrigen').value=CFG_ORIGEN_ID||'';
 document.getElementById('cfgDestino').value=CFG_DESTINO_ID||'';
 document.getElementById('cfgBaseDatos').value=CFG_BASE_DATOS_ID||'';
 document.getElementById('cfgEspacioGB').value=CFG_ESPACIO_GB;
-document.getElementById('cfgAutoPerfil').checked=CFG_AUTO_PERFIL;
 document.getElementById('cfgOcrActivo').checked=CFG_OCR_ACTIVO;
 document.getElementById('cfgOcrMaxPaginas').value=CFG_OCR_MAX_PAGINAS;
-document.getElementById('listaColabCfg').innerHTML=COLABORADORES.map(function(c,i){return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)"><span>'+esc(c.nombre)+' — '+esc(c.email)+'</span><button class="btn ghost small" onclick="quitarColaborador('+i+')">Quitar</button></div>';}).join('')||'<p style="color:var(--muted);font-size:12px">Sin colaboradores todavía.</p>';
+
 await cargarMapaAliasAlbum();
 var claves=Object.keys(MAPA_ALIAS_ALBUM);
 document.getElementById('listaAliasAlbumCfg').innerHTML=claves.length?claves.map(function(k){var m=MAPA_ALIAS_ALBUM[k];return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)"><span><b>'+esc(k)+'</b> → '+esc(m.personaNombre)+' (ID '+esc(m.personaId)+')</span><button class="btn ghost small" onclick="olvidarAliasAlbum(\''+k+'\')">Olvidar</button></div>';}).join(''):'<p style="color:var(--muted)">Todavía no se ha asignado ningún álbum.</p>';
@@ -2432,36 +2181,56 @@ if(/^[a-zA-Z0-9_-]{10,}$/.test(texto))return texto;
 return null;
 }
 function guardarCarpetaOrigen(){var id=extraerIdCarpeta(document.getElementById('cfgOrigen').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_ORIGEN_ID=id;guardarCfgValor('origenId',id);toast('Carpeta de origen guardada');}
-function guardarCarpetaDestino(){var id=extraerIdCarpeta(document.getElementById('cfgDestino').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_DESTINO_ID=id;CFG_REVISION_ID=null;CFG_FOTO_ID=null;CFG_DOCUMENTOS_ID=null;guardarCfgValor('destinoId',id);toast('Carpeta de destino guardada');}
+function guardarCarpetaDestino(){var id=extraerIdCarpeta(document.getElementById('cfgDestino').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_DESTINO_ID=id;CFG_REVISION_ID=null;CFG_FOTO_ID=null;CFG_DOCUMENTOS_ID=null;INDICE_DRIVE_DUPLICADOS=null;guardarCfgValor('destinoId',id);toast('Carpeta de destino guardada');}
 function guardarCarpetaBaseDatos(){var id=extraerIdCarpeta(document.getElementById('cfgBaseDatos').value);if(!id){toast('No se reconoce el ID de la carpeta',true);return;}CFG_BASE_DATOS_ID=id;BASE_DATOS_CACHE=null;BASE_DATOS_FILE_ID=null;invalidarCachePersonasArbol();guardarCfgValor('baseDatosId',id);toast('Carpeta de base de datos guardada');}
 function guardarEspacioGB(){CFG_ESPACIO_GB=parseFloat(document.getElementById('cfgEspacioGB').value)||75;guardarCfgValor('espacioGB',CFG_ESPACIO_GB);renderPanel();toast('Guardado');}
-function guardarAutoPerfil(){CFG_AUTO_PERFIL=document.getElementById('cfgAutoPerfil').checked;guardarCfgValor('autoPerfil',CFG_AUTO_PERFIL);toast('Guardado');}
+function guardarAutoPerfil(){return;}
 function guardarOcrActivo(){CFG_OCR_ACTIVO=document.getElementById('cfgOcrActivo').checked;guardarCfgValor('ocrActivo',CFG_OCR_ACTIVO);toast('Guardado');}
 function guardarOcrMaxPaginas(){CFG_OCR_MAX_PAGINAS=parseInt(document.getElementById('cfgOcrMaxPaginas').value,10)||3;guardarCfgValor('ocrMaxPaginas',CFG_OCR_MAX_PAGINAS);toast('Guardado');}
-function anadirColaborador(){
-var nombre=document.getElementById('nuevoColabNombre').value.trim(),email=document.getElementById('nuevoColabEmail').value.trim().toLowerCase();
-if(!nombre||!email){toast('Rellena nombre y email',true);return;}
-COLABORADORES.push({nombre:nombre,email:email});
-guardarCfgValor('colaboradores',COLABORADORES);
-document.getElementById('nuevoColabNombre').value='';document.getElementById('nuevoColabEmail').value='';
-renderConfig();
-toast('Colaborador añadido');
+function anadirColaborador(){return;}
+function quitarColaborador(i){return;}
+async function elementoRegistradoPorDrive(driveId,pid,pn){
+  var arr=await cAll('elementos'); if(arr.some(function(e){return String(e.driveFileId||'')===String(driveId);} ))return true;
+  try{var obj=await cargarArchivoDocumentalPersona(pid,pn); return Object.values(obj.bd.archivos||{}).some(function(e){return String(e.driveFileId||'')===String(driveId);});}catch(e){return false;}
 }
-function quitarColaborador(i){COLABORADORES.splice(i,1);guardarCfgValor('colaboradores',COLABORADORES);renderConfig();}
-
+async function procesarArchivoExistenteConPersona(f,blob,tipo,caja,pid,pn){
+  var hash=await calcularHash(blob), md5=await calcularMD5(blob), existente=await cGet('elementos',hash);
+  if(existente){existente.driveFileId=f.id;existente.rutaDrive='DOCUMENTOS/'+pid+'/';existente.personaAsignadaId=pid;existente.personas=[pn];await guardarBaseDatosDrive(existente);return;}
+  var ocrInfo={text:'',confidence:0};
+  if(CFG_OCR_ACTIVO&&(tipo==='pdf'||tipo==='imagen')){try{ocrInfo=await extraerTextoOCRConInfo(blob,tipo);}catch(e){console.warn(e.message);}}
+  var el={id:hash,nombreOriginal:f.name,md5:md5||null,tipo:tipo,personas:[pn],otrasPersonasEtiquetadas:[],etiquetas:[],fecha:f.modifiedTime||new Date().toISOString(),fechaEstimada:true,albumesOrigen:[],origenesTakeout:[],cajasOrigen:[],cajaId:null,estado:'documento',motivoDuda:null,tamano:blob.size,personaAsignadaId:pid,miniatura:await generarMiniatura(blob,tipo),rutaDrive:'DOCUMENTOS/'+pid+'/',driveFileId:f.id,googlePhotosMetadata:null,googlePhotosMetadataDisponible:false,googlePhotosDescription:'',googlePhotosTitle:'',googlePhotosUrl:'',googlePhotosJsonOriginal:null,ocrProcesado:!!ocrInfo.text,ocrTexto:(ocrInfo.text||'').slice(0,20000),ocrConfianza:Number(ocrInfo.confidence||0),ocrHistorial:ocrInfo.ocrHistorial||[],ocrSugerencias:ocrInfo.text?analizarTextoGenealogico(ocrInfo.text):{campos:[],informativas:[]},ocrHallazgos:generarHallazgosOCR(ocrInfo.text,ocrInfo.confidence),archivoExistenteAntesDeAplicacion:true,fechaAnalisis:new Date().toISOString()};
+  await cPut('elementos',el); await guardarBaseDatosDrive(el);
+}
+/* ===== v1.0: INFORME FAMILIAR ===== */
+async function renderInformeVista(){ }
+async function generarInformeFamiliar(){
+  var out=document.getElementById('resultadoInforme'); if(out)out.innerHTML='<p><b>Generando informe…</b></p>';
+  try{
+    var personas=await cargarPersonasArbol(), bloques=[]; var total=0,docs=0,ocr=0;
+    for(var i=0;i<personas.length;i++){
+      var p=personas[i],pid=p.id||p.ID||p.Id;if(pid==null)continue;var pn=p.nombreCompleto||[p.NOMBRE,p.APELLIDO1,p.APELLIDO2].filter(Boolean).join(' ')||p.nombre||('Persona '+pid);
+      var obj=await cargarArchivoDocumentalPersona(pid,pn);var arr=Object.values(obj.bd.archivos||{});if(!arr.length)continue;
+      total+=arr.length; docs+=arr.filter(function(e){return e.tipo==='pdf'||e.estado==='documento';}).length;ocr+=arr.filter(function(e){return e.ocrTexto&&e.ocrTexto.trim().length>=20;}).length;
+      bloques.push({p:p,nombre:pn,arr:arr});
+    }
+    var html='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Archivo documental familiar</title><style>body{font-family:Arial,sans-serif;background:#fbf7f0;color:#3d2c1e;max-width:1000px;margin:auto;padding:30px}h1,h2{font-family:Georgia,serif}h1{text-align:center} .res{display:flex;gap:12px;flex-wrap:wrap}.k{background:white;border:1px solid #e8dfd4;border-radius:12px;padding:15px;min-width:150px}.item{background:white;border:1px solid #e8dfd4;border-radius:14px;padding:18px;margin:18px 0}.thumb{max-width:320px;max-height:260px;border-radius:8px}.meta{color:#756657;font-size:13px}.ocr{white-space:pre-wrap;background:#f5efe7;padding:12px;border-radius:8px;font-size:13px;line-height:1.5}.hall{background:#f8efe5;padding:10px;border-radius:8px;margin:8px 0}</style></head><body><h1>Archivo documental familiar</h1><p style="text-align:center">Informe generado el '+new Date().toLocaleString('es-ES')+'</p><div class="res"><div class="k"><b>'+total+'</b><br>archivos analizados</div><div class="k"><b>'+docs+'</b><br>documentos</div><div class="k"><b>'+ocr+'</b><br>con OCR útil</div><div class="k"><b>'+bloques.length+'</b><br>personas con resultados</div></div>';
+    bloques.forEach(function(b){html+='<h2>'+esc(b.nombre)+'</h2>';b.arr.sort(function(a,b){return String(a.nombreOriginal||'').localeCompare(String(b.nombreOriginal||''));}).forEach(function(e){var link=e.driveFileId?'https://drive.google.com/file/d/'+encodeURIComponent(e.driveFileId)+'/view':'';html+='<div class="item"><h3>'+esc(e.nombreOriginal||'Archivo')+'</h3><p class="meta">'+esc(e.estado||'')+' · OCR '+Number(e.ocrConfianza||0).toFixed(0)+'%</p>'+(link?'<p><a href="'+link+'" target="_blank">Abrir archivo en Google Drive</a></p>':'')+(e.ocrHallazgos?'<div class="hall"><b>Hallazgos</b><pre class="ocr">'+esc(JSON.stringify(e.ocrHallazgos,null,2))+'</pre></div>':'')+(e.ocrTexto?'<h4>Texto OCR</h4><div class="ocr">'+esc(e.ocrTexto)+'</div>':'')+'</div>';});});html+='</body></html>';
+    var blob=new Blob([html],{type:'text/html;charset=utf-8'});var f=await buscarArchivoPorNombreEnCarpeta('INFORME_ARCHIVO_FAMILIAR.html',CFG_DESTINO_ID);var up=f?await actualizarBinarioADrive(f.id,blob,'text/html'):await subirBinarioADrive('INFORME_ARCHIVO_FAMILIAR.html',blob,'text/html',CFG_DESTINO_ID,'Informe familiar del archivo documental');var link='https://drive.google.com/file/d/'+up.id+'/view';if(out)out.innerHTML='<h3>Informe generado</h3><p style="font-size:12px;color:var(--muted)">Se ha guardado en la carpeta raíz de destino.</p><a class="btn" target="_blank" href="'+link+'">Abrir informe</a>';toast('Informe familiar generado y guardado en Drive');
+  }catch(e){if(out)out.innerHTML='<p style="color:var(--warn)"><b>Error:</b> '+esc(e.message)+'</p>';toast(e.message,true);}
+}
 /* ===== INICIO ===== */
 document.addEventListener('DOMContentLoaded',function(){
 oDB().then(async function(){
 GOOGLE_CLIENT_ID_IMPORT=await leerCfgValor('clientId','');
 CFG_ORIGEN_ID=await leerCfgValor('origenId',null);
-CFG_DESTINO_ID=await leerCfgValor('destinoId',null);
+CFG_DESTINO_ID=await leerCfgValor('destinoId','1Jb7whlTVNC2S4x3Mgrluoh3QlMjcgGIm');
 CFG_BASE_DATOS_ID=await leerCfgValor('baseDatosId','1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC');
 CFG_REVISION_ID=await leerCfgValor('revisionId',null);
 CFG_AUTO_PERFIL=await leerCfgValor('autoPerfil',false);
 CFG_OCR_ACTIVO=await leerCfgValor('ocrActivo',false);
 CFG_OCR_MAX_PAGINAS=await leerCfgValor('ocrMaxPaginas',3);
 CFG_ESPACIO_GB=await leerCfgValor('espacioGB',75);
-COLABORADORES=await leerCfgValor('colaboradores',[]);
+COLABORADORES=[];
 await cargarMapaAliasAlbum();
 await cargarPendientesPersistentes();
 espacioAcumulado=await leerCfgValor('espacioAcumulado',{bytes:0,elementos:0});
@@ -2486,3 +2255,5 @@ setInterval(function(){if(tokenDriveValido())accionActualizar();},5*60*1000);
 </div>
 </body>
 </html>
+
+</body></html>
