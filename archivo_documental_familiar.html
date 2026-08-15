@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Documentos y fotos — El Libro de los Ancestros</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<style>
+:root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#9E8E7E;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--warn:#c0392b;--duda:#8e6b3f;--descarte:#7f8c8d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+h1,h2,h3{font-family:'Cinzel',serif}
+header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.logo-text{font-family:'Cinzel',serif;font-size:15px;font-weight:700}
+nav{display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:12px;padding:6px 12px;border-radius:10px;cursor:pointer;white-space:nowrap}
+nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
+main{max-width:1100px;margin:0 auto;padding:18px 14px}
+.view{display:none}.view.active{display:block}
+.hero{text-align:center;padding:20px 16px}
+.hero h1{font-size:24px;margin-bottom:4px}
+.hero p{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h3{font-size:14px;margin-bottom:8px}
+.card p.desc{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5}
+.btn{font-family:'Lato',sans-serif;font-size:12px;font-weight:700;padding:8px 16px;border-radius:10px;cursor:pointer;border:2px solid var(--accent);background:var(--accent);color:#fff;display:inline-flex;align-items:center;gap:6px}
+.btn.ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+.btn.ghost:hover{color:var(--accent);border-color:var(--accent)}
+.btn.green{background:var(--green);border-color:var(--green)}
+.btn.warn{background:var(--warn);border-color:var(--warn)}
+.btn.blue{background:var(--blue);border-color:var(--blue)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pb{width:100%;height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0}
+.pf{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;width:0%}
+input,select{font-family:'Lato',sans-serif;font-size:13px;padding:7px 10px;border:2px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.ef-row{display:flex;gap:8px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap}
+.ef-field{display:flex;flex-direction:column;gap:3px;flex:1;min-width:180px}
+.ef-label{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+.metrics{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:10px 0 20px}
+.metric{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 20px;text-align:center;min-width:120px}
+.metric .n{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:var(--accent)}
+.metric .l{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.drive-status{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);font-size:11px;font-weight:700;cursor:pointer}
+.drive-status .dot{width:9px;height:9px;border-radius:50%;background:#c0392b}
+.drive-status.ok .dot{background:var(--green)}
+.toast-c{position:fixed;top:12px;right:12px;z-index:9999}
+.toast{padding:10px 16px;border-radius:12px;background:var(--card);border:2px solid var(--green);color:var(--text);font-size:12px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.1);margin-bottom:6px;animation:tin .3s ease,tout .3s ease 3.5s forwards}
+.toast.err{border-color:var(--warn)}
+@keyframes tin{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes tout{to{opacity:0;transform:translateY(-10px)}}
+.note{font-size:11px;color:var(--muted);background:rgba(196,101,58,.05);border:1px dashed var(--border);border-radius:10px;padding:8px 12px;margin-top:8px;line-height:1.5}
+.ri{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;border-bottom:1px solid var(--border)}
+.ri:hover{background:rgba(196,101,58,.06)}
+.ri .rn{font-weight:700;font-size:13px}
+.ri .ry{font-size:11px;color:var(--muted)}
+.persona-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.persona-card h4{font-size:14px;margin-bottom:8px}
+.candidato{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;align-items:flex-start}
+.candidato:last-child{border-bottom:0}
+.candidato .campo{font-weight:700;color:var(--accent);min-width:90px;flex-shrink:0}
+.candidato .detalle{flex:1}
+.candidato .origen{color:var(--muted);font-size:11px;margin-top:2px}
+.pill{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(90,138,60,.12);color:var(--green);margin-left:6px}
+.pill.info{background:rgba(44,95,138,.1);color:var(--blue)}
+.pill.warn{background:rgba(192,57,43,.1);color:var(--warn)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:520px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal-box h3{font-size:16px;margin-bottom:10px}
+.modal-body{overflow:auto;padding-right:2px}
+.match-opt{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;border:2px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer}
+.match-opt:hover{border-color:var(--accent)}
+#logProceso{font-size:11px;color:var(--muted);max-height:160px;overflow:auto;margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;font-family:monospace}
+.dudas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:12px}
+.duda-card{background:var(--card);border:2px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.duda-card .thumb{height:160px;background:#f0ebe3;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.duda-card .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.duda-card .info{padding:10px 12px;flex:1;display:flex;flex-direction:column;gap:6px}
+.duda-card .nombre{font-size:11px;font-weight:700;word-break:break-all}
+.duda-card .meta{font-size:10px;color:var(--muted)}
+.duda-card .actions{display:flex;gap:6px;margin-top:auto;padding-top:8px}
+.duda-card .actions button{flex:1;font-size:10px;padding:6px 4px;border-radius:8px;border:2px solid var(--border);background:transparent;cursor:pointer;font-weight:700}
+.duda-card .actions button:hover{border-color:var(--accent);color:var(--accent)}
+.duda-card .actions button.doc:hover{border-color:var(--green);color:var(--green)}
+.duda-card .actions button.del:hover{border-color:var(--warn);color:var(--warn)}
+.ana-item{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card)}
+.ana-item .ana-nombre{flex:1;font-size:12px;font-weight:700}
+.ana-item .ana-persona{font-size:11px;color:var(--muted);min-width:120px}
+.ana-item .ana-estado{font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(142,107,63,.1);color:var(--duda)}
+.ana-item .ana-estado.ok{background:rgba(90,138,60,.12);color:var(--green)}
+.informe-box{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:20px;line-height:1.7;font-size:13px}
+.informe-box h4{font-family:'Cinzel',serif;margin:14px 0 6px;color:var(--accent)}
+.informe-box ul{margin-left:18px}
+.informe-box li{margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="toast-c" id="toastC"></div>
+<header>
+<div class="logo"><div class="logo-icon"><i class="fa-solid fa-images"></i></div><div class="logo-text">Documentos y fotos</div></div>
+<nav id="mn">
+<button class="active" data-v="panel" onclick="sv('panel')"><i class="fa-solid fa-gauge"></i> Panel</button>
+<button data-v="importar" onclick="sv('importar')"><i class="fa-solid fa-cloud-arrow-up"></i> Importar</button>
+<button data-v="dudas" onclick="sv('dudas')"><i class="fa-solid fa-circle-question"></i> Dudas <span id="badgeDudas" style="display:none;background:var(--warn);color:#fff;font-size:9px;padding:1px 5px;border-radius:99px;margin-left:4px">0</span></button>
+<button data-v="analisis" onclick="sv('analisis')"><i class="fa-solid fa-microscope"></i> Análisis</button>
+<button data-v="resultados" onclick="sv('resultados')"><i class="fa-solid fa-file-lines"></i> Resultados</button>
+<button data-v="cfg" onclick="sv('cfg')"><i class="fa-solid fa-gear"></i> Config</button>
+</nav>
+</header>
+<main>
+
+<div class="view active" id="vPanel">
+<div class="hero">
+<h1>Documentos y fotos</h1>
+<p>Organiza documentos genealógicos por persona, analiza con OCR y genera informes</p>
+<div style="text-align:center;margin-top:8px"><span class="drive-status" id="driveStatusPill" onclick="accionConectar()"><span class="dot" id="driveDot"></span><span id="driveTxt">Comprobando Google Drive...</span></span></div>
+</div>
+<div class="metrics">
+<div class="metric"><div class="n" id="mPersonas">-</div><div class="l">Personas en el árbol</div></div>
+<div class="metric"><div class="n" id="mCarpetas">-</div><div class="l">Carpetas en DOCUMENTOS</div></div>
+<div class="metric"><div class="n" id="mDudas">-</div><div class="l">En dudas</div></div>
+<div class="metric"><div class="n" id="mPendientes">-</div><div class="l">OCR pendiente</div></div>
+</div>
+<div class="card">
+<h3><i class="fa-solid fa-circle-info"></i> Qué hace esta herramienta</h3>
+<p class="desc">
+1) <b>Importa</b> fotos desde ZIP o carpetas y las asigna a una persona.<br>
+2) Lo que no es documento va directo a <code>DOCUMENTOS/&lt;ID&gt;/</code> con su JSON de metadatos.<br>
+3) Lo que tiene dudas va a <code>_DUDAS/</code> para que tú decidas.<br>
+4) Los documentos se analizan con OCR y se extraen fechas, lugares y nombres.<br>
+5) Cada archivo tiene su <code>.json</code> individual. Cada persona tiene un <code>_persona.json</code> con el índice completo.<br>
+6) Genera un <b>informe</b> para revisar qué aporta cada foto.
+</p>
+<button class="btn ghost" onclick="recargarPersonas()"><i class="fa-solid fa-rotate"></i> Recargar lista de personas</button>
+<button class="btn ghost" onclick="actualizarMetricasGlobales()" style="margin-left:6px"><i class="fa-solid fa-rotate"></i> Actualizar métricas</button>
+</div>
+<div class="note"><i class="fa-solid fa-shield-halved"></i> Nunca se modifica <code>backup-arbol.json</code>. Solo se lee para obtener nombres e IDs.</div>
+</div>
+
+<div class="view" id="vImportar">
+<div class="hero"><h1>Importar fotos</h1><p>Desde un ZIP de Google Takeout o desde una carpeta ya descomprimida</p></div>
+<div class="card">
+<h3><i class="fa-solid fa-file-zipper"></i> Subir un ZIP de Takeout</h3>
+<p class="desc">El ZIP exportado de Google Fotos contiene una carpeta por álbum. Cada álbum se empareja con una persona del árbol.</p>
+<input type="file" id="fiZip" accept=".zip">
+<div style="margin-top:10px"><button class="btn" onclick="iniciarImportZip()"><i class="fa-solid fa-upload"></i> Procesar ZIP</button></div>
+</div>
+<div class="card">
+<h3><i class="fa-solid fa-folder-open"></i> Subir una carpeta ya descomprimida</h3>
+<p class="desc">Selecciona la carpeta raíz que contiene las subcarpetas de cada álbum.</p>
+<input type="file" id="fiCarpeta" webkitdirectory multiple>
+<div style="margin-top:10px"><button class="btn" onclick="iniciarImportCarpeta()"><i class="fa-solid fa-upload"></i> Procesar carpeta</button></div>
+</div>
+<div class="card" id="cardProgresoImport" style="display:none">
+<h3><i class="fa-solid fa-spinner fa-spin"></i> <span id="txtProgresoImport">Procesando...</span></h3>
+<div class="pb"><div class="pf" id="pfImport"></div></div>
+<div id="resumenImport"></div>
+<div id="logProceso"></div>
+</div>
+</div>
+
+<div class="view" id="vDudas">
+<div class="hero"><h1>Bandeja de dudas</h1><p>Revisa lo que no se ha clasificado automáticamente y decide</p></div>
+<div class="card">
+<div class="ef-row" style="justify-content:space-between;align-items:center">
+<div style="font-size:12px;color:var(--muted)">Selecciona una acción para cada foto:</div>
+<div style="display:flex;gap:6px">
+<button class="btn ghost" onclick="cargarBandejaDudas()"><i class="fa-solid fa-rotate"></i> Recargar</button>
+</div>
+</div>
+<div id="contDudas" style="margin-top:10px">
+<p style="font-size:12px;color:var(--muted)">Cargando...</p>
+</div>
+</div>
+</div>
+
+<div class="view" id="vAnalisis">
+<div class="hero"><h1>Análisis OCR</h1><p>Documentos pendientes de análisis y utilidad de repaso por persona</p></div>
+<div class="card">
+<h3><i class="fa-solid fa-list-check"></i> OCR pendiente</h3>
+<p class="desc">Documentos ya clasificados como "documento genealógico" pero que aún no se han analizado con OCR.</p>
+<div id="listaPendientesOCR"><p style="font-size:12px;color:var(--muted)">Cargando...</p></div>
+<div style="margin-top:10px"><button class="btn" onclick="ejecutarOCRPendiente()"><i class="fa-solid fa-microscope"></i> Ejecutar OCR pendiente</button></div>
+<div class="pb" style="margin-top:10px;display:none" id="pbOCRCont"><div class="pf" id="pfOCR"></div></div>
+<div id="logOCR" style="font-size:11px;color:var(--muted);max-height:160px;overflow:auto;margin-top:8px;border-top:1px dashed var(--border);padding-top:8px;font-family:monospace"></div>
+</div>
+<div class="card">
+<h3><i class="fa-solid fa-user-magnifying-glass"></i> Repasar carpeta de una persona</h3>
+<p class="desc">Revisa una carpeta <code>DOCUMENTOS/&lt;ID&gt;/</code> concreta: crea los JSON que falten, detecta documentos sin OCR y los envía a análisis.</p>
+<div class="ef-row">
+<div class="ef-field" style="flex:1;min-width:200px"><span class="ef-label">Buscar persona</span><input id="buscarRepasar" placeholder="Nombre, apellido o ID..." oninput="buscarPersonaRepasar(this.value)" autocomplete="off"></div>
+</div>
+<div id="listaRepasarBusqueda" style="margin-bottom:10px"></div>
+<div id="repasarSeleccionada" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(90,138,60,.08);border:1px solid var(--green);border-radius:10px;font-size:12px;font-weight:700;color:var(--green)">
+  Repasando: <span id="repasarSeleccionadaNombre"></span>
+  <button class="btn ghost" style="padding:4px 8px;font-size:11px;margin-left:8px" onclick="limpiarSeleccionRepasar()">Cambiar</button>
+</div>
+<button class="btn blue" onclick="iniciarRepasoPersona()"><i class="fa-solid fa-folder-tree"></i> Repasar carpeta seleccionada</button>
+<div id="logRepaso" style="font-size:11px;color:var(--muted);max-height:160px;overflow:auto;margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;font-family:monospace"></div>
+</div>
+</div>
+
+<div class="view" id="vResultados">
+<div class="hero"><h1>Resultados</h1><p>Índice por persona, candidatos extraídos e informe para tu hermano</p></div>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Buscar persona</span><input id="buscarResultado" placeholder="Nombre, apellido o ID..." oninput="buscarPersonaResultados(this.value)" autocomplete="off"></div></div>
+<div id="listaResultadosBusqueda"></div>
+<div id="detalleResultadoPersona"></div>
+</div>
+
+<div class="view" id="vCfg">
+<div class="hero"><h1>Configuración</h1></div>
+<div class="card">
+<h3><i class="fa-brands fa-google"></i> Conexión con Google</h3>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Client ID de OAuth</span><input id="cfgClientId" placeholder="xxxx.apps.googleusercontent.com"></div></div>
+<button class="btn ghost" onclick="guardarClientId()">Guardar Client ID</button>
+</div>
+<div class="card">
+<h3><i class="fa-brands fa-google-drive"></i> Carpeta raíz del árbol</h3>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">ID o enlace de la carpeta raíz</span><input id="cfgRootFolder" placeholder="Enlace o ID de la carpeta"></div></div>
+<button class="btn ghost" onclick="guardarRootFolder()">Guardar carpeta raíz</button>
+<div id="estadoBackup" style="margin-top:10px;font-size:12px;color:var(--muted)"></div>
+</div>
+<div class="card">
+<h3><i class="fa-solid fa-language"></i> Idioma del OCR</h3>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Idioma de reconocimiento de texto</span><select id="cfgOcrLang"><option value="spa">Español</option><option value="spa+eng">Español + Inglés</option></select></div></div>
+<button class="btn ghost" onclick="guardarOcrLang()">Guardar</button>
+</div>
+</div>
+
+</main>
+
+<div class="modal-overlay" id="modalEmparejar">
+<div class="modal-box">
+<h3><i class="fa-solid fa-user-check" style="color:var(--accent)"></i> ¿A quién pertenece este álbum?</h3>
+<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Álbum: <b id="modalEmparejarAlbum"></b></p>
+<div class="ef-field" style="margin-bottom:10px"><input id="modalEmparejarBuscar" placeholder="Buscar por nombre o ID..." oninput="filtrarOpcionesEmparejar()" autocomplete="off"></div>
+<div class="modal-body" id="modalEmparejarLista"></div>
+<div style="display:flex;gap:8px;margin-top:12px">
+<button class="btn ghost" style="flex:1;justify-content:center" onclick="resolverEmparejamiento(null)">Sin clasificar</button>
+</div>
+</div>
+</div>
+
+<div class="modal-overlay" id="modalDestinoAlbum">
+<div class="modal-box">
+<h3><i class="fa-solid fa-box-open" style="color:var(--accent)"></i> ¿Qué contiene este álbum?</h3>
+<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Álbum: <b id="modalDestinoAlbumNombre"></b> → <b id="modalDestinoAlbumPersona"></b></p>
+<div class="modal-body">
+<p style="font-size:12px;margin-bottom:10px">Elige cómo tratar los archivos de este álbum:</p>
+<div class="match-opt" onclick="resolverDestinoAlbum('fotos')">
+<span><i class="fa-solid fa-images"></i> Solo fotos familiares</span>
+<span style="font-size:11px;color:var(--muted)">Sin OCR, directo a la carpeta</span>
+</div>
+<div class="match-opt" onclick="resolverDestinoAlbum('dudas')">
+<span><i class="fa-solid fa-circle-question"></i> Documentos / mezcla (revisar)</span>
+<span style="font-size:11px;color:var(--muted)">Va todo a la bandeja de dudas</span>
+</div>
+<div class="match-opt" onclick="resolverDestinoAlbum('documentos')">
+<span><i class="fa-solid fa-file-lines"></i> Documentos (marcar todo como documento)</span>
+<span style="font-size:11px;color:var(--muted)">Va directo a OCR pendiente</span>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+/* =====================================================================
+   DOCUMENTOS Y FOTOS v2 — Flujo completo
+   ===================================================================== */
+var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
+var DEFAULT_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
+var DRIVE_SCOPE='https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file email profile';
+var BACKUP_FILENAME='backup-arbol.json';
+
+var db=null;
+var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0;
+var ROOT_FOLDER_ID=null, CLIENT_ID=GOOGLE_CLIENT_ID, OCR_LANG='spa';
+var DOCUMENTOS_FOLDER_ID=null, DUDAS_FOLDER_ID=null, DESCARTADOS_FOLDER_ID=null;
+var PERSONAS=[], PI={};
+var PERSONAS_CACHE_EN=0;
+var ALIAS_ALBUM={};
+var carpetaPersonaIdCache={};
+
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open('DocumentosYFotos',1);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains('cfg'))d.createObjectStore('cfg',{keyPath:'id'});if(!d.objectStoreNames.contains('alias'))d.createObjectStore('alias',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function cPut(store,obj){return new Promise(function(res,rej){var tx=db.transaction(store,'readwrite');tx.objectStore(store).put(obj);tx.oncomplete=function(){res(obj);};tx.onerror=function(){rej(tx.error);};});}
+function cGet(store,id){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).get(id);r.onsuccess=function(){res(r.result||null);};r.onerror=function(){res(null);};});}
+function cAll(store){return new Promise(function(res){var r=db.transaction(store,'readonly').objectStore(store).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){res([]);};});}
+function guardarCfgValor(id,valor){return cPut('cfg',{id:id,valor:valor});}
+function leerCfgValor(id,def){return cGet('cfg',id).then(function(r){return r?r.valor:def;});}
+
+function esc(s){if(s===null||s===undefined)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3800);}
+function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+function fnPersona(p){return String((p.NOMBRE||'')+' '+(p.APELLIDO1||'')+' '+(p.APELLIDO2||'')).trim();}
+async function sha256Hex(arrayBuffer){var hash=await crypto.subtle.digest('SHA-256',arrayBuffer);return Array.prototype.map.call(new Uint8Array(hash),function(b){return b.toString(16).padStart(2,'0');}).join('');}
+function extensionArchivo(nombre){var m=String(nombre||'').trim().match(/\.([a-z0-9]+)$/i);return m?m[1].toLowerCase():'';}
+var EXT_IMAGEN=['jpg','jpeg','png','webp','gif','bmp','heic','heif'];
+function esImagen(nombre,mime){if(mime&&mime.indexOf('image/')===0)return true;return EXT_IMAGEN.indexOf(extensionArchivo(nombre))>=0;}
+function esPDF(nombre,mime){if(mime==='application/pdf')return true;return extensionArchivo(nombre)==='pdf';}
+function sv(v){['panel','importar','dudas','analisis','resultados','cfg'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');document.querySelectorAll('#mn button').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-v')===v);});}
+function log(contId,msg){var el=document.getElementById(contId);if(!el)return;var d=document.createElement('div');d.textContent=msg;el.appendChild(d);el.scrollTop=el.scrollHeight;}
+function limpiarLog(contId){var el=document.getElementById(contId);if(el)el.innerHTML='';}
+
+function tokenDriveValido(){return !!(driveAccessToken&&driveTokenExpira&&Date.now()<driveTokenExpira-30000);}
+function conectarGoogleDrive(){
+return new Promise(function(resolve,reject){
+if(!CLIENT_ID){reject(new Error('Falta configurar el Client ID'));return;}
+if(!window.google||!google.accounts||!google.accounts.oauth2){reject(new Error('Google Identity Services no cargado'));return;}
+if(!googleTokenClient){
+googleTokenClient=google.accounts.oauth2.initTokenClient({
+client_id:CLIENT_ID,scope:DRIVE_SCOPE,
+callback:function(resp){if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);resolve(driveAccessToken);}else reject(new Error('No se recibió token'));},
+error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
+});
+}
+try{googleTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});}catch(err){reject(err);}
+});
+}
+async function driveFetch(url,opts){
+opts=opts||{};opts.headers=opts.headers||{};
+if(!tokenDriveValido())await conectarGoogleDrive();
+opts.headers.Authorization='Bearer '+driveAccessToken;
+var r=await fetch(url,opts);
+if(r.status===401){driveAccessToken=null;await conectarGoogleDrive();opts.headers.Authorization='Bearer '+driveAccessToken;r=await fetch(url,opts);}
+return r;
+}
+function accionConectar(){conectarGoogleDrive().then(function(){toast('Conectado a Google Drive');actualizarDriveStatusPill();recargarPersonas();}).catch(function(err){toast('No se pudo conectar: '+err.message,true);});}
+function actualizarDriveStatusPill(){var conectado=tokenDriveValido();document.getElementById('driveStatusPill').classList.toggle('ok',conectado);document.getElementById('driveTxt').textContent=conectado?'Conectado a Google Drive':'Sin conectar — pulsa para conectar';}
+async function listarTodosArchivosDrive(query,fields){
+var archivos=[],pageToken=null;
+do{
+var url='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(query)+'&fields=nextPageToken,files('+fields+')&pageSize=1000&orderBy=name&spaces=drive'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+var r=await driveFetch(url);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();archivos=archivos.concat(d.files||[]);pageToken=d.nextPageToken||null;
+}while(pageToken);
+return archivos;
+}
+async function buscarEnCarpeta(nombre,parentId,soloCarpetas){
+var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\'")+"' and trashed=false"+(soloCarpetas?" and mimeType='application/vnd.google-apps.folder'":'');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,mimeType)&spaces=drive');
+if(!r.ok)throw new Error('Drive '+r.status);
+var d=await r.json();return (d.files&&d.files.length)?d.files[0]:null;
+}
+async function crearCarpeta(nombre,parentId){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId],mimeType:'application/vnd.google-apps.folder'})});
+if(!r.ok)throw new Error('Drive '+r.status+' al crear carpeta '+nombre);
+var d=await r.json();return d.id;
+}
+async function obtenerOCrearCarpeta(nombre,parentId){
+var existente=await buscarEnCarpeta(nombre,parentId,true);
+if(existente)return existente.id;
+return await crearCarpeta(nombre,parentId);
+}
+async function subirTextoADrive(nombre,contenidoTexto,mimeType,parentId,fileIdExistente){
+if(fileIdExistente){
+var rP=await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(fileIdExistente)+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mimeType},body:contenidoTexto});
+if(!rP.ok)throw new Error('Drive '+rP.status+' al actualizar '+nombre);
+return await rP.json();
+}
+var boundary='docfotos_'+Date.now();
+var metadata={name:nombre,parents:[parentId]};
+var body='\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n--'+boundary+'\r\nContent-Type: '+mimeType+'\r\n\r\n'+contenidoTexto+'\r\n--'+boundary+'--';
+var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:body});
+if(!r.ok)throw new Error('Drive '+r.status+' al crear '+nombre);
+return await r.json();
+}
+async function subirBinarioADrive(nombre,blob,mimeType,parentId){
+var rc=await driveFetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId]})});
+if(!rc.ok)throw new Error('Drive '+rc.status+' al crear '+nombre);
+var dc=await rc.json();
+var rP=await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(dc.id)+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mimeType||'application/octet-stream'},body:blob});
+if(!rP.ok)throw new Error('Drive '+rP.status+' al subir '+nombre);
+return dc.id;
+}
+async function leerTextoDrive(fileId){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?alt=media');
+if(!r.ok)throw new Error('Drive '+r.status+' al leer archivo');
+return await r.text();
+}
+async function descargarBlobDrive(fileId){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?alt=media');
+if(!r.ok)throw new Error('Drive '+r.status);
+return await r.blob();
+}
+async function moverArchivoDrive(fileId, nuevoParentId, viejoParentId){
+var r1=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?addParents='+encodeURIComponent(nuevoParentId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:'{}'});
+if(!r1.ok) throw new Error('Error moviendo archivo (addParents)');
+if(viejoParentId){
+var r2=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?removeParents='+encodeURIComponent(viejoParentId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:'{}'});
+if(!r2.ok) console.warn('No se pudo quitar parent viejo');
+}
+return true;
+}
+async function eliminarArchivoDrive(fileId){
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId),{method:'DELETE'});
+return r.ok;
+}
+
+async function obtenerCarpetaDocumentosId(){
+if(DOCUMENTOS_FOLDER_ID)return DOCUMENTOS_FOLDER_ID;
+if(!ROOT_FOLDER_ID)throw new Error('Falta carpeta raíz');
+var c=await buscarEnCarpeta('DOCUMENTOS',ROOT_FOLDER_ID,true);
+if(!c)throw new Error('No existe DOCUMENTOS en la raíz');
+DOCUMENTOS_FOLDER_ID=c.id;return DOCUMENTOS_FOLDER_ID;
+}
+async function obtenerCarpetaDudasId(){
+if(DUDAS_FOLDER_ID)return DUDAS_FOLDER_ID;
+if(!ROOT_FOLDER_ID)throw new Error('Falta carpeta raíz');
+var c=await buscarEnCarpeta('_DUDAS',ROOT_FOLDER_ID,true);
+if(!c)c={id:await crearCarpeta('_DUDAS',ROOT_FOLDER_ID)};
+DUDAS_FOLDER_ID=c.id;return DUDAS_FOLDER_ID;
+}
+async function obtenerCarpetaDescartadosId(){
+if(DESCARTADOS_FOLDER_ID)return DESCARTADOS_FOLDER_ID;
+if(!ROOT_FOLDER_ID)throw new Error('Falta carpeta raíz');
+var c=await buscarEnCarpeta('_DESCARTADOS',ROOT_FOLDER_ID,true);
+if(!c)c={id:await crearCarpeta('_DESCARTADOS',ROOT_FOLDER_ID)};
+DESCARTADOS_FOLDER_ID=c.id;return DESCARTADOS_FOLDER_ID;
+}
+async function obtenerOCrearCarpetaPersona(personaId){
+if(carpetaPersonaIdCache[personaId])return carpetaPersonaIdCache[personaId];
+var docsId=await obtenerCarpetaDocumentosId();
+var id=await obtenerOCrearCarpeta(String(personaId),docsId);
+carpetaPersonaIdCache[personaId]=id;return id;
+}
+
+async function cargarPersonasArbol(forzar){
+if(PERSONAS.length&&!forzar&&(Date.now()-PERSONAS_CACHE_EN)<5*60*1000)return PERSONAS;
+if(!ROOT_FOLDER_ID)throw new Error('Falta carpeta raíz');
+var f=await buscarEnCarpeta(BACKUP_FILENAME,ROOT_FOLDER_ID,false);
+if(!f)throw new Error('No se encontró '+BACKUP_FILENAME);
+var txt=await leerTextoDrive(f.id);
+var d;try{d=JSON.parse(txt);}catch(e){throw new Error('JSON inválido en '+BACKUP_FILENAME);}
+var personas=(d&&Array.isArray(d.personas))?d.personas:null;
+if(!personas)throw new Error('Formato inesperado en '+BACKUP_FILENAME);
+PERSONAS=personas;PI={};
+personas.forEach(function(p){PI[String(p.ID)]=p;});
+PERSONAS_CACHE_EN=Date.now();
+return PERSONAS;
+}
+async function recargarPersonas(){
+try{
+var personas=await cargarPersonasArbol(true);
+document.getElementById('mPersonas').textContent=personas.length;
+document.getElementById('estadoBackup').innerHTML='<i class="fa-solid fa-circle-check" style="color:var(--green)"></i> '+BACKUP_FILENAME+' leído: '+personas.length+' personas.';
+toast('Cargadas '+personas.length+' personas');
+actualizarMetricasGlobales();
+}catch(err){
+document.getElementById('estadoBackup').innerHTML='<i class="fa-solid fa-triangle-exclamation" style="color:var(--warn)"></i> '+esc(err.message);
+toast('Error: '+err.message,true);
+}
+}
+
+async function actualizarMetricasGlobales(){
+try{
+var docsId=await obtenerCarpetaDocumentosId();
+var subs=await listarTodosArchivosDrive("'"+docsId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",'id,name');
+document.getElementById('mCarpetas').textContent=subs.length;
+}catch(e){document.getElementById('mCarpetas').textContent='-';}
+try{
+var dudasId=await obtenerCarpetaDudasId();
+var dudas=await listarTodosArchivosDrive("'"+dudasId+"' in parents and trashed=false",'id,name');
+var countDudas=dudas.filter(function(a){return !a.name.endsWith('.json');}).length;
+document.getElementById('mDudas').textContent=countDudas;
+var badge=document.getElementById('badgeDudas');
+if(countDudas>0){badge.textContent=countDudas;badge.style.display='inline-block';}else{badge.style.display='none';}
+}catch(e){document.getElementById('mDudas').textContent='-';}
+try{
+var docsId=await obtenerCarpetaDocumentosId();
+var subs=await listarTodosArchivosDrive("'"+docsId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",'id,name');
+var pendientes=0;
+for(var i=0;i<subs.length;i++){
+var archivos=await listarTodosArchivosDrive("'"+subs[i].id+"' in parents and trashed=false",'id,name');
+for(var j=0;j<archivos.length;j++){
+if(archivos[j].name.endsWith('.json')||archivos[j].name==='_persona.json')continue;
+var json=await buscarEnCarpeta(archivos[j].name+'.json',subs[i].id,false);
+if(json){
+var txt=await leerTextoDrive(json.id);
+try{var d=JSON.parse(txt);if(d.clasificacion&&d.clasificacion.esDocumento&&d.ocr&&d.ocr.pendiente)pendientes++;}catch(e){}
+}
+}
+}
+document.getElementById('mPendientes').textContent=pendientes;
+}catch(e){document.getElementById('mPendientes').textContent='-';}
+}
+
+async function leerJsonArchivo(folderId,nombreArchivo){
+var f=await buscarEnCarpeta(nombreArchivo+'.json',folderId,false);
+if(!f)return null;
+try{var txt=await leerTextoDrive(f.id);return JSON.parse(txt);}catch(e){return null;}
+}
+async function guardarJsonArchivo(folderId,nombreArchivo,datos,fileId){
+var contenido=JSON.stringify(datos,null,2);
+return await subirTextoADrive(nombreArchivo+'.json',contenido,'application/json',folderId,fileId);
+}
+
+async function regenerarPersonaJson(personaId){
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+var archivos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');
+archivos=archivos.filter(function(a){return a.name!=='_persona.json'&&!a.name.endsWith('.json');});
+var listaArchivos=[];
+var candidatosGlobal=[];
+var resumen={totalArchivos:0,documentos:0,fotosFamiliares:0,conOCR:0,ocrPendiente:0};
+for(var i=0;i<archivos.length;i++){
+var a=archivos[i];
+var json=await leerJsonArchivo(folderId,a.name);
+var entry={nombre:a.name,tipo:esPDF(a.name,a.mimeType)?'pdf':'imagen',tieneJson:!!json};
+if(json){
+resumen.totalArchivos++;
+if(json.clasificacion&&json.clasificacion.esDocumento){
+resumen.documentos++;entry.esDocumento=true;
+if(json.ocr){
+if(json.ocr.pendiente){resumen.ocrPendiente++;entry.ocrPendiente=true;}
+else{resumen.conOCR++;entry.ocrCompletado=true;entry.datosClave=(json.ocr.datosExtraidos||[]).map(function(d){return d.campo+': '+d.valor;});}
+if(json.ocr.datosExtraidos){
+json.ocr.datosExtraidos.forEach(function(d){candidatosGlobal.push({campo:d.campo,valor:d.valor,origen:a.name,confianza:d.confianza,fragmento:d.fragmento});});
+}
+}
+}else{
+resumen.fotosFamiliares++;
+entry.esDocumento=false;
+if(json.metadatos&&json.metadatos.fechaTomada)entry.fecha=json.metadatos.fechaTomada;
+}
+}
+listaArchivos.push(entry);
+}
+var personaJson={
+personaId:String(personaId),
+personaNombre:PI[personaId]?fnPersona(PI[personaId]):'',
+actualizado:new Date().toISOString(),
+resumen:resumen,
+archivos:listaArchivos,
+candidatosGlobal:candidatosGlobal
+};
+var fExistente=await buscarEnCarpeta('_persona.json',folderId,false);
+await subirTextoADrive('_persona.json',JSON.stringify(personaJson,null,2),'application/json',folderId,fExistente?fExistente.id:null);
+}
+
+var tesseractWorkerPromise=null;
+function obtenerTesseractWorker(){if(!tesseractWorkerPromise){tesseractWorkerPromise=Tesseract.createWorker(OCR_LANG);}return tesseractWorkerPromise;}
+async function ocrImagenBlob(blob){try{var worker=await obtenerTesseractWorker();var r=await worker.recognize(blob);return(r&&r.data&&r.data.text)?r.data.text:'';}catch(err){console.warn('OCR falló:',err.message);return'';}}
+async function extraerTextoPDF(blob){try{var buf=await blob.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:buf}).promise;var texto='';var maxPag=Math.min(pdf.numPages,10);for(var i=1;i<=maxPag;i++){var page=await pdf.getPage(i);var content=await page.getTextContent();texto+=content.items.map(function(it){return it.str;}).join(' ')+'\n';}if(texto.trim().length>=40)return texto;var page1=await pdf.getPage(1);var viewport=page1.getViewport({scale:2});var canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;await page1.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise;var blobImg=await new Promise(function(res){canvas.toBlob(res,'image/png');});var textoOcr=blobImg?await ocrImagenBlob(blobImg):'';return texto+'\n'+textoOcr;}catch(err){console.warn('PDF falló:',err.message);return'';}}
+
+var MESES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+function parseFechaFragmento(frag){frag=String(frag||'');var m=frag.match(/(\d{1,2})\s*(?:de)?\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s*(?:de)?\s*(\d{4})/i);if(m)return{dia:parseInt(m[1],10),mes:MESES[m[2].toLowerCase()],anio:parseInt(m[3],10)};m=frag.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);if(m)return{dia:parseInt(m[1],10),mes:parseInt(m[2],10),anio:parseInt(m[3],10)};m=frag.match(/\b(1[5-9]\d{2}|20[0-2]\d)\b/);if(m)return{dia:null,mes:null,anio:parseInt(m[1],10)};return null;}
+var KW_NAC=/naci[oó]|nacimiento|bautiz/i;
+var KW_DEF=/defunci[oó]n|falleci[oó]|muri[oó]|obituario/i;
+var KW_MAT=/matrimonio|se cas[oó]|boda|contrajeron matrimonio/i;
+var KW_LUGAR=/natural de|nacid[oa] en|vecin[oa] de|parroquia de|provincia de/i;
+var KW_RELACION=/hij[oa] de|cas[oa]d[oa] con|padres?:|madre:/i;
+
+function extraerEventos(texto){
+var eventos=[];
+if(!texto||texto.trim().length<10)return eventos;
+var lineas=texto.split(/\n+/);
+lineas.forEach(function(linea){
+linea=linea.trim();
+if(linea.length<6)return;
+var tipo=null;
+if(KW_NAC.test(linea))tipo='nacimiento';
+else if(KW_DEF.test(linea))tipo='defuncion';
+else if(KW_MAT.test(linea))tipo='matrimonio';
+var fecha=parseFechaFragmento(linea);
+var lugar=null;
+var mLugar=linea.match(KW_LUGAR);
+if(mLugar){
+var resto=linea.slice(mLugar.index+mLugar[0].length).trim();
+lugar=resto.split(/[.,;]/)[0].trim().slice(0,80);
+if(lugar.length<2)lugar=null;
+}
+if(tipo||fecha||lugar)eventos.push({tipo:tipo,fecha:fecha,lugar:lugar,fragmento:linea.slice(0,200)});
+if(KW_RELACION.test(linea))eventos.push({tipo:'relacion',fragmento:linea.slice(0,200)});
+});
+return eventos;
+}
+
+function construirCandidatosDesdeEventos(eventos,persona,nombreArchivo){
+var candidatos=[],informativo=[];
+eventos.forEach(function(ev){
+if(ev.tipo==='relacion'){informativo.push({texto:ev.fragmento,origenArchivo:nombreArchivo});return;}
+if(ev.tipo==='matrimonio'){informativo.push({texto:'Posible matrimonio: '+ev.fragmento,origenArchivo:nombreArchivo});return;}
+var prefijo=ev.tipo==='nacimiento'?'NAC':(ev.tipo==='defuncion'?'DEF':null);
+if(!prefijo){if(ev.lugar||ev.fecha)informativo.push({texto:ev.fragmento,origenArchivo:nombreArchivo});return;}
+var campoAnio=prefijo+'A',campoDia=prefijo+'D',campoMes=prefijo+'M',campoLugar=prefijo==='NAC'?'LUGARNAC':'LUGARDEF';
+if(ev.fecha&&ev.fecha.anio){
+var vacioAnio=!persona||persona[campoAnio]===undefined||persona[campoAnio]===null||persona[campoAnio]==='';
+candidatos.push({campo:campoAnio,valorPropuesto:String(ev.fecha.anio),origenArchivo:nombreArchivo,confianza:ev.fecha.dia?'alta':'media',campoVacioEnArbol:vacioAnio,fragmentoTexto:ev.fragmento});
+if(ev.fecha.dia&&ev.fecha.mes){
+var vacioDia=!persona||!persona[campoDia];
+candidatos.push({campo:campoDia,valorPropuesto:String(ev.fecha.dia),origenArchivo:nombreArchivo,confianza:'alta',campoVacioEnArbol:vacioDia,fragmentoTexto:ev.fragmento});
+candidatos.push({campo:campoMes,valorPropuesto:String(ev.fecha.mes),origenArchivo:nombreArchivo,confianza:'alta',campoVacioEnArbol:vacioDia,fragmentoTexto:ev.fragmento});
+}
+}
+if(ev.lugar){
+var vacioLugar=!persona||!String(persona[campoLugar]||'').trim();
+candidatos.push({campo:campoLugar,valorPropuesto:ev.lugar,origenArchivo:nombreArchivo,confianza:'media',campoVacioEnArbol:vacioLugar,fragmentoTexto:ev.fragmento});
+}
+});
+return{candidatos:candidatos,informativo:informativo};
+}
+
+async function analizarArchivoOCR(blob,nombreArchivo,personaId){
+var texto='';
+if(esImagen(nombreArchivo,blob.type))texto=await ocrImagenBlob(blob);
+else if(esPDF(nombreArchivo,blob.type))texto=await extraerTextoPDF(blob);
+else return null;
+var eventos=extraerEventos(texto);
+if(!eventos.length)return null;
+var persona=PI[personaId];
+var r=construirCandidatosDesdeEventos(eventos,persona,nombreArchivo);
+return{texto:texto,candidatos:r.candidatos,informativo:r.informativo,confianza:texto.length>200?'media':'baja'};
+}
+
+/* ---------- Emparejar álbum ---------- */
+async function cargarAliasAlbum(){
+var arr=await cAll('alias');
+ALIAS_ALBUM={};
+arr.forEach(function(a){ALIAS_ALBUM[a.id]=a.personaId;});
+}
+function guardarAliasAlbum(clave,personaId){
+ALIAS_ALBUM[clave]=personaId;
+return cPut('alias',{id:clave,personaId:personaId});
+}
+function candidatosParaAlbum(nombreAlbum){
+if(/^\d+$/.test(nombreAlbum.trim())&&PI[nombreAlbum.trim()])return[PI[nombreAlbum.trim()]];
+var qn=normTxt(nombreAlbum);
+var partes=qn.split(' ').filter(Boolean);
+var puntuados=PERSONAS.map(function(p){
+var np=normTxt(fnPersona(p));
+var score=0;
+if(np===qn)score=100;
+else if(np.indexOf(qn)>=0||qn.indexOf(np)>=0)score=70;
+else{
+var coincid=partes.filter(function(w){return w.length>2&&np.indexOf(w)>=0;}).length;
+score=coincid*15;
+}
+return{p:p,score:score};
+}).filter(function(x){return x.score>0;});
+puntuados.sort(function(a,b){return b.score-a.score;});
+return puntuados.slice(0,8).map(function(x){return x.p;});
+}
+var _resolverEmparejamientoResolve=null;
+function preguntarPersonaParaAlbum(nombreAlbum){
+return new Promise(function(resolve){
+_resolverEmparejamientoResolve=resolve;
+document.getElementById('modalEmparejarAlbum').textContent=nombreAlbum;
+document.getElementById('modalEmparejarBuscar').value='';
+window._candidatosAlbumActual=candidatosParaAlbum(nombreAlbum).length?candidatosParaAlbum(nombreAlbum):PERSONAS.slice(0,8);
+renderOpcionesEmparejar(window._candidatosAlbumActual);
+document.getElementById('modalEmparejar').style.display='flex';
+});
+}
+function renderOpcionesEmparejar(lista){
+var cont=document.getElementById('modalEmparejarLista');
+if(!lista.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin coincidencias. Prueba a buscar por otro nombre.</p>';return;}
+cont.innerHTML=lista.map(function(p){return '<div class="match-opt" onclick="resolverEmparejamiento(\''+esc(p.ID)+'\')"><span>'+esc(fnPersona(p))+'</span><span style="color:var(--muted);font-size:11px">ID '+esc(p.ID)+'</span></div>';}).join('');
+}
+function filtrarOpcionesEmparejar(){
+var q=document.getElementById('modalEmparejarBuscar').value.trim();
+if(!q){renderOpcionesEmparejar(window._candidatosAlbumActual||[]);return;}
+var qn=normTxt(q);
+var f=PERSONAS.filter(function(p){return normTxt(fnPersona(p)).indexOf(qn)>=0||String(p.ID).indexOf(q)>=0;}).slice(0,20);
+renderOpcionesEmparejar(f);
+}
+function resolverEmparejamiento(personaId){
+document.getElementById('modalEmparejar').style.display='none';
+if(_resolverEmparejamientoResolve){_resolverEmparejamientoResolve(personaId);_resolverEmparejamientoResolve=null;}
+}
+async function resolverPersonaAlbum(nombreAlbum){
+var clave=normTxt(nombreAlbum);
+if(Object.prototype.hasOwnProperty.call(ALIAS_ALBUM,clave))return ALIAS_ALBUM[clave];
+var personaId=await preguntarPersonaParaAlbum(nombreAlbum);
+await guardarAliasAlbum(clave,personaId);
+return personaId;
+}
+
+/* ---------- Modal destino álbum ---------- */
+var _resolverDestinoAlbumResolve=null;
+function preguntarDestinoAlbum(nombreAlbum,nombrePersona){
+return new Promise(function(resolve){
+_resolverDestinoAlbumResolve=resolve;
+document.getElementById('modalDestinoAlbumNombre').textContent=nombreAlbum;
+document.getElementById('modalDestinoAlbumPersona').textContent=nombrePersona||'Sin clasificar';
+document.getElementById('modalDestinoAlbum').style.display='flex';
+});
+}
+function resolverDestinoAlbum(tipo){
+document.getElementById('modalDestinoAlbum').style.display='none';
+if(_resolverDestinoAlbumResolve){_resolverDestinoAlbumResolve(tipo);_resolverDestinoAlbumResolve=null;}
+}
+
+/* ---------- Importación ---------- */
+function agruparPorAlbumDesdeEntradas(entradas){
+var grupos={};
+entradas.forEach(function(e){
+var partes=e.ruta.split('/').filter(Boolean);
+partes.pop();
+var relevantes=partes.filter(function(seg){return !/^takeout$/i.test(seg)&&!/^google (fotos|photos)$/i.test(seg);});
+var album=relevantes.length?relevantes[relevantes.length-1]:'Sin_album';
+if(!grupos[album])grupos[album]=[];
+grupos[album].push(e);
+});
+return grupos;
+}
+
+function extraerMetadatosTakeout(jsonTexto,nombreArchivo){
+var metadatos={archivo:nombreArchivo,procedencia:{caja:'',fechaImportacion:new Date().toISOString()}};
+if(!jsonTexto)return metadatos;
+try{
+var j=JSON.parse(jsonTexto);
+if(j.photoTakenTime&&j.photoTakenTime.timestamp)metadatos.fechaTomada=new Date(parseInt(j.photoTakenTime.timestamp,10)*1000).toISOString();
+if(j.photoTakenTime&&j.photoTakenTime.formatted)metadatos.fechaTomadaTexto=j.photoTakenTime.formatted;
+if(j.geoData&&(j.geoData.latitude||j.geoData.longitude))metadatos.ubicacion={lat:j.geoData.latitude,lng:j.geoData.longitude,alt:j.geoData.altitude};
+if(j.description)metadatos.descripcionGoogle=j.description;
+if(j.title)metadatos.titulo=j.title;
+}catch(e){}
+return metadatos;
+}
+
+async function procesarGrupoAlbum(nombreAlbum,archivos,estado){
+var personaId=await resolverPersonaAlbum(nombreAlbum);
+var destinoLog=personaId?(PI[personaId]?fnPersona(PI[personaId]):('ID '+personaId)):'Sin clasificar';
+log('logProceso','Álbum "'+nombreAlbum+'" → '+destinoLog+' ('+archivos.length+' archivo(s))');
+
+var tipoDestino='dudas';
+if(personaId){
+var nombrePersona=PI[personaId]?fnPersona(PI[personaId]):'';
+tipoDestino=await preguntarDestinoAlbum(nombreAlbum,nombrePersona);
+}
+
+for(var i=0;i<archivos.length;i++){
+var arch=archivos[i];
+if(!/\.(jpe?g|png|webp|gif|bmp|heic|heif|pdf|tif|tiff)$/i.test(arch.nombreArchivo))continue;
+estado.hechos++;
+document.getElementById('pfImport').style.width=(estado.total?Math.round(estado.hechos/estado.total*100):0)+'%';
+document.getElementById('txtProgresoImport').textContent='Procesando... ('+estado.hechos+' de '+estado.total+' archivos)';
+
+var blob=await arch.obtenerBlob();
+var buf=await blob.arrayBuffer();
+var hash=await sha256Hex(buf);
+
+var jsonTakeout=null;
+if(arch.jsonTakeoutTexto)jsonTakeout=arch.jsonTakeoutTexto;
+
+if(tipoDestino==='fotos'&&personaId){
+// Directo a carpeta persona como foto familiar
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+var yaExiste=await buscarEnCarpeta(arch.nombreArchivo,folderId,false);
+if(!yaExiste)await subirBinarioADrive(arch.nombreArchivo,new Blob([buf],{type:blob.type}),blob.type||'application/octet-stream',folderId);
+var metadatos=extraerMetadatosTakeout(jsonTakeout,arch.nombreArchivo);
+metadatos.procedencia.caja=nombreAlbum;
+var datosJson={archivo:arch.nombreArchivo,procedencia:metadatos.procedencia,metadatos:metadatos,clasificacion:{esDocumento:false,estado:'foto_familiar',fechaClasificacion:new Date().toISOString()},ocr:{pendiente:false}};
+var jsonExistente=await buscarEnCarpeta(arch.nombreArchivo+'.json',folderId,false);
+await guardarJsonArchivo(folderId,arch.nombreArchivo,datosJson,jsonExistente?jsonExistente.id:null);
+estado.subidos++;
+}else if(tipoDestino==='documentos'&&personaId){
+// Directo a carpeta persona como documento pendiente OCR
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+var yaExiste=await buscarEnCarpeta(arch.nombreArchivo,folderId,false);
+if(!yaExiste)await subirBinarioADrive(arch.nombreArchivo,new Blob([buf],{type:blob.type}),blob.type||'application/octet-stream',folderId);
+var metadatos=extraerMetadatosTakeout(jsonTakeout,arch.nombreArchivo);
+metadatos.procedencia.caja=nombreAlbum;
+var datosJson={archivo:arch.nombreArchivo,procedencia:metadatos.procedencia,metadatos:metadatos,clasificacion:{esDocumento:true,estado:'documento_pendiente',fechaClasificacion:new Date().toISOString()},ocr:{pendiente:true}};
+var jsonExistente=await buscarEnCarpeta(arch.nombreArchivo+'.json',folderId,false);
+await guardarJsonArchivo(folderId,arch.nombreArchivo,datosJson,jsonExistente?jsonExistente.id:null);
+estado.subidos++;
+}else{
+// A dudas (o sin clasificar)
+var dudasId=await obtenerCarpetaDudasId();
+var yaExiste=await buscarEnCarpeta(arch.nombreArchivo,dudasId,false);
+if(!yaExiste)await subirBinarioADrive(arch.nombreArchivo,new Blob([buf],{type:blob.type}),blob.type||'application/octet-stream',dudasId);
+var metadatos=extraerMetadatosTakeout(jsonTakeout,arch.nombreArchivo);
+metadatos.procedencia.caja=nombreAlbum;
+if(personaId)metadatos.procedencia.personaSugerida=personaId;
+var datosJson={archivo:arch.nombreArchivo,procedencia:metadatos.procedencia,metadatos:metadatos,clasificacion:{esDocumento:null,estado:'pendiente_duda',fechaClasificacion:null},ocr:{pendiente:null}};
+var jsonExistente=await buscarEnCarpeta(arch.nombreArchivo+'.json',dudasId,false);
+await guardarJsonArchivo(dudasId,arch.nombreArchivo,datosJson,jsonExistente?jsonExistente.id:null);
+estado.dudas++;
+}
+}
+
+if(personaId){
+try{await regenerarPersonaJson(personaId);}catch(e){console.warn('No se pudo regenerar _persona.json',e);}
+}
+}
+
+async function ejecutarImportacion(grupos){
+document.getElementById('cardProgresoImport').style.display='block';
+document.getElementById('logProceso').innerHTML='';
+document.getElementById('resumenImport').innerHTML='';
+var total=0;Object.keys(grupos).forEach(function(k){total+=grupos[k].length;});
+var estado={hechos:0,subidos:0,dudas:0,total:total};
+try{
+await cargarPersonasArbol();
+var albumes=Object.keys(grupos);
+for(var i=0;i<albumes.length;i++){
+await procesarGrupoAlbum(albumes[i],grupos[albumes[i]],estado);
+}
+document.getElementById('txtProgresoImport').textContent='Importación terminada';
+document.getElementById('resumenImport').innerHTML='<p style="font-size:12px;color:var(--green);font-weight:700"><i class="fa-solid fa-circle-check"></i> '+estado.subidos+' archivo(s) archivado(s), '+estado.dudas+' a dudas. Revisa la pestaña Dudas.</p>';
+toast('Importación completada');
+actualizarMetricasGlobales();
+}catch(err){
+document.getElementById('resumenImport').innerHTML='<p style="font-size:12px;color:var(--warn)"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(err.message)+'</p>';
+toast('Error durante importación: '+err.message,true);
+}
+}
+
+async function iniciarImportZip(){
+var input=document.getElementById('fiZip');
+var file=input.files&&input.files[0];
+if(!file){toast('Selecciona primero un archivo ZIP',true);return;}
+toast('Leyendo ZIP...');
+try{
+var zip=await JSZip.loadAsync(file);
+var entradas=[],jsons={};
+zip.forEach(function(ruta,entry){
+if(entry.dir)return;
+if(ruta.endsWith('.json')&&!ruta.endsWith('.jpg.json')&&!ruta.endsWith('.jpeg.json')&&!ruta.endsWith('.png.json')){
+// JSON de metadatos de Takeout (no los guardamos aún, solo los indexamos)
+jsons[ruta]=entry;
+return;
+}
+entradas.push({ruta:ruta,nombreArchivo:ruta.split('/').pop(),obtenerBlob:function(){return entry.async('blob');}});
+});
+// Asociar JSONs a imágenes
+entradas.forEach(function(e){
+var base=e.ruta.replace(/\.[^.]+$/,'');
+var jsonRuta=base+'.json';
+if(jsons[jsonRuta]){
+e.jsonTakeoutTextoPromise=jsons[jsonRuta].async('text');
+}
+});
+// Esperar a que se resuelvan las promesas de json
+for(var i=0;i<entradas.length;i++){
+if(entradas[i].jsonTakeoutTextoPromise){
+try{entradas[i].jsonTakeoutTexto=await entradas[i].jsonTakeoutTextoPromise;}catch(e){}
+}
+}
+if(!entradas.length){toast('El ZIP no contiene archivos',true);return;}
+var grupos=agruparPorAlbumDesdeEntradas(entradas);
+await ejecutarImportacion(grupos);
+}catch(err){toast('No se pudo leer ZIP: '+err.message,true);}
+}
+
+async function iniciarImportCarpeta(){
+var input=document.getElementById('fiCarpeta');
+var files=Array.prototype.slice.call(input.files||[]);
+if(!files.length){toast('Selecciona primero una carpeta',true);return;}
+// Detectar JSONs asociados
+var entradas=[];
+files.forEach(function(f){
+var ruta=f.webkitRelativePath||f.name;
+entradas.push({ruta:ruta,nombreArchivo:f.name,obtenerBlob:function(){return Promise.resolve(f);},blob:f});
+});
+// Asociar jsons
+entradas.forEach(function(e){
+var base=e.ruta.replace(/\.[^.]+$/,'');
+var jsonEntrada=entradas.find(function(x){return x.ruta===base+'.json';});
+if(jsonEntrada){
+e.jsonTakeoutTextoPromise=Promise.resolve(jsonEntrada.blob.text());
+}
+});
+for(var i=0;i<entradas.length;i++){
+if(entradas[i].jsonTakeoutTextoPromise){
+try{entradas[i].jsonTakeoutTexto=await entradas[i].jsonTakeoutTextoPromise;}catch(e){}
+}
+}
+var grupos=agruparPorAlbumDesdeEntradas(entradas);
+await ejecutarImportacion(grupos);
+}
+
+/* ---------- Dudas ---------- */
+async function cargarBandejaDudas(){
+var cont=document.getElementById('contDudas');
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
+try{
+var dudasId=await obtenerCarpetaDudasId();
+var archivos=await listarTodosArchivosDrive("'"+dudasId+"' in parents and trashed=false",'id,name,mimeType');
+archivos=archivos.filter(function(a){return !a.name.endsWith('.json');});
+if(!archivos.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">La bandeja de dudas está vacía.</p>';return;}
+
+var html='<div class="dudas-grid">';
+for(var i=0;i<archivos.length;i++){
+var a=archivos[i];
+var json=await leerJsonArchivo(dudasId,a.name);
+var personaSugerida='';
+if(json&&json.procedencia&&json.procedencia.personaSugerida&&PI[json.procedencia.personaSugerida]){
+personaSugerida='Sugerido: '+fnPersona(PI[json.procedencia.personaSugerida]);
+}
+var thumbUrl='';
+try{
+var blob=await descargarBlobDrive(a.id);
+thumbUrl=URL.createObjectURL(blob);
+}catch(e){}
+
+html+='<div class="duda-card">';
+html+='<div class="thumb">'+(thumbUrl?'<img src="'+thumbUrl+'" alt="">':'<i class="fa-solid fa-image" style="font-size:40px;color:var(--border)"></i>')+'</div>';
+html+='<div class="info">';
+html+='<div class="nombre">'+esc(a.name)+'</div>';
+html+='<div class="meta">'+esc(personaSugerida)+'</div>';
+html+='<div class="actions">';
+html+='<button class="doc" onclick="accionDuda(\''+esc(a.id)+'\',\''+esc(a.name)+'\',\'foto\')"><i class="fa-solid fa-images"></i> Foto</button>';
+html+='<button class="doc" onclick="accionDuda(\''+esc(a.id)+'\',\''+esc(a.name)+'\',\'documento\')"><i class="fa-solid fa-file-lines"></i> Doc</button>';
+html+='<button class="del" onclick="accionDuda(\''+esc(a.id)+'\',\''+esc(a.name)+'\',\'descartar\')"><i class="fa-solid fa-trash"></i></button>';
+html+='</div></div></div>';
+}
+html+='</div>';
+cont.innerHTML=html;
+}catch(err){cont.innerHTML='<p style="font-size:12px;color:var(--warn)">Error: '+esc(err.message)+'</p>';}
+}
+
+async function accionDuda(fileId,nombreArchivo,accion){
+try{
+var dudasId=await obtenerCarpetaDudasId();
+var json=await leerJsonArchivo(dudasId,nombreArchivo);
+var personaId=(json&&json.procedencia&&json.procedencia.personaSugerida)?json.procedencia.personaSugerida:null;
+
+if(accion==='descartar'){
+var descId=await obtenerCarpetaDescartadosId();
+await moverArchivoDrive(fileId,descId,dudasId);
+// Mover json también si existe
+var jsonFile=await buscarEnCarpeta(nombreArchivo+'.json',dudasId,false);
+if(jsonFile)await moverArchivoDrive(jsonFile.id,descId,dudasId);
+toast('Descartado: '+nombreArchivo);
+}else if(accion==='foto'){
+if(!personaId){toast('No hay persona sugerida. Usa la importación para asignar primero.',true);return;}
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+await moverArchivoDrive(fileId,folderId,dudasId);
+var jsonFile=await buscarEnCarpeta(nombreArchivo+'.json',dudasId,false);
+if(jsonFile)await moverArchivoDrive(jsonFile.id,folderId,dudasId);
+// Actualizar json
+var datos=json||{archivo:nombreArchivo,procedencia:{}};
+datos.clasificacion={esDocumento:false,estado:'foto_familiar',fechaClasificacion:new Date().toISOString()};
+datos.ocr={pendiente:false};
+await guardarJsonArchivo(folderId,nombreArchivo,datos,jsonFile?jsonFile.id:null);
+await regenerarPersonaJson(personaId);
+toast('Archivado como foto: '+nombreArchivo);
+}else if(accion==='documento'){
+if(!personaId){toast('No hay persona sugerida. Usa la importación para asignar primero.',true);return;}
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+await moverArchivoDrive(fileId,folderId,dudasId);
+var jsonFile=await buscarEnCarpeta(nombreArchivo+'.json',dudasId,false);
+if(jsonFile)await moverArchivoDrive(jsonFile.id,folderId,dudasId);
+var datos=json||{archivo:nombreArchivo,procedencia:{}};
+datos.clasificacion={esDocumento:true,estado:'documento_pendiente',fechaClasificacion:new Date().toISOString()};
+datos.ocr={pendiente:true};
+await guardarJsonArchivo(folderId,nombreArchivo,datos,jsonFile?jsonFile.id:null);
+await regenerarPersonaJson(personaId);
+toast('Marcado como documento: '+nombreArchivo);
+}
+cargarBandejaDudas();
+actualizarMetricasGlobales();
+}catch(err){toast('Error: '+err.message,true);}
+}
+
+/* ---------- Análisis OCR ---------- */
+async function cargarListaOCR(){
+var cont=document.getElementById('listaPendientesOCR');
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
+try{
+await cargarPersonasArbol();
+var docsId=await obtenerCarpetaDocumentosId();
+var subs=await listarTodosArchivosDrive("'"+docsId+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",'id,name');
+var validas=subs.filter(function(c){return PI[c.name];});
+var pendientes=[];
+for(var i=0;i<validas.length;i++){
+var carpeta=validas[i];
+var archivos=await listarTodosArchivosDrive("'"+carpeta.id+"' in parents and trashed=false",'id,name');
+for(var j=0;j<archivos.length;j++){
+if(archivos[j].name.endsWith('.json')||archivos[j].name==='_persona.json')continue;
+var json=await leerJsonArchivo(carpeta.id,archivos[j].name);
+if(json&&json.clasificacion&&json.clasificacion.esDocumento&&json.ocr&&json.ocr.pendiente){
+pendientes.push({archivo:archivos[j],personaId:carpeta.name,personaNombre:PI[carpeta.name]?fnPersona(PI[carpeta.name]):carpeta.name,folderId:carpeta.id});
+}
+}
+}
+if(!pendientes.length){cont.innerHTML='<p style="font-size:12px;color:var(--green);font-weight:700"><i class="fa-solid fa-circle-check"></i> No hay documentos pendientes de OCR.</p>';return;}
+var html='';
+pendientes.forEach(function(p){
+html+='<div class="ana-item">';
+html+='<div class="ana-nombre">'+esc(p.archivo.name)+'</div>';
+html+='<div class="ana-persona">'+esc(p.personaNombre)+'</div>';
+html+='<div class="ana-estado">Pendiente</div>';
+html+='</div>';
+});
+cont.innerHTML=html;
+window._pendientesOCR=pendientes;
+}catch(err){cont.innerHTML='<p style="font-size:12px;color:var(--warn)">Error: '+esc(err.message)+'</p>';}
+}
+
+async function ejecutarOCRPendiente(){
+if(!window._pendientesOCR||!window._pendientesOCR.length){toast('No hay pendientes',true);return;}
+document.getElementById('pbOCRCont').style.display='block';
+document.getElementById('pfOCR').style.width='0%';
+limpiarLog('logOCR');
+var lista=window._pendientesOCR;
+var total=lista.length;
+for(var i=0;i<lista.length;i++){
+var item=lista[i];
+document.getElementById('pfOCR').style.width=Math.round((i+1)/total*100)+'%';
+log('logOCR','['+(i+1)+'/'+total+'] '+item.archivo.name+' ('+item.personaNombre+')');
+try{
+var blob=await descargarBlobDrive(item.archivo.id);
+var resultado=await analizarArchivoOCR(blob,item.archivo.name,item.personaId);
+var json=await leerJsonArchivo(item.folderId,item.archivo.name);
+if(!json)json={archivo:item.archivo.name,procedencia:{},metadatos:{},clasificacion:{esDocumento:true,estado:'documento_analizado',fechaClasificacion:new Date().toISOString()}};
+json.clasificacion.estado='documento_analizado';
+if(resultado){
+json.ocr={pendiente:false,fechaOCR:new Date().toISOString(),textoCompleto:resultado.texto,confianza:resultado.confianza,datosExtraidos:resultado.candidatos};
+json.informativo=resultado.informativo;
+log('logOCR','  → '+resultado.candidatos.length+' candidato(s)');
+}else{
+json.ocr={pendiente:false,fechaOCR:new Date().toISOString(),textoCompleto:'',confianza:'n/a',datosExtraidos:[]};
+log('logOCR','  → Sin texto detectado');
+}
+var jsonFile=await buscarEnCarpeta(item.archivo.name+'.json',item.folderId,false);
+await guardarJsonArchivo(item.folderId,item.archivo.name,json,jsonFile?jsonFile.id:null);
+await regenerarPersonaJson(item.personaId);
+}catch(err){log('logOCR','  → ERROR: '+err.message);}
+}
+document.getElementById('pfOCR').style.width='100%';
+toast('OCR completado');
+cargarListaOCR();
+actualizarMetricasGlobales();
+}
+
+/* ---------- Repasar carpeta persona ---------- */
+var PERSONA_REPASAR_ID=null;
+function buscarPersonaRepasar(q){
+q=(q||'').trim();
+var lista=document.getElementById('listaRepasarBusqueda');
+if(!q||!PERSONAS.length){lista.innerHTML='';return;}
+var qn=normTxt(q);
+var f=PERSONAS.filter(function(p){return normTxt(fnPersona(p)).indexOf(qn)>=0||String(p.ID).indexOf(q)>=0;}).slice(0,10);
+lista.innerHTML=f.map(function(p){return '<div class="ri" onclick="seleccionarPersonaRepasar(\''+esc(p.ID)+'\')"><div><div class="rn">'+esc(fnPersona(p))+'</div><div class="ry">ID '+esc(p.ID)+'</div></div></div>';}).join('')||'<p style="font-size:12px;color:var(--muted);padding:10px">Sin resultados</p>';
+}
+function seleccionarPersonaRepasar(id){
+PERSONA_REPASAR_ID=id;
+document.getElementById('listaRepasarBusqueda').innerHTML='';
+document.getElementById('buscarRepasar').value='';
+var p=PI[id];
+document.getElementById('repasarSeleccionadaNombre').textContent=p?fnPersona(p)+' (ID '+id+')':'ID '+id;
+document.getElementById('repasarSeleccionada').style.display='block';
+}
+function limpiarSeleccionRepasar(){
+PERSONA_REPASAR_ID=null;
+document.getElementById('repasarSeleccionada').style.display='none';
+document.getElementById('repasarSeleccionadaNombre').textContent='';
+}
+
+async function iniciarRepasoPersona(){
+if(!PERSONA_REPASAR_ID){toast('Selecciona una persona primero',true);return;}
+limpiarLog('logRepaso');
+try{
+var folderId=await obtenerOCrearCarpetaPersona(PERSONA_REPASAR_ID);
+var archivos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');
+archivos=archivos.filter(function(a){return a.name!=='_persona.json'&&!a.name.endsWith('.json');});
+log('logRepaso','Repasando '+archivos.length+' archivo(s) en DOCUMENTOS/'+PERSONA_REPASAR_ID+'/');
+var creados=0,ocrHecho=0;
+for(var i=0;i<archivos.length;i++){
+var a=archivos[i];
+var json=await leerJsonArchivo(folderId,a.name);
+if(!json){
+// Crear JSON básico
+var datos={archivo:a.name,procedencia:{fechaImportacion:new Date().toISOString()},metadatos:{},clasificacion:{esDocumento:false,estado:'foto_familiar',fechaClasificacion:new Date().toISOString()},ocr:{pendiente:false}};
+await guardarJsonArchivo(folderId,a.name,datos,null);
+creados++;
+log('logRepaso','Creado JSON para: '+a.name);
+}else if(json.clasificacion&&json.clasificacion.esDocumento&&json.ocr&&json.ocr.pendiente){
+// Hacer OCR
+log('logRepaso','OCR pendiente: '+a.name);
+try{
+var blob=await descargarBlobDrive(a.id);
+var resultado=await analizarArchivoOCR(blob,a.name,PERSONA_REPASAR_ID);
+json.clasificacion.estado='documento_analizado';
+if(resultado){
+json.ocr={pendiente:false,fechaOCR:new Date().toISOString(),textoCompleto:resultado.texto,confianza:resultado.confianza,datosExtraidos:resultado.candidatos};
+json.informativo=resultado.informativo;
+}else{
+json.ocr={pendiente:false,fechaOCR:new Date().toISOString(),textoCompleto:'',confianza:'n/a',datosExtraidos:[]};
+}
+var jsonFile=await buscarEnCarpeta(a.name+'.json',folderId,false);
+await guardarJsonArchivo(folderId,a.name,json,jsonFile?jsonFile.id:null);
+ocrHecho++;
+}catch(e){log('logRepaso','  ERROR OCR: '+e.message);}
+}
+}
+await regenerarPersonaJson(PERSONA_REPASAR_ID);
+log('logRepaso','Repaso terminado. JSONs creados: '+creados+', OCRs hechos: '+ocrHecho);
+toast('Repaso completado');
+actualizarMetricasGlobales();
+}catch(err){log('logRepaso','ERROR: '+err.message);toast('Error: '+err.message,true);}
+}
+
+/* ---------- Resultados e informe ---------- */
+function buscarPersonaResultados(q){
+q=(q||'').trim();
+var lista=document.getElementById('listaResultadosBusqueda');
+if(!q||!PERSONAS.length){lista.innerHTML='';return;}
+var qn=normTxt(q);
+var f=PERSONAS.filter(function(p){return normTxt(fnPersona(p)).indexOf(qn)>=0||String(p.ID).indexOf(q)>=0;}).slice(0,30);
+lista.innerHTML=f.map(function(p){return '<div class="ri" onclick="mostrarResultadoPersona(\''+esc(p.ID)+'\')"><div><div class="rn">'+esc(fnPersona(p))+'</div><div class="ry">ID '+esc(p.ID)+'</div></div></div>';}).join('')||'<p style="font-size:12px;color:var(--muted);padding:10px">Sin resultados</p>';
+}
+
+async function mostrarResultadoPersona(personaId){
+document.getElementById('listaResultadosBusqueda').innerHTML='';
+document.getElementById('buscarResultado').value='';
+var cont=document.getElementById('detalleResultadoPersona');
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
+try{
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+var f=await buscarEnCarpeta('_persona.json',folderId,false);
+if(!f){
+// Generar si no existe
+await regenerarPersonaJson(personaId);
+f=await buscarEnCarpeta('_persona.json',folderId,false);
+}
+if(!f){cont.innerHTML='<div class="persona-card"><h4>'+esc(PI[personaId]?fnPersona(PI[personaId]):personaId)+'</h4><p style="font-size:12px;color:var(--muted)">No hay datos todavía.</p></div>';return;}
+var txt=await leerTextoDrive(f.id);
+var d=JSON.parse(txt);
+
+var h='<div class="persona-card">';
+h+='<h4>'+esc(d.personaNombre||fnPersona(PI[personaId])||personaId)+' <span style="font-size:11px;color:var(--muted);font-weight:400">(ID '+esc(personaId)+')</span></h4>';
+
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">';
+h+='<span class="pill">'+d.resumen.totalArchivos+' archivos</span>';
+h+='<span class="pill info">'+d.resumen.documentos+' documentos</span>';
+h+='<span class="pill">'+d.resumen.fotosFamiliares+' fotos</span>';
+h+='<span class="pill info">'+d.resumen.conOCR+' con OCR</span>';
+h+='<span class="pill warn">'+d.resumen.ocrPendiente+' OCR pendiente</span>';
+h+='</div>';
+
+if(d.candidatosGlobal&&d.candidatosGlobal.length){
+h+='<h4 style="margin-top:14px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Candidatos extraídos</h4>';
+d.candidatosGlobal.forEach(function(c){
+h+='<div class="candidato"><div class="campo">'+esc(c.campo)+'</div><div class="detalle"><b>'+esc(c.valor)+'</b><div class="origen">Origen: '+esc(c.origen)+' · confianza '+esc(c.confianza)+'<br>"'+esc(c.fragmento||'')+'"</div></div></div>';
+});
+}
+
+h+='<h4 style="margin-top:14px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Archivos</h4>';
+if(d.archivos&&d.archivos.length){
+d.archivos.forEach(function(a){
+h+='<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border)">';
+h+='<b>'+esc(a.nombre)+'</b> ';
+if(a.esDocumento)h+='<span class="pill info">documento</span>';
+else h+='<span class="pill">foto</span>';
+if(a.ocrPendiente)h+='<span class="pill warn">OCR pendiente</span>';
+if(a.ocrCompletado)h+='<span class="pill">OCR listo</span>';
+if(a.datosClave&&a.datosClave.length)h+='<div style="color:var(--muted);margin-top:2px">'+esc(a.datosClave.join(', '))+'</div>';
+h+='</div>';
+});
+}
+
+h+='<div style="margin-top:14px"><button class="btn green" onclick="generarInformeHermano(\''+esc(personaId)+'\')"><i class="fa-solid fa-file-lines"></i> Generar informe para mi hermano</button></div>';
+h+='</div>';
+cont.innerHTML=h;
+}catch(err){cont.innerHTML='<p style="font-size:12px;color:var(--warn)">Error: '+esc(err.message)+'</p>';}
+}
+
+async function generarInformeHermano(personaId){
+try{
+var folderId=await obtenerOCrearCarpetaPersona(personaId);
+var f=await buscarEnCarpeta('_persona.json',folderId,false);
+if(!f){await regenerarPersonaJson(personaId);f=await buscarEnCarpeta('_persona.json',folderId,false);}
+if(!f){toast('No hay datos para generar informe',true);return;}
+var txt=await leerTextoDrive(f.id);
+var d=JSON.parse(txt);
+
+var informe='<div class="informe-box">';
+informe+='<h2 style="font-family:Cinzel,serif;text-align:center;margin-bottom:4px">Informe genealógico</h2>';
+informe+='<p style="text-align:center;color:var(--muted);margin-bottom:16px">'+esc(d.personaNombre)+' (ID '+esc(personaId)+')<br>Generado el '+new Date().toLocaleDateString()+'</p>';
+
+informe+='<h4>Resumen de archivos</h4>';
+informe+='<p>En la carpeta de esta persona hay <b>'+d.resumen.totalArchivos+'</b> archivo(s): '+d.resumen.fotosFamiliares+' foto(s) familiar(es) y '+d.resumen.documentos+' documento(s). De los documentos, '+d.resumen.conOCR+' ya han sido analizados con OCR y '+d.resumen.ocrPendiente+' están pendientes.</p>';
+
+if(d.candidatosGlobal&&d.candidatosGlobal.length){
+informe+='<h4>Datos nuevos aportados por los documentos</h4><ul>';
+var camposAgrupados={};
+d.candidatosGlobal.forEach(function(c){
+if(!camposAgrupados[c.campo])camposAgrupados[c.campo]=[];
+camposAgrupados[c.campo].push(c);
+});
+Object.keys(camposAgrupados).forEach(function(campo){
+var lista=camposAgrupados[campo];
+informe+='<li><b>'+esc(campo)+'</b>: ';
+informe+=lista.map(function(c){return esc(c.valor)+' <span style="color:var(--muted)">(de '+esc(c.origen)+')</span>';}).join(', ');
+informe+='</li>';
+});
+informe+='</ul>';
+} else {
+informe+='<h4>Datos nuevos aportados</h4><p>Todavía no se han extraído candidatos de ningún documento.</p>';
+}
+
+informe+='<h4>Qué aporta cada foto/documento</h4><ul>';
+if(d.archivos&&d.archivos.length){
+d.archivos.forEach(function(a){
+if(a.esDocumento){
+if(a.ocrCompletado){
+informe+='<li><b>'+esc(a.nombre)+'</b> (documento analizado): ';
+if(a.datosClave&&a.datosClave.length)informe+='Aporta '+esc(a.datosClave.join(', '))+'.';
+else informe+='No ha aportado datos concretos identificados automáticamente.';
+informe+='</li>';
+}else if(a.ocrPendiente){
+informe+='<li><b>'+esc(a.nombre)+'</b> (documento): Pendiente de análisis OCR.</li>';
+}
+}else{
+informe+='<li><b>'+esc(a.nombre)+'</b> (foto familiar): Archivada sin OCR. ';
+if(a.fecha)informe+='Fecha de la toma: '+esc(a.fecha)+'.';
+else informe+='Sin fecha identificada en metadatos.';
+informe+='</li>';
+}
+});
+} else {
+informe+='<li>No hay archivos registrados.</li>';
+}
+informe+='</ul>';
+
+informe+='<h4>Recomendaciones</h4>';
+if(d.resumen.ocrPendiente>0)informe+='<p>Hay <b>'+d.resumen.ocrPendiente+'</b> documento(s) pendiente(s) de OCR. Ve a la pestaña <b>Análisis</b> para ejecutarlo.</p>';
+else if(d.resumen.documentos===0)informe+='<p>No hay documentos analizados. Si tienes partidas, certificados o fotos con texto, archívalos como documentos en la bandeja de dudas.</p>';
+else informe+='<p>Todos los documentos han sido analizados. Revisa los candidatos arriba y, si son correctos, incorpóralos manualmente al árbol.</p>';
+
+informe+='</div>';
+
+document.getElementById('detalleResultadoPersona').innerHTML=informe;
+}catch(err){toast('Error generando informe: '+err.message,true);}
+}
+
+/* ---------- Configuración ---------- */
+function extraerIdCarpeta(texto){
+texto=String(texto||'').trim();
+var m=texto.match(/\/folders\/([a-zA-Z0-9_-]+)/);if(m)return m[1];
+m=texto.match(/[?&]id=([a-zA-Z0-9_-]+)/);if(m)return m[1];
+if(/^[a-zA-Z0-9_-]{10,}$/.test(texto))return texto;
+return null;
+}
+function guardarClientId(){
+var v=document.getElementById('cfgClientId').value.trim();
+if(!v){toast('Escribe un Client ID',true);return;}
+CLIENT_ID=v;googleTokenClient=null;driveAccessToken=null;
+guardarCfgValor('clientId',v);
+toast('Client ID guardado. Vuelve a conectar con Google.');
+actualizarDriveStatusPill();
+}
+function guardarRootFolder(){
+var id=extraerIdCarpeta(document.getElementById('cfgRootFolder').value);
+if(!id){toast('No se reconoce el ID de la carpeta',true);return;}
+ROOT_FOLDER_ID=id;DOCUMENTOS_FOLDER_ID=null;DUDAS_FOLDER_ID=null;DESCARTADOS_FOLDER_ID=null;carpetaPersonaIdCache={};PERSONAS=[];PI={};
+guardarCfgValor('rootFolderId',id);
+toast('Carpeta raíz guardada');
+recargarPersonas();
+}
+function guardarOcrLang(){
+OCR_LANG=document.getElementById('cfgOcrLang').value;
+guardarCfgValor('ocrLang',OCR_LANG);
+tesseractWorkerPromise=null;
+toast('Idioma de OCR guardado');
+}
+
+/* ---------- Inicio ---------- */
+document.addEventListener('DOMContentLoaded',function(){
+oDB().then(async function(){
+CLIENT_ID=await leerCfgValor('clientId',GOOGLE_CLIENT_ID);
+ROOT_FOLDER_ID=await leerCfgValor('rootFolderId',DEFAULT_ROOT_FOLDER_ID);
+OCR_LANG=await leerCfgValor('ocrLang','spa');
+document.getElementById('cfgClientId').value=CLIENT_ID;
+document.getElementById('cfgRootFolder').value=ROOT_FOLDER_ID||'';
+document.getElementById('cfgOcrLang').value=OCR_LANG;
+await cargarAliasAlbum();
+actualizarDriveStatusPill();
+// Listeners de pestañas
+sv('panel');
+});
+});
+
+// Cargar datos al entrar en pestañas
+document.querySelector('button[data-v="dudas"]').addEventListener('click',cargarBandejaDudas);
+document.querySelector('button[data-v="analisis"]').addEventListener('click',cargarListaOCR);
+</script>
+</body>
+</html>
