@@ -262,6 +262,10 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <h3><i class="fa-solid fa-broom"></i> Mantenimiento</h3>
 <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Borra únicamente los datos que este programa guarda en este navegador (cajas detectadas, elementos importados, dudas pendientes y esta configuración: Drive, OCR, vía rápida...). <b>No borra nada en Google Drive</b> ni afecta a otras aplicaciones (por ejemplo, el árbol genealógico usa su propia base de datos aparte, que no se toca).</p>
 <button class="btn ghost small" onclick="limpiarCacheDelPrograma()" style="border-color:var(--warn);color:var(--warn)"><i class="fa-solid fa-trash-can"></i> Vaciar caché de este programa</button>
+<hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">
+<h4 style="margin:0 0 6px">Comprobar y corregir ubicación de archivos en Drive</h4>
+<p style="font-size:12px;color:var(--muted);margin-bottom:8px">Si al marcar algo como "Es foto" o "Es documento" el archivo se quedó realmente en la carpeta "Sin clasificar" (por ejemplo, por un fallo de conexión con Drive), esto lo detecta y lo mueve ahora a DOCUMENTOS/&lt;ID&gt;. Muestra cualquier error en vez de ocultarlo.</p>
+<button class="btn ghost small" onclick="verificarUbicacionesDrive()"><i class="fa-solid fa-magnifying-glass-location"></i> Comprobar ubicación de archivos ya clasificados</button>
 </div>
 </div>
 </main>
@@ -433,10 +437,10 @@ return archivos;
 }
 async function obtenerOCrearCarpeta(nombre,parentId){
 var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true');
 var d=await r.json();
 if(d.files&&d.files.length)return d.files[0].id;
-var rc=await driveFetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId],mimeType:'application/vnd.google-apps.folder'})});
+var rc=await driveFetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId],mimeType:'application/vnd.google-apps.folder'})});
 var dc=await rc.json();
 return dc.id;
 }
@@ -447,24 +451,24 @@ if(descripcion)metadata.description=String(descripcion).slice(0,1000);
 var meta=new Blob(['\r\n--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+'\r\n--'+boundary+'\r\nContent-Type: '+mimeType+'\r\n\r\n'],{type:'text/plain'});
 var close=new Blob(['\r\n--'+boundary+'--'],{type:'text/plain'});
 var body=new Blob([meta,blob,close]);
-var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,size,md5Checksum',{method:'POST',headers:{'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:body});
+var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,size,md5Checksum&supportsAllDrives=true',{method:'POST',headers:{'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:body});
 if(!r.ok)throw new Error('Drive respondió '+r.status+' al subir '+nombre);
 return await r.json();
 }
 
 async function actualizarBinarioADrive(fileId,blob,mimeType){
-var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(fileId)+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':mimeType||blob.type||'application/octet-stream'},body:blob});
+var r=await driveFetch('https://www.googleapis.com/upload/drive/v3/files/'+encodeURIComponent(fileId)+'?uploadType=media&supportsAllDrives=true',{method:'PATCH',headers:{'Content-Type':mimeType||blob.type||'application/octet-stream'},body:blob});
 if(!r.ok)throw new Error('Drive respondió '+r.status+' al actualizar el archivo');
 return await r.json();
 }
 async function actualizarMetadatosDrive(fileId,campos){
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)});
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?supportsAllDrives=true',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)});
 if(!r.ok)throw new Error('Drive respondió '+r.status+' al actualizar los metadatos');
 return await r.json();
 }
 async function buscarArchivoPorNombreEnCarpeta(nombre,parentId){
 var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and trashed=false";
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,mimeType,size,md5Checksum,parents,modifiedTime)&spaces=drive');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,mimeType,size,md5Checksum,parents,modifiedTime)&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true');
 var d=await leerRespuestaDrive(r,'No se pudo buscar el archivo en Drive');
 return (d.files||[])[0]||null;
 }
@@ -589,18 +593,18 @@ async function buscarDuplicadoDrive(md5,size,personaId,personaNombre){
 }
 
 async function obtenerArchivoDrive(fileId){
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?fields=id,name,mimeType,parents,size,md5Checksum');
-if(!r.ok)throw new Error('No se pudo consultar el archivo en Drive');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?fields=id,name,mimeType,parents,size,md5Checksum&supportsAllDrives=true');
+if(!r.ok)throw new Error('No se pudo consultar el archivo en Drive (HTTP '+r.status+')');
 return await r.json();
 }
 async function eliminarArchivoDrive(fileId){
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId),{method:'DELETE'});
-if(!r.ok)throw new Error('No se pudo eliminar el duplicado de Drive');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(fileId)+'?supportsAllDrives=true',{method:'DELETE'});
+if(!r.ok)throw new Error('No se pudo eliminar el duplicado de Drive (HTTP '+r.status+')');
 return true;
 }
 async function moverArchivoDrive(fileId,nuevoParentId,antiguoParentId){
-var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?addParents='+nuevoParentId+'&removeParents='+antiguoParentId,{method:'PATCH'});
-if(!r.ok)throw new Error('No se pudo mover el archivo en Drive');
+var r=await driveFetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?addParents='+nuevoParentId+'&removeParents='+antiguoParentId+'&supportsAllDrives=true',{method:'PATCH'});
+if(!r.ok){var txt='';try{txt=await r.text();}catch(e){}throw new Error('No se pudo mover el archivo en Drive (HTTP '+r.status+')'+(txt?': '+txt.slice(0,200):''));}
 return await r.json();
 }
 
@@ -1827,7 +1831,22 @@ try{
  '</style></head><body><div class=\"wrap\">';
  html+='<div class=\"cover\"><h1>Archivo fotográfico familiar</h1><div class=\"meta\">Informe para compartir · Generado el '+esc(new Date().toLocaleString('es-ES'))+'</div>';
  html+='<div class=\"stats\"><div class=\"stat\"><b>'+total+'</b><span>elementos encontrados</span></div><div class=\"stat\"><b>'+fotos+'</b><span>fotografías</span></div><div class=\"stat\"><b>'+docs+'</b><span>documentos</span></div><div class=\"stat\"><b>'+dups+'</b><span>coincidencias con archivos existentes</span></div></div></div>';
- Object.keys(grupos).forEach(function(k){var arr=grupos[k];var nombre=arr[0]&&arr[0].personas&&arr[0].personas[0]?arr[0].personas[0]:k;html+='<h2>'+esc(nombre)+'</h2><div class=\"grid\">';arr.forEach(function(e){var tipoTxt=e.estado==='documento'?'📄 Documento':(e.estado==='fotografia'||e.estado==='perfil'?'📷 Fotografía':e.estado||'Elemento');html+='<div class=\"card\">';if(e.miniatura)html+='<img class=\"thumb\" src=\"'+e.miniatura+'\">';else html+='<div class=\"thumb\" style=\"display:flex;align-items:center;justify-content:center;font-size:48px\">'+(e.tipo==='pdf'?'📄':'🖼️')+'</div>';html+='<div class=\"type\">'+tipoTxt+'</div><b>'+esc(e.nombreOriginal||'')+'</b><div class=\"meta\">'+esc(e.fecha||'')+'</div>';if(e.googlePhotosDescription)html+='<div class=\"small\"><b>Descripción de Google Fotos:</b><br>'+esc(e.googlePhotosDescription)+'</div>';if(e.ocrHallazgos&&e.ocrHallazgos.util){var hh=e.ocrHallazgos;html+='<div class="discover"><b>🔎 Hallazgos</b>'+(hh.tipos&&hh.tipos.length?'<br><b>Tipo:</b> '+esc(hh.tipos.join(' · ')):'')+(hh.fechas&&hh.fechas.length?'<br><b>Fechas:</b> '+esc(hh.fechas.join(' · ')):'')+(hh.lugares&&hh.lugares.length?'<br><b>Lugares:</b> '+esc(hh.lugares.join(' · ')):'')+(hh.instituciones&&hh.instituciones.length?'<br><b>Instituciones:</b> '+esc(hh.instituciones.join(' · ')):'')+(hh.personas&&hh.personas.length?'<br><b>Personas:</b> '+esc(hh.personas.slice(0,10).join(' · ')):'')+(hh.resumen?'<br><b>Resumen:</b> '+esc(hh.resumen.slice(0,1000)):'')+'</div>';}if(e.ocrTexto)html+='<div class="ocr"><b>Texto OCR</b><br>'+esc(e.ocrTexto.slice(0,8000))+'</div>';if(e.duplicadoEncontrado)html+='<div><span class=\"badge\">♻️ Ya existía una copia en el archivo</span></div>';html+='</div>';});html+='</div>';});
+ // BLOQUE: metadatos de Google Fotos legibles en el informe. El JSON completo de Google
+ // (fecha real de la foto, coordenadas, personas etiquetadas por Google, cámara, etc.)
+ // se guarda entero en el elemento y en el sidecar .google-photos.json junto a la foto en
+ // Drive; aquí solo se muestra un resumen legible de los campos más útiles.
+ function metadatosLegiblesGoogleFotos(e){
+   var m=e.googlePhotosMetadata; if(!m||typeof m!=='object')return '';
+   var partes=[];
+   var tomada=m.photoTakenTime&&(m.photoTakenTime.formatted||m.photoTakenTime.timestamp);
+   if(tomada)partes.push('<b>Fecha real (Google Fotos):</b> '+esc(String(tomada)));
+   if(Array.isArray(m.people)&&m.people.length)partes.push('<b>Personas etiquetadas por Google:</b> '+esc(m.people.map(function(p){return p&&p.name?p.name:'';}).filter(Boolean).join(', ')));
+   var geo=m.geoData||m.geoDataExif;
+   if(geo&&(geo.latitude||geo.longitude)&&(geo.latitude!==0||geo.longitude!==0))partes.push('<b>Lugar (coordenadas):</b> '+esc(geo.latitude+', '+geo.longitude));
+   if(m.googlePhotosOrigin&&m.googlePhotosOrigin.mobileUpload&&m.googlePhotosOrigin.mobileUpload.deviceFolder&&m.googlePhotosOrigin.mobileUpload.deviceFolder.localFolderName)partes.push('<b>Carpeta original del móvil:</b> '+esc(m.googlePhotosOrigin.mobileUpload.deviceFolder.localFolderName));
+   return partes.length?'<div class="small" style="margin-top:6px">'+partes.join('<br>')+'</div>':'';
+ }
+ Object.keys(grupos).forEach(function(k){var arr=grupos[k];var nombre=arr[0]&&arr[0].personas&&arr[0].personas[0]?arr[0].personas[0]:k;html+='<h2>'+esc(nombre)+'</h2><div class=\"grid\">';arr.forEach(function(e){var tipoTxt=e.estado==='documento'?'📄 Documento':(e.estado==='fotografia'||e.estado==='perfil'?'📷 Fotografía':e.estado||'Elemento');html+='<div class=\"card\">';if(e.miniatura)html+='<img class=\"thumb\" src=\"'+e.miniatura+'\">';else html+='<div class=\"thumb\" style=\"display:flex;align-items:center;justify-content:center;font-size:48px\">'+(e.tipo==='pdf'?'📄':'🖼️')+'</div>';html+='<div class=\"type\">'+tipoTxt+'</div><b>'+esc(e.nombreOriginal||'')+'</b><div class=\"meta\">'+esc(e.fecha||'')+(e.albumesOrigen&&e.albumesOrigen.length?' · álbum: '+esc(e.albumesOrigen.join(', ')):'')+'</div>';if(e.googlePhotosDescription)html+='<div class=\"small\"><b>Descripción de Google Fotos:</b><br>'+esc(e.googlePhotosDescription)+'</div>';html+=metadatosLegiblesGoogleFotos(e);if(e.ocrHallazgos&&e.ocrHallazgos.util){var hh=e.ocrHallazgos;html+='<div class="discover"><b>🔎 Hallazgos</b>'+(hh.tipos&&hh.tipos.length?'<br><b>Tipo:</b> '+esc(hh.tipos.join(' · ')):'')+(hh.fechas&&hh.fechas.length?'<br><b>Fechas:</b> '+esc(hh.fechas.join(' · ')):'')+(hh.lugares&&hh.lugares.length?'<br><b>Lugares:</b> '+esc(hh.lugares.join(' · ')):'')+(hh.instituciones&&hh.instituciones.length?'<br><b>Instituciones:</b> '+esc(hh.instituciones.join(' · ')):'')+(hh.personas&&hh.personas.length?'<br><b>Personas:</b> '+esc(hh.personas.slice(0,10).join(' · ')):'')+(hh.resumen?'<br><b>Resumen:</b> '+esc(hh.resumen.slice(0,1000)):'')+'</div>';}if(e.ocrTexto)html+='<div class="ocr"><b>Texto OCR</b><br>'+esc(e.ocrTexto.slice(0,8000))+'</div>';if(e.duplicadoEncontrado)html+='<div><span class=\"badge\">♻️ Ya existía una copia en el archivo</span></div>';html+='</div>';});html+='</div>';});
  html+='</div></body></html>';
  var w=window.open('','_blank');if(!w){toast('El navegador bloqueó el informe. Permite ventanas emergentes para esta página.',true);return;}w.document.open();w.document.write(html);w.document.close();
 }catch(e){toast('No se pudo generar el informe: '+e.message,true);}
@@ -2538,6 +2557,51 @@ function guardarExtFotoDirecta(){
 var v=String(document.getElementById('cfgExtFotoDirecta').value||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean).map(function(s){return s.charAt(0)==='.'?s:'.'+s;});
 CFG_EXT_FOTO_DIRECTA=v.length?v:CFG_EXT_FOTO_DIRECTA;
 guardarCfgValor('extFotoDirecta',CFG_EXT_FOTO_DIRECTA);toast('Guardado');
+}
+/* ===== Herramienta de reparación: verificar y corregir ubicación en Drive =====
+   Antes, si al marcar "Es foto"/"Es documento" fallaba el movimiento del archivo en
+   Drive (por ejemplo un fallo de red o de permisos), el error se guardaba solo en la
+   consola del navegador y la app seguía como si nada: el elemento desaparecía de
+   Dudas pero el archivo se quedaba físicamente en "Sin clasificar". Esta herramienta
+   comprueba, uno a uno, si cada elemento ya clasificado está realmente en la carpeta
+   DOCUMENTOS/<ID> que le corresponde y, si no, lo mueve ahora — mostrando cualquier
+   error con detalle en vez de ocultarlo. */
+async function verificarUbicacionesDrive(){
+var todos=await cAll('elementos');
+var candidatos=todos.filter(function(e){return e.driveFileId&&e.personaAsignadaId&&(e.estado==='documento'||e.estado==='fotografia'||e.estado==='video');});
+if(!candidatos.length){toast('No hay archivos clasificados con carpeta de persona que revisar');return;}
+if(!confirm('Se va a comprobar la ubicación en Drive de '+candidatos.length+' archivo(s) ya clasificado(s). Si alguno no está en la carpeta DOCUMENTOS/<ID> que le corresponde, se moverá ahora. Puede tardar unos minutos.\n\n¿Continuar?'))return;
+var ov=document.getElementById('progresoAsignacionOverlay');
+var fill=document.getElementById('progresoAsignacionFill'),estado=document.getElementById('progresoAsignacionEstado'),cuenta=document.getElementById('progresoAsignacionCuenta'),pct=document.getElementById('progresoAsignacionPorcentaje'),archivo=document.getElementById('progresoAsignacionArchivo');
+if(ov)ov.style.display='flex';
+var movidos=0,yaOk=0,errores=[];
+var cacheCarpetas={};
+for(var i=0;i<candidatos.length;i++){
+var el=candidatos[i];
+try{
+if(fill)fill.style.width=Math.round(i/candidatos.length*100)+'%';
+if(cuenta)cuenta.textContent=i+' de '+candidatos.length+' elementos';
+if(pct)pct.textContent=Math.round(i/candidatos.length*100)+' %';
+if(archivo)archivo.textContent=el.nombreOriginal||'';
+if(estado)estado.innerHTML='<span class="spinner"></span>Comprobando…';
+var clave=String(el.personaAsignadaId);
+var destino=cacheCarpetas[clave];
+if(!destino){destino=await carpetaDocumentosPersona(el.personaAsignadaId,(el.personas&&el.personas[0])||el.personaAsignadaNombre||('Persona '+el.personaAsignadaId));cacheCarpetas[clave]=destino;}
+var actual=await obtenerArchivoDrive(el.driveFileId);
+var padreActual=Array.isArray(actual.parents)?actual.parents[0]:null;
+if(padreActual===destino.id){yaOk++;continue;}
+if(estado)estado.innerHTML='<span class="spinner"></span>Moviendo a '+esc(destino.ruta)+'…';
+await moverArchivoDrive(el.driveFileId,destino.id,padreActual||CFG_REVISION_ID);
+el.rutaDrive=destino.ruta;
+await cPut('elementos',el);
+movidos++;
+}catch(err){errores.push((el.nombreOriginal||el.id)+': '+err.message);}
+}
+if(fill)fill.style.width='100%';if(estado)estado.textContent='✓ Comprobación terminada';
+setTimeout(function(){if(ov)ov.style.display='none';},900);
+var resumen=movidos+' movido(s) ahora, '+yaOk+' ya estaban en su sitio'+(errores.length?', '+errores.length+' con error':'');
+if(errores.length)alert('Comprobación de ubicación en Drive terminada.\n\n'+resumen+'\n\nErrores concretos:\n\n'+errores.slice(0,25).join('\n')+(errores.length>25?'\n… y '+(errores.length-25)+' más.':''));
+toast(resumen);
 }
 function guardarPalabrasDudas(){
 var v=String(document.getElementById('cfgPalabrasDudas').value||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
