@@ -257,6 +257,11 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 <p style="font-size:11px;color:var(--muted)">Las personas se leen directamente de <b>backup-arbol.json</b> en la carpeta de base de datos de Drive. No depende de que esta página comparta dominio o navegador con la aplicación principal.</p>
 <button class="btn ghost small" onclick="recargarPersonasDesdeBackup()"><i class="fa-solid fa-rotate"></i> Volver a leer backup-arbol.json</button>
 </div>
+<div class="card" style="border-color:var(--warn)">
+<h3><i class="fa-solid fa-broom"></i> Mantenimiento</h3>
+<p style="font-size:12px;color:var(--muted);margin-bottom:8px">Borra únicamente los datos que este programa guarda en este navegador (cajas detectadas, elementos importados, dudas pendientes y esta configuración: Drive, OCR, vía rápida...). <b>No borra nada en Google Drive</b> ni afecta a otras aplicaciones (por ejemplo, el árbol genealógico usa su propia base de datos aparte, que no se toca).</p>
+<button class="btn ghost small" onclick="limpiarCacheDelPrograma()" style="border-color:var(--warn);color:var(--warn)"><i class="fa-solid fa-trash-can"></i> Vaciar caché de este programa</button>
+</div>
 </div>
 </main>
 
@@ -281,7 +286,7 @@ td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
 
 var GOOGLE_CLIENT_ID_IMPORT=''; // se rellena desde Configuración (o precarga aquí si prefieres)
 var DRIVE_SCOPE_IMPORT='https://www.googleapis.com/auth/drive email profile';
-var ESTABILIDAD_MIN=3; // minutos sin partes nuevas para considerar una caja "completa"
+var ESTABILIDAD_MIN=1; // minutos sin partes nuevas para considerar una caja "completa" (antes 3, reducido a un tercio)
 var CARPETA_REVISION_NOMBRE='Sin clasificar';
 var MAX_MINIATURA_PX=220;
 
@@ -2443,6 +2448,25 @@ var v=String(document.getElementById('cfgPalabrasDudas').value||'').split(',').m
 CFG_PALABRAS_DUDAS=v;
 guardarCfgValor('palabrasDudas',CFG_PALABRAS_DUDAS);toast('Guardado');
 }
+/* ===== MANTENIMIENTO: vaciar caché =====
+   Este programa guarda TODOS sus datos (cajas, elementos, dudas y configuración) en una
+   única base de datos IndexedDB propia, 'ArchivoDocumentalFamiliar_v1'. Borrarla no toca
+   Google Drive (los archivos ya subidos siguen ahí) ni la base de datos del árbol
+   genealógico ('Genealogia'), que es otra aplicación y otra base de datos distinta. */
+async function limpiarCacheDelPrograma(){
+if(!confirm('Esto borra TODOS los datos guardados en este navegador por este programa: cajas detectadas, elementos importados, dudas pendientes y la configuración (Drive, OCR, vía rápida...).\n\nNo se borra nada de Google Drive: los archivos que ya se subieron siguen allí. Tampoco afecta a otras aplicaciones, como el árbol genealógico.\n\nDespués de borrarla, la página se recargará y habrá que volver a conectar con Drive y a analizar las carpetas.\n\n¿Continuar?'))return;
+try{
+if(typeof db!=='undefined'&&db){try{db.close();}catch(e){}db=null;}
+await new Promise(function(res,rej){
+var req=indexedDB.deleteDatabase('ArchivoDocumentalFamiliar_v1');
+req.onsuccess=function(){res();};
+req.onerror=function(){rej(req.error||new Error('No se pudo borrar la base de datos'));};
+req.onblocked=function(){res();};
+});
+toast('Caché borrada. Recargando…');
+setTimeout(function(){location.reload();},700);
+}catch(err){toast('No se pudo vaciar la caché: '+err.message,true);}
+}
 async function elementoRegistradoPorDrive(driveId,pid,pn){
   var arr=await cAll('elementos'); if(arr.some(function(e){return String(e.driveFileId||'')===String(driveId);} ))return true;
   try{var obj=await cargarArchivoDocumentalPersona(pid,pn); return Object.values(obj.bd.archivos||{}).some(function(e){return String(e.driveFileId||'')===String(driveId);});}catch(e){return false;}
@@ -2537,37 +2561,6 @@ setInterval(function(){if(tokenDriveValido())accionActualizar();},5*60*1000);
     <div id="progresoAsignacionNota">No cierres esta pestaña. Las fotos se descargan, verifican y guardan una a una. En álbumes grandes puede tardar varios minutos.</div>
   </div>
 </div>
-<script>
-/* ===== AUTOCONFIGURACIÓN FIJA (solo rellena campos vacíos) ===== */
-window.addEventListener('load', function(){
-  setTimeout(function(){
-    var cid = document.getElementById('cfgClientId');
-    var org = document.getElementById('cfgOrigen');
-    var dst = document.getElementById('cfgDestino');
-    var bdd = document.getElementById('cfgBaseDatos');
-    var esp = document.getElementById('cfgEspacioGB');
-
-    if(cid && !cid.value.trim()) cid.value = '281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
-    if(org && !org.value.trim()) org.value = '1Oc8IbhK6a-pyqnnjKlni8DsfxKp-gg60';
-    if(dst && !dst.value.trim()) dst.value = '1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
-    if(bdd && !bdd.value.trim()) bdd.value = '1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC';
-    if(esp && !esp.value.trim()) esp.value = '75';
-
-    /* Guardar con las propias funciones del programa */
-    try{ if(typeof guardarCarpetaOrigen==='function')     guardarCarpetaOrigen();     }catch(e){}
-    try{ if(typeof guardarCarpetaDestino==='function')   guardarCarpetaDestino();    }catch(e){}
-    try{ if(typeof guardarCarpetaBaseDatos==='function') guardarCarpetaBaseDatos();  }catch(e){}
-    try{ if(typeof guardarEspacioGB==='function')        guardarEspacioGB();         }catch(e){}
-
-    /* Por si el Client ID se guarda al escribir o al cambiar */
-    if(cid){
-      cid.dispatchEvent(new Event('input',  {bubbles:true}));
-      cid.dispatchEvent(new Event('change', {bubbles:true}));
-    }
-    console.log('Autoconfiguración aplicada.');
-  }, 800);
-});
-</script>
 </body>
 </html>
 
