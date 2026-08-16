@@ -2561,6 +2561,39 @@ setInterval(function(){if(tokenDriveValido())accionActualizar();},5*60*1000);
     <div id="progresoAsignacionNota">No cierres esta pestaña. Las fotos se descargan, verifican y guardan una a una. En álbumes grandes puede tardar varios minutos.</div>
   </div>
 </div>
+<script>
+/* ===== AUTOCONFIGURACIÓN FIJA (solo rellena campos vacíos) ===== */
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    var cid = document.getElementById('cfgClientId');
+    var org = document.getElementById('cfgOrigen');
+    var dst = document.getElementById('cfgDestino');
+    var bdd = document.getElementById('cfgBaseDatos');
+    var esp = document.getElementById('cfgEspacioGB');
+
+    if(cid && !cid.value.trim()) cid.value = '281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
+    if(org && !org.value.trim()) org.value = '1Oc8IbhK6a-pyqnnjKlni8DsfxKp-gg60';
+    if(dst && !dst.value.trim()) dst.value = '1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
+    if(bdd && !bdd.value.trim()) bdd.value = '1ypCnDAd9jVeQPP3PAZPe-SBn1OIT05uC';
+    if(esp && !esp.value.trim()) esp.value = '75';
+
+    /* Guardar con las propias funciones del programa */
+    try{ if(typeof guardarCarpetaOrigen==='function')     guardarCarpetaOrigen();     }catch(e){}
+    try{ if(typeof guardarCarpetaDestino==='function')   guardarCarpetaDestino();    }catch(e){}
+    try{ if(typeof guardarCarpetaBaseDatos==='function') guardarCarpetaBaseDatos();  }catch(e){}
+    try{ if(typeof guardarEspacioGB==='function')        guardarEspacioGB();         }catch(e){}
+
+    /* Por si el Client ID se guarda al escribir o al cambiar */
+    if(cid){
+      cid.dispatchEvent(new Event('input',  {bubbles:true}));
+      cid.dispatchEvent(new Event('change', {bubbles:true}));
+    }
+    console.log('Autoconfiguración aplicada.');
+  }, 800);
+});
+</script>
+
+
 </body>
 </html>
 
