@@ -1236,7 +1236,7 @@ docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});
 mostrarDocumentos(id);
 }
 
-function docextCambiarPestana(id,nombre){docextPestanaActiva=nombre;docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});if(nombre==='drive')mostrarDocumentos(id);}
+function docextCambiarPestana(id,nombre){docextPestanaActiva=nombre;docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);if(nombre==='drive')mostrarDocumentos(id);});}
 
 /* Llamada tras una sincronización en segundo plano (tras mostrarDocumentos):
    repinta la ficha SIN volver a pedir el listado de Drive, para no entrar
@@ -1709,19 +1709,19 @@ mostrarDocumentos(id);
 }catch(err){toast('No se pudo eliminar el documento: '+err.message,true);}
 }
 async function mostrarDocumentos(id){
-var lista=document.getElementById('docsLista');if(!lista)return;
-if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el código (variable GOOGLE_CLIENT_ID).</p>';return;}
-if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
-if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conéctate con Google Drive para ver y subir documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
-lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>';
+function docsEscribir(html){var el=document.getElementById('docsLista');if(el)el.innerHTML=html;}
+if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){docsEscribir('<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el código (variable GOOGLE_CLIENT_ID).</p>');return;}
+if(!driveRootFolderId){docsEscribir('<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>');return;}
+if(!tokenDriveValido()){docsEscribir('<p style="font-size:12px;color:var(--muted)">Conéctate con Google Drive para ver y subir documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>');return;}
+docsEscribir('<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>');
 try{
 var carpetaDocsId;
-try{carpetaDocsId=await obtenerCarpetaDocumentosId(false);}catch(e){if(e.message==='sesion_caducada'){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}throw e;}
+try{carpetaDocsId=await obtenerCarpetaDocumentosId(false);}catch(e){if(e.message==='sesion_caducada'){docsEscribir('<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>');return;}throw e;}
 var archivos=[],folderId=null;
 if(carpetaDocsId){
 var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
 var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>';return;}
+if(rC.status===401){driveAccessToken=null;docsEscribir('<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>');return;}
 var dC=await rC.json();
 if(cid!==id)return;
 if(dC.files&&dC.files.length){
@@ -1736,7 +1736,7 @@ docsUltimaListaCache[id]={folderId:folderId,archivos:archivos};
 docsFiltroTexto='';
 renderDocumentosPersona(id);
 docextSincronizarDesdeDrive(id,archivos).then(function(cambiado){if(cambiado)docextRefrescarTrasSincronizar(id);}).catch(function(){});
-}catch(err){if(cid!==id)return;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>';}
+}catch(err){if(cid!==id)return;docsEscribir('<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>');}
 }
 async function autorizarDocumentos(id){
 try{await conectarGoogleDrive();mostrarDocumentos(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
