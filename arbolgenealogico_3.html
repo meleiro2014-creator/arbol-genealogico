@@ -873,7 +873,7 @@ async function subirCambiosDriveDatos(cambios,existente){var folderId=DRIVE_BACK
 async function sincronizarCambiosDrive(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
 function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
-function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=r.result?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
+function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=(r.result&&r.result.valor)?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
 /* ===== CFG genérico (clave/valor) + estado de Google Drive + recordatorio de copia ===== */
 function guardarValorCFG(id,valor){return new Promise(function(res,rej){if(!db||!db.objectStoreNames.contains(CFG)){res();return;}var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:id,valor:valor});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
@@ -1045,24 +1045,29 @@ if(bytes<1024*1024)return Math.round(bytes/1024)+' KB';
 return(bytes/1024/1024).toFixed(1)+' MB';
 }
 /* ==========================================================================
-   DOCUMENTACIÓN EXTERNA (OCR + biografías generadas)
+   DOCUMENTACIÓN EXTERNA (OCR + biografías generadas) — sincronización AUTOMÁTICA
    --------------------------------------------------------------------------
-   Importa y presenta en la ficha lo que genera el programa externo de
-   archivo documental familiar: {id}_persona.json, {id}_archivo-documental.json,
-   {id}_biografia.json, y como reserva {id}_informe.html cuando no estén
-   disponibles los JSON. Nunca escribe campos genealógicos por sí solo:
-   toda sugerencia pasa por el formulario de edición normal (activarEdicion),
-   con el mismo requisito de identidad Google y el mismo registro de cambios
-   que cualquier otra edición de la ficha.
+   Los archivos {id}_persona.json, {id}_archivo-documental.json,
+   {id}_biografia.json y {id}_informe.html (programa externo de archivo
+   documental familiar) viven en la MISMA carpeta DOCUMENTOS/{id} que ya usa
+   la app para los documentos normales de cada persona. No hace falta pedir
+   ninguna carpeta aparte ni importar nada a mano: en cuanto mostrarDocumentos()
+   lista esa carpeta (lo que ya hacía la app de siempre), esta extensión mira
+   si hay archivos con ese patrón de nombre, los descarga y actualiza la
+   ficha sola. Solo se descargan de nuevo si han cambiado en Drive
+   (comparando id + fecha de modificación de cada archivo).
+   Nunca escribe campos genealógicos por sí sola: toda sugerencia pasa por el
+   formulario de edición normal (activarEdicion), con el mismo requisito de
+   identidad Google y el mismo registro de cambios que cualquier otra edición.
    ========================================================================== */
 
 var docextPestanaActiva='documentos';
 
 /* Base de datos INDEPENDIENTE para la documentación externa importada.
    Deliberadamente separada de la base de datos principal (DB/ST/BK/CFG):
-   así no hace falta tocar la versión de tu base de datos genealógica para
-   añadir este almacén, y una eventual incidencia aquí nunca puede bloquear
-   ni afectar a la carga de tus personas. */
+   así no hace falta tocar la versión de tu base de datos genealógica, y
+   una eventual incidencia aquí nunca puede bloquear la carga de tus
+   personas. */
 var dbExt=null;
 function oDBExt(){
 if(dbExt)return Promise.resolve(dbExt);
@@ -1096,100 +1101,50 @@ r.onerror=function(){res(null);};
 });
 }).catch(function(){return null;});
 }
-function docextLeerTodos(){
-return oDBExt().then(function(base){
-return new Promise(function(res){
-var r=base.transaction('docext','readonly').objectStore('docext').getAll();
-r.onsuccess=function(){res(r.result||[]);};
-r.onerror=function(){res([]);};
+
+/* ===================== Sincronización automática desde Drive =============
+   Se llama desde mostrarDocumentos() en cuanto lista la carpeta DOCUMENTOS/{id}
+   de la persona. Busca ahí mismo los archivos del programa externo, los
+   descarga solo si han cambiado, y guarda el resultado en la caché docext. */
+
+function docextArchivosRelevantes(archivos,id){
+var idEsc=String(id).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+var patronJson=new RegExp('^'+idEsc+'_(persona|archivo-documental|biografia)\\.json$','i');
+var patronHtml=new RegExp('^'+idEsc+'_informe\\.html$','i');
+var out={};
+(archivos||[]).forEach(function(f){
+var m=f.name.match(patronJson);
+if(m){out[m[1]]=f;return;}
+if(f.name.match(patronHtml))out.informe=f;
 });
-}).catch(function(){return [];});
+return out;
 }
 
-function abrirSelectorImportacionDocExterna(){
-var input=document.createElement('input');
-input.type='file';input.multiple=true;input.accept='.json,.html';
-input.onchange=function(ev){importarDocumentacionExterna(ev.target.files);};
-input.click();
+async function docextDescargarContenidoDrive(fileId){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+return await r.text();
 }
 
-function importarDocumentacionExterna(fileList){
-var archivos=Array.prototype.slice.call(fileList||[]);
-if(!archivos.length){toast('No se ha elegido ningún archivo',true);return;}
-var porPersona={};
-var patronJson=/^(\d+)_(persona|archivo-documental|biografia)\.json$/i;
-var patronHtml=/^(\d+)_informe\.html$/i;
-var noReconocidos=0;
+function docextClaveSugerencia(s){return [s.campo,s.valor,s.fuenteId||s.fuenteNombre||''].join('|');}
 
-var lecturas=archivos.map(function(f){
-var mJson=f.name.match(patronJson);
-if(mJson){
-var personaId=mJson[1],tipo=mJson[2];
-return f.text().then(function(texto){
-var json;try{json=JSON.parse(texto);}catch(e){noReconocidos++;return null;}
-return {personaId:personaId,tipo:tipo,json:json};
-});
-}
-var mHtml=f.name.match(patronHtml);
-if(mHtml){
-return f.text().then(function(texto){
-var reconstruido=docextParsearInformeHtml(texto);
-if(!reconstruido){noReconocidos++;return null;}
-return {personaId:mHtml[1],tipo:'persona-desde-html',json:reconstruido};
-});
-}
-noReconocidos++;
-return Promise.resolve(null);
-});
-
-return Promise.all(lecturas).then(function(resultados){
-resultados.forEach(function(r){
-if(!r)return;
-if(!porPersona[r.personaId])porPersona[r.personaId]={};
-if(r.tipo==='persona')porPersona[r.personaId].persona=r.json;
-if(r.tipo==='archivo-documental')porPersona[r.personaId].archivoDocumental=r.json;
-if(r.tipo==='biografia')porPersona[r.personaId].biografia=r.json;
-if(r.tipo==='persona-desde-html'&&!porPersona[r.personaId].persona)porPersona[r.personaId].persona=r.json;
-});
-
-var ids=Object.keys(porPersona);
-var encontradosEnArbol=0,sinPersonaCoincidente=0,sugerenciasNuevas=0;
-
-var guardados=ids.map(function(id){
-var persona=PI&&PI[id];
-if(!persona){sinPersonaCoincidente++;return Promise.resolve(null);}
-encontradosEnArbol++;
-var datos=porPersona[id];
-var sugerencias=docextExtraerSugerencias(datos.persona);
-sugerenciasNuevas+=sugerencias.length;
-return docextGuardar({
-personaId:id,
-actualizado:new Date().toISOString(),
-persona:datos.persona||null,
-archivoDocumental:datos.archivoDocumental||null,
-biografia:datos.biografia||null,
-sugerenciasPendientes:sugerencias
+/* Aplana todas las sugerenciasGenealogicas de los documentos de persona.json
+   en una lista única, con la referencia al documento de origen. */
+function docextExtraerSugerencias(personaJson){
+if(!personaJson)return [];
+var out=[];
+(personaJson.documentos||[]).forEach(function(docu){
+(docu.sugerenciasGenealogicas||[]).forEach(function(s){
+out.push({campo:s.campo,valor:s.valor,etiqueta:s.etiqueta||CAMBIOS_LABELS[s.campo]||s.campo,contexto:s.contexto||'',fuenteNombre:docu.nombre,fuenteId:docu.id});
 });
 });
-
-return Promise.all(guardados).then(function(){
-toast('Importación completada: '+encontradosEnArbol+' persona(s) actualizada(s)'+
-(sinPersonaCoincidente?', '+sinPersonaCoincidente+' sin coincidencia en el árbol':'')+
-(noReconocidos?', '+noReconocidos+' archivo(s) no reconocido(s)':'')+
-'. '+sugerenciasNuevas+' sugerencia(s) nueva(s).');
-if(cid&&porPersona[cid])renderDocumentosExtendido(cid);
-});
-}).catch(function(err){
-toast('No se pudo completar la importación: '+err.message,true);
-});
+return out;
 }
 
-/* Reconstruye una estructura equivalente a persona.json a partir del
-   informe HTML autocontenido {id}_informe.html, como fuente de reserva
-   cuando no están disponibles los tres JSON. Cada div.item de la sección
-   Documentos y cada div.foto de la sección Fotografías se convierten en su
-   equivalente. El bloque div.hall > pre.ocr contiene el propio objeto
-   'hallazgos' volcado con JSON.stringify: se recupera con JSON.parse. */
+/* Reconstruye una estructura equivalente a persona.json a partir del informe
+   HTML autocontenido {id}_informe.html, para cuando en la carpeta de Drive
+   solo esté ese archivo y no los JSON. */
 function docextParsearInformeHtml(textoHtml){
 try{
 var doc=new DOMParser().parseFromString(textoHtml,'text/html');
@@ -1204,15 +1159,7 @@ var hallazgos={};
 if(hallPre){try{hallazgos=JSON.parse(hallPre.textContent);}catch(e){hallazgos={};}}
 var mConf=meta.match(/OCR\s+(\d+)%/);
 var mFecha=meta.match(/(\d{4}-\d{2}-\d{2})/);
-return {
-nombre:nombre.trim(),
-driveUrl:enlace?enlace.href:'',
-ocrConfianza:mConf?parseInt(mConf[1],10):0,
-fecha:mFecha?mFecha[1]:null,
-extractoTexto:textoOcr,
-hallazgos:hallazgos,
-sugerenciasGenealogicas:[]
-};
+return {nombre:nombre.trim(),driveUrl:enlace?enlace.href:'',ocrConfianza:mConf?parseInt(mConf[1],10):0,fecha:mFecha?mFecha[1]:null,extractoTexto:textoOcr,hallazgos:hallazgos,sugerenciasGenealogicas:[]};
 });
 var fotografias=Array.prototype.map.call(doc.querySelectorAll('.foto'),function(f){
 var nombre=(f.querySelector('b')||{}).textContent||'';
@@ -1224,17 +1171,37 @@ return {documentos:documentos,fotografias:fotografias};
 }catch(e){return null;}
 }
 
-/* Aplana todas las sugerenciasGenealogicas de los documentos de persona.json
-   en una lista única, con la referencia al documento de origen. */
-function docextExtraerSugerencias(personaJson){
-if(!personaJson)return [];
-var out=[];
-(personaJson.documentos||[]).forEach(function(docu){
-(docu.sugerenciasGenealogicas||[]).forEach(function(s){
-out.push({campo:s.campo,valor:s.valor,etiqueta:s.etiqueta||CAMBIOS_LABELS[s.campo]||s.campo,contexto:s.contexto||'',fuenteNombre:docu.nombre,fuenteId:docu.id});
+/* Devuelve true si se ha descargado/actualizado algo nuevo (para que quien
+   llame sepa si merece la pena repintar la ficha). */
+async function docextSincronizarDesdeDrive(id,archivos){
+var rel=docextArchivosRelevantes(archivos,id);
+if(!rel.persona&&!rel['archivo-documental']&&!rel.biografia&&!rel.informe)return false;
+
+var firmaActual=[rel.persona,rel['archivo-documental'],rel.biografia,rel.informe].filter(Boolean)
+.map(function(f){return f.id+':'+(f.modifiedTime||'');}).sort().join('|');
+var previo=await docextLeer(id);
+if(previo&&previo.firmaDrive===firmaActual)return false; /* ya está al día */
+
+try{
+var personaJson=null,archivoDocumentalJson=null,biografiaJson=null;
+if(rel.persona)personaJson=JSON.parse(await docextDescargarContenidoDrive(rel.persona.id));
+if(rel['archivo-documental'])archivoDocumentalJson=JSON.parse(await docextDescargarContenidoDrive(rel['archivo-documental'].id));
+if(rel.biografia)biografiaJson=JSON.parse(await docextDescargarContenidoDrive(rel.biografia.id));
+if(!personaJson&&rel.informe)personaJson=docextParsearInformeHtml(await docextDescargarContenidoDrive(rel.informe.id));
+
+var resueltas=(previo&&previo.resueltas)||[];
+var sugerencias=docextExtraerSugerencias(personaJson).filter(function(s){return resueltas.indexOf(docextClaveSugerencia(s))<0;});
+
+await docextGuardar({
+personaId:id,actualizado:new Date().toISOString(),firmaDrive:firmaActual,
+persona:personaJson,archivoDocumental:archivoDocumentalJson,biografia:biografiaJson,
+sugerenciasPendientes:sugerencias,resueltas:resueltas
 });
-});
-return out;
+return true;
+}catch(err){
+console.error('No se pudo sincronizar documentación externa de Drive para '+id,err);
+return false;
+}
 }
 
 /* Comprobación de coincidencia de nombre (evita el error del caso Alfredo /
@@ -1253,7 +1220,6 @@ if(!coincideNombre)return 'revisar';
 if(hayConflicto)return 'conflicto';
 return 'aplicar';
 }
-
 function docextBadgePendientes(registro){
 var n=registro&&registro.sugerenciasPendientes?registro.sugerenciasPendientes.length:0;
 return n?' ('+n+')':'';
@@ -1263,8 +1229,25 @@ return n?' ('+n+')':'';
 
 function renderDocumentosExtendido(id){
 var host=document.getElementById('docextHost');if(!host)return;
-docextLeer(id).then(function(registro){
-if(docextPestanaActiva===undefined)docextPestanaActiva=registro?'documentos':'drive';
+docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});
+/* En paralelo, dispara (si hace falta) la lectura de la carpeta de Drive de
+   esta persona; ya de paso sincroniza docext sin que el usuario tenga que
+   pedir ni configurar nada. */
+mostrarDocumentos(id);
+}
+
+function docextCambiarPestana(id,nombre){docextPestanaActiva=nombre;docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});if(nombre==='drive')mostrarDocumentos(id);}
+
+/* Llamada tras una sincronización en segundo plano (tras mostrarDocumentos):
+   repinta la ficha SIN volver a pedir el listado de Drive, para no entrar
+   en bucle. */
+function docextRefrescarTrasSincronizar(id){
+if(cid!==id)return;
+docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});
+}
+
+function docextPintarTabsYCuerpo(id,registro){
+var host=document.getElementById('docextHost');if(!host)return;
 var tabs=[['documentos','Documentos'],['fototeca','Fototeca'],['biografia','Biografía'],['sugerencias','Sugerencias'+docextBadgePendientes(registro)],['drive','Archivos en Drive']];
 var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
 tabs.forEach(function(t){
@@ -1276,20 +1259,17 @@ if(registro)h+='<div style="margin-bottom:10px"><button type="button" class="ef-
 h+='<div id="docextCuerpo"></div>';
 host.innerHTML=h;
 docextPintarCuerpo(id,registro);
-});
 }
-function docextCambiarPestana(id,nombre){docextPestanaActiva=nombre;renderDocumentosExtendido(id);}
 
 function docextPintarCuerpo(id,registro){
 var cuerpo=document.getElementById('docextCuerpo');if(!cuerpo)return;
 var persona=PI&&PI[id];
 if(docextPestanaActiva==='drive'){
-cuerpo.innerHTML='<div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="ef-btn ghost" onclick="mostrarDocumentos(\''+safeId(id)+'\')"><i class="fa-solid fa-rotate"></i> Actualizar</button><button class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button></div>';
-mostrarDocumentos(id);
-return;
+cuerpo.innerHTML='<div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div>';
+return; /* mostrarDocumentos(id) ya se ha lanzado desde renderDocumentosExtendido/docextCambiarPestana y pinta #docsLista solo */
 }
 if(!registro){
-cuerpo.innerHTML='<p style="font-size:12px;color:var(--muted)">Todavía no se ha importado documentación externa para esta persona. Ve a Herramientas → «Importar documentación externa (OCR / biografías)».</p>';
+cuerpo.innerHTML='<p style="font-size:12px;color:var(--muted)">No se ha encontrado documentación externa (OCR/biografía) en la carpeta de Drive de esta persona. Si los archivos <code>'+esc(id)+'_persona.json</code>, <code>'+esc(id)+'_archivo-documental.json</code> o <code>'+esc(id)+'_biografia.json</code> están en <code>DOCUMENTOS/'+esc(id)+'</code>, se detectarán solos la próxima vez que se liste esa carpeta. <a href="#" onclick="abrirSelectorImportacionDocExterna();return false" style="font-size:12px">¿Los tienes solo en tu ordenador? Impórtalos manualmente</a>.</p>';
 return;
 }
 if(docextPestanaActiva==='fototeca'){cuerpo.innerHTML=docextHtmlFototeca(id,registro);docextCargarMiniaturasFototeca(registro);}
@@ -1301,15 +1281,14 @@ else if(docextPestanaActiva==='sugerencias')cuerpo.innerHTML=docextHtmlSugerenci
 function docextHtmlFototeca(id,registro){
 var fotos=(registro.persona&&registro.persona.fotografias)||[];
 if(!fotos.length)return '<p style="font-size:12px;color:var(--muted)">Sin fotografías importadas.</p>';
-var porDecada={},indicePorFoto={};
+var porDecada={};
 fotos.forEach(function(f,idx){
-indicePorFoto[f.id||idx]=idx;
 var anio=f.fecha?new Date(f.fecha).getFullYear():null;
 var decada=anio?(Math.floor(anio/10)*10)+'s':'Sin fecha';
 if(!porDecada[decada])porDecada[decada]=[];
 porDecada[decada].push({foto:f,idx:idx});
 });
-var h=docextAvisoConexionDrive(id);
+var h='';
 Object.keys(porDecada).sort().forEach(function(decada){
 h+='<h4 style="margin:14px 0 8px;font-size:13px;color:var(--muted)">'+esc(decada)+'</h4>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">';
@@ -1332,8 +1311,7 @@ return h;
 function docextHtmlDocumentos(id,registro){
 var docs=(registro.persona&&registro.persona.documentos)||[];
 if(!docs.length)return '<p style="font-size:12px;color:var(--muted)">Sin documentos con OCR importados.</p>';
-var h=docextAvisoConexionDrive(id);
-h+=docs.map(function(d,idx){
+return docs.map(function(d,idx){
 var conf=d.ocrConfianza||0;
 var color=conf>=80?'var(--green)':(conf>=50?'#c9922a':'#c0392b');
 var tipos=(d.hallazgos&&d.hallazgos.tipos)||[];
@@ -1349,7 +1327,6 @@ c+='<details><summary style="cursor:pointer;font-size:12px;color:var(--muted)">V
 c+='</div></div>';
 return c;
 }).join('');
-return h;
 }
 
 function docextHtmlBiografia(registro){
@@ -1399,7 +1376,9 @@ return h;
    "aplicar" NUNCA escribe directamente en la persona. Abre el formulario de
    edición ya existente (activarEdicion) con el campo pre-rellenado; el
    guardado sigue pasando por el camino normal, con identidad de Google y
-   registro de cambios. ========================================================================== */
+   registro de cambios. Tanto aplicar como descartar guardan la sugerencia
+   como "resuelta" para que una futura re-sincronización desde Drive no la
+   vuelva a mostrar. ========================================================================== */
 
 function docextAplicarSugerencia(personaId,idx){
 docextLeer(personaId).then(function(registro){
@@ -1415,29 +1394,30 @@ if(el){el.value=s.valor;el.focus();}
 toast('Campo "'+(CAMBIOS_LABELS[s.campo]||s.campo)+'" rellenado. Revisa y pulsa Guardar para confirmar.');
 },50);
 registro.sugerenciasPendientes.splice(idx,1);
+registro.resueltas=(registro.resueltas||[]).concat([docextClaveSugerencia(s)]);
 docextGuardar(registro);
 });
 }
 function docextDescartarSugerencia(personaId,idx){
 docextLeer(personaId).then(function(registro){
 if(!registro)return;
+var s=registro.sugerenciasPendientes[idx];
 registro.sugerenciasPendientes.splice(idx,1);
+if(s)registro.resueltas=(registro.resueltas||[]).concat([docextClaveSugerencia(s)]);
 docextGuardar(registro).then(function(){
 toast('Sugerencia descartada');
-renderDocumentosExtendido(personaId);
+docextRefrescarTrasSincronizar(personaId);
 });
 });
 }
 
 /* ===================== Miniaturas reales desde Google Drive ================
    Usa el driveFileId ya presente en cada foto/documento importado y pide a
-   la API de Drive su thumbnailLink (requiere sesión de Drive activa, la
-   misma que ya usa el resto de la app para listar/subir documentos). Se
-   cachea en memoria para no repetir la petición al cambiar de pestaña.
-   ========================================================================== */
+   la API de Drive su thumbnailLink (requiere la misma sesión de Drive que
+   ya usa el resto de la app). Se cachea en memoria para no repetir la
+   petición al cambiar de pestaña. ========================================================================== */
 
 var docextMiniaturaCache={};
-
 function docextCargarMiniatura(driveFileId,imgId){
 if(!driveFileId)return;
 if(docextMiniaturaCache[driveFileId]){
@@ -1456,7 +1436,6 @@ if(el){el.src=d.thumbnailLink;el.style.display='block';}
 }
 }).catch(function(){});
 }
-
 function docextCargarMiniaturasFototeca(registro){
 var fotos=(registro.persona&&registro.persona.fotografias)||[];
 fotos.forEach(function(f,idx){if(f.driveFileId)docextCargarMiniatura(f.driveFileId,'docextFotoImg'+idx);});
@@ -1466,26 +1445,17 @@ var docs=(registro.persona&&registro.persona.documentos)||[];
 docs.forEach(function(d,idx){if(d.driveFileId)docextCargarMiniatura(d.driveFileId,'docextDocImg'+idx);});
 }
 
-async function docextConectarParaMiniaturas(id){
-try{await conectarGoogleDrive();renderDocumentosExtendido(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
-}
-
-function docextAvisoConexionDrive(id){
-if(tokenDriveValido())return '';
-return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>Conéctate con Google Drive para ver las miniaturas reales de estos archivos.</span><button type="button" class="ef-btn ghost" onclick="docextConectarParaMiniaturas(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar</button></div>';
-}
-
 /* ================ Exportador: cierra el círculo con .pistas ===============
    Genera un informe HTML autocontenido equivalente al {id}_informe.html del
-   programa externo (misma plantilla visual), pero esta vez SÍ completa el
-   bloque .pistas —que en los informes del programa externo está declarado
-   en el CSS y nunca se llega a usar— con las sugerencias genealógicas que
-   sigan pendientes de revisar o aplicar en esta ficha. No requiere conexión
-   a Drive: se descarga directamente al dispositivo. ========================================================================== */
+   programa externo (misma plantilla visual), completando el bloque .pistas
+   —declarado en el CSS del programa externo pero nunca usado— con las
+   sugerencias genealógicas que sigan pendientes de revisar o aplicar. No
+   requiere Drive: se descarga directamente al dispositivo.
+   ========================================================================== */
 
 function generarInformeHtmlPersona(id){
 docextLeer(id).then(function(registro){
-if(!registro||!registro.persona){toast('No hay documentación externa importada para esta persona',true);return;}
+if(!registro||!registro.persona){toast('No hay documentación externa detectada para esta persona',true);return;}
 var persona=PI&&PI[id];
 var p=registro.persona;
 var docs=p.documentos||[];
@@ -1545,6 +1515,54 @@ var blob=new Blob([html],{type:'text/html;charset=utf-8'});
 var url=URL.createObjectURL(blob),a=document.createElement('a');
 a.href=url;a.download=id+'_informe.html';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 toast('Informe exportado'+(pendientes.length?' con '+pendientes.length+' pista(s) genealógica(s) incluida(s)':''));
+});
+}
+
+/* =============== Importación manual de reserva (sin Drive) =================
+   Solo como último recurso, si por lo que sea los archivos no están en la
+   carpeta de Drive de la persona (por ejemplo, alguien te los ha pasado
+   sueltos). El camino normal es la sincronización automática de arriba. */
+
+function abrirSelectorImportacionDocExterna(){
+var input=document.createElement('input');
+input.type='file';input.multiple=true;input.accept='.json,.html';
+input.onchange=function(ev){importarDocumentacionExternaManual(ev.target.files);};
+input.click();
+}
+
+function importarDocumentacionExternaManual(fileList){
+var archivos=Array.prototype.slice.call(fileList||[]);
+if(!archivos.length)return;
+var patronJson=/^(\d+)_(persona|archivo-documental|biografia)\.json$/i;
+var patronHtml=/^(\d+)_informe\.html$/i;
+var porPersona={};
+var lecturas=archivos.map(function(f){
+var mJson=f.name.match(patronJson);
+if(mJson){var personaId=mJson[1],tipo=mJson[2];return f.text().then(function(texto){try{return {personaId:personaId,tipo:tipo,json:JSON.parse(texto)};}catch(e){return null;}});}
+var mHtml=f.name.match(patronHtml);
+if(mHtml){return f.text().then(function(texto){var r=docextParsearInformeHtml(texto);return r?{personaId:mHtml[1],tipo:'persona-desde-html',json:r}:null;});}
+return Promise.resolve(null);
+});
+Promise.all(lecturas).then(function(resultados){
+resultados.forEach(function(r){
+if(!r)return;
+if(!porPersona[r.personaId])porPersona[r.personaId]={};
+if(r.tipo==='persona')porPersona[r.personaId].persona=r.json;
+if(r.tipo==='archivo-documental')porPersona[r.personaId].archivoDocumental=r.json;
+if(r.tipo==='biografia')porPersona[r.personaId].biografia=r.json;
+if(r.tipo==='persona-desde-html'&&!porPersona[r.personaId].persona)porPersona[r.personaId].persona=r.json;
+});
+var ids=Object.keys(porPersona);
+var guardados=ids.map(function(id){
+if(!(PI&&PI[id]))return Promise.resolve(null);
+var datos=porPersona[id];
+var sugerencias=docextExtraerSugerencias(datos.persona);
+return docextGuardar({personaId:id,actualizado:new Date().toISOString(),persona:datos.persona||null,archivoDocumental:datos.archivoDocumental||null,biografia:datos.biografia||null,sugerenciasPendientes:sugerencias,resueltas:[]});
+});
+Promise.all(guardados).then(function(){
+toast('Importación manual completada ('+ids.length+' persona(s))');
+if(cid&&porPersona[cid])renderDocumentosExtendido(cid);
+});
 });
 }
 
@@ -1708,7 +1726,7 @@ var dC=await rC.json();
 if(cid!==id)return;
 if(dC.files&&dC.files.length){
 folderId=dC.files[0].id;
-var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink,mimeType,size,properties)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink,mimeType,size,properties,modifiedTime)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 var dF=await rF.json();
 if(cid!==id)return;
 archivos=dF.files||[];
@@ -1717,6 +1735,7 @@ archivos=dF.files||[];
 docsUltimaListaCache[id]={folderId:folderId,archivos:archivos};
 docsFiltroTexto='';
 renderDocumentosPersona(id);
+docextSincronizarDesdeDrive(id,archivos).then(function(cambiado){if(cambiado)docextRefrescarTrasSincronizar(id);}).catch(function(){});
 }catch(err){if(cid!==id)return;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>';}
 }
 async function autorizarDocumentos(id){
@@ -6985,7 +7004,6 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Uso general</div>
-<button class="herr-item" onclick="cerrarHerramientas();abrirSelectorImportacionDocExterna()"><div class="herr-icon"><i class="fa-solid fa-file-waveform"></i></div><div class="herr-text"><div class="herr-title">Importar documentación externa (OCR / biografías)</div><div class="herr-desc">Trae los archivos {id}_persona.json, {id}_archivo-documental.json, {id}_biografia.json (o el {id}_informe.html de reserva) del programa de archivo documental familiar</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
 <button class="herr-item" id="herrBtnImportarDrive" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca la carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID exacto (requiere Google)</div></div></button>
