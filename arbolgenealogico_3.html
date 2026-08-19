@@ -817,7 +817,7 @@ pdfGenerandoEnCurso=false;
 if(btn){btn.disabled=false;btn.innerHTML=textoOriginalBtn;}
 }
 }
-function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,5);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});if(!d.objectStoreNames.contains('docext'))d.createObjectStore('docext',{keyPath:'personaId'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
+function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB,4);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;res(db);};r.onerror=function(){rej(r.error);};});}
 function sAll(d,opciones){
 opciones=opciones||{};
 var marcarSucio=opciones.marcarANOCALCSucio!==false;
@@ -1058,30 +1058,52 @@ return(bytes/1024/1024).toFixed(1)+' MB';
 
 var docextPestanaActiva='documentos';
 
-function docextGuardar(registro){
+/* Base de datos INDEPENDIENTE para la documentación externa importada.
+   Deliberadamente separada de la base de datos principal (DB/ST/BK/CFG):
+   así no hace falta tocar la versión de tu base de datos genealógica para
+   añadir este almacén, y una eventual incidencia aquí nunca puede bloquear
+   ni afectar a la carga de tus personas. */
+var dbExt=null;
+function oDBExt(){
+if(dbExt)return Promise.resolve(dbExt);
 return new Promise(function(res,rej){
-if(!db||!db.objectStoreNames.contains('docext')){rej(new Error('Almacén docext no disponible'));return;}
-var tx=db.transaction('docext','readwrite');
+var r=indexedDB.open('GenealogiaDocExt',1);
+r.onupgradeneeded=function(e){
+var d=e.target.result;
+if(!d.objectStoreNames.contains('docext'))d.createObjectStore('docext',{keyPath:'personaId'});
+};
+r.onsuccess=function(e){dbExt=e.target.result;res(dbExt);};
+r.onerror=function(){rej(r.error);};
+r.onblocked=function(){rej(new Error('Hay otra pestaña con la aplicación abierta; ciérrala e inténtalo de nuevo'));};
+});
+}
+function docextGuardar(registro){
+return oDBExt().then(function(base){
+return new Promise(function(res,rej){
+var tx=base.transaction('docext','readwrite');
 tx.objectStore('docext').put(registro);
 tx.oncomplete=function(){res(registro);};
 tx.onerror=function(){rej(tx.error);};
 });
+});
 }
 function docextLeer(personaId){
+return oDBExt().then(function(base){
 return new Promise(function(res){
-if(!db||!db.objectStoreNames.contains('docext')){res(null);return;}
-var r=db.transaction('docext','readonly').objectStore('docext').get(String(personaId));
+var r=base.transaction('docext','readonly').objectStore('docext').get(String(personaId));
 r.onsuccess=function(){res(r.result||null);};
 r.onerror=function(){res(null);};
 });
+}).catch(function(){return null;});
 }
 function docextLeerTodos(){
+return oDBExt().then(function(base){
 return new Promise(function(res){
-if(!db||!db.objectStoreNames.contains('docext')){res([]);return;}
-var r=db.transaction('docext','readonly').objectStore('docext').getAll();
+var r=base.transaction('docext','readonly').objectStore('docext').getAll();
 r.onsuccess=function(){res(r.result||[]);};
 r.onerror=function(){res([]);};
 });
+}).catch(function(){return [];});
 }
 
 function abrirSelectorImportacionDocExterna(){
