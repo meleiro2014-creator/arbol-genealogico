@@ -650,7 +650,7 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.15.1';
+var APP_VERSION = '2026.08.19.1';
 var APP_CHANGELOG = [
   { version:'2026.08.15.1', fecha:'2026-08-15', cambios:[
     'Manual de usuario completamente renovado: nueva portada e indice con diseno propio (escudo circular, tipografia Cinzel, guardas doradas) a juego con la identidad visual de la aplicacion; contenido mucho mas extenso y practico, organizado en 24 secciones (de los primeros pasos al glosario y la solucion de problemas); e impresion ajustada a tamano A4 vertical. Ademas, la aplicacion ahora comprueba en segundo plano si hay una version mas reciente publicada y, si la hay, muestra un aviso con un boton "Actualizar ahora" que limpia la cache y el Service Worker y recarga la version correcta, para no depender de forzar Ctrl+F5.'
@@ -1576,12 +1576,6 @@ function renderDocumentosPersona(id){
 var lista=document.getElementById('docsLista');if(!lista)return;
 var cache=docsUltimaListaCache[id]||{archivos:[]};
 var archivos=cache.archivos||[];
-var q=docsFiltroTexto.toLowerCase().trim();
-var visibles=archivos.filter(function(f){
-if(!q)return true;
-var cat=(f.properties&&f.properties.categoria)||'';
-return f.name.toLowerCase().indexOf(q)>=0||cat.toLowerCase().indexOf(q)>=0;
-});
 var categoriasUsadas={};
 archivos.forEach(function(f){var c=(f.properties&&f.properties.categoria)||'';if(c)categoriasUsadas[c]=true;});
 var sugerencias=DOCS_CATEGORIAS_SUGERIDAS.concat(Object.keys(categoriasUsadas)).filter(function(v,i,a){return a.indexOf(v)===i;});
@@ -1601,29 +1595,7 @@ h+='<p style="font-size:12px;color:var(--muted)">Todavía no hay documentos para
 lista.innerHTML=h;
 return;
 }
-if(archivos.length>8){
-h+='<div style="margin:0 0 12px"><input class="ef-input" value="'+escAttr(docsFiltroTexto)+'" oninput="docsFiltroTexto=this.value;renderDocumentosPersona(\''+safeId(id)+'\')" placeholder="Buscar documento por nombre o categoría..."></div>';
-}
-if(!visibles.length){
-h+='<p style="font-size:12px;color:var(--muted)">Sin resultados para ese filtro.</p>';
-lista.innerHTML=h;
-return;
-}
-var porCategoria={};
-visibles.forEach(function(f){
-var c=(f.properties&&f.properties.categoria)||'Sin categoría';
-if(!porCategoria[c])porCategoria[c]=[];
-porCategoria[c].push(f);
-});
-var nombresCategoria=Object.keys(porCategoria).sort(function(a,b){
-if(a==='Sin categoría')return 1;if(b==='Sin categoría')return -1;
-return a.localeCompare(b,'es');
-});
-nombresCategoria.forEach(function(cat){
-var docs=porCategoria[cat];
-h+='<div style="margin-bottom:10px">';
-if(nombresCategoria.length>1)h+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 4px">'+esc(cat)+' ('+docs.length+')</div>';
-docs.forEach(function(f){
+archivos.forEach(function(f){
 var icono=docsIconoPorMime(f.mimeType,f.name);
 var tam=docsTamanoTexto(f.size);
 h+='<div class="fr" style="align-items:center;margin-bottom:7px;gap:6px">';
@@ -1631,8 +1603,6 @@ h+='<span class="fv" style="flex:1;overflow-wrap:anywhere"><i class="fa-regular 
 h+='<a class="ef-btn ghost" style="padding:4px 8px;text-decoration:none" href="'+escAttr(f.webViewLink||('https://drive.google.com/file/d/'+f.id+'/view'))+'" target="_blank" rel="noopener">Abrir</a>';
 h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Renombrar" onclick="renombrarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-pen"></i></button>';
 h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Eliminar" onclick="eliminarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-trash-can"></i></button>';
-h+='</div>';
-});
 h+='</div>';
 });
 lista.innerHTML=h;
