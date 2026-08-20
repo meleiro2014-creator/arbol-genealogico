@@ -650,7 +650,7 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.19.1';
+var APP_VERSION = '2026.08.19.4';
 var APP_CHANGELOG = [
   { version:'2026.08.15.1', fecha:'2026-08-15', cambios:[
     'Manual de usuario completamente renovado: nueva portada e indice con diseno propio (escudo circular, tipografia Cinzel, guardas doradas) a juego con la identidad visual de la aplicacion; contenido mucho mas extenso y practico, organizado en 24 secciones (de los primeros pasos al glosario y la solucion de problemas); e impresion ajustada a tamano A4 vertical. Ademas, la aplicacion ahora comprueba en segundo plano si hay una version mas reciente publicada y, si la hay, muestra un aviso con un boton "Actualizar ahora" que limpia la cache y el Service Worker y recarga la version correcta, para no depender de forzar Ctrl+F5.'
@@ -1120,6 +1120,19 @@ if(f.name.match(patronHtml))out.informe=f;
 return out;
 }
 
+/* Busca, dentro del mismo listado de la carpeta, el JSON individual asociado
+   a un archivo concreto (convención de Google Takeout/Google Fotos: junto a
+   "el tioalfredo.jpg" aparece "el tioalfredo.jpg.google-photos.json", o
+   variantes como "....jpg.json"). Si no hay ningún JSON cuyo nombre empiece
+   exactamente por el nombre completo del archivo, no hay sidecar. */
+function docextBuscarSidecar(archivos,nombreArchivo){
+var base=String(nombreArchivo).toLowerCase();
+return (archivos||[]).find(function(f){
+var n=f.name.toLowerCase();
+return n!==base&&n.indexOf(base)===0&&n.slice(-5)==='.json';
+})||null;
+}
+
 async function docextDescargarContenidoDrive(fileId){
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
@@ -1173,9 +1186,34 @@ return {documentos:documentos,fotografias:fotografias};
 
 /* Devuelve true si se ha descargado/actualizado algo nuevo (para que quien
    llame sepa si merece la pena repintar la ficha). */
-async function docextSincronizarDesdeDrive(id,archivos){
+function docextEliminar(id){
+return oDBExt().then(function(base){
+return new Promise(function(res){
+var tx=base.transaction('docext','readwrite');
+tx.objectStore('docext').delete(String(id));
+tx.oncomplete=function(){res(true);};
+tx.onerror=function(){res(false);};
+});
+}).catch(function(){return false;});
+}
+
+/* ---- Parte 1: Documentos / Biografía / Sugerencias, desde los tres JSON
+   agregados que genera el programa externo ({id}_persona.json etc.). ---- */
+async function docextSincronizarAgregadoDesdeDrive(id,archivos){
 var rel=docextArchivosRelevantes(archivos,id);
-if(!rel.persona&&!rel['archivo-documental']&&!rel.biografia&&!rel.informe)return false;
+if(!rel.persona&&!rel['archivo-documental']&&!rel.biografia&&!rel.informe){
+var previoSinFuente=await docextLeer(id);
+if(previoSinFuente&&(previoSinFuente.persona||previoSinFuente.archivoDocumental||previoSinFuente.biografia)){
+/* Ya no queda ninguno de los tres JSON agregados: se limpia esa parte,
+   pero sin tocar la Fototeca, que ahora depende solo del JSON de cada
+   imagen y se gestiona aparte (docextSincronizarFototecaDesdeDrive). */
+previoSinFuente.persona=null;previoSinFuente.archivoDocumental=null;previoSinFuente.biografia=null;
+previoSinFuente.sugerenciasPendientes=[];previoSinFuente.firmaDrive=null;
+await docextGuardar(previoSinFuente);
+return true;
+}
+return false;
+}
 
 var firmaActual=[rel.persona,rel['archivo-documental'],rel.biografia,rel.informe].filter(Boolean)
 .map(function(f){return f.id+':'+(f.modifiedTime||'');}).sort().join('|');
@@ -1192,16 +1230,70 @@ if(!personaJson&&rel.informe)personaJson=docextParsearInformeHtml(await docextDe
 var resueltas=(previo&&previo.resueltas)||[];
 var sugerencias=docextExtraerSugerencias(personaJson).filter(function(s){return resueltas.indexOf(docextClaveSugerencia(s))<0;});
 
-await docextGuardar({
-personaId:id,actualizado:new Date().toISOString(),firmaDrive:firmaActual,
-persona:personaJson,archivoDocumental:archivoDocumentalJson,biografia:biografiaJson,
-sugerenciasPendientes:sugerencias,resueltas:resueltas
-});
+var base=previo||{personaId:id,fototecaLive:[],firmaFototeca:'',fototecaCache:{}};
+base.actualizado=new Date().toISOString();
+base.firmaDrive=firmaActual;
+base.persona=personaJson;base.archivoDocumental=archivoDocumentalJson;base.biografia=biografiaJson;
+base.sugerenciasPendientes=sugerencias;base.resueltas=resueltas;
+await docextGuardar(base);
 return true;
 }catch(err){
 console.error('No se pudo sincronizar documentación externa de Drive para '+id,err);
 return false;
 }
+}
+
+/* ---- Parte 2: Fototeca EN VIVO. Cada imagen de la carpeta se empareja con
+   su propio JSON individual (convención Google Takeout/Fotos: junto a
+   "foto.jpg" aparece "foto.jpg.google-photos.json" o similar). Si una
+   imagen no tiene ese JSON al lado en Drive, sencillamente no se muestra:
+   no depende en ningún momento de {id}_persona.json, así que nunca puede
+   quedarse desincronizada respecto a lo que hay de verdad en la carpeta. ---- */
+async function docextSincronizarFototecaDesdeDrive(id,archivos){
+var imagenes=(archivos||[]).filter(function(f){return f.mimeType&&f.mimeType.indexOf('image/')===0;});
+var pares=[];
+imagenes.forEach(function(img){
+var sc=docextBuscarSidecar(archivos,img.name);
+if(sc)pares.push({img:img,sidecar:sc});
+});
+
+var firmaActual=pares.map(function(p){return p.sidecar.id+':'+(p.sidecar.modifiedTime||'');}).sort().join('|');
+var previo=await docextLeer(id);
+if(previo&&previo.firmaFototeca===firmaActual)return false; /* sin cambios */
+
+var cachePrevia=(previo&&previo.fototecaCache)||{};
+var cacheNueva={},items=[];
+for(var i=0;i<pares.length;i++){
+var par=pares[i],clave=par.sidecar.id,firmaItem=par.sidecar.modifiedTime||'';
+var meta=null;
+if(cachePrevia[clave]&&cachePrevia[clave].firma===firmaItem){
+meta=cachePrevia[clave].meta;
+}else{
+try{meta=JSON.parse(await docextDescargarContenidoDrive(par.sidecar.id));}catch(e){meta=null;}
+}
+if(meta){
+cacheNueva[clave]={firma:firmaItem,meta:meta};
+items.push({
+nombre:par.img.name,
+driveFileId:par.img.id,
+driveUrl:par.img.webViewLink||('https://drive.google.com/file/d/'+par.img.id+'/view'),
+descripcionGoogleFotos:meta.description||'',
+fecha:(meta.photoTakenTime&&meta.photoTakenTime.timestamp)?new Date(parseInt(meta.photoTakenTime.timestamp,10)*1000).toISOString():null
+});
+}
+}
+
+var base=previo||{personaId:id,persona:null,archivoDocumental:null,biografia:null,sugerenciasPendientes:[],resueltas:[],firmaDrive:null};
+base.actualizado=new Date().toISOString();
+base.fototecaLive=items;base.firmaFototeca=firmaActual;base.fototecaCache=cacheNueva;
+await docextGuardar(base);
+return true;
+}
+
+async function docextSincronizarDesdeDrive(id,archivos){
+var c1=await docextSincronizarAgregadoDesdeDrive(id,archivos);
+var c2=await docextSincronizarFototecaDesdeDrive(id,archivos);
+return c1||c2;
 }
 
 /* Comprobación de coincidencia de nombre (evita el error del caso Alfredo /
@@ -1242,11 +1334,35 @@ mostrarDocumentos(id);
 function docextCambiarPestana(id,nombre){docextPestanaActiva=nombre;docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);if(nombre==='drive')mostrarDocumentos(id);});}
 
 /* Llamada tras una sincronización en segundo plano (tras mostrarDocumentos):
-   repinta la ficha SIN volver a pedir el listado de Drive, para no entrar
-   en bucle. */
+   actualiza el aviso de "archivo ya no está en Drive" y, si la pestaña
+   activa no es "Archivos en Drive", repinta también el cuerpo (puede haber
+   cambiado la biografía, las sugerencias, etc.). Nunca toca #docsLista, que
+   ya la mantiene mostrarDocumentos por su cuenta, para no entrar en bucle
+   ni "resetear" una lista que ya se había cargado bien. */
 function docextRefrescarTrasSincronizar(id){
 if(cid!==id)return;
-docextLeer(id).then(function(registro){docextPintarTabsYCuerpo(id,registro);});
+docextLeer(id).then(function(registro){
+var banner=document.getElementById('docextBanner');
+if(banner)banner.innerHTML=docextHtmlBanner(id,registro);
+var badge=document.getElementById('docextTabBadgeSugerencias');
+if(badge)badge.textContent='Sugerencias'+docextBadgePendientes(registro);
+if(docextPestanaActiva!=='drive')docextPintarCuerpo(id,registro);
+});
+}
+
+function docextContarBorrados(id,registro){
+if(!registro||!registro.persona)return 0;
+var n=0;
+(registro.persona.documentos||[]).forEach(function(d){if(!docextArchivoSigueEnDrive(id,d.driveFileId))n++;});
+return n;
+}
+
+function docextHtmlBanner(id,registro){
+var borrados=docextContarBorrados(id,registro);
+if(!borrados)return '';
+return '<div style="background:#fdf1ee;border:1px solid #e3b3a8;color:#8a3a2c;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px">'+
+'<i class="fa-solid fa-triangle-exclamation"></i> '+borrados+' archivo(s) que aparecen en Documentos/Fototeca ya no están en la carpeta de Drive de esta persona. '+
+'Esta información viene de <code>'+esc(id)+'_persona.json</code>, que no se actualiza sola al borrar en Drive: hay que volver a generarlo con el programa externo.</div>';
 }
 
 function docextPintarTabsYCuerpo(id,registro){
@@ -1255,9 +1371,11 @@ var tabs=[['documentos','Documentos'],['fototeca','Fototeca'],['biografia','Biog
 var h='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">';
 tabs.forEach(function(t){
 var activa=docextPestanaActiva===t[0];
-h+='<button type="button" class="ef-btn'+(activa?' save':' ghost')+'" style="padding:5px 10px;font-size:12px" onclick="docextCambiarPestana(\''+safeId(id)+'\',\''+t[0]+'\')">'+t[1]+'</button>';
+var idAttr=t[0]==='sugerencias'?' id="docextTabBadgeSugerencias"':'';
+h+='<button type="button" class="ef-btn'+(activa?' save':' ghost')+'" style="padding:5px 10px;font-size:12px" onclick="docextCambiarPestana(\''+safeId(id)+'\',\''+t[0]+'\')"><span'+idAttr+'>'+t[1]+'</span></button>';
 });
 h+='</div>';
+h+='<div id="docextBanner">'+docextHtmlBanner(id,registro)+'</div>';
 h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
 h+='<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>';
 if(registro)h+='<button type="button" class="ef-btn ghost" onclick="generarInformeHtmlPersona(\''+safeId(id)+'\')"><i class="fa-solid fa-file-export"></i> Exportar informe HTML (con pistas genealógicas)</button>';
@@ -1284,9 +1402,23 @@ else if(docextPestanaActiva==='biografia')cuerpo.innerHTML=docextHtmlBiografia(r
 else if(docextPestanaActiva==='sugerencias')cuerpo.innerHTML=docextHtmlSugerencias(persona,registro);
 }
 
+/* Compara cada entrada del JSON (persona.json, generado por el programa
+   externo) contra el listado en directo de la carpeta de Drive de esta
+   persona (ya descargado en segundo plano por mostrarDocumentos para la
+   pestaña "Archivos en Drive"). El JSON no se actualiza solo cuando se
+   borra un archivo en Drive -solo cuando el propio programa externo se
+   vuelve a ejecutar-, así que esta comprobación es la única forma de saber,
+   sin salir de la ficha, si algo de lo que cuenta el JSON ya no existe. */
+function docextArchivoSigueEnDrive(id,driveFileId){
+if(!driveFileId)return true; /* sin id no se puede comprobar: se asume presente */
+var cache=docsUltimaListaCache[id];
+if(!cache||!cache.archivos)return true; /* listado de Drive aún no cargado: no avisar en falso */
+return cache.archivos.some(function(f){return f.id===driveFileId;});
+}
+
 function docextHtmlFototeca(id,registro){
-var fotos=(registro.persona&&registro.persona.fotografias)||[];
-if(!fotos.length)return '<p style="font-size:12px;color:var(--muted)">Sin fotografías importadas.</p>';
+var fotos=registro.fototecaLive||[];
+if(!fotos.length)return '<p style="font-size:12px;color:var(--muted)">Ninguna imagen de esta carpeta tiene su JSON individual asociado en Drive (p. ej. "foto.jpg.google-photos.json"), así que no hay ninguna fotografía que mostrar aquí. Las imágenes sin ese JSON siguen visibles en «Archivos en Drive».</p>';
 var porDecada={};
 fotos.forEach(function(f,idx){
 var anio=f.fecha?new Date(f.fecha).getFullYear():null;
@@ -1321,14 +1453,16 @@ return docs.map(function(d,idx){
 var conf=d.ocrConfianza||0;
 var color=conf>=80?'var(--green)':(conf>=50?'#c9922a':'#c0392b');
 var tipos=(d.hallazgos&&d.hallazgos.tipos)||[];
-var c='<div class="cambio-card" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start">';
+var borrado=!docextArchivoSigueEnDrive(id,d.driveFileId);
+var c='<div class="cambio-card" style="margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;opacity:'+(borrado?'0.55':'1')+(borrado?';border-color:#c0392b':'')+'">';
 c+='<div style="flex:0 0 64px;width:64px;height:64px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden">';
 c+='<i class="fa-regular fa-file-lines" id="docextDocIco'+idx+'" style="color:var(--muted)"></i>';
 c+='<img id="docextDocImg'+idx+'" style="display:none;width:100%;height:100%;object-fit:cover" alt="" onload="var ic=document.getElementById(\'docextDocIco'+idx+'\');if(ic)ic.style.display=\'none\'">';
 c+='</div><div style="flex:1;min-width:0">';
 c+='<div class="cambio-head"><div><strong>'+esc(d.nombre)+'</strong></div><div style="color:'+color+';font-size:11px">OCR '+conf+'%</div></div>';
+if(borrado)c+='<div style="color:#c0392b;font-size:11px;margin-bottom:4px"><i class="fa-solid fa-triangle-exclamation"></i> Este archivo ya no está en la carpeta de Drive de esta persona</div>';
 if(tipos.length)c+='<div style="margin:6px 0">'+tipos.map(function(t){return '<span style="display:inline-block;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 7px;margin-right:4px">'+esc(t)+'</span>';}).join('')+'</div>';
-if(d.driveUrl)c+='<p style="margin:4px 0"><a href="'+escAttr(d.driveUrl)+'" target="_blank" rel="noopener">Abrir archivo en Google Drive</a></p>';
+if(d.driveUrl&&!borrado)c+='<p style="margin:4px 0"><a href="'+escAttr(d.driveUrl)+'" target="_blank" rel="noopener">Abrir archivo en Google Drive</a></p>';
 c+='<details><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Ver texto extraído</summary><pre style="white-space:pre-wrap;font-size:11px;background:var(--bg);border-radius:6px;padding:8px;margin-top:6px">'+esc(d.extractoTexto||'')+'</pre></details>';
 c+='</div></div>';
 return c;
@@ -1443,7 +1577,7 @@ if(el){el.src=d.thumbnailLink;el.style.display='block';}
 }).catch(function(){});
 }
 function docextCargarMiniaturasFototeca(registro){
-var fotos=(registro.persona&&registro.persona.fotografias)||[];
+var fotos=registro.fototecaLive||[];
 fotos.forEach(function(f,idx){if(f.driveFileId)docextCargarMiniatura(f.driveFileId,'docextFotoImg'+idx);});
 }
 function docextCargarMiniaturasDocumentos(registro){
@@ -1461,11 +1595,12 @@ docs.forEach(function(d,idx){if(d.driveFileId)docextCargarMiniatura(d.driveFileI
 
 function generarInformeHtmlPersona(id){
 docextLeer(id).then(function(registro){
-if(!registro||!registro.persona){toast('No hay documentación externa detectada para esta persona',true);return;}
+var tieneFototeca=registro&&registro.fototecaLive&&registro.fototecaLive.length;
+if(!registro||(!registro.persona&&!tieneFototeca)){toast('No hay documentación externa detectada para esta persona',true);return;}
 var persona=PI&&PI[id];
-var p=registro.persona;
+var p=registro.persona||{};
 var docs=p.documentos||[];
-var fotos=p.fotografias||[];
+var fotos=registro.fototecaLive||[];
 var conOcrUtil=docs.filter(function(d){return d.hallazgos&&d.hallazgos.util;}).length;
 var totalArchivos=docs.length+fotos.length;
 var fechaGen=new Date().toLocaleString('es-ES');
@@ -1711,7 +1846,7 @@ archivos=dF.files||[];
 docsUltimaListaCache[id]={folderId:folderId,archivos:archivos};
 docsFiltroTexto='';
 renderDocumentosPersona(id);
-docextSincronizarDesdeDrive(id,archivos).then(function(cambiado){if(cambiado)docextRefrescarTrasSincronizar(id);}).catch(function(){});
+docextSincronizarDesdeDrive(id,archivos).then(function(cambiado){docextRefrescarTrasSincronizar(id);}).catch(function(){docextRefrescarTrasSincronizar(id);});
 }catch(err){if(cid!==id)return;docsEscribir('<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>');}
 }
 async function autorizarDocumentos(id){
