@@ -648,7 +648,6 @@ body{background:#fff}
 <div class="view" id="vDoc">
 <div class="hero">
 <h1>Documentos</h1>
-<p>Consulta, para cualquier persona, lo que hay grabado en su carpeta de Drive en este momento. No pasa por ninguna caché del navegador: cada archivo con ficha propia (sidecar) en <code>DOCUMENTOS/&lt;ID&gt;</code> se lee directamente de Drive en cada visita.</p>
 </div>
 <div style="max-width:900px;margin:0 auto">
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
@@ -665,7 +664,7 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.21.1';
+var APP_VERSION = '2026.08.21.2';
 var APP_CHANGELOG = [
   { version:'2026.08.15.1', fecha:'2026-08-15', cambios:[
     'Manual de usuario completamente renovado: nueva portada e indice con diseno propio (escudo circular, tipografia Cinzel, guardas doradas) a juego con la identidad visual de la aplicacion; contenido mucho mas extenso y practico, organizado en 24 secciones (de los primeros pasos al glosario y la solucion de problemas); e impresion ajustada a tamano A4 vertical. Ademas, la aplicacion ahora comprueba en segundo plano si hay una version mas reciente publicada y, si la hay, muestra un aviso con un boton "Actualizar ahora" que limpia la cache y el Service Worker y recarga la version correcta, para no depender de forzar Ctrl+F5.'
@@ -1029,14 +1028,8 @@ if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 return r;
 }
-/* ===== GESTIÓN DE DOCUMENTOS DESDE LA FICHA =====
-Pensado para poder meter muchos documentos por persona sin salir de la app:
-subida múltiple (botón o arrastrar y soltar), categoría libre opcional (con
-sugerencias) para poder agruparlos cuando hay muchos, buscador dentro de la
-ficha cuando hay más de 8, y renombrar/eliminar sin ir a Drive. Disponible para
-cualquier usuario con su cuenta de Google conectada (igual que las fotos). */
-var DOCS_CATEGORIAS_SUGERIDAS=['Nacimiento','Bautismo','Matrimonio','Defunción','Empadronamiento','Fotografía histórica','Correspondencia','Otros'];
-var docsUltimaListaCache={};
+/* Utilidades compartidas para mostrar iconos/tamaños de archivo, usadas
+   ahora por el Explorador de documentos (pantalla independiente). */
 var docsSubidaEnCurso=false;
 function docsIconoPorMime(mime,nombre){
 var m=String(mime||'');
@@ -1316,7 +1309,16 @@ if(/\.google-photos\.json$/i.test(nombre))return false;
 if(/_persona\.json$/i.test(nombre))return false;
 if(/_archivo-documental\.json$/i.test(nombre))return false;
 if(/_biografia\.json$/i.test(nombre))return false;
+if(/_catalogo\.json$/i.test(nombre))return false;
 return true;
+}
+
+function docExplorerEsAgregadoDePersona(nombre){
+/* Cualquier .json que NO sea el sidecar propio de un archivo es, por
+   descarte, uno de los agregados de persona o el sidecar crudo de
+   importación (Google Fotos) — ninguno de los dos es "un documento" que
+   deba aparecer en la rejilla. */
+return /\.json$/i.test(nombre)&&!docExplorerEsSidecarPropio(nombre);
 }
 
 async function docExplorerRepasarCarpeta(){
@@ -1336,25 +1338,50 @@ var dC=await rC.json();
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
 if(!dC.files||!dC.files.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta persona todavía no tiene carpeta de documentos en Drive.</p>';return;}
 var folderId=dC.files[0].id;
-var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false and mimeType='application/json'")+'&fields=files(id,name,modifiedTime)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+
+/* Un único listado con TODO lo que hay en la carpeta (no solo los .json). */
+var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 var dF=await rF.json();
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
-var sidecars=(dF.files||[]).filter(function(f){return docExplorerEsSidecarPropio(f.name);});
-if(!sidecars.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No hay ningún archivo con ficha (sidecar) todavía en esta carpeta. Repásala primero desde el programa de archivo documental familiar.</p>';return;}
-lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Leyendo '+sidecars.length+' ficha(s)...</p>';
-var resultado=[];
+var todos=dF.files||[];
+
+var sidecars=todos.filter(function(f){return docExplorerEsSidecarPropio(f.name);});
+var archivosReales=todos.filter(function(f){return !docExplorerEsSidecarPropio(f.name)&&!docExplorerEsAgregadoDePersona(f.name);});
+
+if(!archivosReales.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta carpeta todavía no tiene ningún documento o fotografía.</p>';return;}
+
+lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Leyendo '+sidecars.length+' ficha(s) de '+archivosReales.length+' archivo(s)...</p>';
+
+var metaPorId={};
 for(var i=0;i<sidecars.length;i++){
 try{
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+sidecars[i].id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(!r.ok)continue;
 var contenido=JSON.parse(await r.text());
-contenido.driveFileId=contenido.driveFileId||sidecars[i].id;
-contenido.nombreOriginal=contenido.nombreOriginal||sidecars[i].name;
-resultado.push(contenido);
-}catch(e){/* sidecar ilegible: se omite, no se rompe la lista entera */}
+var claveId=contenido.driveFileId||null;
+if(!claveId)continue; /* sidecar sin referencia clara a su archivo: se ignora, no se puede emparejar */
+contenido.driveFileId=claveId;
+metaPorId[claveId]={meta:contenido,sidecarFileId:sidecars[i].id,sidecarNombre:sidecars[i].name};
+}catch(e){/* sidecar ilegible: se omite, no rompe el resto */}
 }
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
-resultado.sort(function(a,b){return String(a.nombreOriginal||'').localeCompare(String(b.nombreOriginal||''),'es');});
+
+var resultado=archivosReales.map(function(f){
+var enc=metaPorId[f.id];
+return {
+driveFileId:f.id,
+nombreDrive:f.name,
+mimeType:f.mimeType||'',
+size:f.size,
+createdTime:f.createdTime,
+webViewLink:f.webViewLink,
+tieneSidecar:!!enc,
+sidecarFileId:enc?enc.sidecarFileId:null,
+sidecarNombre:enc?enc.sidecarNombre:null,
+meta:enc?enc.meta:null
+};
+});
+resultado.sort(function(a,b){return String(a.nombreDrive||'').localeCompare(String(b.nombreDrive||''),'es');});
 DOC_EXPLORER_ARCHIVOS=resultado;
 docExplorerRenderLista();
 }catch(err){
@@ -1376,25 +1403,32 @@ function docExplorerPintarLista(){
 var cont=document.getElementById('docExplorerLista');
 if(!cont)return;
 if(!DOC_EXPLORER_ARCHIVOS.length){
-cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Ningún archivo con ficha (sidecar) en esta carpeta todavía.</p>';
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta carpeta todavía no tiene ningún documento o fotografía.</p>';
 return;
 }
-var docs=DOC_EXPLORER_ARCHIVOS.filter(function(x){return x.esDocumento===true;});
-var fotos=DOC_EXPLORER_ARCHIVOS.filter(function(x){return x.esDocumento!==true;});
+var conFicha=DOC_EXPLORER_ARCHIVOS.filter(function(x){return x.tieneSidecar;}).length;
+var sinFicha=DOC_EXPLORER_ARCHIVOS.length-conFicha;
 var pendientesTotal=docExplorerContarSugerenciasPendientes();
-var h='<p style="font-size:12px;color:var(--muted);margin-bottom:8px">'+DOC_EXPLORER_ARCHIVOS.length+' archivo(s) — '+docs.length+' documento(s), '+fotos.length+' fotografía(s)/vídeo(s)</p>';
+var h='<p style="font-size:12px;color:var(--muted);margin-bottom:8px">'+DOC_EXPLORER_ARCHIVOS.length+' archivo(s) — '+conFicha+' con ficha, '+sinFicha+' sin ficha</p>';
 if(pendientesTotal)h+='<div style="background:#fdf6e8;border:1px solid #e6cf8f;color:#8a6d1a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px"><i class="fa-solid fa-lightbulb"></i> '+pendientesTotal+' sugerencia(s) genealógica(s) pendiente(s) de revisar en esta carpeta — ábrelas para verlas.</div>';
-h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">';
 h+=DOC_EXPLORER_ARCHIVOS.map(function(el,idx){
 var cacheada=DOC_EXPLORER_MINI_CACHE[el.driveFileId];
 var nSug=sugerenciasVisiblesDe(el).length;
-return '<div style="cursor:pointer;position:relative" onclick="docExplorerVerDetalle('+idx+')">'+
-(nSug?'<span style="position:absolute;top:-6px;right:-6px;background:#c9922a;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;z-index:1">'+nSug+'</span>':'')+
-'<div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden">'+
-(cacheada?'<img id="docExplorerMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+cacheada+'">':'<i id="docExplorerMini'+idx+'" class="fa-solid fa-'+(el.esDocumento?'file-lines':'image')+'" style="color:var(--muted);font-size:24px"></i>')+
-'</div>'+
-'<p style="font-size:11px;margin-top:4px;overflow-wrap:anywhere"><strong>'+esc(el.nombreOriginal||'')+'</strong><br><span style="color:var(--muted)">'+(el.esDocumento?'Documento':'Fotografía')+(el.ocrProcesado?' · OCR ✓':(el.esDocumento?' · OCR pendiente':''))+'</span></p>'+
+var esImagen=el.mimeType&&el.mimeType.indexOf('image/')===0;
+var iconoFA=el.tieneSidecar?(el.meta.esDocumento?'file-lines':'image'):docsIconoPorMime(el.mimeType,el.nombreDrive);
+var h2='<div style="position:relative">';
+h2+='<div style="cursor:pointer" onclick="docExplorerVerDetalle('+idx+')">';
+if(nSug)h2+='<span style="position:absolute;top:-6px;right:-6px;background:#c9922a;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;z-index:1">'+nSug+'</span>';
+h2+='<div style="aspect-ratio:1;background:var(--bg);border:1px solid '+(el.tieneSidecar?'var(--border)':'#d8c9a8')+';border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden">'+
+(cacheada?'<img id="docExplorerMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+cacheada+'">':'<i id="docExplorerMini'+idx+'" class="fa-solid fa-'+iconoFA+'" style="color:var(--muted);font-size:24px"></i>')+
 '</div>';
+var estadoTxt=el.tieneSidecar?((el.meta.esDocumento?'Documento':'Fotografía')+(el.meta.ocrProcesado?' · OCR ✓':(el.meta.esDocumento?' · OCR pendiente':''))):'Sin ficha';
+h2+='<p style="font-size:11px;margin-top:4px;overflow-wrap:anywhere"><strong>'+esc(el.nombreDrive||'')+'</strong><br><span style="color:'+(el.tieneSidecar?'var(--muted)':'#a9791f')+'">'+estadoTxt+'</span></p>';
+h2+='</div>';
+h2+='<button type="button" class="ef-btn ghost" title="Renombrar" style="position:absolute;top:2px;left:2px;padding:2px 6px;font-size:10px" onclick="event.stopPropagation();docExplorerRenombrar('+idx+')"><i class="fa-solid fa-pen"></i></button>';
+h2+='</div>';
+return h2;
 }).join('');
 h+='</div>';
 cont.innerHTML=h;
@@ -1448,8 +1482,8 @@ if(hayConflicto)return 'conflicto';
 return 'aplicar';
 }
 function sugerenciasVisiblesDe(el){
-if(!el||!el.sugerenciasGenealogicas)return [];
-return el.sugerenciasGenealogicas.filter(function(s){return s&&s.campo&&!sugEstaDescartada(el.driveFileId,s.campo,s.valor);});
+if(!el||!el.meta||!el.meta.sugerenciasGenealogicas)return [];
+return el.meta.sugerenciasGenealogicas.filter(function(s){return s&&s.campo&&!sugEstaDescartada(el.driveFileId,s.campo,s.valor);});
 }
 function docExplorerHtmlSugerencias(persona,el){
 var pendientes=sugerenciasVisiblesDe(el);
@@ -1514,183 +1548,124 @@ var det=document.getElementById('docExplorerDetalle');
 if(!det)return;
 await sugCargarDescartadas();
 var persona=PI&&DOC_EXPLORER_PERSONA&&PI[DOC_EXPLORER_PERSONA.id];
-var exif=el.exif||{};
+var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">'+esc(el.nombreDrive||'')+'</h3><div style="display:flex;gap:8px"><button type="button" class="ef-btn ghost" onclick="docExplorerRenombrar('+idx+')"><i class="fa-solid fa-pen"></i> Renombrar</button><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div></div>';
+
+if(!el.tieneSidecar){
+h+='<table style="margin-top:10px;width:100%;font-size:13px">';
+h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">Tipo MIME</th><td style="padding:3px 0">'+esc(el.mimeType||'—')+'</td></tr>';
+h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">Tamaño</th><td style="padding:3px 0">'+(docsTamanoTexto(el.size)||'—')+'</td></tr>';
+if(el.createdTime)h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">Creado en Drive</th><td style="padding:3px 0">'+esc(String(el.createdTime).slice(0,10))+'</td></tr>';
+h+='</table>';
+h+='<div style="background:#fdf6e8;border:1px solid #e6cf8f;border-radius:8px;padding:10px;margin-top:10px;font-size:12px">Este archivo todavía no tiene ficha (sidecar) propia — no ha pasado por el programa de archivo documental familiar, así que no hay OCR, fecha estimada, ni sugerencias. <button type="button" class="ef-btn save" style="margin-top:8px" onclick="docExplorerCrearFicha('+idx+')"><i class="fa-solid fa-file-circle-plus"></i> Crear ficha con estos metadatos</button></div>';
+}else{
+var m=el.meta,exif=m.exif||{};
 var filas=[];
-filas.push(['Nombre',esc(el.nombreOriginal||'')]);
-filas.push(['Tipo',(el.esDocumento?'Documento':'Fotografía')+(el.tipo?' ('+esc(el.tipo)+')':'')]);
-filas.push(['Fecha',esc(String(el.fecha||'').slice(0,10))+(el.fechaEstimada?' (estimada)':'')+(el.fuenteFecha?' · fuente: '+esc(el.fuenteFecha):'')]);
-if(el.dimensiones&&el.dimensiones.ancho)filas.push(['Dimensiones',el.dimensiones.ancho+' × '+el.dimensiones.alto+' px']);
-if(el.archivoDrive){
-filas.push(['Tamaño',docsTamanoTexto(el.archivoDrive.tamano)||'—']);
-filas.push(['Tipo MIME',esc(el.archivoDrive.mimeType||'—')]);
-if(el.archivoDrive.creadoDrive)filas.push(['Creado en Drive',esc(String(el.archivoDrive.creadoDrive).slice(0,10))]);
+filas.push(['Tipo',(m.esDocumento?'Documento':'Fotografía')+(m.tipo?' ('+esc(m.tipo)+')':'')]);
+filas.push(['Fecha',esc(String(m.fecha||'').slice(0,10))+(m.fechaEstimada?' (estimada)':'')+(m.fuenteFecha?' · fuente: '+esc(m.fuenteFecha):'')]);
+if(m.dimensiones&&m.dimensiones.ancho)filas.push(['Dimensiones',m.dimensiones.ancho+' × '+m.dimensiones.alto+' px']);
+if(m.archivoDrive){
+filas.push(['Tamaño',docsTamanoTexto(m.archivoDrive.tamano)||'—']);
+filas.push(['Tipo MIME',esc(m.archivoDrive.mimeType||'—')]);
+if(m.archivoDrive.creadoDrive)filas.push(['Creado en Drive',esc(String(m.archivoDrive.creadoDrive).slice(0,10))]);
 }
 if(exif.camaraMarca||exif.camaraModelo)filas.push(['Cámara',esc(((exif.camaraMarca||'')+' '+(exif.camaraModelo||'')).trim())]);
 if(exif.gps)filas.push(['Ubicación GPS',exif.gps.lat+', '+exif.gps.lon]);
-if(el.etiquetas&&el.etiquetas.length)filas.push(['Etiquetas',esc(el.etiquetas.join(', '))]);
-if(el.googlePhotosTitle)filas.push(['Título (Google Fotos)',esc(el.googlePhotosTitle)]);
-if(el.googlePhotosDescription)filas.push(['Descripción (Google Fotos)',esc(el.googlePhotosDescription)]);
-if(el.personasEtiquetadasGoogle&&el.personasEtiquetadasGoogle.length)filas.push(['Personas etiquetadas (Google)',esc(el.personasEtiquetadasGoogle.join(', '))]);
-filas.push(['OCR',el.ocrProcesado?('sí, confianza '+Number(el.ocrConfianza||0).toFixed(0)+'%'):'pendiente']);
-var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">'+esc(el.nombreOriginal||'')+'</h3><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div>';
+if(m.etiquetas&&m.etiquetas.length)filas.push(['Etiquetas',esc(m.etiquetas.join(', '))]);
+if(m.googlePhotosTitle)filas.push(['Título (Google Fotos)',esc(m.googlePhotosTitle)]);
+if(m.googlePhotosDescription)filas.push(['Descripción (Google Fotos)',esc(m.googlePhotosDescription)]);
+if(m.personasEtiquetadasGoogle&&m.personasEtiquetadasGoogle.length)filas.push(['Personas etiquetadas (Google)',esc(m.personasEtiquetadasGoogle.join(', '))]);
+filas.push(['OCR',m.ocrProcesado?('sí, confianza '+Number(m.ocrConfianza||0).toFixed(0)+'%'):'pendiente']);
 h+='<table style="margin-top:10px;width:100%;font-size:13px">'+filas.map(function(f){return '<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">'+f[0]+'</th><td style="padding:3px 0">'+f[1]+'</td></tr>';}).join('')+'</table>';
 if(persona)h+=docExplorerHtmlSugerencias(persona,el);
-if(el.ocrSugerencias&&el.ocrSugerencias.informativas&&el.ocrSugerencias.informativas.length){
-h+='<div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>💡 Pistas encontradas por el OCR</strong><br>'+el.ocrSugerencias.informativas.map(function(t){return esc(t);}).join('<br>')+'</div>';
+if(m.ocrSugerencias&&m.ocrSugerencias.informativas&&m.ocrSugerencias.informativas.length){
+h+='<div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>💡 Pistas encontradas por el OCR</strong><br>'+m.ocrSugerencias.informativas.map(function(t){return esc(t);}).join('<br>')+'</div>';
 }
-if(el.ocrTexto){
-h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--accent)">Ver texto OCR completo</summary><pre style="white-space:pre-wrap;font-size:11.5px;background:var(--bg);padding:10px;border-radius:8px;margin-top:6px">'+esc(el.ocrTexto)+'</pre></details>';
+if(m.ocrTexto){
+h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--accent)">Ver texto OCR completo</summary><pre style="white-space:pre-wrap;font-size:11.5px;background:var(--bg);padding:10px;border-radius:8px;margin-top:6px">'+esc(m.ocrTexto)+'</pre></details>';
 }
-h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)">Ver JSON completo del sidecar</summary><pre style="white-space:pre-wrap;font-size:11px;background:var(--bg);padding:10px;border-radius:8px;margin-top:6px">'+esc(JSON.stringify(el,null,2))+'</pre></details>';
+h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)">Ver JSON completo del sidecar</summary><pre style="white-space:pre-wrap;font-size:11px;background:var(--bg);padding:10px;border-radius:8px;margin-top:6px">'+esc(JSON.stringify(m,null,2))+'</pre></details>';
+}
 if(el.driveFileId)h+='<p style="margin-top:10px"><a class="ef-btn ghost" target="_blank" rel="noopener" href="https://drive.google.com/file/d/'+encodeURIComponent(el.driveFileId)+'/view"><i class="fa-brands fa-google-drive"></i> Abrir archivo original en Drive</a></p>';
 det.innerHTML=h;
 det.style.display='block';
 det.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-function renderDocumentosPersona(id){
-var lista=document.getElementById('docsLista');if(!lista)return;
-var cache=docsUltimaListaCache[id]||{archivos:[]};
-var archivos=cache.archivos||[];
-var categoriasUsadas={};
-archivos.forEach(function(f){var c=(f.properties&&f.properties.categoria)||'';if(c)categoriasUsadas[c]=true;});
-var sugerencias=DOCS_CATEGORIAS_SUGERIDAS.concat(Object.keys(categoriasUsadas)).filter(function(v,i,a){return a.indexOf(v)===i;});
-var h='';
-h+='<div id="docsDropZone" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="docsHandleDrop(event,\''+safeId(id)+'\')" class="iz" style="padding:16px;margin:0 0 12px">';
-h+='<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí los documentos, o</p>';
-h+='<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center">';
-h+='<input class="ef-input" id="docCategoriaInput" list="dlDocsCategorias" placeholder="Categoría (opcional)" style="max-width:180px" autocomplete="off">';
-h+='<input type="file" id="docsFileInput" multiple style="display:none" onchange="docsHandleInputChange(event,\''+safeId(id)+'\')">';
-h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docsFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button>';
-h+='</div>';
-h+='<datalist id="dlDocsCategorias">'+sugerencias.map(function(c){return'<option value="'+escAttr(c)+'">';}).join('')+'</datalist>';
-h+='<div id="docsProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docsProgresoBarra"></div></div><div id="docsProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>';
-h+='</div>';
-if(!archivos.length){
-h+='<p style="font-size:12px;color:var(--muted)">Todavía no hay documentos para esta persona.</p>';
-lista.innerHTML=h;
-return;
+/* Renombra el archivo real en Drive y, si tiene ficha (sidecar), también
+   renombra el propio .json y actualiza su campo nombreOriginal, para que
+   los dos sigan correspondiéndose. */
+async function driveRenombrarArchivo(fileId,nuevoNombre){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nuevoNombre})});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
 }
-archivos.forEach(function(f){
-var icono=docsIconoPorMime(f.mimeType,f.name);
-var tam=docsTamanoTexto(f.size);
-h+='<div class="fr" style="align-items:center;margin-bottom:7px;gap:6px">';
-h+='<span class="fv" style="flex:1;overflow-wrap:anywhere"><i class="fa-regular '+icono+'" style="color:var(--accent);margin-right:6px"></i>'+esc(f.name)+(tam?' <span style="color:var(--muted);font-weight:400;font-size:10px">('+tam+')</span>':'')+'</span>';
-h+='<a class="ef-btn ghost" style="padding:4px 8px;text-decoration:none" href="'+escAttr(f.webViewLink||('https://drive.google.com/file/d/'+f.id+'/view'))+'" target="_blank" rel="noopener">Abrir</a>';
-h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Renombrar" onclick="renombrarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-pen"></i></button>';
-h+='<button type="button" class="ef-btn ghost" style="padding:4px 8px" title="Eliminar" onclick="eliminarDocumentoPersona(\''+safeId(id)+'\',\''+safeId(f.id)+'\',\''+safeId(f.name)+'\')"><i class="fa-solid fa-trash-can"></i></button>';
-h+='</div>';
-});
-lista.innerHTML=h;
-}
-function docsHandleDrop(ev,id){
-ev.preventDefault();
-var zona=document.getElementById('docsDropZone');
-if(zona)zona.classList.remove('drag');
-var files=ev.dataTransfer&&ev.dataTransfer.files;
-if(files&&files.length)subirDocumentosPersona(id,files);
-}
-function docsHandleInputChange(ev,id){
-var files=ev.target.files;
-if(files&&files.length)subirDocumentosPersona(id,files);
-ev.target.value='';
-}
-async function subirDocumentosPersona(id,fileList){
-if(docsSubidaEnCurso){toast('Ya hay una subida de documentos en curso; espera a que termine',true);return;}
+async function docExplorerRenombrar(idx){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el)return;
 if(!(await exigirIdentidadGoogle()))return;
-if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos" en Herramientas)',true);return;}
-var files=Array.prototype.slice.call(fileList||[]);
-if(!files.length)return;
-if(!tokenDriveValido()){
-try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
-}
-var catEl=document.getElementById('docCategoriaInput');
-var categoria=catEl?catEl.value.trim():'';
-docsSubidaEnCurso=true;
-var prog=document.getElementById('docsProgreso'),barra=document.getElementById('docsProgresoBarra'),txt=document.getElementById('docsProgresoTexto');
-if(prog)prog.style.display='block';
-var subidos=0,errores=0;
-try{
-var folderId=await obtenerCarpetaPersonaDocumentos(id,true);
-for(var i=0;i<files.length;i++){
-var f=files[i];
-if(txt)txt.textContent='Subiendo '+f.name+' ('+(i+1)+' de '+files.length+')';
-if(barra)barra.style.width=Math.round(i/files.length*100)+'%';
-try{
-var propiedades=categoria?{categoria:categoria}:undefined;
-var fileId=await crearArchivoDriveVacioConMetadatos(f.name,f.type||'application/octet-stream',folderId,propiedades);
-await subirContenidoArchivoDrive(fileId,f,f.type||'application/octet-stream');
-subidos++;
-}catch(errUno){
-errores++;
-console.warn('No se pudo subir el documento '+f.name+':',errUno.message);
-}
-}
-if(barra)barra.style.width='100%';
-}catch(err){
-toast('No se pudo preparar la subida a Drive: '+err.message,true);
-}
-docsSubidaEnCurso=false;
-if(prog)prog.style.display='none';
-toast(subidos+' documento(s) subido(s)'+(errores?(' · '+errores+' con error'):''),errores>0&&subidos===0);
-mostrarDocumentos(id);
-}
-async function renombrarDocumentoPersona(id,fileId,nombreActual){
-if(!(await exigirIdentidadGoogle()))return;
-var nuevo=prompt('Nuevo nombre del documento:',nombreActual);
+var nuevo=prompt('Nuevo nombre para "'+el.nombreDrive+'":',el.nombreDrive);
 if(nuevo===null)return;
 nuevo=nuevo.trim();
-if(!nuevo||nuevo===nombreActual)return;
+if(!nuevo||nuevo===el.nombreDrive)return;
 try{
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nuevo})});
-if(r.status===401){driveAccessToken=null;toast('La sesión de Google Drive caducó, vuelve a conectarla',true);return;}
-if(!r.ok)throw new Error('Drive respondió '+r.status);
-toast('Documento renombrado');
-mostrarDocumentos(id);
-}catch(err){toast('No se pudo renombrar el documento: '+err.message,true);}
+await driveRenombrarArchivo(el.driveFileId,nuevo);
+el.nombreDrive=nuevo;
+if(el.tieneSidecar){
+var nuevoContenido=Object.assign({},el.meta,{nombreOriginal:nuevo});
+var base=nuevo.replace(/\.[^.]+$/,'');
+var nuevoNombreSidecar=base+'.json';
+if(el.sidecarNombre!==nuevoNombreSidecar){
+try{await driveRenombrarArchivo(el.sidecarFileId,nuevoNombreSidecar);el.sidecarNombre=nuevoNombreSidecar;}
+catch(e){console.warn('No se pudo renombrar el sidecar (el archivo principal sí se renombró):',e.message);}
 }
-async function eliminarDocumentoPersona(id,fileId,nombre){
+await subirContenidoArchivoDrive(el.sidecarFileId,new Blob([JSON.stringify(nuevoContenido,null,2)],{type:'application/json'}),'application/json');
+el.meta=nuevoContenido;
+}
+toast('Renombrado correctamente');
+docExplorerPintarLista();
+var det=document.getElementById('docExplorerDetalle');
+if(det&&det.style.display!=='none')docExplorerVerDetalle(idx);
+}catch(err){toast('No se pudo renombrar: '+err.message,true);}
+}
+
+/* Crea una ficha (sidecar) mínima para un archivo que todavía no la tiene,
+   con los metadatos que ya sabemos por Drive. El programa de archivo
+   documental familiar puede completarla más adelante (OCR, fecha exacta...)
+   sin perder lo que aquí se guarde: el driveFileId es siempre el mismo. */
+async function docExplorerCrearFicha(idx){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el||el.tieneSidecar)return;
 if(!(await exigirIdentidadGoogle()))return;
-if(!confirm('Se eliminará el documento "'+nombre+'" (se moverá a la papelera de Drive). ¿Continuar?'))return;
 try{
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
-if(r.status===401){driveAccessToken=null;toast('La sesión de Google Drive caducó, vuelve a conectarla',true);return;}
-if(!r.ok)throw new Error('Drive respondió '+r.status);
-toast('Documento eliminado');
-mostrarDocumentos(id);
-}catch(err){toast('No se pudo eliminar el documento: '+err.message,true);}
+var esImagen=el.mimeType&&el.mimeType.indexOf('image/')===0;
+var contenido={
+personaId:DOC_EXPLORER_PERSONA.id,
+driveFileId:el.driveFileId,
+nombreOriginal:el.nombreDrive,
+esDocumento:!esImagen,
+tipo:esImagen?'fotografia':'documento',
+fecha:el.createdTime||null,
+fechaEstimada:true,
+fuenteFecha:'drive-creado',
+archivoDrive:{tamano:el.size?parseInt(el.size,10):null,mimeType:el.mimeType||'',creadoDrive:el.createdTime||null},
+etiquetas:[],
+ocrProcesado:false,
+ocrConfianza:0,
+ocrTexto:'',
+sugerenciasGenealogicas:[]
+};
+var base=el.nombreDrive.replace(/\.[^.]+$/,'');
+var nombreSidecar=base+'.json';
+var folderId=await obtenerCarpetaPersonaDocumentos(DOC_EXPLORER_PERSONA.id,true);
+var fileIdSidecar=await crearArchivoDriveVacioConMetadatos(nombreSidecar,'application/json',folderId,undefined);
+await subirContenidoArchivoDrive(fileIdSidecar,new Blob([JSON.stringify(contenido,null,2)],{type:'application/json'}),'application/json');
+el.tieneSidecar=true;el.sidecarFileId=fileIdSidecar;el.sidecarNombre=nombreSidecar;el.meta=contenido;
+toast('Ficha creada. El programa de archivo documental familiar puede completarla más adelante (OCR, fecha exacta...).');
+docExplorerPintarLista();
+docExplorerVerDetalle(idx);
+}catch(err){toast('No se pudo crear la ficha: '+err.message,true);}
 }
-async function mostrarDocumentos(id){
-function docsEscribir(html){var el=document.getElementById('docsLista');if(el)el.innerHTML=html;}
-if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){docsEscribir('<p style="font-size:12px;color:var(--muted)">Falta configurar el Client ID de Google en el código (variable GOOGLE_CLIENT_ID).</p>');return;}
-if(!driveRootFolderId){docsEscribir('<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive que contiene la carpeta DOCUMENTOS.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>');return;}
-if(!tokenDriveValido()){docsEscribir('<p style="font-size:12px;color:var(--muted)">Conéctate con Google Drive para ver y subir documentos.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>');return;}
-docsEscribir('<p style="font-size:12px;color:var(--muted)">Buscando documentos en Drive...</p>');
-try{
-var carpetaDocsId;
-try{carpetaDocsId=await obtenerCarpetaDocumentosId(false);}catch(e){if(e.message==='sesion_caducada'){docsEscribir('<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>');return;}throw e;}
-var archivos=[],folderId=null;
-if(carpetaDocsId){
-var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rC.status===401){driveAccessToken=null;docsEscribir('<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="autorizarDocumentos(\''+safeId(id)+'\')">Reconectar</button>');return;}
-var dC=await rC.json();
-if(cid!==id)return;
-if(dC.files&&dC.files.length){
-folderId=dC.files[0].id;
-var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,webViewLink,mimeType,size,properties,modifiedTime)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-var dF=await rF.json();
-if(cid!==id)return;
-archivos=dF.files||[];
-}
-}
-docsUltimaListaCache[id]={folderId:folderId,archivos:archivos};
-renderDocumentosPersona(id);
-}catch(err){if(cid!==id)return;docsEscribir('<p style="font-size:12px;color:var(--muted)">Error al consultar Google Drive: '+esc(err.message)+'</p>');}
-}
-async function autorizarDocumentos(id){
-try{await conectarGoogleDrive();mostrarDocumentos(id);}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);}
-}
+
 async function abrirCarpetaEnDrive(id){
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
 if(!tokenDriveValido()){
@@ -2540,11 +2515,9 @@ h+='<ul class="ul">'+hi+'</ul>';
 h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
 }
 h+='</div>';
-h+='<div class="fs"><h3>Documentos</h3><div id="docsLista"><p style="font-size:12px;color:var(--muted)">Cargando documentos...</p></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn ghost" onclick="mostrarDocumentos(\''+safeId(id)+'\')"><i class="fa-solid fa-rotate"></i> Actualizar</button><button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button></div></div>';
 if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
-mostrarDocumentos(id);
 }
 function activarEdicion(id){cid=id;editMode=true;rFic(id);}
 function cancelarEdicion(id){editMode=false;rFic(id);}
