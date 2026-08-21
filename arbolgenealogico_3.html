@@ -431,9 +431,7 @@ body{background:#fff}
 <button data-view="inf" aria-label="Informes" onclick="sv('inf')"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> <span class="mh">Informes</span></button>
 <button data-view="inv" aria-label="Investigación" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i> <span class="mh">Investigación</span></button>
 <button data-view="ges" onclick="sv('ges')" title="Gestor de datos" aria-label="Gestor de datos"><i class="fa-solid fa-list-check" aria-hidden="true"></i> <span class="mh">Gestor</span></button>
-<button data-view="cam" aria-label="Registro de cambios" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none" aria-hidden="true">0</span></button>
-<button data-view="doc" aria-label="Explorador de documentos" onclick="sv('doc')"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> <span class="mh">Documentos</span></button>
-</nav>
+<button data-view="cam" aria-label="Registro de cambios" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none" aria-hidden="true">0</span></button></nav>
 </header>
 <div class="activebar" id="activeBar">
 <span class="activebar-label" id="activebarLabelTxt">Persona activa</span>
@@ -666,7 +664,7 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.20.1';
+var APP_VERSION = '2026.08.20.2';
 var APP_CHANGELOG = [
   { version:'2026.08.15.1', fecha:'2026-08-15', cambios:[
     'Manual de usuario completamente renovado: nueva portada e indice con diseno propio (escudo circular, tipografia Cinzel, guardas doradas) a juego con la identidad visual de la aplicacion; contenido mucho mas extenso y practico, organizado en 24 secciones (de los primeros pasos al glosario y la solucion de problemas); e impresion ajustada a tamano A4 vertical. Ademas, la aplicacion ahora comprueba en segundo plano si hay una version mas reciente publicada y, si la hay, muestra un aviso con un boton "Actualizar ahora" que limpia la cache y el Service Worker y recarga la version correcta, para no depender de forzar Ctrl+F5.'
@@ -1081,6 +1079,12 @@ var input=document.getElementById('docExplorerBuscarPersona');
 if(input)input.value='';
 var res=document.getElementById('docExplorerResultadosBusqueda');
 if(res)res.innerHTML='';
+if(docId&&PI[docId]){
+var idPedido=docId;
+docId=null; /* consumido: no queda "pegado" si luego se navega aquí de otra forma */
+docExplorerSeleccionarPersona(idPedido);
+return;
+}
 if(DOC_EXPLORER_PERSONA){
 docExplorerRenderPersonaActiva();
 docExplorerRenderLista();
@@ -1121,13 +1125,69 @@ docExplorerRepasarCarpeta();
 function docExplorerRenderPersonaActiva(){
 var host=document.getElementById('docExplorerPersonaActiva');
 if(!host||!DOC_EXPLORER_PERSONA)return;
+var id=DOC_EXPLORER_PERSONA.id;
 host.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">'+
 '<div><strong>'+esc(DOC_EXPLORER_PERSONA.nombre)+'</strong></div>'+
 '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
 '<button type="button" class="ef-btn ghost" onclick="docExplorerRepasarCarpeta()"><i class="fa-solid fa-rotate"></i> Repasar carpeta</button>'+
-'<button type="button" class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(DOC_EXPLORER_PERSONA.id)+'\');irFicha()">Ver ficha</button>'+
-'<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(DOC_EXPLORER_PERSONA.id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>'+
-'</div></div>';
+'<button type="button" class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(id)+'\');irFicha()">Ver ficha</button>'+
+'<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>'+
+'</div></div>'+
+'<div id="docExplorerDropZone" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="docExplorerHandleDrop(event,\''+safeId(id)+'\')" class="iz" style="padding:16px;margin:0 0 12px">'+
+'<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí un documento o una foto para subirlo a la carpeta de Drive de esta persona</p>'+
+'<input type="file" id="docExplorerFileInput" multiple style="display:none" onchange="docExplorerHandleInputChange(event,\''+safeId(id)+'\')">'+
+'<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button>'+
+'<p style="font-size:11px;color:var(--muted);margin-top:8px">Se sube el archivo tal cual a Drive. Tardará en aparecer aquí hasta que el programa de archivo documental familiar le cree su ficha (sidecar) — mientras tanto, sigue estando accesible desde «Abrir carpeta en Drive».</p>'+
+'<div id="docExplorerProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docExplorerProgresoBarra"></div></div><div id="docExplorerProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>'+
+'</div>';
+}
+function docExplorerHandleDrop(ev,id){
+ev.preventDefault();
+var zona=document.getElementById('docExplorerDropZone');
+if(zona)zona.classList.remove('drag');
+var files=ev.dataTransfer&&ev.dataTransfer.files;
+if(files&&files.length)docExplorerSubirArchivos(id,files);
+}
+function docExplorerHandleInputChange(ev,id){
+var files=ev.target.files;
+if(files&&files.length)docExplorerSubirArchivos(id,files);
+ev.target.value='';
+}
+async function docExplorerSubirArchivos(id,fileList){
+if(docsSubidaEnCurso){toast('Ya hay una subida de documentos en curso; espera a que termine',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos" en Herramientas)',true);return;}
+var files=Array.prototype.slice.call(fileList||[]);
+if(!files.length)return;
+if(!tokenDriveValido()){
+try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+}
+docsSubidaEnCurso=true;
+var prog=document.getElementById('docExplorerProgreso'),barra=document.getElementById('docExplorerProgresoBarra'),txt=document.getElementById('docExplorerProgresoTexto');
+if(prog)prog.style.display='block';
+var subidos=0,errores=0;
+try{
+var folderId=await obtenerCarpetaPersonaDocumentos(id,true);
+for(var i=0;i<files.length;i++){
+var f=files[i];
+if(txt)txt.textContent='Subiendo '+f.name+' ('+(i+1)+' de '+files.length+')';
+if(barra)barra.style.width=Math.round(i/files.length*100)+'%';
+try{
+var fileId=await crearArchivoDriveVacioConMetadatos(f.name,f.type||'application/octet-stream',folderId,undefined);
+await subirContenidoArchivoDrive(fileId,f,f.type||'application/octet-stream');
+subidos++;
+}catch(errUno){
+errores++;
+console.warn('No se pudo subir el archivo '+f.name+':',errUno.message);
+}
+}
+if(barra)barra.style.width='100%';
+}catch(err){
+toast('No se pudo preparar la subida a Drive: '+err.message,true);
+}
+docsSubidaEnCurso=false;
+if(prog)prog.style.display='none';
+toast(subidos+' archivo(s) subido(s)'+(errores?(' · '+errores+' con error'):''),errores>0&&subidos===0);
 }
 
 /* Igual que la regla del programa externo: cualquier .json de la carpeta que
@@ -2219,7 +2279,7 @@ var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
@@ -4160,6 +4220,7 @@ document.getElementById('siInf').value='';
 }
 /* ===== Cronología ===== */
 var croId=null;
+var docId=null;
 var croGenAmpliada=false;
 function initCronologia(){
 if(!croId&&cid&&PI[cid])croId=cid;
