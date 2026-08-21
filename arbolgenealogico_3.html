@@ -16,6 +16,7 @@
      funcionando exactamente igual y "Imprimir" (window.print) sigue disponible. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
 :root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#9E8E7E;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--dead:#3D2C1E;--alive:#2C5F8A}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -664,7 +665,7 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.20.2';
+var APP_VERSION = '2026.08.21.1';
 var APP_CHANGELOG = [
   { version:'2026.08.15.1', fecha:'2026-08-15', cambios:[
     'Manual de usuario completamente renovado: nueva portada e indice con diseno propio (escudo circular, tipografia Cinzel, guardas doradas) a juego con la identidad visual de la aplicacion; contenido mucho mas extenso y practico, organizado en 24 secciones (de los primeros pasos al glosario y la solucion de problemas); e impresion ajustada a tamano A4 vertical. Ademas, la aplicacion ahora comprueba en segundo plano si hay una version mas reciente publicada y, si la hay, muestra un aviso con un boton "Actualizar ahora" que limpia la cache y el Service Worker y recarga la version correcta, para no depender de forzar Ctrl+F5.'
@@ -1122,6 +1123,120 @@ docExplorerRenderPersonaActiva();
 docExplorerRepasarCarpeta();
 }
 
+/* ==========================================================================
+   CATÁLOGO FAMILIAR MAESTRO (Excel en Drive, se va rellenando persona a
+   persona)
+   --------------------------------------------------------------------------
+   Cada persona ya tiene, en su propia carpeta DOCUMENTOS/<ID>, un
+   {id}_catalogo.json con una fila resumen por archivo (id de Drive, tipo,
+   fecha, descripción). Este módulo coge ESE catálogo de la persona activa y
+   lo añade a un único archivo .xlsx que vive en la carpeta raíz compartida
+   ("catalogo_familiar.xlsx"), evitando duplicados por el id de Drive de
+   cada archivo. Se hace persona a persona, cuando tú lo pidas — nunca solo,
+   ni para todo el árbol de golpe. ========================================================================== */
+
+var CATALOGO_XLSX_NOMBRE='catalogo_familiar.xlsx';
+var CATALOGO_COLUMNAS=['ID persona','Persona','Archivo','Tipo','Fecha','Descripción','Enlace Drive','ID Drive','Añadido el'];
+
+async function catalogoBuscarArchivoMaestro(){
+if(!driveRootFolderId)return null;
+var q="'"+driveRootFolderId+"' in parents and trashed=false and name='"+CATALOGO_XLSX_NOMBRE+"'";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+return (d.files&&d.files.length)?d.files[0].id:null;
+}
+
+async function catalogoDescargarFilasExistentes(fileId){
+if(!fileId)return [];
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)throw new Error('No se pudo descargar el catálogo existente (Drive respondió '+r.status+')');
+var buf=await r.arrayBuffer();
+var wb=XLSX.read(buf,{type:'array'});
+var hoja=wb.Sheets[wb.SheetNames[0]];
+if(!hoja)return [];
+return XLSX.utils.sheet_to_json(hoja,{defval:''});
+}
+
+/* Busca {id}_catalogo.json dentro de DOCUMENTOS/<id>, la misma carpeta donde
+   ya viven los sidecars y los agregados de persona. */
+async function catalogoObtenerJsonPersona(id){
+var carpetaDocsId=await obtenerCarpetaDocumentosId(false);
+if(!carpetaDocsId)return null;
+var qCarpeta="'"+carpetaDocsId+"' in parents and name='"+String(id).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qCarpeta)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(rC.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var dC=await rC.json();
+if(!dC.files||!dC.files.length)return null;
+var folderId=dC.files[0].id;
+var nombreArchivo=id+'_catalogo.json';
+var qArchivo="'"+folderId+"' in parents and trashed=false and name='"+nombreArchivo.replace(/'/g,"\\'")+"'";
+var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qArchivo)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+var dF=await rF.json();
+if(!dF.files||!dF.files.length)return null;
+var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+dF.files[0].id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!rContenido.ok)throw new Error('No se pudo descargar '+nombreArchivo);
+return JSON.parse(await rContenido.text());
+}
+
+function catalogoFilaDesdeEntrada(e){
+return {
+'ID persona':e.personaId||'',
+'Persona':e.persona||'',
+'Archivo':e.nombre||'',
+'Tipo':e.tipo||'',
+'Fecha':e.fecha?String(e.fecha).slice(0,10):'',
+'Descripción':String(e.descripcion||'').replace(/\s+/g,' ').trim(),
+'Enlace Drive':e.id?('https://drive.google.com/file/d/'+e.id+'/view'):'',
+'ID Drive':e.id||'',
+'Añadido el':new Date().toISOString().slice(0,10)
+};
+}
+
+async function catalogoAnadirPersonaAlMaestro(id,nombrePersona){
+if(typeof XLSX==='undefined'){toast('Todavía se está cargando el componente de Excel; espera un segundo y vuelve a intentarlo.',true);return;}
+if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
+if(!tokenDriveValido()){try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}}
+toast('Preparando catálogo de '+nombrePersona+'...');
+try{
+var catalogoJson=await catalogoObtenerJsonPersona(id);
+if(!catalogoJson||!catalogoJson.entradas||!catalogoJson.entradas.length){toast('Esta persona todavía no tiene '+id+'_catalogo.json en su carpeta de Drive',true);return;}
+var fileIdMaestro=await catalogoBuscarArchivoMaestro();
+var filasExistentes=await catalogoDescargarFilasExistentes(fileIdMaestro);
+var idsExistentes={};
+filasExistentes.forEach(function(f){if(f['ID Drive'])idsExistentes[f['ID Drive']]=true;});
+var nuevas=0,repetidas=0;
+catalogoJson.entradas.forEach(function(e){
+if(!e.id)return;
+if(idsExistentes[e.id]){repetidas++;return;}
+filasExistentes.push(catalogoFilaDesdeEntrada(e));
+idsExistentes[e.id]=true;
+nuevas++;
+});
+if(!nuevas){toast('Nada nuevo que añadir: los '+repetidas+' archivo(s) de '+nombrePersona+' ya estaban en el catálogo');return;}
+var hoja=XLSX.utils.json_to_sheet(filasExistentes,{header:CATALOGO_COLUMNAS});
+var wbNuevo=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wbNuevo,hoja,'Catálogo');
+var arrayBuffer=XLSX.write(wbNuevo,{type:'array',bookType:'xlsx'});
+var mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+var blob=new Blob([arrayBuffer],{type:mime});
+if(!fileIdMaestro)fileIdMaestro=await crearArchivoDriveVacioConMetadatos(CATALOGO_XLSX_NOMBRE,mime,driveRootFolderId,undefined);
+await subirContenidoArchivoDrive(fileIdMaestro,blob,mime);
+toast(nuevas+' fila(s) nueva(s) añadida(s) al catálogo familiar'+(repetidas?' ('+repetidas+' ya estaban)':''));
+}catch(err){
+toast('No se pudo actualizar el catálogo: '+err.message,true);
+}
+}
+
+async function catalogoAbrirEnDrive(){
+try{
+if(!tokenDriveValido()){await conectarGoogleDrive();}
+var fileId=await catalogoBuscarArchivoMaestro();
+if(!fileId){toast('Todavía no se ha creado el catálogo familiar; añade alguna persona primero',true);return;}
+window.open('https://drive.google.com/file/d/'+fileId+'/view','_blank');
+}catch(err){toast('No se pudo abrir el catálogo: '+err.message,true);}
+}
+
 function docExplorerRenderPersonaActiva(){
 var host=document.getElementById('docExplorerPersonaActiva');
 if(!host||!DOC_EXPLORER_PERSONA)return;
@@ -1130,6 +1245,8 @@ host.innerHTML='<div style="display:flex;justify-content:space-between;align-ite
 '<div><strong>'+esc(DOC_EXPLORER_PERSONA.nombre)+'</strong></div>'+
 '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
 '<button type="button" class="ef-btn ghost" onclick="docExplorerRepasarCarpeta()"><i class="fa-solid fa-rotate"></i> Repasar carpeta</button>'+
+'<button type="button" class="ef-btn ghost" onclick="catalogoAnadirPersonaAlMaestro(\''+safeId(id)+'\',\''+safeId(DOC_EXPLORER_PERSONA.nombre)+'\')"><i class="fa-solid fa-file-excel"></i> Añadir al catálogo Excel</button>'+
+'<button type="button" class="ef-btn ghost" onclick="catalogoAbrirEnDrive()"><i class="fa-brands fa-google-drive"></i> Abrir catálogo</button>'+
 '<button type="button" class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(id)+'\');irFicha()">Ver ficha</button>'+
 '<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>'+
 '</div></div>'+
@@ -1253,17 +1370,26 @@ try{await conectarGoogleDrive();docExplorerRepasarCarpeta();}catch(err){toast('N
 function docExplorerRenderLista(){
 var cont=document.getElementById('docExplorerLista');
 if(!cont)return;
+sugCargarDescartadas().then(function(){docExplorerPintarLista();});
+}
+function docExplorerPintarLista(){
+var cont=document.getElementById('docExplorerLista');
+if(!cont)return;
 if(!DOC_EXPLORER_ARCHIVOS.length){
 cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Ningún archivo con ficha (sidecar) en esta carpeta todavía.</p>';
 return;
 }
 var docs=DOC_EXPLORER_ARCHIVOS.filter(function(x){return x.esDocumento===true;});
 var fotos=DOC_EXPLORER_ARCHIVOS.filter(function(x){return x.esDocumento!==true;});
+var pendientesTotal=docExplorerContarSugerenciasPendientes();
 var h='<p style="font-size:12px;color:var(--muted);margin-bottom:8px">'+DOC_EXPLORER_ARCHIVOS.length+' archivo(s) — '+docs.length+' documento(s), '+fotos.length+' fotografía(s)/vídeo(s)</p>';
+if(pendientesTotal)h+='<div style="background:#fdf6e8;border:1px solid #e6cf8f;color:#8a6d1a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px"><i class="fa-solid fa-lightbulb"></i> '+pendientesTotal+' sugerencia(s) genealógica(s) pendiente(s) de revisar en esta carpeta — ábrelas para verlas.</div>';
 h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">';
 h+=DOC_EXPLORER_ARCHIVOS.map(function(el,idx){
 var cacheada=DOC_EXPLORER_MINI_CACHE[el.driveFileId];
-return '<div style="cursor:pointer" onclick="docExplorerVerDetalle('+idx+')">'+
+var nSug=sugerenciasVisiblesDe(el).length;
+return '<div style="cursor:pointer;position:relative" onclick="docExplorerVerDetalle('+idx+')">'+
+(nSug?'<span style="position:absolute;top:-6px;right:-6px;background:#c9922a;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;z-index:1">'+nSug+'</span>':'')+
 '<div style="aspect-ratio:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden">'+
 (cacheada?'<img id="docExplorerMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+cacheada+'">':'<i id="docExplorerMini'+idx+'" class="fa-solid fa-'+(el.esDocumento?'file-lines':'image')+'" style="color:var(--muted);font-size:24px"></i>')+
 '</div>'+
@@ -1285,11 +1411,109 @@ if(elImg&&elImg.tagName==='I'){elImg.outerHTML='<img id="docExplorerMini'+idx+'"
 });
 }
 
-function docExplorerVerDetalle(idx){
+/* ---- Bandeja de sugerencias genealógicas, por archivo, dentro del
+   Explorador. Las sugerencias ya vienen listas en el propio sidecar de cada
+   archivo (sugerenciasGenealogicas, generadas por el OCR del programa de
+   archivo documental). Nunca se escriben solas en la ficha: "Aplicar" abre
+   el formulario de edición normal, con el campo pre-rellenado, y "Descartar"
+   solo se recuerda localmente (no toca el sidecar ni Drive para nada). ---- */
+
+var SUG_DESCARTADAS_CFG_KEY='sugerenciasDescartadas';
+var SUG_DESCARTADAS_CACHE=null;
+function sugCargarDescartadas(){
+if(SUG_DESCARTADAS_CACHE)return Promise.resolve(SUG_DESCARTADAS_CACHE);
+return leerValorCFG(SUG_DESCARTADAS_CFG_KEY).then(function(v){SUG_DESCARTADAS_CACHE=Array.isArray(v)?v:[];return SUG_DESCARTADAS_CACHE;});
+}
+function sugClave(driveFileId,campo,valor){return driveFileId+'|'+campo+'|'+valor;}
+function sugDescartar(driveFileId,campo,valor){
+return sugCargarDescartadas().then(function(lista){
+var clave=sugClave(driveFileId,campo,valor);
+if(lista.indexOf(clave)<0){lista=lista.concat([clave]);SUG_DESCARTADAS_CACHE=lista;return guardarValorCFG(SUG_DESCARTADAS_CFG_KEY,lista);}
+});
+}
+function sugEstaDescartada(driveFileId,campo,valor){
+return !!(SUG_DESCARTADAS_CACHE&&SUG_DESCARTADAS_CACHE.indexOf(sugClave(driveFileId,campo,valor))>=0);
+}
+/* Misma comprobación que ya usamos con el caso de la esquela de Alfredo/
+   Migallón: si el apellido de la persona no aparece en el contexto textual
+   del que sale el dato, no se ofrece como "lista para aplicar" sin más. */
+function sugEvaluar(persona,s){
+var contexto=String(s.contexto||'').toUpperCase();
+var apellidos=[persona.APELLIDO1,persona.APELLIDO2].filter(Boolean).map(function(a){return String(a).toUpperCase();});
+var coincideNombre=apellidos.some(function(ap){return ap&&contexto.indexOf(ap)>=0;});
+var valorActual=persona[s.campo]||'';
+var hayConflicto=valorActual!==''&&String(valorActual)!==String(s.valor);
+if(!coincideNombre)return 'revisar';
+if(hayConflicto)return 'conflicto';
+return 'aplicar';
+}
+function sugerenciasVisiblesDe(el){
+if(!el||!el.sugerenciasGenealogicas)return [];
+return el.sugerenciasGenealogicas.filter(function(s){return s&&s.campo&&!sugEstaDescartada(el.driveFileId,s.campo,s.valor);});
+}
+function docExplorerHtmlSugerencias(persona,el){
+var pendientes=sugerenciasVisiblesDe(el);
+if(!pendientes.length)return '';
+var h='<div style="margin-top:10px"><strong style="font-size:12px">Sugerencias genealógicas de este archivo</strong>';
+h+=pendientes.map(function(s){
+var estado=sugEvaluar(persona,s);
+var esConflicto=estado==='conflicto';
+var borde=esConflicto?'#c0392b':'var(--border)';
+var c='<div class="cambio-card" style="border-color:'+borde+';margin-top:6px">';
+if(esConflicto){
+c+='<div style="color:#c0392b;font-size:12px;margin-bottom:6px"><i class="fa-solid fa-triangle-exclamation"></i> No coincide con el dato ya guardado en la ficha</div>';
+c+='<div style="display:flex;gap:24px;margin-bottom:8px">';
+c+='<div><div style="font-size:11px;color:var(--muted)">'+esc(CAMBIOS_LABELS[s.campo]||s.etiqueta||s.campo)+' propuesto</div><div style="font-weight:600">'+esc(s.valor)+'</div></div>';
+c+='<div><div style="font-size:11px;color:var(--muted)">Ya guardado</div><div style="font-weight:600">'+esc(persona[s.campo]||'—')+'</div></div>';
+c+='</div>';
+}else if(estado==='revisar'){
+c+='<div style="color:#c9922a;font-size:12px;margin-bottom:6px"><i class="fa-solid fa-circle-question"></i> No se ha podido confirmar que el contexto se refiera a esta persona</div>';
+c+='<div style="margin-bottom:8px"><strong>'+esc(CAMBIOS_LABELS[s.campo]||s.etiqueta||s.campo)+':</strong> '+esc(s.valor)+'</div>';
+}else{
+c+='<div style="color:var(--green);font-size:12px;margin-bottom:6px"><i class="fa-solid fa-check"></i> Sin conflicto, lista para aplicar</div>';
+c+='<div style="margin-bottom:8px"><strong>'+esc(CAMBIOS_LABELS[s.campo]||s.etiqueta||s.campo)+':</strong> '+esc(s.valor)+'</div>';
+}
+if(s.contexto)c+='<div style="background:var(--bg);border-radius:6px;padding:8px;font-size:12px;font-style:italic;color:var(--muted);margin-bottom:8px">"'+esc(s.contexto)+'"</div>';
+c+='<div style="display:flex;gap:8px">';
+c+='<button type="button" class="ef-btn ghost" onclick="docExplorerDescartarSugerencia(\''+safeId(el.driveFileId)+'\',\''+safeId(s.campo)+'\',\''+safeId(s.valor)+'\')">Descartar</button>';
+if(estado==='aplicar')c+='<button type="button" class="ef-btn save" onclick="docExplorerAplicarSugerencia(\''+safeId(persona.ID)+'\',\''+safeId(s.campo)+'\',\''+safeId(s.valor)+'\')">Aplicar a la ficha</button>';
+else c+='<button type="button" class="ef-btn ghost" onclick="cid=\''+safeId(persona.ID)+'\';editMode=true;sv(\'fic\')">Revisar en la ficha</button>';
+c+='</div></div>';
+return c;
+}).join('');
+h+='</div>';
+return h;
+}
+function docExplorerAplicarSugerencia(personaId,campo,valor){
+cid=personaId;editMode=true;sv('fic');
+setTimeout(function(){
+var mapaInput={NACD:'ef-nacd',NACM:'ef-nacm',NACA:'ef-naca',DEFD:'ef-defd',DEFM:'ef-defm',DEFA:'ef-defa'};
+var inputId=mapaInput[campo];
+var el=inputId&&document.getElementById(inputId);
+if(el){el.value=valor;el.focus();}
+toast('Campo "'+(CAMBIOS_LABELS[campo]||campo)+'" rellenado. Revisa y pulsa Guardar para confirmar.');
+},80);
+}
+function docExplorerDescartarSugerencia(driveFileId,campo,valor){
+sugDescartar(driveFileId,campo,valor).then(function(){
+toast('Sugerencia descartada');
+docExplorerVerDetalle(DOC_EXPLORER_ARCHIVOS.findIndex(function(x){return x.driveFileId===driveFileId;}));
+docExplorerRenderLista();
+});
+}
+function docExplorerContarSugerenciasPendientes(){
+var n=0;
+DOC_EXPLORER_ARCHIVOS.forEach(function(el){n+=sugerenciasVisiblesDe(el).length;});
+return n;
+}
+
+async function docExplorerVerDetalle(idx){
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
 var det=document.getElementById('docExplorerDetalle');
 if(!det)return;
+await sugCargarDescartadas();
+var persona=PI&&DOC_EXPLORER_PERSONA&&PI[DOC_EXPLORER_PERSONA.id];
 var exif=el.exif||{};
 var filas=[];
 filas.push(['Nombre',esc(el.nombreOriginal||'')]);
@@ -1310,6 +1534,7 @@ if(el.personasEtiquetadasGoogle&&el.personasEtiquetadasGoogle.length)filas.push(
 filas.push(['OCR',el.ocrProcesado?('sí, confianza '+Number(el.ocrConfianza||0).toFixed(0)+'%'):'pendiente']);
 var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">'+esc(el.nombreOriginal||'')+'</h3><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div>';
 h+='<table style="margin-top:10px;width:100%;font-size:13px">'+filas.map(function(f){return '<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">'+f[0]+'</th><td style="padding:3px 0">'+f[1]+'</td></tr>';}).join('')+'</table>';
+if(persona)h+=docExplorerHtmlSugerencias(persona,el);
 if(el.ocrSugerencias&&el.ocrSugerencias.informativas&&el.ocrSugerencias.informativas.length){
 h+='<div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>💡 Pistas encontradas por el OCR</strong><br>'+el.ocrSugerencias.informativas.map(function(t){return esc(t);}).join('<br>')+'</div>';
 }
