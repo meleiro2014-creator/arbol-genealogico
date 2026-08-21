@@ -1541,6 +1541,25 @@ DOC_EXPLORER_ARCHIVOS.forEach(function(el){n+=sugerenciasVisiblesDe(el).length;}
 return n;
 }
 
+/* ===== Visor embebido de Google Drive (imágenes, PDF, vídeo) =====
+   Se usa el propio visor de Drive (iframe a /preview) para no tener que
+   descargar ni procesar el archivo nosotros. Funciona igual de bien con
+   imágenes, PDF y vídeo; para el resto de tipos no se muestra (se deja
+   solo el enlace "Abrir archivo original en Drive"). */
+function docExplorerEsVisualizable(mimeType){
+mimeType=String(mimeType||'').toLowerCase();
+if(mimeType.indexOf('image/')===0)return true;
+if(mimeType.indexOf('video/')===0)return true;
+if(mimeType==='application/pdf')return true;
+return false;
+}
+function docExplorerHtmlVisor(el){
+if(!el||!el.driveFileId||!docExplorerEsVisualizable(el.mimeType))return'';
+var src='https://drive.google.com/file/d/'+encodeURIComponent(el.driveFileId)+'/preview';
+return'<div style="margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#000">'+
+'<iframe src="'+src+'" style="width:100%;height:70vh;max-height:520px;border:0;display:block" allow="autoplay" loading="lazy" title="Visor de '+escAttr(el.nombreDrive||'')+'"></iframe>'+
+'</div>';
+}
 async function docExplorerVerDetalle(idx){
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
@@ -1549,6 +1568,8 @@ if(!det)return;
 await sugCargarDescartadas();
 var persona=PI&&DOC_EXPLORER_PERSONA&&PI[DOC_EXPLORER_PERSONA.id];
 var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">'+esc(el.nombreDrive||'')+'</h3><div style="display:flex;gap:8px"><button type="button" class="ef-btn ghost" onclick="docExplorerRenombrar('+idx+')"><i class="fa-solid fa-pen"></i> Renombrar</button><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div></div>';
+
+h+=docExplorerHtmlVisor(el);
 
 if(!el.tieneSidecar){
 h+='<table style="margin-top:10px;width:100%;font-size:13px">';
@@ -2489,7 +2510,7 @@ if(etqsFicha.length){
 h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
 }
 h+=htmlAvisosFicha(id);
-h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(fDate(p.DEFD,p.DEFM,p.DEFA)||'Vivo')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
 if(esAnioEstimado(p)){
 h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
 }
