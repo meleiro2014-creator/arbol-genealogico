@@ -1941,6 +1941,25 @@ return null;
 function esAnioEstimado(p){
 return!!(p&&getYearReal(p)===null&&p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!=='');
 }
+/* Para el Gestor de inconsistencias (comprobaciones de edad): un año "no confirmado"
+   es cualquiera que no venga de NACA, tanto si viene de APROX (año heredado de Access,
+   sin ningún control de calidad) como de ANOCALC (estimación automática). A diferencia
+   de esAnioEstimado (que solo marca ANOCALC, para el símbolo ≈ en la UI), esta función
+   se usa para avisar de fiabilidad en comparaciones de edad, donde APROX es igual de
+   poco fiable que ANOCALC. */
+function esAnioNoConfirmado(p){
+if(!p)return false;
+return!(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='');
+}
+function notaAnioNoConfirmado(){
+var personas=Array.prototype.slice.call(arguments).filter(Boolean);
+if(!personas.some(esAnioNoConfirmado))return'';
+var detalle=personas.filter(esAnioNoConfirmado).map(function(p){
+return esAnioEstimado(p)?'año estimado automáticamente':'año aproximado (no confirmado)';
+});
+var unico=detalle.filter(function(v,i){return detalle.indexOf(v)===i;});
+return' (' +unico.join(' / ')+', no un dato confirmado)';
+}
 function textoNacimientoFicha(p){
 var f=fDate(p.NACD,p.NACM,p.NACA);
 if(f)return f;
@@ -2197,6 +2216,34 @@ onDone(cambios);
 },20);
 },20);
 },20);
+}
+async function borrarTodosAprox(){
+if(!(await exigirIdentidadGoogle()))return;
+if(!D.length){toast('No hay datos cargados',true);return;}
+var afectados=D.filter(function(p){return p.APROX!==undefined&&p.APROX!==null&&p.APROX!=='';});
+if(!afectados.length){toast('No hay ningún año aproximado (APROX) que borrar',true);return;}
+if(!confirm('Se borrará el año aproximado (APROX, heredado del formato Access) de '+afectados.length+' persona(s).\nA continuación se recalculará automáticamente el año estimado (ANOCALC, con el símbolo ≈) para quienes se queden sin ningún año propio.\nEsto NUNCA modifica ni sobrescribe un año de nacimiento (NACA) confirmado. ¿Continuar?'))return;
+var antes=D.map(clonarPersona);
+afectados.forEach(function(p){p.APROX='';p.MotivoAprox='';});
+registrarCambiosDesdeSnapshots(antes,D,'editar');
+var cont=document.getElementById('pbAnoCalc'),barra=document.getElementById('pfAnoCalc'),label=document.getElementById('pfAnoCalcLabel'),btn=document.getElementById('btnCalcularAnosEstimados');
+function fase(pct,texto){if(barra)barra.style.width=pct+'%';if(label)label.textContent=texto;}
+if(cont)cont.style.display='block';
+if(btn)btn.disabled=true;
+ejecutarFasesAnosEstimados({
+onFase:fase,
+onDone:function(cambios){
+fase(100,'Listo');
+rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
+toast('Año aproximado borrado en '+afectados.length+' persona(s). Años estimados recalculados: '+cambios+' registro(s) actualizado(s).');
+},
+onError:function(err){
+if(cont)cont.style.display='none';
+if(btn)btn.disabled=false;
+toast('Se borró el año aproximado, pero no se pudo recalcular ANOCALC: '+err.message,true);
+}
+});
 }
 function recalcularAnosEstimadosManual(){
 if(!D.length){toast('No hay datos cargados',true);return;}
@@ -3356,7 +3403,7 @@ if(yProg!==null){
 var diff=yHijo-yProg;
 if(diff<EDAD_MIN_PROGENITOR){
 var msg;
-var notaEst=(esAnioEstimado(p)||esAnioEstimado(prog))?' (al menos uno de los dos años es una estimación automática, no un dato confirmado)':'';
+var notaEst=notaAnioNoConfirmado(p,prog);
 if(diff<0) msg=esc(fn(prog))+' ('+yProg+') nace después que '+esc(fn(p))+' ('+yHijo+'), pero figura como su '+rel+'.'+notaEst;
 else msg=esc(fn(prog))+' ('+yProg+') tendría solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.'+notaEst;
 problemas.push({
@@ -3370,7 +3417,7 @@ verId:p.ID
 problemas.push({
 icono:'fa-calendar-xmark',
 etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria',
-mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años después que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), más de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.'+((esAnioEstimado(p)||esAnioEstimado(prog))?' (al menos uno de los dos años es una estimación automática)':''),
+mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años después que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), más de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.'+notaAnioNoConfirmado(p,prog),
 verId:p.ID
 });
 }
@@ -3404,11 +3451,11 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio pos
 }
 var yConyuge=getYear(conyuge);
 if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
-problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.',verId:p.ID});
+problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.'+notaAnioNoConfirmado(p,conyuge),verId:p.ID});
 }
 }
 if(yHijo!==null&&(m.anio-yHijo)<EDAD_MIN_CONYUGE){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').',verId:p.ID});
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID});
 }
 });
 if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
@@ -3417,7 +3464,7 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrim
 if(isAl(p)&&yHijo!==null){
 var edadActual=new Date().getFullYear()-yHijo;
 if(edadActual>EDAD_VIVO_EXTREMA){
-problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').',verId:p.ID});
+problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID});
 }
 }
 });
@@ -6967,6 +7014,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();borrarTodosAprox()"><div class="herr-icon"><i class="fa-solid fa-eraser"></i></div><div class="herr-text"><div class="herr-title">Borrar todos los años aproximados (APROX)</div><div class="herr-desc">Elimina el campo heredado de Access en toda la base y recalcula el año estimado (ANOCALC) donde haga falta</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
