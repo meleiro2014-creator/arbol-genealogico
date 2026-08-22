@@ -680,7 +680,11 @@ var APP_CHANGELOG = [
 2) Añade aquí abajo tu Client ID, sustituyendo el texto de ejemplo.
 3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
-var DEFAULT_DRIVE_ROOT_FOLDER_ID='1Jb7whlTVNC2S4x3Mgrluoh3QlMjcgGIm';
+var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
+/* Carpeta ancla común: aquí se guarda la configuración de la raíz para que todos
+   los colaboradores, desde cualquier navegador/dispositivo, utilicen la misma. */
+var DRIVE_CONFIG_ANCHOR_FOLDER_ID=DEFAULT_DRIVE_ROOT_FOLDER_ID;
+var DRIVE_ROOT_CONFIG_FILENAME='config-documentos.json';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 /* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
@@ -1017,8 +1021,41 @@ return cambiosDriveSyncEnCurso;
 async function sincronizarCambiosDriveInterno(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
 function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
-function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=(r.result&&r.result.valor)?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
+function cargarCarpetaDocumentos(){return new Promise(function(res){
+/* La configuración local solo sirve como caché. La fuente común es Drive. */
+driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
+if(!db||!db.objectStoreNames.contains(CFG)){res(driveRootFolderId);return;}
+var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');
+r.onsuccess=function(){var v=r.result&&r.result.valor;if(esAdministrador()&&v)driveRootFolderId=v;res(driveRootFolderId);};
+r.onerror=function(){res(driveRootFolderId);};
+});}
 function guardarCarpetaDocumentos(){return new Promise(function(res,rej){var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:'driveRootFolderId',valor:driveRootFolderId});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
+/* ===== CONFIGURACIÓN COMÚN DE LA RAÍZ DE DOCUMENTOS =====
+   El archivo vive en la carpeta ancla (la raíz predeterminada) y contiene la
+   carpeta que debe usar toda la familia. Así un colaborador no depende de la
+   configuración local de su navegador. */
+async function obtenerConfigRaizDrive(){
+if(!tokenDriveValido())return null;
+var q="'"+DRIVE_CONFIG_ANCHOR_FOLDER_ID+"' in parents and name='"+DRIVE_ROOT_CONFIG_FILENAME+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al leer la configuración común');
+var d=await r.json();return d.files&&d.files.length?d.files[0]:null;
+}
+async function cargarConfigRaizDrive(){
+if(!tokenDriveValido())return false;
+try{var f=await obtenerConfigRaizDrive();if(!f)return false;
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)return false;var cfg=await r.json();var id=cfg&&cfg.driveRootFolderId?String(cfg.driveRootFolderId):'';
+if(!id)return false;driveRootFolderId=id;driveDocumentosFolderId=null;driveFotoFolderId=null;await guardarCarpetaDocumentos();return true;
+}catch(err){console.warn('No se pudo cargar la configuración común de Drive:',err);return false;}}
+async function guardarConfigRaizDrive(){
+if(!tokenDriveValido())throw new Error('Conecta primero Google Drive');
+var contenido=JSON.stringify({formato:'Configuración común de documentos',version:1,driveRootFolderId:driveRootFolderId,actualizadoEn:new Date().toISOString(),actualizadoPor:(googleIdentidad&&googleIdentidad.email)||ADMIN_EMAIL});
+var existente=await obtenerConfigRaizDrive();
+var r=await subirArchivoDrive(DRIVE_ROOT_CONFIG_FILENAME,contenido,'application/json',DRIVE_CONFIG_ANCHOR_FOLDER_ID,existente?existente.id:null);
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al guardar la configuración común');}
 /* ===== CFG genérico (clave/valor) + estado de Google Drive + recordatorio de copia ===== */
 function guardarValorCFG(id,valor){return new Promise(function(res,rej){if(!db||!db.objectStoreNames.contains(CFG)){res();return;}var tx=db.transaction(CFG,'readwrite');tx.objectStore(CFG).put({id:id,valor:valor});tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});}
 function leerValorCFG(id){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res(null);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get(id);r.onsuccess=function(){res(r.result?r.result.valor:null);};r.onerror=function(){res(null);};});}
@@ -1078,7 +1115,7 @@ googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
 callback:async function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
+if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();await cargarConfigRaizDrive();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -1113,8 +1150,8 @@ if(!entrada)return;
 var folderId=extraerIdCarpetaDrive(entrada);
 if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
 driveRootFolderId=folderId;
-driveDocumentosFolderId=null;
-try{await guardarCarpetaDocumentos();toast('Carpeta raíz de Google Drive configurada');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
+driveDocumentosFolderId=null;driveFotoFolderId=null;
+try{await guardarCarpetaDocumentos();await guardarConfigRaizDrive();toast('Carpeta raíz de Google Drive configurada para todos los usuarios');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
 var driveFotoFolderId=null;
