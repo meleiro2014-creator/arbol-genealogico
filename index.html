@@ -679,7 +679,7 @@ var APP_CHANGELOG = [
 2) Añade aquí abajo tu Client ID, sustituyendo el texto de ejemplo.
 3) Añade como "origen autorizado de JavaScript" la URL exacta desde la que abras este archivo (ej: https://tuusuario.github.io). */
 var GOOGLE_CLIENT_ID='281185555255-guasmuc8muuumetlqsbl2elma3vqpbc6.apps.googleusercontent.com';
-var DEFAULT_DRIVE_ROOT_FOLDER_ID='1PHLIt4B755m-r0XzEyAC-EU8h4bjSs_6';
+var DEFAULT_DRIVE_ROOT_FOLDER_ID='1Jb7whlTVNC2S4x3Mgrluoh3QlMjcgGIm';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
 /* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
@@ -2696,17 +2696,114 @@ huecos.push(String(maxUsado+1));
 return huecos;
 }
 var _resolverElegirIdNueva=null;
+/* ===== Reserva de IDs sin colisiones entre colaboradores =====
+   Antes se le preguntaba al colaborador qué ID quería usar (modalHuecoId,
+   ahora sin uso mas abajo). Eso ya no ocurre: la asignación es automática y
+   transparente, igual que antes lo era elegir "el primer hueco libre" por
+   defecto, pero ahora se reserva de forma segura en un archivo compartido en
+   la carpeta de seguridad de Drive (Seguridad_json_datos), para que dos
+   colaboradores nunca puedan quedarse con el mismo ID aunque creen una
+   persona nueva en el mismo momento. */
+var IDS_RESERVADOS_ARCHIVO='ids-reservados.json';
+var IDS_RESERVADOS_MAX_REINTENTOS=8;
+/* Busca (sin descargar) el archivo de IDs reservados dentro de la carpeta de
+seguridad. Devuelve {id,name} o null si todavía no existe (se creará al
+reservar el primer ID). */
+async function obtenerArchivoIdsReservadosDrive(){
+var carpeta=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
+if(!carpeta)return null;
+var q="'"+carpeta+"' in parents and name='"+IDS_RESERVADOS_ARCHIVO+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al buscar el archivo de IDs reservados');
+var d=await r.json();
+return (d.files&&d.files.length)?d.files[0]:null;
+}
+/* Descarga el contenido y el ETag actuales del archivo de IDs reservados. El
+ETag es la clave de la reserva segura: al volver a guardar (ver
+guardarIdsReservadosDrive) solo se acepta la escritura si nadie más lo ha
+modificado desde que se leyó aquí. */
+async function leerIdsReservadosDrive(){
+var archivo=await obtenerArchivoIdsReservadosDrive();
+if(!archivo)return{fileId:null,etag:null,reservados:[]};
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al leer los IDs reservados');
+var etag=r.headers.get('ETag')||r.headers.get('etag')||null;
+var texto=await r.text();
+var reservados=[];
+try{var x=JSON.parse(texto);if(x&&Array.isArray(x.reservados))reservados=x.reservados.map(function(n){return parseInt(n,10);}).filter(function(n){return !isNaN(n);});}catch(e){}
+return{fileId:archivo.id,etag:etag,reservados:reservados};
+}
+/* Guarda la lista de IDs reservados. Si fileId es null, crea el archivo por
+primera vez. Si ya existe, la escritura va condicionada con la cabecera
+If-Match al ETag leído antes: si otro colaborador escribió entretanto, Drive
+responde 412 (Precondition Failed) y NO se sobrescribe nada — quien lo llame
+debe releer y reintentar (ver reservarIdNuevo). */
+async function guardarIdsReservadosDrive(fileId,etag,reservados){
+var carpeta=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - IDs reservados',version:1,actualizado:new Date().toISOString(),reservados:reservados});
+if(!fileId){
+var boundary='libroancestros_ids_'+Date.now();
+var delimiter='\r\n--'+boundary+'\r\n',closeDelim='\r\n--'+boundary+'--';
+var metadata={name:IDS_RESERVADOS_ARCHIVO,parents:[carpeta],mimeType:'application/json'};
+var multipartBody=delimiter+'Content-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(metadata)+delimiter+'Content-Type: application/json\r\n\r\n'+contenido+closeDelim;
+var rc=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+boundary+'"'},body:multipartBody});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+return rc;
+}
+var headers={Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'};
+if(etag)headers['If-Match']=etag;
+var r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{method:'PATCH',headers:headers,body:contenido});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+return r;
+}
+/* reservarIdNuevo(): calcula el primer hueco libre combinando (a) los IDs
+usados en los datos locales y (b) los IDs ya reservados por cualquier
+colaborador en el archivo compartido, y lo reserva mediante escritura
+condicionada por ETag. Si dos colaboradores compiten por el mismo hueco en el
+mismo instante, Drive rechaza (412) la segunda escritura y esta función
+reintenta automáticamente con la lista ya actualizada — así nunca pueden
+quedarse dos personas con el mismo ID. No se le pregunta nada al colaborador:
+la asignación es transparente. */
+async function reservarIdNuevo(){
+if(!(await exigirIdentidadGoogle()))return null;
+if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada; no se puede reservar un ID sin riesgo de que choque con otro colaborador',true);return null;}
+if(!tokenDriveValido()){
+try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive para reservar el ID: '+err.message,true);return null;}
+}
+var usadosLocal={},maxUsado=0;
+D.forEach(function(p){var n=parseInt(p.ID,10);if(!isNaN(n)&&String(n)===String(p.ID).trim()){usadosLocal[n]=true;if(n>maxUsado)maxUsado=n;}});
+for(var intento=0;intento<IDS_RESERVADOS_MAX_REINTENTOS;intento++){
+var estado;
+try{estado=await leerIdsReservadosDrive();}
+catch(err){if(err.message==='sesion_caducada'){toast('La sesión de Google Drive caducó; vuelve a intentarlo',true);return null;}toast('No se pudo comprobar los IDs reservados: '+err.message,true);return null;}
+var ocupados={};
+Object.keys(usadosLocal).forEach(function(k){ocupados[k]=true;});
+var maxTotal=maxUsado;
+(estado.reservados||[]).forEach(function(n){ocupados[n]=true;if(n>maxTotal)maxTotal=n;});
+var candidato=null;
+for(var i=1;i<=maxTotal+1;i++){if(!ocupados[i]){candidato=i;break;}}
+if(candidato===null)candidato=maxTotal+1;
+var nuevaLista=(estado.reservados||[]).slice();
+nuevaLista.push(candidato);
+var resp;
+try{resp=await guardarIdsReservadosDrive(estado.fileId,estado.etag,nuevaLista);}
+catch(err){if(err.message==='sesion_caducada'){toast('La sesión de Google Drive caducó; vuelve a intentarlo',true);return null;}toast('No se pudo reservar el ID: '+err.message,true);return null;}
+if(resp&&resp.status===412)continue; /* otro colaborador reservó justo a la vez: reintentar con datos frescos */
+if(!resp||!resp.ok){toast('No se pudo reservar un ID nuevo (Drive respondió '+(resp?resp.status:'sin respuesta')+')',true);return null;}
+return String(candidato);
+}
+toast('No se pudo reservar un ID sin colisiones tras varios intentos; inténtalo de nuevo en unos segundos',true);
+return null;
+}
+/* elegirIdNueva(): punto de entrada usado por crearVinculado() y demás altas
+de personas. Antes abría un modal para que el colaborador eligiera el hueco;
+ahora reserva automáticamente el primero disponible (ver reservarIdNuevo). Se
+mantiene el mismo nombre y la misma forma (Promise<string|null>) para no
+tener que tocar el resto de la aplicación. */
 function elegirIdNueva(){
-return new Promise(function(resolve){
-var huecos=listaHuecosID(60);
-_resolverElegirIdNueva=resolve;
-var lista=document.getElementById('listaHuecosId');
-if(lista)lista.innerHTML=huecos.map(function(idHueco,i){
-return '<button type="button" class="ef-btn'+(i===0?'':' ghost')+'" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="confirmarElegirIdNueva(\''+safeId(idHueco)+'\')">ID '+esc(idHueco)+(i===0?' <span style="margin-left:auto;font-size:11px">Primer hueco libre</span>':'')+'</button>';
-}).join('');
-var modal=document.getElementById('modalHuecoId');
-if(modal)modal.style.display='flex';
-});
+return reservarIdNuevo();
 }
 function confirmarElegirIdNueva(idHueco){
 var modal=document.getElementById('modalHuecoId');
