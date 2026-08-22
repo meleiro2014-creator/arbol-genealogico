@@ -639,6 +639,7 @@ body{background:#fff}
 <div style="display:flex;gap:7px;flex-wrap:wrap">
 <button class="ef-btn ghost" id="btnMiIdentidad" onclick="mostrarMiIdentidad()"><i class="fa-solid fa-user-check"></i> <span id="usuarioCamTxt">Mi identidad</span></button>
 <button class="ef-btn ghost" onclick="sincronizarCambiosDrive(true)"><i class="fa-brands fa-google-drive"></i> Comprobar cambios en Drive</button>
+<button class="ef-btn ghost" onclick="restaurarCambiosDesdeDrive()"><i class="fa-solid fa-cloud-arrow-down"></i> Cargar cambios desde Drive</button>
 </div>
 </div>
 <div id="cambiosEstadoSync" class="cambio-sync" style="max-width:900px;margin:0 auto 10px"></div>
@@ -7370,6 +7371,19 @@ function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador 
 function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!confirm('Se aplicaran al arbol y se marcaran COMO CONFORME '+pend.length+' cambio(s). ¿Continuar?'))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'. Sube ahora la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
 function eliminarTodosCambiosPendientes(){if(!esAdministrador()){toast('Solo el administrador puede eliminar cambios en bloque',true);return;}listarCambios().then(function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!confirm('Se eliminarán '+pend.length+' registro(s) de cambios pendientes de la lista (no afecta a los datos del árbol, que ya están guardados). ¿Continuar?'))return;var ahora=new Date().toISOString();pend.forEach(function(c){c.estado='eliminado';c.eliminadoEn=ahora;c.actualizadoEn=ahora;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast(pend.length+' registro(s) de cambios eliminados de la lista');};tx.onerror=function(){toast('No se pudieron eliminar los registros',true);};});}
 function guardarCambiosEnDrive(){if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para guardar tus cambios',true);accionDriveStatusPill();return;}sincronizarCambiosDrive(true);}
+function restaurarCambiosDesdeDrive(){
+if(!esAdministrador()){toast('Solo el administrador puede cargar el registro de cambios desde Drive',true);return;}
+if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
+if(!confirm('Esto sustituira TODO el registro de cambios guardado en este dispositivo por el contenido exacto del archivo cambios-arbol.json de Drive. Los registros que ya no esten en ese archivo desapareceran de este dispositivo (aunque este los tuviera). ¿Continuar?'))return;
+descargarCambiosDrive().then(function(remoto){
+var lista=(remoto&&Array.isArray(remoto.cambios))?remoto.cambios:[];
+var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);
+st.clear();
+lista.forEach(function(c){st.put(c);});
+tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro de cambios cargado desde Drive: '+lista.length+' registro(s)');};
+tx.onerror=function(){toast('No se pudo cargar el registro de cambios desde Drive',true);};
+}).catch(function(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);});
+}
 function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else if(!driveRootFolderId){txt.textContent='Sin conectar con Google Drive — pulsa para configurar';}else{txt.textContent='Sesión de Google Drive caducada — pulsa para reconectar';}});actualizarVisibilidadNavAdmin();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
