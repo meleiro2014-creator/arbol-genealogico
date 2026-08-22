@@ -691,7 +691,7 @@ var BACKUP_HISTORICO_MAX=5;
    archivos que solo empiecen parecido (punto 19/20 del informe de la Tarea 1). */
 var BACKUP_HISTORICO_REGEX=/^backup-arbol-(\d{4})-(\d{2})-(\d{2})\.json$/;
 var subiendoCopiaDrive=false;
-var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=null;
+var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
 /* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
 var googleIdentidad=null; /* {email,name,picture} de la sesión actual, o null */
 var ADMIN_EMAIL='meleiro2014@gmail.com';
@@ -939,7 +939,7 @@ if(m)return m[1];
 if(/^[a-zA-Z0-9_-]{10,}$/.test(texto))return texto;
 return null;
 }
-function conectarGoogleDrive(){
+function conectarGoogleDrive(silencioso){
 return new Promise(function(resolve,reject){
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){reject(new Error('Falta configurar GOOGLE_CLIENT_ID en el código'));return;}
 if(!window.google||!google.accounts||!google.accounts.oauth2){reject(new Error('Google Identity Services no se ha cargado (revisa tu conexion)'));return;}
@@ -954,10 +954,25 @@ else reject(new Error('No se recibio el token de acceso'));
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
 });
 }
-try{googleTokenClient.requestAccessToken({prompt:driveAccessToken?'':'consent'});}catch(err){reject(err);}
+/* Modo silencioso (punto 2, simplificar acceso): prompt vacío para no forzar
+   la pantalla de consentimiento; si el navegador ya tiene sesión de Google y el
+   consentimiento sigue vigente, el token llega sin mostrar nada al usuario.
+   Si no hay sesión/consentimiento previos, Google simplemente no concede el
+   token y el error_callback rechaza la promesa (se ignora en el intento
+   automático; solo se pide 'consent' explícito cuando el usuario interactúa
+   a propósito con Drive, vía conectarGoogleDrive() sin argumento). */
+try{googleTokenClient.requestAccessToken({prompt:(silencioso||driveAccessToken)?'':'consent'});}catch(err){reject(err);}
 });
 }
 function tokenDriveValido(){return !!(driveAccessToken&&driveTokenExpira&&Date.now()<driveTokenExpira-30000);}
+function intentarConexionSilenciosaDrive(){
+if(!driveRootFolderId||tokenDriveValido())return;
+conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();}).catch(function(){
+/* Silencioso a propósito: si no había sesión/consentimiento previos de Google,
+   no se muestra ningún aviso; el usuario verá las pantallas normales de acceso
+   solo cuando use explícitamente una función de Drive. */
+});
+}
 async function elegirCarpetaDocumentos(){
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
@@ -6891,6 +6906,26 @@ continuar();
 }).catch(function(err){console.error('Error cargando configuración de medias ANOCALC:',err);continuar();});
 }
 oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err2){console.error("Error al reintentar el arranque:",err2);toast('No se pudo cargar la base de datos: '+err2.message+'. Prueba a cerrar otras pestañas de la app y recarga.',true);});},500);});
+/* Punto 2 (simplificar acceso a Drive): en la primera interacción real del
+   usuario con la página (clic, tecla o toque) se intenta reconectar con Drive
+   en silencio, sin pedir consentimiento. Si el navegador conserva la sesión de
+   Google y el permiso ya concedido, la app queda "Conectada a Google Drive"
+   sola, sin que el usuario vea ninguna de las 3 pantallas. */
+(function(){
+function primerGesto(){intentarConexionSilenciosaDrive();}
+['click','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,primerGesto,{once:true,passive:true});});
+})();
+/* Renovación periódica: el token de acceso de Google caduca a los ~58 min por
+   diseño de Google (no es algo que dependa de esta app). En vez de esperar a
+   que alguien note la desconexión y toque la pastilla, cada 4 minutos se
+   comprueba en segundo plano si el token está a punto de caducar (o ya
+   caducado) y, si es así, se intenta renovar en silencio, sin pedir nada al
+   usuario. Así la conexión se mantiene sola mientras la app siga abierta. */
+setInterval(function(){
+if(!driveRootFolderId)return;
+if(tokenDriveValido())return;
+conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();}).catch(function(){});
+},4*60*1000);
 });
 (function(){
 var srchTimer=null;
