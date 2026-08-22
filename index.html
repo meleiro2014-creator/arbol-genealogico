@@ -984,7 +984,36 @@ function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta
 async function obtenerArchivoCambiosDrive(){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
 async function subirCambiosDriveDatos(cambios,existente){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);if(r.status===404&&existente){r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,null);}if(!r.ok)throw new Error('Drive respondió '+r.status);}
-async function sincronizarCambiosDrive(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){
+/* ===== FIX: evita que varias sincronizaciones con Drive se ejecuten en
+   paralelo. Antes, cada guardado lanzaba su propia sincronización sin
+   esperar a las anteriores; si dos subidas coincidían, la que terminaba
+   más tarde podía sobrescribir en Drive los cambios de la que terminaba
+   antes (por ejemplo: el registro "crear" de un descendiente sobrescribiendo
+   al registro "editar" posterior que ya tenía el nombre y la madre
+   correctos). Ahora solo hay una sincronización en vuelo a la vez; las
+   peticiones que llegan mientras tanto se encolan y se ejecutan UNA vez
+   al terminar la actual, recogiendo ya todos los cambios acumulados. */
+var cambiosDriveSyncEnCurso=null;
+var cambiosDriveSyncPendiente=false;
+var cambiosDriveSyncForzarPendiente=false;
+function sincronizarCambiosDrive(forzar){
+if(cambiosDriveSyncEnCurso){
+cambiosDriveSyncPendiente=true;
+cambiosDriveSyncForzarPendiente=cambiosDriveSyncForzarPendiente||!!forzar;
+return cambiosDriveSyncEnCurso;
+}
+cambiosDriveSyncEnCurso=sincronizarCambiosDriveInterno(forzar).finally(function(){
+cambiosDriveSyncEnCurso=null;
+if(cambiosDriveSyncPendiente){
+var f=cambiosDriveSyncForzarPendiente;
+cambiosDriveSyncPendiente=false;
+cambiosDriveSyncForzarPendiente=false;
+sincronizarCambiosDrive(f);
+}
+});
+return cambiosDriveSyncEnCurso;
+}
+async function sincronizarCambiosDriveInterno(forzar){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;if(!folderId||!tokenDriveValido()){
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
 function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('driveRootFolderId');r.onsuccess=function(){driveRootFolderId=(r.result&&r.result.valor)?r.result.valor:(DEFAULT_DRIVE_ROOT_FOLDER_ID||null);res(driveRootFolderId);};r.onerror=function(){driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;res(driveRootFolderId);};});}
@@ -3299,10 +3328,11 @@ afectados.forEach(function(a){var d=PI[a.id];if(d)d[a.campo]=valorNuevo;});
 return afectados.length;
 }
 async function guardarFicha(id){
-if(!(await exigirIdentidadGoogle()))return;
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
 var p=PI[id];
 var antesCambio=clonarPersona(p);
-if(!p){toast('Registro no encontrado',true);return;}
+if(!p){toast('Registro no encontrado',true);finOperacionFicha();return;}
 var apellido1Anterior=p.APELLIDO1;
 p.APELLIDO1=leerCampo('ef-ap1');
 p.APELLIDO2=leerCampo('ef-ap2');
@@ -3349,7 +3379,7 @@ rFic(id);
 toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
-}).catch(function(err){toast('Error al guardar: '+err.message,true);});
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(finOperacionFicha);
 }
 async function eliminarFicha(id){
 if(!(await exigirIdentidadGoogle()))return;
@@ -3417,6 +3447,43 @@ rFic(linkedId);
 }
 var selectorRelacion=null;
 var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2'};
+/* ===== FIX: evita perder texto sin guardar del formulario de edición cuando
+   una acción intermedia (vincular/quitar relación) reconstruye el formulario
+   con rFic() antes de que el usuario pulse "Guardar". ===== */
+var CAMPOS_FORM_EDICION=['ef-ap1','ef-ap2','ef-nombre','ef-sexo','ef-nacd','ef-nacm','ef-naca','ef-lugarnac','ef-fallecido','ef-defd','ef-defm','ef-defa','ef-lugardef','ef-ml1','ef-mf1','ef-ml2','ef-mf2','ef-obs'];
+function capturarCamposEdicionSiProcede(idFicha){
+if(!editMode||cid!==idFicha)return null;
+var vals={};
+CAMPOS_FORM_EDICION.forEach(function(idc){
+var el=document.getElementById(idc);
+if(!el)return;
+vals[idc]=(el.type==='checkbox')?el.checked:el.value;
+});
+return vals;
+}
+function restaurarCamposEdicion(vals){
+if(!vals)return;
+Object.keys(vals).forEach(function(idc){
+var el=document.getElementById(idc);
+if(!el)return;
+if(el.type==='checkbox'){
+el.checked=vals[idc];
+if(idc==='ef-fallecido'){var w=document.getElementById('ef-defwrap');if(w)w.classList.toggle('ef-sub',!vals[idc]);}
+}else{
+el.value=vals[idc];
+}
+});
+}
+/* ===== FIX: bloqueo anti-doble-clic para evitar duplicados/guardados en
+   carrera cuando se pulsa dos veces seguidas un botón que hace una operación
+   asíncrona (guardar, crear descendiente, vincular). ===== */
+var operacionFichaEnCurso=false;
+function iniciarOperacionFicha(){
+if(operacionFichaEnCurso){toast('Espera, ya se está guardando…',true);return false;}
+operacionFichaEnCurso=true;
+return true;
+}
+function finOperacionFicha(){operacionFichaEnCurso=false;}
 function abrirSelectorRelacion(id,campo){
 selectorRelacion={id:id,campo:campo};
 var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
@@ -3433,15 +3500,16 @@ var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCas
 lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
 }
 async function elegirRelacion(otroId){
-if(!(await exigirIdentidadGoogle()))return;
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
 var antesRelacion=mapaPersonas(D);
-if(!selectorRelacion)return;
+if(!selectorRelacion){finOperacionFicha();return;}
 var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
-if(!actual||!otro)return;
+if(!actual||!otro){finOperacionFicha();return;}
 if(campo==='M1'||campo==='M2'){
 var yaReciproco=otro.M1===actual.ID||otro.M2===actual.ID;
 var campoReciproco=yaReciproco?null:(!otro.M1?'M1':(!otro.M2?'M2':''));
-if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);return;}
+if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);finOperacionFicha();return;}
 var anterior=actual[campo];
 if(anterior&&PI[anterior]){if(PI[anterior].M1===actual.ID)PI[anterior].M1='';if(PI[anterior].M2===actual.ID)PI[anterior].M2='';}
 actual[campo]=otro.ID;
@@ -3449,29 +3517,33 @@ if(campoReciproco)otro[campoReciproco]=actual.ID;
 }else{
 actual[campo]=otro.ID;
 }
-bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);toast('Vínculo actualizado correctamente');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);});
+var camposPrevios=capturarCamposEdicionSiProcede(actual.ID);
+bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(finOperacionFicha);
 }
 async function quitarConyuge(id,campo){
-if(!(await exigirIdentidadGoogle()))return;
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
 var antesRelacion=mapaPersonas(D);
 var actual=PI[id],otroId=actual?actual[campo]:'';
-if(!actual||!otroId)return;
-if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?'))return;
+if(!actual||!otroId){finOperacionFicha();return;}
+if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?')){finOperacionFicha();return;}
 var otro=PI[otroId];actual[campo]='';
 if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
-bIdx(D);sAll(D).then(function(){rFic(id);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);});
+var camposPrevios=capturarCamposEdicionSiProcede(id);
+bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(finOperacionFicha);
 }
 function editarDescendiente(id){
 if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
 cid=id;editMode=true;rFic(id);
 }
 async function crearDescendiente(id,parejaId){
-if(!(await exigirIdentidadGoogle()))return;
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
-if(!progenitor){toast('No se encontró la persona seleccionada',true);return;}
-if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?'))return;
+if(!progenitor){toast('No se encontró la persona seleccionada',true);finOperacionFicha();return;}
+if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?')){finOperacionFicha();return;}
 var newIdDesc=await elegirIdNueva();
-if(!newIdDesc)return;
+if(!newIdDesc){finOperacionFicha();return;}
 var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
@@ -3480,7 +3552,7 @@ var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(pa
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
-registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);});
+registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(finOperacionFicha);
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
 Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error.
