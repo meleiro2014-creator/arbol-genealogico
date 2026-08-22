@@ -695,6 +695,53 @@ var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFol
 /* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
 var googleIdentidad=null; /* {email,name,picture} de la sesión actual, o null */
 var ADMIN_EMAIL='meleiro2014@gmail.com';
+/* ===== USUARIOS AUTORIZADOS (árbol con datos de personas vivas: el acceso
+   se limita a familiares de confianza elegidos por el administrador) =====
+   La lista se guarda como un archivo JSON en la propia carpeta de Drive
+   (no solo en este código), así que se comparte entre todos los
+   dispositivos y el administrador puede añadir o quitar personas desde la
+   propia app, sin tener que tocar el código ni GitHub cada vez.
+   IMPORTANTE (aviso honesto): esto es un filtro "blando" del lado del
+   navegador, no una barrera de seguridad real de servidor. Cualquier
+   persona con conocimientos técnicos podría saltárselo editando el
+   código en las herramientas de desarrollador de su navegador. Sirve
+   para evitar accesos accidentales o de curiosos que encuentren el
+   enlace, no para proteger datos frente a alguien decidido a acceder
+   sin permiso. */
+var USUARIOS_AUTORIZADOS_ARCHIVO='usuarios-autorizados.json';
+var USUARIOS_AUTORIZADOS_DEFECTO=['meleiro2014@gmail.com','belzuneguipilar@gmail.com','jcmeleiro@gmail.com','jeduardomoreda@gmail.com'];
+var usuariosAutorizadosCache=null; /* array de emails en minúsculas, o null si aún no se ha cargado */
+async function obtenerArchivoUsuariosAutorizadosDrive(){
+if(!driveRootFolderId)return null;
+var q="'"+driveRootFolderId+"' in parents and name='"+USUARIOS_AUTORIZADOS_ARCHIVO+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return null;
+var d=await r.json();
+return d.files&&d.files.length?d.files[0]:null;
+}
+async function cargarUsuariosAutorizados(forzar){
+if(usuariosAutorizadosCache&&!forzar)return usuariosAutorizadosCache;
+try{
+var f=await obtenerArchivoUsuariosAutorizadosDrive();
+if(!f){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
+var x=await r.json();
+usuariosAutorizadosCache=(x&&Array.isArray(x.usuarios)&&x.usuarios.length)?x.usuarios.map(function(e){return String(e).trim().toLowerCase();}):USUARIOS_AUTORIZADOS_DEFECTO.slice();
+return usuariosAutorizadosCache;
+}catch(err){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
+}
+async function guardarUsuariosAutorizados(lista){
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - usuarios autorizados',version:1,fecha:new Date().toISOString(),usuarios:lista});
+var existente=await obtenerArchivoUsuariosAutorizadosDrive();
+var r=await subirArchivoDrive(USUARIOS_AUTORIZADOS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+usuariosAutorizadosCache=lista.slice();
+}
+function esUsuarioAutorizado(email){
+var lista=usuariosAutorizadosCache||USUARIOS_AUTORIZADOS_DEFECTO;
+return !!(email&&lista.indexOf(String(email).trim().toLowerCase())!==-1);
+}
 async function obtenerIdentidadGoogle(){
 if(!tokenDriveValido()){googleIdentidad=null;return null;}
 try{
@@ -702,12 +749,61 @@ var r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Auth
 if(!r.ok){googleIdentidad=null;return null;}
 var d=await r.json();
 if(!d.email){googleIdentidad=null;return null;}
-googleIdentidad={email:String(d.email).trim().toLowerCase(),name:d.name||'',picture:d.picture||''};
+var emailNormalizado=String(d.email).trim().toLowerCase();
+await cargarUsuariosAutorizados();
+if(!esUsuarioAutorizado(emailNormalizado)){
+/* Cuenta válida de Google pero no autorizada para esta app: se revoca el
+   token localmente (y en Google, si es posible) para no dejar la sesión
+   conectada a Drive, y no se guarda ninguna identidad. */
+if(window.google&&google.accounts&&google.accounts.oauth2&&driveAccessToken){try{google.accounts.oauth2.revoke(driveAccessToken,function(){});}catch(e){}}
+driveAccessToken=null;driveTokenExpira=0;googleIdentidad=null;
+toast('La cuenta '+emailNormalizado+' no está autorizada para acceder a este árbol familiar. Contacta con el administrador si crees que deberías tener acceso.',true);
+return null;
+}
+googleIdentidad={email:emailNormalizado,name:d.name||'',picture:d.picture||''};
 return googleIdentidad;
 }catch(err){googleIdentidad=null;return null;}
 }
 function esAdministrador(){
 return !!(googleIdentidad&&googleIdentidad.email&&googleIdentidad.email.toLowerCase()===ADMIN_EMAIL.toLowerCase());
+}
+/* ===== Panel de administración de usuarios autorizados (solo admin) ===== */
+function validarFormatoEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
+async function abrirGestionUsuarios(){
+if(!esAdministrador()){toast('Solo el administrador puede gestionar los usuarios autorizados',true);return;}
+if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para gestionar los usuarios',true);return;}
+document.getElementById('modalUsuarios').style.display='flex';
+document.getElementById('listaUsuariosAutorizados').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
+await cargarUsuariosAutorizados(true);
+pintarListaUsuariosAutorizados();
+}
+function cerrarGestionUsuarios(){document.getElementById('modalUsuarios').style.display='none';}
+function pintarListaUsuariosAutorizados(){
+var lista=usuariosAutorizadosCache||[];
+var cont=document.getElementById('listaUsuariosAutorizados');
+if(!lista.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No hay ningún usuario autorizado (esto dejaría a todos sin acceso, incluido tú mismo la próxima vez). Añade al menos tu propio correo.</div>';return;}
+cont.innerHTML=lista.map(function(email){
+var esYoMismo=(email===ADMIN_EMAIL.toLowerCase());
+var botonQuitar=esYoMismo?'':'<button class="ef-btn ghost" style="padding:4px 10px" onclick="quitarUsuarioAutorizadoUI(\''+email.replace(/'/g,"\\'")+'\')"><i class="fa-solid fa-trash"></i></button>';
+return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border)"><span style="font-size:13px">'+esc(email)+(esYoMismo?' <span style="color:var(--muted);font-size:11px">(administrador, no se puede quitar)</span>':'')+'</span>'+botonQuitar+'</div>';
+}).join('');
+}
+async function anadirUsuarioAutorizadoUI(){
+var email=prompt('Correo de Google de la persona a la que quieres dar acceso (no hace falta que sea @gmail.com, vale cualquier cuenta de Google):','');
+if(!email)return;
+email=String(email).trim().toLowerCase();
+if(!validarFormatoEmail(email)){toast('Ese texto no parece un correo electrónico válido',true);return;}
+var lista=(usuariosAutorizadosCache||USUARIOS_AUTORIZADOS_DEFECTO.slice()).slice();
+if(lista.indexOf(email)!==-1){toast('Ese correo ya estaba en la lista');pintarListaUsuariosAutorizados();return;}
+lista.push(email);
+try{await guardarUsuariosAutorizados(lista);pintarListaUsuariosAutorizados();toast('Añadido: '+email+'. Ya puede entrar en la app con esa cuenta de Google.');}
+catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
+}
+async function quitarUsuarioAutorizadoUI(email){
+if(!confirm('¿Quitar el acceso a '+email+'?'))return;
+var lista=(usuariosAutorizadosCache||[]).filter(function(e){return e!==email;});
+try{await guardarUsuariosAutorizados(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
+catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 function usuarioActualParaCambios(){
 if(!googleIdentidad||!googleIdentidad.email){throw new Error('No hay identidad Google para registrar el cambio');}
@@ -6998,6 +7094,17 @@ function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STOR
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';mostrarCambios('pendientes');}
 (function(){var right=document.querySelector('#vCam .cambios-toolbar > div:last-child');if(right)right.insertAdjacentHTML('afterbegin','<span class="drive-status" id="driveStatusCam" onclick="accionDriveStatusPill()" style="margin-top:0"><span class="dot"></span><span id="driveStatusCamTxt">Comprobando Google Drive...</span></span><button class="ef-btn ghost" onclick="guardarCambiosEnDrive()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios en Drive</button>');})();
 </script>
+<div id="modalUsuarios" role="dialog" aria-modal="true" aria-labelledby="modalUsuariosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<h2 id="modalUsuariosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-users-gear" aria-hidden="true" style="color:var(--accent)"></i> Usuarios autorizados</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarGestionUsuarios()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo estas cuentas de Google pueden entrar en el árbol. No hace falta que sean @gmail.com: vale cualquier cuenta de Google (por ejemplo, una de trabajo o de un dominio propio), siempre que la persona inicie sesión con ella.</p>
+<div id="listaUsuariosAutorizados" style="overflow:auto;flex:1;margin-bottom:12px"></div>
+<button class="ef-btn save" onclick="anadirUsuarioAutorizadoUI()"><i class="fa-solid fa-user-plus"></i> Añadir persona</button>
+</div>
+</div>
 <div id="modalLimpiar" role="dialog" aria-modal="true" aria-labelledby="modalLimpiarTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="font-size:36px;color:var(--accent);margin-bottom:14px;display:block"></i>
@@ -7036,6 +7143,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Uso general</div>
+<button class="herr-item" onclick="window.open('https://meleiro2014-creator.github.io/arbol-genealogico/privacidad.html','_blank','noopener')"><div class="herr-icon"><i class="fa-solid fa-shield-halved"></i></div><div class="herr-text"><div class="herr-title">Política de privacidad</div><div class="herr-desc">Qué datos usa esta app y cómo se tratan</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
 <button class="herr-item" id="herrBtnImportarDrive" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Busca la carpeta "FOTO" dentro de tu carpeta raíz y asigna cada imagen por ID exacto (requiere Google)</div></div></button>
@@ -7048,6 +7156,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" id="herrInstalarBtn" style="display:none" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
+<button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios autorizados</div><div class="herr-desc">Ver, añadir o quitar quién puede acceder a este árbol</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();borrarTodosAprox()"><div class="herr-icon"><i class="fa-solid fa-eraser"></i></div><div class="herr-text"><div class="herr-title">Borrar todos los años aproximados (APROX)</div><div class="herr-desc">Elimina el campo heredado de Access en toda la base y recalcula el año estimado (ANOCALC) donde haga falta</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
