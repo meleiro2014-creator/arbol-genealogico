@@ -26,7 +26,8 @@
 .skip-link{position:absolute;left:8px;top:-48px;background:var(--accent);color:#fff;padding:10px 16px;border-radius:8px;font-family:'Lato',sans-serif;font-weight:700;font-size:13px;z-index:10000;transition:top .15s;text-decoration:none}
 .skip-link:focus{top:8px}
 .ges-cat-head:focus-visible,.cro-row-label:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
-body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+html{overscroll-behavior-y:contain}
+body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior-y:contain}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 20% 20%,rgba(196,101,58,.06) 0%,transparent 60%),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(90,138,60,.05) 0%,transparent 60%);pointer-events:none;z-index:-1}
 h1,h2,h3,h4{font-family:'Cinzel',serif}
 header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
