@@ -2099,12 +2099,16 @@ function ordenarIdsPorEdad(ids){
 return ordenarPersonasPorEdad((ids||[]).map(function(id){return PI[id];}).filter(Boolean)).map(function(p){return p.ID;});
 }
 async function marcarFallecidosMayores100(){
+/* Solo se llama desde la accionMasiva de la categoría 'fallecidos_100' del Gestor de datos:
+usa getYearDesdeSnapshot, el mismo criterio con el que esa categoría se construyó, para marcar
+exactamente a las mismas personas que el usuario vio listadas (nunca más, nunca menos). */
 if(!(await exigirIdentidadGoogle()))return;
 if(!D.length){toast('No hay datos cargados',true);return;}
 var anoActual=new Date().getFullYear(),candidatos=[];
 D.forEach(function(p){
 if(!isAl(p))return;
-var y=getYear(p);
+if(p.ANOCALC_CONTAMINADO)return;
+var y=getYearDesdeSnapshot(p);
 if(y===null)return;
 var edad=anoActual-y;
 if(edad>100)candidatos.push(p);
@@ -2746,23 +2750,22 @@ visitado[id]=true;
 /* Solo se recortan las estimaciones (origen[id].pred!==null); un año real
 (pred===null, viene de NACA) nunca se toca. Si los límites resultan
 contradictorios (lo>hi), es que el conflicto viene de datos REALES de otros
-familiares ya fijados: no hay ningún valor que respete a la vez a todos, así
-que no se fuerza nada aquí (ese conflicto seguirá saliendo, correctamente,
-como inconsistencia real en el Gestor de datos, sin depender de esta persona). */
+familiares ya fijados: no hay ningún valor que sea correcto a la vez para
+todos, así que la cifra sigue marcada 'contaminado' (aviso al usuario; la
+inconsistencia de fondo debe resolverse en el Gestor de datos, nunca aquí).
+v2.2: pero YA NO se deja el valor totalmente libre en ese caso — se proyecta
+al límite que menos se aleja del valor bruto calculado (el mismo criterio que
+en un conflicto normal), para no amplificar un conflicto real en una cifra
+disparatada (p.ej. décadas de diferencia) que luego se propagaría, con ese
+mismo error, a más personas del árbol a través de otros parentescos. */
 if(origen[id].pred!==null){
 var lim=gesLimitesDuros(id,valorNodo,visitado,origen);
-if(lim&&lim.lo<=lim.hi){
+if(lim){
+if(lim.lo>lim.hi)origen[id].contaminado=true;
 var valorCrudo=valorNodo[id];
 if(valorNodo[id]<lim.lo)valorNodo[id]=Math.round(lim.lo);
 else if(valorNodo[id]>lim.hi)valorNodo[id]=Math.round(lim.hi);
 if(valorNodo[id]!==valorCrudo)origen[id].recorte={desde:valorCrudo,hasta:valorNodo[id]};
-}else if(lim){
-/* v2.1: conflicto real entre dos familiares con año YA fijado (lo>hi). No se
-   inventa ningún valor "razonable" aquí — se marca contaminado para que la Fase
-   C lo excluya como fuente (ver aplicarRelajacionGlobalANOCALC) y para que el
-   motivo de texto avise al usuario; la inconsistencia de fondo debe resolverse
-   en el Gestor de datos, no aquí. */
-origen[id].contaminado=true;
 }
 }
 aristasParentesco(id,stats).forEach(function(ar){
@@ -2874,17 +2877,23 @@ var fecha=new Date().toISOString().slice(0,10);
 var cambios=0;
 D.forEach(function(p){
 if(getYearReal(p)!==null){
-if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';cambios++;}
+if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='';cambios++;}
 return;
 }
 var v=resultado.valorNodo[p.ID];
 if(v===undefined){
-if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';cambios++;}
+if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='';cambios++;}
 return;
 }
-var nuevoValor=String(v),motivo=construirMotivoEstimacion(p.ID,resultado,fecha),nuevaDist=String(resultado.saltos[p.ID]||0);
-if(p.ANOCALC!==nuevoValor||p.ANOCALC_MOTIVO!==motivo){
-p.ANOCALC=nuevoValor;p.ANOCALC_MOTIVO=motivo;p.ANOCALC_DISTANCIA=nuevaDist;cambios++;
+/* ANOCALC_CONTAMINADO: se guarda como campo propio (además de mencionarse en el
+texto de ANOCALC_MOTIVO) para que el Gestor de datos pueda agrupar y, sobre todo,
+NO duplicar avisos sobre una persona cuyo año ya viene marcado por el propio motor
+como en conflicto con datos reales de su familia — ver construirCategoriasMantenimiento
+y detectarInconsistencias. */
+var cont=!!(resultado.origen[p.ID]&&resultado.origen[p.ID].contaminado);
+var nuevoValor=String(v),motivo=construirMotivoEstimacion(p.ID,resultado,fecha),nuevaDist=String(resultado.saltos[p.ID]||0),nuevoCont=cont?'1':'';
+if(p.ANOCALC!==nuevoValor||p.ANOCALC_MOTIVO!==motivo||p.ANOCALC_CONTAMINADO!==nuevoCont){
+p.ANOCALC=nuevoValor;p.ANOCALC_MOTIVO=motivo;p.ANOCALC_DISTANCIA=nuevaDist;p.ANOCALC_CONTAMINADO=nuevoCont;cambios++;
 }
 });
 bIdx(D);
@@ -4264,13 +4273,44 @@ problemas.push({icono:'fa-people-pulling',etiqueta:'Posible inconsistencia: mism
 ['M1','M2'].forEach(function(campo){if(p[campo]&&p[campo]===p.ID){problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: cónyuge de sí mismo/a',mensaje:esc(fn(p))+' figura como su propio/a cónyuge ('+campo+').',verId:p.ID});}});
 var yHijo=obtenerAnio(p);
 var yDefPropia=getDeathYear(p);
+/* NUEVA comprobación (v2.2), real vs real, no depende de ningún año estimado: una
+persona con NACA y DEFA ambos confirmados que falleció siendo demasiado joven para
+haber tenido descendencia biológica, pero que figura como padre/madre de alguien o
+con cónyuge registrado, suele ser la CAUSA RAÍZ real detrás de varias inconsistencias
+"en cadena" que el motor de años estimados propaga después a sus hijos (ver
+gesLimitesDuros/contaminado). Se avisa aquí UNA vez, señalando a la persona concreta
+con el conflicto real, en vez de dejar que el síntoma se reparta en una alarma
+distinta por cada hijo o cónyuge afectado. */
+var yPropiaReal=getYearReal(p);
+if(yPropiaReal!==null&&yDefPropia!==null){
+var edadAlMorir=yDefPropia-yPropiaReal;
+if(edadAlMorir>=0&&edadAlMorir<EDAD_MIN_PROGENITOR){
+var hijosProp=(HD[p.ID]||[]).length,tieneConyuge=!!(p.M1||p.M2),detalleFam=[];
+if(hijosProp>0)detalleFam.push(hijosProp+' hijo(s) registrado(s)');
+if(tieneConyuge)detalleFam.push('cónyuge registrado');
+if(detalleFam.length)problemas.push({
+icono:'fa-child-reaching',
+etiqueta:'Posible inconsistencia: fallecido en la infancia con descendencia o cónyuge registrados',
+mensaje:esc(fn(p))+' nace en '+yPropiaReal+' y fallece en '+yDefPropia+' (con solo '+edadAlMorir+' año(s)), pero tiene '+detalleFam.join(' y ')+'. Es probable causa raíz de otras inconsistencias de edad que salen más abajo en su descendencia: revisa si el año de nacimiento, el de defunción, o el vínculo familiar son correctos.',
+verId:p.ID
+});
+}
+}
 if(yHijo!==null){
 [['PADRE','padre'],['MADRE','madre']].forEach(function(par){
 var campo=par[0],rel=par[1];
 var prog=p[campo]&&PI[p[campo]];
 if(prog){
+/* Si el año de cualquiera de los dos viene de una estimación que el propio motor
+ya marcó 'contaminado' (conflicto real con otro familiar: ver gesLimitesDuros),
+no se generan aquí más síntomas sobre esa cifra concreta — el motor ya no se
+fía de ella, así que compararla no aporta una alarma nueva y fiable, solo
+ruido. La comprobación de más arriba (fallecido en la infancia) cubre el caso
+típico que produce esta contaminación; el resto queda visible en el motivo de
+ANOCALC de la propia ficha para quien quiera investigarlo. */
+var contaminadoAqui=!!(p.ANOCALC_CONTAMINADO||prog.ANOCALC_CONTAMINADO);
 var yProg=obtenerAnio(prog);
-if(yProg!==null){
+if(yProg!==null&&!contaminadoAqui){
 var diff=yHijo-yProg;
 if(diff<EDAD_MIN_PROGENITOR){
 var msg;
@@ -4299,7 +4339,13 @@ verId:p.ID
 }
 }
 var yDefProg=getDeathYear(prog);
-if(yDefProg!==null&&yHijo>yDefProg){
+/* Margen de gracia (v2.2): igual que el propio motor de años estimados tolera un
+embarazo ya en curso al morir el padre (ANOCALC_LIMITES.graciaPostuma, nunca para
+la madre — ver comentario junto a esa constante), este aviso aplica el mismo
+margen antes de considerarlo inconsistencia, para no marcar como problema un caso
+que el propio motor ya considera biográficamente normal. */
+var graciaProg=(rel==='padre')?ANOCALC_LIMITES.graciaPostuma:0;
+if(yDefProg!==null&&yHijo>yDefProg+graciaProg&&!contaminadoAqui){
 problemas.push({
 icono:'fa-calendar-xmark',
 etiqueta:'Posible inconsistencia: hijo nacido tras la defunción del progenitor',
@@ -4337,7 +4383,7 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a e
 if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
 problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrimonio anterior al primero',mensaje:esc(fn(p))+' tiene el segundo matrimonio fechado en '+matrimonios[1].anio+', antes que el primero ('+matrimonios[0].anio+').',verId:p.ID});
 }
-if(isAl(p)&&yHijo!==null){
+if(isAl(p)&&yHijo!==null&&!p.ANOCALC_CONTAMINADO){
 var edadActual=new Date().getFullYear()-yHijo;
 if(edadActual>EDAD_VIVO_EXTREMA){
 problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID});
@@ -4601,7 +4647,7 @@ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase
 function gesMetaCat(etq){
 var sev='revision',icono='fa-triangle-exclamation';
 var t=String(etq||'').toLowerCase();
-if(t.indexOf('genero')>=0||t.indexOf('progenitor')>=0||t.indexOf('conyuge de si')>=0||t.indexOf('reciproco')>=0||t.indexOf('edad incoherente')>=0||t.indexOf('mismo padre y madre')>=0)sev='critica';
+if(t.indexOf('genero')>=0||t.indexOf('progenitor')>=0||t.indexOf('conyuge de si')>=0||t.indexOf('reciproco')>=0||t.indexOf('edad incoherente')>=0||t.indexOf('mismo padre y madre')>=0||t.indexOf('infancia')>=0)sev='critica';
 if(t.indexOf('matrimonio')>=0||t.indexOf('defuncion')>=0||t.indexOf('hermanos')>=0||t.indexOf('temprana')>=0||t.indexOf('edad')>=0)icono='fa-calendar-xmark';
 if(t.indexOf('genero')>=0)icono='fa-venus-mars';
 if(t.indexOf('reciproco')>=0||t.indexOf('conyuge')>=0)icono='fa-link-slash';
@@ -4861,8 +4907,11 @@ descripcion:huecosIdGes.length+' ID libre(s) dentro del rango ya usado (números
 items:huecosIdGes.map(function(n){return{mensaje:'ID <b>'+n+'</b> libre'};}),
 accionMasiva:null
 });
-/* Categoria especifica: sin ningún año, ni siquiera estimable (== contador cmdPendientes) */
-var sinAnio=D.filter(function(p){return getYear(p)===null;});
+/* Categoria especifica: sin ningún año, ni siquiera estimable (== contador cmdPendientes).
+Usa getYearDesdeSnapshot (no getYear) para que el criterio coincida con el resto del Gestor:
+si el snapshot no está cargado (fallo de Drive), esto solo cuenta como "sin año" a quien
+tampoco tenga NACA, nunca contradice al año real de la base. */
+var sinAnio=D.filter(function(p){return getYearDesdeSnapshot(p)===null;});
 if(sinAnio.length)cats.push({
 id:'sin_anio_estimable',fuente:'falt',grupo:'completitud',
 titulo:'Personas sin ningún año, ni siquiera estimable automáticamente',
@@ -4877,11 +4926,20 @@ ademas esta categoria de forma asíncrona cuando el estado de ANOCALC queda pend
 var sinPropio=D.filter(function(p){return getYearReal(p)===null;});
 var anocalcCorrido=D.some(function(p){return p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!=='';});
 if(sinPropio.length&&!anocalcCorrido)cats.push(gesCatAnocalc(sinPropio));
-/* §4.4 Fallecidos vivos con mas de 100 años (misma logica que marcarFallecidosMayores100) */
+/* §4.4 Fallecidos vivos con mas de 100 años (misma logica que marcarFallecidosMayores100).
+Usa getYearDesdeSnapshot (no getYear) para que esta categoría quede sincronizada con el mismo
+criterio que el resto del Gestor: el año real (NACA) se respeta siempre, y el año estimado es
+exclusivamente el que quedó guardado en Drive al pulsar "Recalcular", nunca uno recalculado
+aquí mismo con datos que puedan haber cambiado desde entonces. Se excluye a quien el propio
+motor ya marcó 'contaminado' (conflicto real con otro familiar: ver gesLimitesDuros): esa
+cifra concreta no es de fiar, así que no aporta una alarma de "más de 100 años" fiable, solo
+ruido — el conflicto real de fondo ya lo cubre la comprobación "fallecido en la infancia con
+descendencia o cónyuge registrados" en el Comprobador de consistencia. */
 var anioActual=new Date().getFullYear();
 var cents=D.filter(function(p){
 if(!isAl(p))return false;
-var y=getYear(p);
+if(p.ANOCALC_CONTAMINADO)return false;
+var y=getYearDesdeSnapshot(p);
 return y!==null&&(anioActual-y)>100;
 });
 if(cents.length)cats.push({
@@ -4889,7 +4947,7 @@ id:'fallecidos_100',fuente:'fallecidos',grupo:'otros',
 titulo:'Personas vivas con más de 100 años',
 icono:'fa-skull',severidad:'revision',
 descripcion:'Figuran como vivas pero superan los 100 años según su año de nacimiento o aproximado.',
-items:cents.map(function(p){var y=getYear(p);return{verId:p.ID,mensaje:'<b>'+esc(fn(p))+'</b> ('+esc(pdAnioTexto(p))+') · '+esc(String(anioActual-y))+' años'};}),
+items:cents.map(function(p){var y=getYearDesdeSnapshot(p);return{verId:p.ID,mensaje:'<b>'+esc(fn(p))+'</b> ('+esc(pdAnioTexto(p))+') · '+esc(String(anioActual-y))+' años'};}),
 accionMasiva:{etiqueta:'Marcar todas como fallecidas ('+cents.length+')'}
 });
 /* §4.5 NUEVO: lugares con escritura no homogenea (LUGARNAC/LUGARDEF) */
@@ -5221,12 +5279,16 @@ res.innerHTML=
 '<button class="ef-btn ghost" style="padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Recargar de Drive</button>';
 }
 }
+/* Aviso NO bloqueante: si falló la descarga del snapshot de años calculados, se avisa aquí
+arriba, pero las categorías que no dependen de él (duplicados, lugares, completitud, huecos
+de ID) se siguen mostrando debajo con normalidad. */
+var avisoSnapshot=GES_SNAPSHOT_ERROR?('<div class="ges-ok" style="border-color:#c0392b;margin-bottom:10px"><i class="fa-solid fa-triangle-exclamation" style="font-size:20px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(GES_SNAPSHOT_ERROR)+'<br>Las comprobaciones que dependen del año calculado (inconsistencias de edad, personas sin año estimable, mayores de 100 años) están pausadas hasta reconectar; el resto de comprobaciones de abajo (duplicados, lugares, completitud, huecos de ID) siguen funcionando con normalidad.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>'):'';
 if(!cats.length){
-/* §3: si todas las categorias estan a 0, un unico mensaje de exito */
-cont.innerHTML='<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>Todo limpio: no queda ningún problema pendiente en el árbol.</div></div>';
+/* §3: si todas las categorias estan a 0, un unico mensaje de exito (salvo que haya un aviso de Drive que mostrar) */
+cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>Todo limpio: no queda ningún problema pendiente en el árbol.</div></div>';
 return;
 }
-var h='';
+var h=avisoSnapshot;
 cats.forEach(function(c){h+=gesRenderCat(c);});
 cont.innerHTML=h;
 }
@@ -5234,8 +5296,12 @@ cont.innerHTML=h;
 Las categorias que llegan a 0 items simplemente dejan de pintarse.
 El Gestor de datos nunca calcula el año estimado por su cuenta: antes de detectar nada,
 descarga siempre el archivo 'anos-calculados.json' de la carpeta de Seguridad en Drive (ver
-cargarAniosCalculadosDrive). Si esa descarga falla, se muestra el error y NO se calculan
-inconsistencias de edad con datos locales como alternativa. */
+cargarAniosCalculadosDrive). Si esa descarga falla, las comprobaciones que dependen del año
+calculado (ANOCALC) se desactivan (GES_ANIOS_SNAPSHOT queda a null: getYearDesdeSnapshot solo
+sigue devolviendo NACA, nunca inventa nada), pero el resto de categorías del Gestor —
+duplicados, lugares no homogéneos, completitud, huecos de ID— NO dependen de este archivo y se
+siguen calculando igual: un fallo de Drive ya no bloquea toda la pantalla. */
+var GES_SNAPSHOT_ERROR=null;
 async function rGes(){
 var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
 if(res)res.innerHTML='';
@@ -5244,12 +5310,11 @@ try{
 var snap=await cargarAniosCalculadosDrive();
 GES_ANIOS_SNAPSHOT=snap.anios;
 GES_ANIOS_SNAPSHOT_FECHA=snap.fecha;
+GES_SNAPSHOT_ERROR=null;
 }catch(err){
 GES_ANIOS_SNAPSHOT=null;
 GES_ANIOS_SNAPSHOT_FECHA=null;
-GES_CACHE=null;
-if(cont)cont.innerHTML='<div class="ges-ok" style="border-color:#c0392b"><i class="fa-solid fa-triangle-exclamation" style="font-size:22px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(err.message)+'<br>El Gestor de datos no calcula las inconsistencias de edad por su cuenta, así que no puede mostrarlas hasta que este archivo esté disponible.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>';
-return;
+GES_SNAPSHOT_ERROR=err.message;
 }
 GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
