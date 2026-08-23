@@ -2084,7 +2084,7 @@ var badge=document.getElementById('insigniaNovedades');
 if(badge)badge.style.display='none';
 });
 }
-function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}if(p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!==''){var n3=parseInt(p.ANOCALC,10);if(!isNaN(n3))return n3;}return null;}
+function getYear(p){if(!p)return null;if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}if(p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!==''){var n3=parseInt(p.ANOCALC,10);if(!isNaN(n3))return n3;}return null;}
 function ordenarPersonasPorEdad(personas){
 return (personas||[]).slice().sort(function(pa,pb){
 var ya=getYear(pa),yb=getYear(pb);
@@ -2219,18 +2219,15 @@ if(url)window.open(url,'_blank');
 function getYearReal(p){
 if(!p)return null;
 if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}
-if(p.APROX!==undefined&&p.APROX!==null&&p.APROX!==''){var n2=parseInt(p.APROX,10);if(!isNaN(n2))return n2;}
 return null;
 }
 function esAnioEstimado(p){
 return!!(p&&getYearReal(p)===null&&p.ANOCALC!==undefined&&p.ANOCALC!==null&&p.ANOCALC!=='');
 }
 /* Para el Gestor de inconsistencias (comprobaciones de edad): un año "no confirmado"
-   es cualquiera que no venga de NACA, tanto si viene de APROX (año heredado de Access,
-   sin ningún control de calidad) como de ANOCALC (estimación automática). A diferencia
-   de esAnioEstimado (que solo marca ANOCALC, para el símbolo ≈ en la UI), esta función
-   se usa para avisar de fiabilidad en comparaciones de edad, donde APROX es igual de
-   poco fiable que ANOCALC. */
+   es cualquiera que no venga de NACA, es decir, que venga de ANOCALC (estimación
+   automática). El campo APROX (heredado de Access) ya no se usa en ningún cálculo
+   de la aplicación: se ignora al importar y no participa en getYear/getYearReal. */
 function esAnioNoConfirmado(p){
 if(!p)return false;
 return!(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='');
@@ -2239,7 +2236,7 @@ function notaAnioNoConfirmado(){
 var personas=Array.prototype.slice.call(arguments).filter(Boolean);
 if(!personas.some(esAnioNoConfirmado))return'';
 var detalle=personas.filter(esAnioNoConfirmado).map(function(p){
-return esAnioEstimado(p)?'año estimado automáticamente':'año aproximado (no confirmado)';
+return esAnioEstimado(p)?'año estimado automáticamente':'sin año calculado disponible';
 });
 var unico=detalle.filter(function(v,i){return detalle.indexOf(v)===i;});
 return' (' +unico.join(' / ')+', no un dato confirmado)';
@@ -2747,7 +2744,7 @@ if(visitado[id])continue;
 if(Math.round(dist[id])!==b)continue;
 visitado[id]=true;
 /* Solo se recortan las estimaciones (origen[id].pred!==null); un año real
-(pred===null, viene de NACA/APROX) nunca se toca. Si los límites resultan
+(pred===null, viene de NACA) nunca se toca. Si los límites resultan
 contradictorios (lo>hi), es que el conflicto viene de datos REALES de otros
 familiares ya fijados: no hay ningún valor que respete a la vez a todos, así
 que no se fuerza nada aquí (ese conflicto seguirá saliendo, correctamente,
@@ -2930,37 +2927,29 @@ onDone(cambios);
 },20);
 },20);
 }
+/* APROX ya no se usa en ningún cálculo de la aplicación (ver getYear/getYearReal): esta
+función es ahora una simple limpieza de un campo heredado de Access que pueda haber quedado
+en registros antiguos. Borrarlo no cambia el año de nadie ni hace falta recalcular ANOCALC
+después, porque APROX ya no alimentaba ningún cálculo desde que se dejó de usar. */
 async function borrarTodosAprox(){
 if(!(await exigirIdentidadGoogle()))return;
 if(!D.length){toast('No hay datos cargados',true);return;}
 var afectados=D.filter(function(p){return p.APROX!==undefined&&p.APROX!==null&&p.APROX!=='';});
 if(!afectados.length){toast('No hay ningún año aproximado (APROX) que borrar',true);return;}
-if(!confirm('Se borrará el año aproximado (APROX, heredado del formato Access) de '+afectados.length+' persona(s).\nA continuación se recalculará automáticamente el año estimado (ANOCALC, con el símbolo ≈) para quienes se queden sin ningún año propio.\nEsto NUNCA modifica ni sobrescribe un año de nacimiento (NACA) confirmado. ¿Continuar?'))return;
+if(!confirm('Se borrará el campo heredado de Access (APROX, ya no usado en ningún cálculo) de '+afectados.length+' persona(s). No afecta al año de nadie: no hace falta recalcular nada después. ¿Continuar?'))return;
 var antes=D.map(clonarPersona);
 afectados.forEach(function(p){p.APROX='';p.MotivoAprox='';});
+bIdx(D);
+sAll(D).then(function(){
 registrarCambiosDesdeSnapshots(antes,D,'editar');
-var cont=document.getElementById('pbAnoCalc'),barra=document.getElementById('pfAnoCalc'),label=document.getElementById('pfAnoCalcLabel'),btn=document.getElementById('btnCalcularAnosEstimados');
-function fase(pct,texto){if(barra)barra.style.width=pct+'%';if(label)label.textContent=texto;}
-if(cont)cont.style.display='block';
-if(btn)btn.disabled=true;
-ejecutarFasesAnosEstimados({
-onFase:fase,
-onDone:function(cambios){
-fase(100,'Listo');
 rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
-setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
-toast('Año aproximado borrado en '+afectados.length+' persona(s). Años estimados recalculados: '+cambios+' registro(s) actualizado(s).');
-},
-onError:function(err){
-if(cont)cont.style.display='none';
-if(btn)btn.disabled=false;
-toast('Se borró el año aproximado, pero no se pudo recalcular ANOCALC: '+err.message,true);
+toast('Campo APROX borrado en '+afectados.length+' persona(s).');
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
-});
-}
-function recalcularAnosEstimadosManual(){
+async function recalcularAnosEstimadosManual(){
 if(!D.length){toast('No hay datos cargados',true);return;}
-if(!confirm('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol (padres, hijos, cónyuges y hermanos).\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (marcado siempre con el símbolo ≈). ¿Continuar?'))return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!confirm('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol (padres, hijos, cónyuges y hermanos).\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (marcado siempre con el símbolo ≈). Al terminar se subirá también a la carpeta de Seguridad de Drive el archivo con los años calculados, que es lo único que usa el Gestor de datos para sus comprobaciones de edad. ¿Continuar?'))return;
 var cont=document.getElementById('pbAnoCalc'),barra=document.getElementById('pfAnoCalc'),label=document.getElementById('pfAnoCalcLabel'),btn=document.getElementById('btnCalcularAnosEstimados');
 function fase(pct,texto){if(barra)barra.style.width=pct+'%';if(label)label.textContent=texto;}
 if(cont)cont.style.display='block';
@@ -2968,10 +2957,18 @@ if(btn)btn.disabled=true;
 ejecutarFasesAnosEstimados({
 onFase:fase,
 onDone:function(cambios){
+fase(100,'Subiendo el archivo de años calculados a Drive (Seguridad)...');
+guardarAniosCalculadosDrive().then(function(){
 fase(100,'Listo');
 rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
 setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
-toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
+toast((cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo')+'. Archivo de años calculados actualizado en Drive.');
+}).catch(function(err){
+fase(100,'Listo (aviso pendiente)');
+rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
+setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
+toast('Se recalculó localmente, pero NO se pudo subir el archivo a Drive: '+err.message+'. El Gestor de datos seguirá viendo el cálculo anterior hasta que se suba correctamente.',true);
+});
 },
 onError:function(err){
 if(cont)cont.style.display='none';
@@ -3177,7 +3174,7 @@ if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textConte
 var f=D.filter(function(p){
 if(q){
 var an=String(pdAnioTexto(p)||'').toLowerCase();
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.APROX||'')+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
 if(texto.indexOf(q)<0)return false;
 }
 if(busFiltros.lugar){
@@ -4207,7 +4204,13 @@ var EDAD_VIVO_EXTREMA=110;
 var DIAS_MIN_ENTRE_HERMANOS=200;
 function getDeathYear(p){if(!p||isAl(p))return null;if(p.DEFA===undefined||p.DEFA===null||p.DEFA==='')return null;var n=parseInt(p.DEFA,10);return isNaN(n)?null:n;}
 function fechaCompletaNac(p){if(!p||!p.NACD||!p.NACM||!p.NACA)return null;var d=parseInt(p.NACD,10),m=parseInt(p.NACM,10),a=parseInt(p.NACA,10);if(!d||!m||!a)return null;var f=new Date(a,m-1,d);return isNaN(f.getTime())?null:f;}
-function detectarInconsistencias(){
+function detectarInconsistencias(obtenerAnio){
+/* obtenerAnio: función (persona)->año|null usada SOLO para las comprobaciones de edad.
+Por defecto es getYear (NACA->ANOCALC local; APROX no se usa), igual que siempre. El Gestor
+de datos la sustituye por getYearDesdeSnapshot para que las comprobaciones de edad usen el
+año calculado (ANOCALC) tal y como quedó guardado en el JSON de Seguridad la última vez que
+se pulsó "Recalcular", nunca un valor calculado u obtenido en este mismo momento. */
+obtenerAnio=obtenerAnio||getYear;
 var problemas=[];
 D.forEach(function(p){
 ['M1','M2'].forEach(function(campo){
@@ -4259,14 +4262,14 @@ if(p.PADRE&&p.MADRE&&p.PADRE===p.MADRE){
 problemas.push({icono:'fa-people-pulling',etiqueta:'Posible inconsistencia: mismo padre y madre',mensaje:esc(fn(p))+' tiene a '+esc(fn(PI[p.PADRE]))+' registrado a la vez como padre y como madre.',verId:p.ID});
 }
 ['M1','M2'].forEach(function(campo){if(p[campo]&&p[campo]===p.ID){problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: cónyuge de sí mismo/a',mensaje:esc(fn(p))+' figura como su propio/a cónyuge ('+campo+').',verId:p.ID});}});
-var yHijo=getYear(p);
+var yHijo=obtenerAnio(p);
 var yDefPropia=getDeathYear(p);
 if(yHijo!==null){
 [['PADRE','padre'],['MADRE','madre']].forEach(function(par){
 var campo=par[0],rel=par[1];
 var prog=p[campo]&&PI[p[campo]];
 if(prog){
-var yProg=getYear(prog);
+var yProg=obtenerAnio(prog);
 if(yProg!==null){
 var diff=yHijo-yProg;
 if(diff<EDAD_MIN_PROGENITOR){
@@ -4322,7 +4325,7 @@ var yDefConyuge=getDeathYear(conyuge);
 if(yDefConyuge!==null&&m.anio>yDefConyuge){
 problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defunción de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID});
 }
-var yConyuge=getYear(conyuge);
+var yConyuge=obtenerAnio(conyuge);
 if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
 problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.'+notaAnioNoConfirmado(p,conyuge),verId:p.ID});
 }
@@ -4513,6 +4516,85 @@ LEV_MIN_LEN:5          /* nivel C: longitud minima del topónimo */
 };
 var GES_UI={fuerza:{},pag:{}};
 var GES_CACHE=null;
+/* ===== Snapshot de años calculados (ANOCALC) para el Gestor de datos =====
+El Gestor de datos NUNCA calcula el año estimado por su cuenta: lo lee del archivo
+'anos-calculados.json' guardado en la carpeta de Seguridad de Drive, generado únicamente
+cuando se pulsa "Recalcular año calculado (ANOCALC)" en Herramientas (ver
+guardarAniosCalculadosDrive). Cada vez que se abre el Gestor de datos se vuelve a descargar
+ese archivo desde Drive (cargarAniosCalculadosDrive), nunca se reutiliza un cálculo local. */
+var ANOS_CALCULADOS_ARCHIVO='anos-calculados.json';
+var GES_ANIOS_SNAPSHOT=null; /* {ID:{valor,origen}} tras cargarAniosCalculadosDrive() */
+var GES_ANIOS_SNAPSHOT_FECHA=null;
+/* Año de una persona SOLO a partir del snapshot cargado desde Drive: NACA se lee igual que
+siempre (es un dato propio de la persona, no algo que el motor calcule), pero el segundo
+nivel (el año estimado automáticamente) viene exclusivamente de GES_ANIOS_SNAPSHOT, nunca de
+p.ANOCALC en memoria. APROX no se usa en ningún nivel: es un campo heredado de Access que ya
+no participa en ningún cálculo de la aplicación. Si el snapshot no está cargado, o la persona
+no figura en él (por ejemplo, se creó después del último "Recalcular"), devuelve null en ese
+nivel: el Gestor de datos prefiere no comprobar la edad de esa persona antes que inventar un
+valor. */
+function getYearDesdeSnapshot(p){
+if(!p)return null;
+if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}
+if(!GES_ANIOS_SNAPSHOT)return null;
+var e=GES_ANIOS_SNAPSHOT[p.ID];
+if(e&&e.origen==='ANOCALC'&&typeof e.valor==='number')return e.valor;
+return null;
+}
+/* Construye, a partir de los datos actuales en memoria (D), el mapa {ID:{valor,origen}} que
+se sube a Drive al pulsar "Recalcular". Este mapa es la "foto" del año calculado de cada
+persona en el momento del recálculo; es lo único que luego lee el Gestor de datos. */
+function construirMapaAniosCalculados(){
+var m={};
+D.forEach(function(p){
+var y=getYear(p);
+if(y===null)return;
+var origen=(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='')?'NACA':'ANOCALC';
+m[p.ID]={valor:y,origen:origen};
+});
+return m;
+}
+/* Busca (sin descargar) el archivo de años calculados dentro de la carpeta de Seguridad. */
+async function buscarArchivoAniosCalculadosDrive(){
+var carpeta=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
+if(!carpeta)return null;
+var q="'"+carpeta+"' in parents and name='"+ANOS_CALCULADOS_ARCHIVO+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesión de Google caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al buscar el archivo de años calculados');
+var d=await r.json();
+return(d.files&&d.files.length)?d.files[0]:null;
+}
+/* Sube (crea o sobrescribe, un único archivo) el JSON con los años calculados actuales.
+Se llama únicamente desde recalcularAnosEstimadosManual, justo después de que el recálculo
+local haya terminado y se haya guardado en el dispositivo. */
+async function guardarAniosCalculadosDrive(){
+var carpeta=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;
+if(!carpeta)throw new Error('No hay ninguna carpeta de Drive configurada');
+if(!tokenDriveValido())await conectarGoogleDrive();
+var mapa=construirMapaAniosCalculados();
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - años calculados',version:1,fecha:new Date().toISOString(),anios:mapa});
+var existente=await buscarArchivoAniosCalculadosDrive();
+var r=await subirArchivoDrive(ANOS_CALCULADOS_ARCHIVO,contenido,'application/json',carpeta,existente?existente.id:null);
+if(r.status===404&&existente){r=await subirArchivoDrive(ANOS_CALCULADOS_ARCHIVO,contenido,'application/json',carpeta,null);}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al guardar el archivo de años calculados');
+return true;
+}
+/* Descarga y parsea el archivo de años calculados desde la carpeta de Seguridad. Se llama
+cada vez que se abre (o se refresca) el Gestor de datos: nunca se reutiliza en memoria de
+una apertura a otra, para que el Gestor refleje siempre el último recálculo confirmado. */
+async function cargarAniosCalculadosDrive(){
+if(!tokenDriveValido())await conectarGoogleDrive();
+var archivo=await buscarArchivoAniosCalculadosDrive();
+if(!archivo)throw new Error('Todavía no existe ningún año calculado guardado en Drive. Pulsa "Recalcular año calculado (ANOCALC)" en Herramientas al menos una vez.');
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesión de Google caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al leer los años calculados');
+var texto=await r.text();
+var x;
+try{x=JSON.parse(texto);}catch(e){throw new Error('El archivo de años calculados de Drive está corrupto');}
+return{anios:(x&&x.anios)||{},fecha:(x&&x.fecha)||null};
+}
 function gesSlug(s){
 return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60)||'cat';
 }
@@ -4692,8 +4774,11 @@ accionMasiva:{etiqueta:'Calcular años estimados ('+sinPropio.length+')'}
 }
 function construirCategoriasMantenimiento(){
 var cats=[];
-/* §4.1 Inconsistencias: agrupadas por `etiqueta`, sin tocar detectarInconsistencias() */
-var incs=detectarInconsistencias();
+/* §4.1 Inconsistencias: agrupadas por `etiqueta`, sin tocar detectarInconsistencias().
+El Gestor de datos pasa getYearDesdeSnapshot para que las comprobaciones de edad usen
+exclusivamente el año calculado tal y como quedó guardado en Drive al pulsar "Recalcular",
+nunca un cálculo hecho aquí mismo. */
+var incs=detectarInconsistencias(getYearDesdeSnapshot);
 var porEtq={};
 incs.forEach(function(pr){
 var etq=String(pr.etiqueta||'Otras inconsistencias').trim();
@@ -4859,7 +4944,7 @@ if(!confirm('Se aplicarán automáticamente las correcciones seguras de "'+cat.t
 var antes=mapaPersonas(D);
 var aplicadas=0,aplicadosMsg={},fallidos={},prev=Infinity,guarda=0;
 while(guarda++<5000){
-var grupo=detectarInconsistencias().filter(function(pr){return gesSlug(pr.etiqueta)===catId;});
+var grupo=detectarInconsistencias(getYearDesdeSnapshot).filter(function(pr){return gesSlug(pr.etiqueta)===catId;});
 if(grupo.length>prev)break;
 prev=grupo.length;
 var it=null;
@@ -5132,7 +5217,8 @@ res.innerHTML=
 '<span class="ges-pill"><i class="fa-solid fa-layer-group"></i> '+cats.length+' categoría'+(cats.length===1?'':'s')+'</span>'+
 '<span class="ges-pill"><i class="fa-solid fa-list"></i> '+total+' elemento'+(total===1?'':'s')+' pendiente'+(total===1?'':'s')+'</span>'+
 '<span class="ges-pill">Actualizado '+new Date().toLocaleTimeString('es-ES')+'</span>'+
-'<button class="ef-btn ghost" style="padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Recalcular</button>';
+(GES_ANIOS_SNAPSHOT_FECHA?'<span class="ges-pill" title="Fecha del último \'Recalcular año calculado (ANOCALC)\' en Herramientas"><i class="fa-solid fa-calculator"></i> Años calculados el '+esc(new Date(GES_ANIOS_SNAPSHOT_FECHA).toLocaleString('es-ES'))+'</span>':'')+
+'<button class="ef-btn ghost" style="padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Recargar de Drive</button>';
 }
 }
 if(!cats.length){
@@ -5145,8 +5231,26 @@ cats.forEach(function(c){h+=gesRenderCat(c);});
 cont.innerHTML=h;
 }
 /* §5: cada vez que se entra en la pantalla o se aplica una correccion se recalcula desde cero.
-Las categorias que llegan a 0 items simplemente dejan de pintarse. */
-function rGes(){
+Las categorias que llegan a 0 items simplemente dejan de pintarse.
+El Gestor de datos nunca calcula el año estimado por su cuenta: antes de detectar nada,
+descarga siempre el archivo 'anos-calculados.json' de la carpeta de Seguridad en Drive (ver
+cargarAniosCalculadosDrive). Si esa descarga falla, se muestra el error y NO se calculan
+inconsistencias de edad con datos locales como alternativa. */
+async function rGes(){
+var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
+if(res)res.innerHTML='';
+if(cont)cont.innerHTML='<div class="ges-ok"><i class="fa-solid fa-spinner fa-spin" style="font-size:22px"></i><div>Cargando el archivo de años calculados desde la carpeta de Seguridad en Drive...</div></div>';
+try{
+var snap=await cargarAniosCalculadosDrive();
+GES_ANIOS_SNAPSHOT=snap.anios;
+GES_ANIOS_SNAPSHOT_FECHA=snap.fecha;
+}catch(err){
+GES_ANIOS_SNAPSHOT=null;
+GES_ANIOS_SNAPSHOT_FECHA=null;
+GES_CACHE=null;
+if(cont)cont.innerHTML='<div class="ges-ok" style="border-color:#c0392b"><i class="fa-solid fa-triangle-exclamation" style="font-size:22px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(err.message)+'<br>El Gestor de datos no calcula las inconsistencias de edad por su cuenta, así que no puede mostrarlas hasta que este archivo esté disponible.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>';
+return;
+}
 GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
 /* Si el motor ANOCALC quedo pendiente (datos cambiados desde el ultimo calculo), se ofrece la
@@ -7799,7 +7903,7 @@ function g(idx, def){var val = (v[idx] !== undefined) ? v[idx].trim() : ''; if(v
 function n(idx){ var val = g(idx, ''); if(val.indexOf('/') !== -1) return null; if(val==='') return null; var f=parseFloat(val); return isNaN(f) ? null : f; }
 row.ID = g(0, ''); if(!row.ID) { skipped++; continue; }
 if(seenIds[row.ID]) dupCount++; else seenIds[row.ID]=true;
-var aprox = n(1); row.APROX = (aprox!==null) ? String(aprox) : ''; row.MotivoAprox = '';
+row.APROX=''; row.MotivoAprox='';
 row.NoVISIBLE = g(2, ''); row.APELLIDO1 = g(3, ''); row.APELLIDO2 = g(4, ''); row.NOMBRE = g(5, ''); row.PADRE = g(6, ''); row.MADRE = g(7, ''); row.LUGARNAC = g(8, ''); row.LUGARDEF = g(9, ''); row.OBSERVACIONES = g(10, ''); row.SEXO = g(11, ''); row.FechaEdicion = g(12, ''); row.NACD = n(13); row.NACM = n(14); row.NACA = n(15); row.DEFD = n(16); row.DEFM = n(17); row.DEFA = n(18); row.M1 = g(19, ''); row.MF1 = g(20, ''); row.ML1 = g(21, ''); row.M2 = g(22, ''); row.MF2 = g(23, ''); row.ML2 = g(24, ''); row.FALLECIDO = g(25, ''); row.ANOCALC=''; row.ANOCALC_MOTIVO=''; row.ANOCALC_DISTANCIA=''; row.ETIQUETAS='';
 data.push(row);
 }
@@ -8028,7 +8132,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
 <div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();borrarTodosAprox()"><div class="herr-icon"><i class="fa-solid fa-eraser"></i></div><div class="herr-text"><div class="herr-title">Borrar todos los años aproximados (APROX)</div><div class="herr-desc">Elimina el campo heredado de Access en toda la base y recalcula el año estimado (ANOCALC) donde haga falta</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();borrarTodosAprox()"><div class="herr-icon"><i class="fa-solid fa-eraser"></i></div><div class="herr-text"><div class="herr-title">Borrar todos los años aproximados (APROX)</div><div class="herr-desc">Limpieza del campo heredado de Access, ya no usado en ningún cálculo de la aplicación</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Documentos (Google Drive)</div><div class="herr-desc">Configura la carpeta raíz con los documentos por persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();configurarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Configurar carpeta de copia (fotos y documentos)</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
