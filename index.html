@@ -2713,9 +2713,29 @@ var valorAnterior=valorNodo[id];
    oscilaciones en vez de converger. */
 var nuevoValor=Math.round(valorAnterior+ANOCALC_RELAJACION_ALFA*(consenso-valorAnterior));
 var lim=gesLimitesDuros(id,valorNodo,visitado,origen);
-if(lim&&lim.lo<=lim.hi){
+if(lim){
+if(lim.lo<=lim.hi){
 if(nuevoValor<lim.lo)nuevoValor=Math.round(lim.lo);
 else if(nuevoValor>lim.hi)nuevoValor=Math.round(lim.hi);
+}else{
+/* v2.4 — mismo criterio de seguridad que ya tiene la Fase B (v2.2) para este mismo caso,
+que aquí faltaba: los límites de esta persona pueden volverse contradictorios (lo>hi) EN
+MITAD de la relajación de la Fase C, aunque no lo fueran al cerrar la Fase B, porque en
+cada ronda se recalculan contra el valor MÁS RECIENTE de los vecinos (padre, madre, boda...),
+y ese valor cambia de una ronda a otra. Antes de este cambio, cuando pasaba esto, el 'if'
+de más arriba no entraba y nuevoValor se dejaba tal cual salía del consenso ponderado, SIN
+recortar contra ningún límite duro — ni siquiera contra uno que depende solo de un dato
+real de la propia persona (p.ej. la cota por edad mínima de boda, ANOCALC_LIMITES.edadMinConyuge,
+contra su propio MF1/MF2) y que no debería poder saltarse nunca. Ese hueco es la explicación
+más probable de casos como 'Petra Ollo Sagués' (matrimonio real en 1815, ANOCALC estimó su
+nacimiento en 1809, con solo 6 años, pese a que edadMinConyuge=14 debía impedirlo). Se aplica
+aquí el mismo criterio que la Fase B: se proyecta al límite (lo o hi) más cercano al valor
+bruto, y el nodo queda marcado 'contaminado' desde esta ronda (se excluye como fuente para
+sus vecinos en las rondas siguientes, igual que un nodo contaminado en la Fase B), en vez de
+dejarlo circular sin acotar y arrastrar el error a más personas por otros parentescos. */
+origen[id].contaminado=true;
+nuevoValor=(Math.abs(nuevoValor-lim.lo)<=Math.abs(nuevoValor-lim.hi))?Math.round(lim.lo):Math.round(lim.hi);
+}
 }
 var cambio=Math.abs(nuevoValor-valorAnterior);
 if(cambio>maxCambio)maxCambio=cambio;
@@ -4440,12 +4460,12 @@ if(anioMat!==null)matrimonios.push({campo:par[0],conyugeId:conyugeId,anio:anioMa
 matrimonios.forEach(function(m){
 var conyuge=m.conyugeId?PI[m.conyugeId]:null;
 if(yDefPropia!==null&&m.anio>yDefPropia){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' en '+m.anio+' es posterior a su propia defunción ('+yDefPropia+').',verId:p.ID});
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' en '+m.anio+' es posterior a su propia defunción ('+yDefPropia+').',verId:p.ID,calculado:false/*m.anio viene de MF1/MF2 (texto real) y yDefPropia de DEFA: getDeathYear() nunca usa ANOCALC, así que este aviso es siempre real vs real*/});
 }
 if(conyuge){
 var yDefConyuge=getDeathYear(conyuge);
 if(yDefConyuge!==null&&m.anio>yDefConyuge){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defunción de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID});
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior a la defunción',mensaje:'El matrimonio de '+esc(fn(p))+' con '+esc(fn(conyuge))+' en '+m.anio+' es posterior a la defunción de '+esc(fn(conyuge))+' ('+yDefConyuge+').',verId:p.ID,calculado:false});
 }
 var yConyuge=obtenerAnio(conyuge);
 if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
@@ -4457,7 +4477,7 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a e
 }
 });
 if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrimonio anterior al primero',mensaje:esc(fn(p))+' tiene el segundo matrimonio fechado en '+matrimonios[1].anio+', antes que el primero ('+matrimonios[0].anio+').',verId:p.ID});
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrimonio anterior al primero',mensaje:esc(fn(p))+' tiene el segundo matrimonio fechado en '+matrimonios[1].anio+', antes que el primero ('+matrimonios[0].anio+').',verId:p.ID,calculado:false/*MF1/MF2 son texto real, nunca ANOCALC*/});
 }
 if(isAl(p)&&yHijo!==null&&!p.ANOCALC_CONTAMINADO){
 var edadActual=new Date().getFullYear()-yHijo;
@@ -4481,7 +4501,7 @@ if(!fechaH)return;
 var diasMs=Math.abs(fechaP.getTime()-fechaH.getTime());
 var dias=Math.round(diasMs/86400000);
 if(dias>0&&dias<DIAS_MIN_ENTRE_HERMANOS){
-problemas.push({icono:'fa-baby',etiqueta:'Posible inconsistencia: hermanos con nacimientos demasiado próximos',mensaje:esc(fn(p))+' y '+esc(fn(h))+', hijos de la misma madre, nacen con solo '+dias+' dia(s) de diferencia (menos de '+DIAS_MIN_ENTRE_HERMANOS+'), salvo que sean mellizos o gemelos nacidos el mismo dia.',verId:p.ID});
+problemas.push({icono:'fa-baby',etiqueta:'Posible inconsistencia: hermanos con nacimientos demasiado próximos',mensaje:esc(fn(p))+' y '+esc(fn(h))+', hijos de la misma madre, nacen con solo '+dias+' dia(s) de diferencia (menos de '+DIAS_MIN_ENTRE_HERMANOS+'), salvo que sean mellizos o gemelos nacidos el mismo dia.',verId:p.ID,calculado:false/*fechaCompletaNac() exige NACD+NACM+NACA los tres presentes: nunca cae a ANOCALC, así que este aviso es siempre sobre datos INGRESADOS reales*/});
 }
 });
 });
@@ -4912,13 +4932,17 @@ var lista=porEtq[etq];
 var meta=gesMetaCat(etq);
 var id=gesSlug(etq);
 var todasAplicables=lista.length>1&&lista.every(function(x){return typeof x.aplicar==='function';});
-/* Desglose CALCULADO vs INGRESADO (v2.3): dentro de cada grupo de inconsistencias, separa
-   cuántos casos implican un año CALCULADO (ANOCALC, estimación automática todavía sin
-   confirmar) de cuántos son enteramente sobre datos INGRESADOS (NACA/DEFA reales, confirmados
-   por el usuario). Solo tiene sentido para las comprobaciones de edad, que son las únicas que
-   marcan el campo `calculado` en detectarInconsistencias(); el resto de comprobaciones (género,
-   vínculos duplicados, hermanos muy próximos...) no dependen de ningún año y se dejan sin
-   desglosar. */
+/* Desglose CALCULADO vs INGRESADO (v2.3, ampliado en v2.4): dentro de cada grupo de
+   inconsistencias, separa cuántos casos implican un año CALCULADO (ANOCALC, estimación
+   automática todavía sin confirmar) de cuántos son enteramente sobre datos INGRESADOS
+   (NACA/DEFA/MF1/MF2 reales, confirmados por el usuario). Todas las comprobaciones de edad
+   marcan ahora el campo `calculado` en detectarInconsistencias() — incluidas las que, por
+   construcción, nunca pueden depender de ANOCALC (matrimonio posterior a la defunción, segundo
+   matrimonio anterior al primero, hermanos con nacimientos demasiado próximos: siempre
+   `calculado:false`, ver comentarios junto a cada `problemas.push`), para que su barra muestre
+   igualmente "0 con año CALCULADO — N solo con datos INGRESADOS" y quede explícito que esas
+   categorías son siempre sobre datos reales. Las comprobaciones que no son de edad (género,
+   vínculos duplicados...) siguen sin desglosar. */
 var conFlag=lista.filter(function(x){return typeof x.calculado==='boolean';});
 var nCalculado=conFlag.filter(function(x){return x.calculado;}).length;
 var nIngresado=conFlag.length-nCalculado;
