@@ -2314,6 +2314,58 @@ if(p.M2&&PI[p.M2])out.push({id:p.M2,tipo:'conyuge',delta:0,coste:stats.conyuge.d
 gHerm(id).forEach(function(h){out.push({id:h.ID,tipo:'hermano',delta:0,coste:stats.hermanos.desv});});
 return out;
 }
+/* ===== LÍMITES DUROS: ningún año estimado puede "cruzar" las mismas reglas que usa el
+Gestor de datos para detectar inconsistencias (EDAD_MIN_PROGENITOR, ANIOS_MAX_PADRE_HIJO,
+defunción real de un progenitor, edad extrema entre cónyuges, matrimonio real, muerte
+propia real y persona viva con edad extraordinaria). Se calculan en el momento en que
+cada persona se "cierra" en el recorrido (justo antes de propagar desde ella), comparando
+SOLO contra parientes que YA tienen un año fijado: reales desde el principio, o ya
+recortados antes porque llegaron por un camino más barato/fiable. Como el recorrido
+visita primero lo más fiable, cualquier persona calculada después queda recortada para
+no violar la relación con lo que ya está fijado — así ninguna pareja de familiares
+directos puede acabar con una diferencia de edad imposible entre ellos. Las constantes
+(EDAD_MIN_PROGENITOR, etc.) se definen más abajo en el fichero pero, al ser 'var' de
+ámbito global, ya están asignadas para cuando esta función se invoca en tiempo de
+ejecución (nunca durante la carga inicial del script). */
+function gesLimitesDuros(id,valorNodo,visitado){
+var p=PI[id];
+if(!p)return null;
+var lo=-Infinity,hi=Infinity;
+function acota(loN,hiN){if(loN!==null&&loN!==undefined&&loN>lo)lo=loN;if(hiN!==null&&hiN!==undefined&&hiN<hi)hi=hiN;}
+[['PADRE'],['MADRE']].forEach(function(par){
+var pid=p[par[0]];
+if(!pid)return;
+var prog=PI[pid];
+if(prog){
+var yDef=getDeathYear(prog);
+if(yDef!==null)acota(null,yDef);
+}
+if(visitado[pid]&&valorNodo[pid]!==undefined){
+var yProg=valorNodo[pid];
+acota(yProg+EDAD_MIN_PROGENITOR,yProg+ANIOS_MAX_PADRE_HIJO);
+}
+});
+(HD[id]||[]).forEach(function(hid){
+if(visitado[hid]&&valorNodo[hid]!==undefined){
+var yHijo=valorNodo[hid];
+acota(yHijo-ANIOS_MAX_PADRE_HIJO,yHijo-EDAD_MIN_PROGENITOR);
+}
+});
+[p.M1,p.M2].forEach(function(cid){
+if(cid&&visitado[cid]&&valorNodo[cid]!==undefined){
+var yC=valorNodo[cid];
+acota(yC-(DIF_EDAD_CONYUGES_EXTREMA-1),yC+(DIF_EDAD_CONYUGES_EXTREMA-1));
+}
+});
+[['M1','MF1'],['M2','MF2']].forEach(function(par){
+var anioMat=extraerAnioTexto(p[par[1]]);
+if(anioMat!==null)acota(null,anioMat-EDAD_MIN_CONYUGE);
+});
+var yDefPropia=getDeathYear(p);
+if(yDefPropia!==null)acota(null,yDefPropia);
+if(isAl(p))acota(new Date().getFullYear()-EDAD_VIVO_EXTREMA,null);
+return{lo:lo,hi:hi};
+}
 function calcularAnosEstimados(statsPrecalculadas){
 var stats=statsPrecalculadas||calcularEstadisticasArbol();
 var dist={},origen={},valorNodo={},saltos={},visitado={};
@@ -2336,6 +2388,21 @@ var id=cola[qi];
 if(visitado[id])continue;
 if(Math.round(dist[id])!==b)continue;
 visitado[id]=true;
+/* Solo se recortan las estimaciones (origen[id].pred!==null); un año real
+(pred===null, viene de NACA/APROX) nunca se toca. Si los límites resultan
+contradictorios (lo>hi), es que el conflicto viene de datos REALES de otros
+familiares ya fijados: no hay ningún valor que respete a la vez a todos, así
+que no se fuerza nada aquí (ese conflicto seguirá saliendo, correctamente,
+como inconsistencia real en el Gestor de datos, sin depender de esta persona). */
+if(origen[id].pred!==null){
+var lim=gesLimitesDuros(id,valorNodo,visitado);
+if(lim&&lim.lo<=lim.hi){
+var valorCrudo=valorNodo[id];
+if(valorNodo[id]<lim.lo)valorNodo[id]=Math.round(lim.lo);
+else if(valorNodo[id]>lim.hi)valorNodo[id]=Math.round(lim.hi);
+if(valorNodo[id]!==valorCrudo)origen[id].recorte={desde:valorCrudo,hasta:valorNodo[id]};
+}
+}
 aristasParentesco(id,stats).forEach(function(ar){
 if(visitado[ar.id])return;
 var costeNuevo=dist[id]+ar.coste;
@@ -2362,7 +2429,9 @@ if(!pred||!nodo)return'';
 var rel=etiquetaRelacionEstimada(info.tipo,sexoLetra(nodo));
 var anioPred=resultado.valorNodo[info.pred];
 var predEsReal=getYearReal(pred)!==null;
-return'Calculado automáticamente el '+fecha+': '+fn(nodo).trim()+' es '+rel+' de '+fn(pred).trim()+' ('+(predEsReal?anioPred:('\u2248'+anioPred))+'), usando la diferencia media de edad real calculada en este árbol para ese tipo de parentesco.';
+var base='Calculado automáticamente el '+fecha+': '+fn(nodo).trim()+' es '+rel+' de '+fn(pred).trim()+' ('+(predEsReal?anioPred:('\u2248'+anioPred))+'), usando la diferencia media de edad real calculada en este árbol para ese tipo de parentesco.';
+if(info.recorte)base+=' El resultado directo de esa diferencia (\u2248'+info.recorte.desde+') se ha ajustado a \u2248'+info.recorte.hasta+' para no violar las edades mínimas/máximas frente a un familiar cercano que ya tenía año fijado.';
+return base;
 }
 /* ===== TAREA 4: VISTA DE DEPURACIÓN — reconstrucción del camino =====
    Reutiliza exclusivamente la información que ya produce calcularAnosEstimados()
@@ -3550,14 +3619,21 @@ registrarCambiosDesdeSnapshots(antesCambioEliminar,nuevos,'eliminar');
 }
 function estimarNodoLocal(id){
 var p=PI[id];if(!p)return false;
-var stats=calcularEstadisticasArbol(),base=null,delta=0,tipo='';
+var stats=calcularEstadisticasArbol(),base=null,delta=0,tipo='',esHijo=false;
 function anio(q){return q?getYear(q):null;}
-if(p.PADRE&&PI[p.PADRE]&&anio(PI[p.PADRE])!==null){base=anio(PI[p.PADRE]);delta=stats.padre.media;tipo='hijo';}
-if(base===null&&p.MADRE&&PI[p.MADRE]&&anio(PI[p.MADRE])!==null){base=anio(PI[p.MADRE]);delta=stats.madre.media;tipo='hija';}
+if(p.PADRE&&PI[p.PADRE]&&anio(PI[p.PADRE])!==null){base=anio(PI[p.PADRE]);delta=stats.padre.media;tipo='hijo';esHijo=true;}
+if(base===null&&p.MADRE&&PI[p.MADRE]&&anio(PI[p.MADRE])!==null){base=anio(PI[p.MADRE]);delta=stats.madre.media;tipo='hija';esHijo=true;}
 if(base===null&&p.M1&&PI[p.M1]&&anio(PI[p.M1])!==null){base=anio(PI[p.M1]);delta=0;tipo='cónyuge';}
 if(base===null&&p.M2&&PI[p.M2]&&anio(PI[p.M2])!==null){base=anio(PI[p.M2]);delta=0;tipo='cónyuge';}
 if(base===null)return false;
 var valor=Math.round(base+delta);
+/* Mismos límites duros que en calcularAnosEstimados, aplicados aquí contra el único
+familiar conocido en este momento: nunca menos de EDAD_MIN_PROGENITOR años ni más de
+ANIOS_MAX_PADRE_HIJO respecto al progenitor usado como base. */
+if(esHijo){
+if(valor<base+EDAD_MIN_PROGENITOR)valor=base+EDAD_MIN_PROGENITOR;
+else if(valor>base+ANIOS_MAX_PADRE_HIJO)valor=base+ANIOS_MAX_PADRE_HIJO;
+}
 p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
 p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
 return true;
@@ -3783,13 +3859,18 @@ var msg;
 var notaEst=notaAnioNoConfirmado(p,prog);
 if(diff<0) msg=esc(fn(prog))+' ('+yProg+') nace después que '+esc(fn(p))+' ('+yHijo+'), pero figura como su '+rel+'.'+notaEst;
 else msg=esc(fn(prog))+' ('+yProg+') tendría solo '+diff+' año(s) al nacer '+esc(fn(p))+' ('+yHijo+') y figura como su '+rel+'.'+notaEst;
-problemas.push({
+var prob={
 icono:'fa-calendar-xmark',
 etiqueta:'Posible edad incoherente entre padres e hijos',
 mensaje:msg,
-aplicar:function(){return aplicarFixEdadDesvincular(p.ID,campo);},
 verId:p.ID
-});
+};
+/* La corrección automática (desvincular) es destructiva: solo se ofrece cuando
+AMBOS años son datos confirmados (NACA). Si cualquiera de los dos viene de un
+año aproximado o estimado automáticamente, el caso queda para revisión manual,
+para no romper un vínculo familiar real por culpa de una estimación. */
+if(!notaEst)prob.aplicar=function(){return aplicarFixEdadDesvincular(p.ID,campo);};
+problemas.push(prob);
 } else if(diff>ANIOS_MAX_PADRE_HIJO){
 problemas.push({
 icono:'fa-calendar-xmark',
@@ -3804,7 +3885,7 @@ if(yDefProg!==null&&yHijo>yDefProg){
 problemas.push({
 icono:'fa-calendar-xmark',
 etiqueta:'Posible inconsistencia: hijo nacido tras la defunción del progenitor',
-mensaje:esc(fn(p))+' nace en '+yHijo+', después de la defunción de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.',
+mensaje:esc(fn(p))+' nace en '+yHijo+', después de la defunción de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.'+notaAnioNoConfirmado(p),
 verId:p.ID
 });
 }
@@ -4101,26 +4182,33 @@ vs.forEach(function(v){usadas[v.txt]=true;});
 });
 return{grupos:grupos,usadas:usadas};
 }
-/* Nivel B: la forma normalizada de un valor aparece (como palabras contiguas) dentro de otro */
+/* Nivel B: un lugar es el inicio jerárquico EXACTO del otro, comparando por segmentos
+separados por comas (p.ej. "Sevilla" es el segmento 1 de "Sevilla, Sevilla, Andalucía,
+España"). A diferencia de la contención por palabras sueltas (desactivada antes por dar
+falsos positivos como "Santiago" con "Santiago de Compostela", que son lugares distintos
+aunque compartan una palabra), aquí solo se unen cuando TODOS los segmentos de la forma
+corta coinciden, en el mismo orden, con los primeros segmentos de la forma larga. */
+function gesSegmentosLugar(txt){
+return String(txt||'').split(',').map(function(s){return normTxt(s.trim());}).filter(function(s){return s.length>0;});
+}
 function gesLugaresNivelB(resto){
-var uf=gesUF(),porClave={};
+var uf=gesUF(),porSegKey={};
 resto.forEach(function(e){
 uf.add(e.txt);
-var k=normTxt(e.txt);
-if(k)porClave[k]=e;
+var segs=gesSegmentosLugar(e.txt);
+e._ges_segs=segs;
+var key=segs.join('|');
+if(key)porSegKey[key]=e;
 });
 resto.forEach(function(e){
-var k=normTxt(e.txt);
-var pal=k.split(' ').filter(function(w){return w.length>0;});
-for(var i=0;i<pal.length;i++){
-for(var j=i+1;j<=pal.length;j++){
-var sub=pal.slice(i,j).join(' ');
-if(sub===k||sub.length<3)continue;
-var otra=porClave[sub];
+var segs=e._ges_segs;
+for(var i=1;i<segs.length;i++){
+var prefKey=segs.slice(0,i).join('|');
+var otra=porSegKey[prefKey];
 if(otra&&otra.txt!==e.txt)uf.union(e.txt,otra.txt);
 }
-}
 });
+resto.forEach(function(e){delete e._ges_segs;});
 return gesClustersANivel(resto,uf,'B');
 }
 function gesLev(a,b){
@@ -4165,12 +4253,11 @@ return gesClustersANivel(resto,uf,'C');
 function gesDetectarLugares(){
 var entradas=gesDiccionarioLugares();
 var A=gesLugaresNivelA(entradas);
-var resto=entradas.filter(function(e){return !A.usadas[e.txt];});
-/* Nivel B (contención) desactivado a propósito: generaba falsos positivos
-   uniendo lugares distintos que solo comparten una palabra (p.ej. "Santiago"
-   con "Santiago de Compostela"), y ya causó una unificación incorrecta. */
-var C=gesLugaresNivelC(resto);
-return A.grupos.concat(C.grupos);
+var resto1=entradas.filter(function(e){return !A.usadas[e.txt];});
+var B=gesLugaresNivelB(resto1);
+var resto2=resto1.filter(function(e){return !B.usadas[e.txt];});
+var C=gesLugaresNivelC(resto2);
+return A.grupos.concat(B.grupos).concat(C.grupos);
 }
 function gesGrupoKey(g){
 var claves=g.variantes.map(function(v){return normTxt(v.txt);});
@@ -4549,7 +4636,7 @@ var clave=gesGrupoKey(g);
 var ids={};
 g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});
 var n=Object.keys(ids).length;
-var etiquetas={A:'Nivel A · solo mayúsculas, tildes o puntuación',B:'Nivel B · una forma contiene a la otra',C:'Nivel C · posible errata'};
+var etiquetas={A:'Nivel A · solo mayúsculas, tildes o puntuación',B:'Nivel B · un lugar es el inicio jerárquico del otro (por comas)',C:'Nivel C · posible errata'};
 var h='<div class="ges-lugar"><span class="ges-nivel">'+etiquetas[g.nivel]+'</span><div>';
 if(g.nivel==='A'){
 h+='<div style="display:flex;flex-direction:column;gap:4px;margin:6px 0 10px;align-items:flex-start">';
