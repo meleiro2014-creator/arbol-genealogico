@@ -2187,7 +2187,35 @@ url='https://www.google.com/search?q='+query;
 }
 if(url)window.open(url,'_blank');
 }
-/* ===== MOTOR DE AÑOS ESTIMADOS (ANOCALC) ===== */
+/* ===== MOTOR DE AÑOS ESTIMADOS (ANOCALC) — v2 =====
+   Revisión completa del motor con tres objetivos, en este orden de prioridad:
+   1) Que ninguna estimación fabricada por la app pueda producir, por sí sola, una
+      situación biográficamente imposible o extraordinaria (hijo tras la defunción
+      de un progenitor, matrimonio con una diferencia de edad extrema, etc.).
+   2) Que cada estimación aproveche TODA la información familiar disponible (no solo
+      el pariente más "barato"), sin dejar de ser explicable paso a paso.
+   3) Que un único dato mal tecleado en el árbol no pueda contaminar el cálculo de
+      todas las demás personas.
+   El diseño completo, con las fórmulas y la justificación de cada número, está en
+   el documento ANOCALC_v2_documentacion.md que acompaña a esta app. Resumen rápido
+   de la arquitectura (3 fases, todas dentro de calcularAnosEstimados):
+     Fase A — calcularEstadisticasArbol(): estadística ROBUSTA (mediana + MAD, no
+       media/desviación clásicas) de las diferencias de edad reales del árbol, con
+       una "envolvente de sensatez" que descarta valores disparatados antes de que
+       entren en el cálculo, y una contracción bayesiana hacia el valor por defecto
+       cuando hay pocos casos reales.
+     Fase B — propagación (Dijkstra sobre coste=fiabilidad, como ya existía) más
+       proyección a límites biográficos verosímiles propios del motor (más
+       estrictos que los del Comprobador de consistencia, con asimetría
+       padre/madre para nacimientos póstumos).
+     Fase C — NUEVA: relajación global. Una vez que todas las personas alcanzables
+       tienen un primer valor (fase B), se refina cada persona ESTIMADA usando el
+       promedio de TODOS sus parientes con año conocido/estimado (padres, hijos,
+       cónyuges, hermanos), ponderado por la fiabilidad de cada tipo de relación
+       (peso = 1/varianza, igual que al combinar medidas independientes de una
+       misma magnitud en topografía o en un filtro de Kalman), re-proyectando a
+       los límites verosímiles tras cada ronda hasta que el resultado se estabiliza.
+   ===== */
 function getYearReal(p){
 if(!p)return null;
 if(p.NACA!==undefined&&p.NACA!==null&&p.NACA!==''){var n=parseInt(p.NACA,10);if(!isNaN(n))return n;}
@@ -2224,9 +2252,42 @@ if(yr!==null)return String(yr);
 if(esAnioEstimado(p))return'\u2248'+p.ANOCALC+' (estimado — ver motivo abajo)';
 return'';
 }
+/* ---------- Estadística: clásica (se conserva para referencia/compatibilidad) y
+   robusta (mediana + MAD), esta última es la que gobierna el cálculo desde v2 ---------- */
 function ancMedia(arr){if(!arr.length)return 0;var s=0;arr.forEach(function(x){s+=x;});return s/arr.length;}
 function ancDesv(arr,m){if(arr.length<2)return 0;var s=0;arr.forEach(function(x){s+=(x-m)*(x-m);});return Math.sqrt(s/(arr.length-1));}
+function ancMediana(arr){
+if(!arr.length)return 0;
+var s=arr.slice().sort(function(a,b){return a-b;});
+var mid=Math.floor(s.length/2);
+return s.length%2?s[mid]:(s[mid-1]+s[mid])/2;
+}
+/* Desviación absoluta mediana (MAD), reescalada ×1.4826 para que sea comparable a una
+   desviación típica bajo el supuesto de normalidad (1.4826 ≈ 1/Φ⁻¹(0.75), la constante
+   estándar de la estadística robusta). Un único dato absurdo (p.ej. una defunción mal
+   tecleada 60 años antes de lo real) apenas mueve la mediana ni el MAD, mientras que
+   desplazaría mucho la media y la desviación típica clásicas — y esa media clásica es
+   precisamente la que decide el año de TODAS las demás personas del árbol, así que su
+   robustez importa más de lo que podría parecer a primera vista. */
+function ancMAD(arr,mediana){
+if(!arr.length)return 0;
+var desv=arr.map(function(x){return Math.abs(x-mediana);});
+return 1.4826*ancMediana(desv);
+}
 var ANOCALC_DEFECTO={padre:28,madre:25,hermanos:3,conyuge:4};
+/* Envolvente de sensatez: SOLO decide qué diferencias de edad reales entran en el
+   cálculo de "cuál es la diferencia típica en este árbol". No borra ni modifica ningún
+   dato de ninguna persona, y no tiene relación con el Comprobador de consistencia (esa
+   comprobación, más abajo en este fichero, sigue exactamente igual que antes). Sirve
+   solo para que un caso real pero disparatado (edad mal tecleada, vínculo equivocado)
+   no arrastre la "diferencia típica" que luego se usa para estimar a todo el mundo. */
+var ANOCALC_ENVOLVENTE_ESTADISTICA={padre:{min:12,max:75},madre:{min:12,max:55},hermanos:{min:0,max:45},conyuge:{min:0,max:50}};
+/* Fuerza de la contracción bayesiana hacia el valor por defecto (ver resolverMediaTipo):
+   equivale a tratar el valor por defecto como si fuesen ANOCALC_CONTRACCION_K casos
+   reales adicionales. Sustituye al antiguo corte binario "n>=4 ? media real : defecto",
+   que producía un salto brusco justo entre 3 y 4 casos; con contracción, el peso del
+   valor por defecto baja de forma suave y continua según crecen los casos reales. */
+var ANOCALC_CONTRACCION_K=6;
 /* ===== TAREA 4: MEDIAS CONFIGURABLES POR TIPO DE PARENTESCO (CFG) =====
    Se guardan en un único objeto bajo la clave CFG 'anocalcMediasManual', igual
    que ya hace anocalcEstado. Un valor null/ausente para un tipo significa "usar
@@ -2265,11 +2326,12 @@ return m[tipo]||tipo;
 }
 function calcularEstadisticasArbol(){
 var diffPadre=[],diffMadre=[],diffConyuge=[],diffHermanos=[];
+var envP=ANOCALC_ENVOLVENTE_ESTADISTICA.padre,envM=ANOCALC_ENVOLVENTE_ESTADISTICA.madre,envH=ANOCALC_ENVOLVENTE_ESTADISTICA.hermanos,envC=ANOCALC_ENVOLVENTE_ESTADISTICA.conyuge;
 D.forEach(function(p){
 var yp=getYearReal(p);
 if(yp===null)return;
-if(p.PADRE&&PI[p.PADRE]){var yPa=getYearReal(PI[p.PADRE]);if(yPa!==null)diffPadre.push(yp-yPa);}
-if(p.MADRE&&PI[p.MADRE]){var yMa=getYearReal(PI[p.MADRE]);if(yMa!==null)diffMadre.push(yp-yMa);}
+if(p.PADRE&&PI[p.PADRE]){var yPa=getYearReal(PI[p.PADRE]);if(yPa!==null){var d=yp-yPa;if(d>=envP.min&&d<=envP.max)diffPadre.push(d);}}
+if(p.MADRE&&PI[p.MADRE]){var yMa=getYearReal(PI[p.MADRE]);if(yMa!==null){var d2=yp-yMa;if(d2>=envM.min&&d2<=envM.max)diffMadre.push(d2);}}
 });
 var vistoConyuge={},vistoHermano={};
 D.forEach(function(p){
@@ -2281,8 +2343,13 @@ var key=[p.ID,mid].sort().join('|');
 if(vistoConyuge[key])return;
 vistoConyuge[key]=true;
 var yC=getYearReal(PI[mid]);
-if(yC!==null)diffConyuge.push(Math.abs(yC-yp));
+if(yC!==null){var dC=Math.abs(yC-yp);if(dC>=envC.min&&dC<=envC.max)diffConyuge.push(dC);}
 });
+/* Solo se usan hermanos COMPLETOS (mismo padre Y misma madre, ambos presentes) para
+   la estadística — igual que ya hacía v1 — precisamente para evitar el problema que
+   sí tenía v1 en la propagación (ver aristasParentesco): sin esta condición, dos
+   personas con padre y madre vacíos comparten la misma "clave" interna de hermandad
+   y se tratarían como hermanos entre sí sin serlo. */
 if(!p.PADRE||!p.MADRE)return;
 gHerm(p.ID).forEach(function(h){
 if(h.PADRE!==p.PADRE||h.MADRE!==p.MADRE)return;
@@ -2290,31 +2357,42 @@ var key2=[p.ID,h.ID].sort().join('|');
 if(vistoHermano[key2])return;
 vistoHermano[key2]=true;
 var yh=getYearReal(h);
-if(yh!==null)diffHermanos.push(Math.abs(yp-yh));
+if(yh!==null){var dH=Math.abs(yp-yh);if(dH>=envH.min&&dH<=envH.max)diffHermanos.push(dH);}
 });
 });
-/* Media puramente estadística (para no perder el cálculo de desviación, que
-   sigue basándose SIEMPRE en los datos reales, nunca en el valor manual). */
-var statMediaPadre=diffPadre.length>=4?ancMedia(diffPadre):null;
-var statMediaMadre=diffMadre.length>=4?ancMedia(diffMadre):null;
-var statMediaHermanos=diffHermanos.length>=4?ancMedia(diffHermanos):null;
-var statMediaConyuge=diffConyuge.length>=4?ancMedia(diffConyuge):null;
-/* Precedencia (Tarea 4): manual > estadística (>=4 casos reales) > defecto. */
-function resolverMediaTipo(tipo,statMedia,defecto){
+function resumen(arr){
+var n=arr.length;
+if(!n)return{n:0,media:0,mediana:0,desv:0,mad:0};
+var media=ancMedia(arr),mediana=ancMediana(arr);
+return{n:n,media:media,mediana:mediana,desv:ancDesv(arr,media),mad:ancMAD(arr,mediana)};
+}
+var rsPadre=resumen(diffPadre),rsMadre=resumen(diffMadre),rsHermanos=resumen(diffHermanos),rsConyuge=resumen(diffConyuge);
+/* Precedencia (Tarea 4, sin cambios): manual > estadística real > defecto. La rama
+   "estadística real" ya no es un corte binario en n=4: es una contracción bayesiana
+   continua hacia el valor por defecto (ver ANOCALC_CONTRACCION_K más arriba), usando
+   la MEDIANA (robusta) de los casos reales filtrados por la envolvente de sensatez,
+   no la media clásica. Con n=0 la fórmula da exactamente el valor por defecto, así
+   que no hace falta un caso especial para "sin datos". */
+function resolverMediaTipo(tipo,rs,defecto){
 var manual=anocalcMediaManualValida(tipo);
 if(manual!==null)return{media:manual,origen:'manual'};
-if(statMedia!==null)return{media:statMedia,origen:'estadistica'};
-return{media:defecto,origen:'defecto'};
+var contraida=(rs.n*rs.mediana+ANOCALC_CONTRACCION_K*defecto)/(rs.n+ANOCALC_CONTRACCION_K);
+return{media:contraida,origen:rs.n>0?'estadistica':'defecto'};
 }
-var rPadre=resolverMediaTipo('padre',statMediaPadre,ANOCALC_DEFECTO.padre);
-var rMadre=resolverMediaTipo('madre',statMediaMadre,ANOCALC_DEFECTO.madre);
-var rHermanos=resolverMediaTipo('hermanos',statMediaHermanos,ANOCALC_DEFECTO.hermanos);
-var rConyuge=resolverMediaTipo('conyuge',statMediaConyuge,ANOCALC_DEFECTO.conyuge);
+var rPadre=resolverMediaTipo('padre',rsPadre,ANOCALC_DEFECTO.padre);
+var rMadre=resolverMediaTipo('madre',rsMadre,ANOCALC_DEFECTO.madre);
+var rHermanos=resolverMediaTipo('hermanos',rsHermanos,ANOCALC_DEFECTO.hermanos);
+var rConyuge=resolverMediaTipo('conyuge',rsConyuge,ANOCALC_DEFECTO.conyuge);
+/* El "coste" (fiabilidad, usado como peso de Dijkstra y de la relajación de la fase C)
+   usa el MAD robusto de los datos reales cuando hay al menos 4 casos filtrados —
+   mismo umbral y mismo suelo mínimo que ya existía en v1 — para que un solo dato mal
+   tecleado no pueda, por sí solo, hacer parecer un tipo de parentesco más fiable de
+   lo que realmente es (con la desviación típica clásica, sí podría). */
 return{
-padre:{media:rPadre.media,origen:rPadre.origen,estadistica:statMediaPadre,desv:Math.max(2,diffPadre.length>=4?ancDesv(diffPadre,statMediaPadre):8),n:diffPadre.length},
-madre:{media:rMadre.media,origen:rMadre.origen,estadistica:statMediaMadre,desv:Math.max(2,diffMadre.length>=4?ancDesv(diffMadre,statMediaMadre):7),n:diffMadre.length},
-hermanos:{media:rHermanos.media,origen:rHermanos.origen,estadistica:statMediaHermanos,desv:Math.max(1,diffHermanos.length>=4?ancDesv(diffHermanos,statMediaHermanos):4),n:diffHermanos.length},
-conyuge:{media:rConyuge.media,origen:rConyuge.origen,estadistica:statMediaConyuge,desv:Math.max(1,diffConyuge.length>=4?ancDesv(diffConyuge,statMediaConyuge):5),n:diffConyuge.length}
+padre:{media:rPadre.media,origen:rPadre.origen,estadistica:rsPadre.mediana,desv:Math.max(2,rsPadre.n>=4?rsPadre.mad:8),n:rsPadre.n},
+madre:{media:rMadre.media,origen:rMadre.origen,estadistica:rsMadre.mediana,desv:Math.max(2,rsMadre.n>=4?rsMadre.mad:7),n:rsMadre.n},
+hermanos:{media:rHermanos.media,origen:rHermanos.origen,estadistica:rsHermanos.mediana,desv:Math.max(1,rsHermanos.n>=4?rsHermanos.mad:4),n:rsHermanos.n},
+conyuge:{media:rConyuge.media,origen:rConyuge.origen,estadistica:rsConyuge.mediana,desv:Math.max(1,rsConyuge.n>=4?rsConyuge.mad:5),n:rsConyuge.n}
 };
 }
 function aristasParentesco(id,stats){
@@ -2331,60 +2409,197 @@ else if(h.MADRE===id)out.push({id:hid,tipo:'hijo',delta:stats.madre.media,coste:
 });
 if(p.M1&&PI[p.M1])out.push({id:p.M1,tipo:'conyuge',delta:0,coste:stats.conyuge.desv});
 if(p.M2&&PI[p.M2])out.push({id:p.M2,tipo:'conyuge',delta:0,coste:stats.conyuge.desv});
-gHerm(id).forEach(function(h){out.push({id:h.ID,tipo:'hermano',delta:0,coste:stats.hermanos.desv});});
+/* CORRECCIÓN v2: en v1 esta línea no comprobaba p.PADRE&&p.MADRE antes de llamar a
+   gHerm(id). gHerm agrupa por la clave interna (PADRE||'')+'|'+(MADRE||''); si dos o
+   más personas del árbol no tienen NINGÚN progenitor registrado, esa clave es la misma
+   para todas ('|') y v1 las trataba como hermanas entre sí sin serlo, propagando años
+   estimados entre personas sin ningún parentesco conocido. Con el árbol real esto solo
+   se nota si hay varias personas "raíz" sin padres — pero cuando ocurre, es silencioso
+   y puede ensuciar estimaciones de ramas enteras sin relación real. */
+if(p.PADRE&&p.MADRE)gHerm(id).forEach(function(h){out.push({id:h.ID,tipo:'hermano',delta:0,coste:stats.hermanos.desv});});
 return out;
 }
-/* ===== LÍMITES DUROS: ningún año estimado puede "cruzar" las mismas reglas que usa el
-Gestor de datos para detectar inconsistencias (EDAD_MIN_PROGENITOR, ANIOS_MAX_PADRE_HIJO,
-defunción real de un progenitor, edad extrema entre cónyuges, matrimonio real, muerte
-propia real y persona viva con edad extraordinaria). Se calculan en el momento en que
-cada persona se "cierra" en el recorrido (justo antes de propagar desde ella), comparando
-SOLO contra parientes que YA tienen un año fijado: reales desde el principio, o ya
-recortados antes porque llegaron por un camino más barato/fiable. Como el recorrido
-visita primero lo más fiable, cualquier persona calculada después queda recortada para
-no violar la relación con lo que ya está fijado — así ninguna pareja de familiares
-directos puede acabar con una diferencia de edad imposible entre ellos. Las constantes
-(EDAD_MIN_PROGENITOR, etc.) se definen más abajo en el fichero pero, al ser 'var' de
-ámbito global, ya están asignadas para cuando esta función se invoca en tiempo de
-ejecución (nunca durante la carga inicial del script). */
+/* ===== LÍMITES BIOGRÁFICOS VEROSÍMILES DEL MOTOR (ANOCALC_LIMITES) =====
+   Deliberadamente DISTINTOS y más estrictos que los del Comprobador de consistencia
+   (EDAD_MIN_PROGENITOR, ANIOS_MAX_PADRE_HIJO, DIF_EDAD_CONYUGES_EXTREMA..., definidos
+   más abajo en este fichero). Son dos responsabilidades distintas:
+     - El Comprobador de consistencia AVISA sobre datos ya confirmados por el usuario
+       (NACA/fechas reales); debe ser generoso y no marcar como "error" ningún caso
+       real, por extraordinario que sea (existen padres que tuvieron hijos pasados
+       los 70, o personas que vivieron más de 100 años: son raros, pero reales, y no
+       nos corresponde a nosotros dudar de un dato que el propio usuario confirmó).
+     - Este motor, en cambio, FABRICA un número donde antes no había ninguno. No debe
+       fabricar jamás uno biológica o demográficamente inverosímil, aunque el
+       Comprobador lo toleraría en un dato ya confirmado. Por eso estos límites son
+       más ceñidos, y por eso son ASIMÉTRICOS entre padre y madre en dos sitios donde
+       biológicamente corresponde serlo:
+     1) Margen de nacimiento póstumo: un hijo SÍ puede nacer hasta ~1 año natural
+        después de la muerte de su PADRE (un embarazo en curso al morir el padre),
+        pero NUNCA después de la muerte de su MADRE.
+     2) Ventana fértil: la del padre es más ancha que la de la madre.
+   Ningún valor de aquí se expone en la configuración de administrador (a diferencia
+   de las medias padre/madre/hermanos/cónyuge, que sí son ajustables desde la app);
+   son barreras de seguridad, no parámetros de ajuste fino. */
+var ANOCALC_LIMITES={
+edadMinPadre:14,
+edadMaxPadre:70,
+edadMinMadre:14,
+edadMaxMadre:55,
+graciaPostuma:1,
+difEdadConyugesPlausible:40,
+edadMinConyuge:14,
+dispersionMaxHermanos:35
+};
+/* ===== LÍMITES DUROS: ningún año estimado puede "cruzar" los límites biográficos
+verosímiles de ANOCALC_LIMITES frente a ningún familiar directo que ya tenga un año
+fijado (real, o ya calculado y cerrado antes por llegar por un camino más fiable).
+Se calculan en el momento en que cada persona se "cierra" en el recorrido —y, desde
+v2, TAMBIÉN en cada ronda de la relajación global de la fase C—, comparando SOLO
+contra parientes que YA tienen un año fijado en valorNodo. Como el recorrido visita
+primero lo más fiable y la relajación repite la proyección en cada ronda, cualquier
+persona calculada después queda recortada para no violar la relación con lo que ya
+está fijado — así ninguna pareja de familiares directos puede acabar con una edad
+imposible entre ellos. */
 function gesLimitesDuros(id,valorNodo,visitado){
 var p=PI[id];
 if(!p)return null;
 var lo=-Infinity,hi=Infinity;
 function acota(loN,hiN){if(loN!==null&&loN!==undefined&&loN>lo)lo=loN;if(hiN!==null&&hiN!==undefined&&hiN<hi)hi=hiN;}
-[['PADRE'],['MADRE']].forEach(function(par){
-var pid=p[par[0]];
-if(!pid)return;
-var prog=PI[pid];
-if(prog){
-var yDef=getDeathYear(prog);
-if(yDef!==null)acota(null,yDef);
+if(p.PADRE){
+var padre=PI[p.PADRE];
+if(padre){
+var yDefPadre=getDeathYear(padre);
+/* Nacimiento póstumo: se permite nacer hasta graciaPostuma años naturales después
+   de la muerte del padre (embarazo ya en curso). No se aplica a la madre: ver más
+   abajo. */
+if(yDefPadre!==null)acota(null,yDefPadre+ANOCALC_LIMITES.graciaPostuma);
+if(visitado[p.PADRE]&&valorNodo[p.PADRE]!==undefined){
+var yPa=valorNodo[p.PADRE];
+acota(yPa+ANOCALC_LIMITES.edadMinPadre,yPa+ANOCALC_LIMITES.edadMaxPadre);
 }
-if(visitado[pid]&&valorNodo[pid]!==undefined){
-var yProg=valorNodo[pid];
-acota(yProg+EDAD_MIN_PROGENITOR,yProg+ANIOS_MAX_PADRE_HIJO);
 }
-});
+}
+if(p.MADRE){
+var madre=PI[p.MADRE];
+if(madre){
+var yDefMadre=getDeathYear(madre);
+if(yDefMadre!==null)acota(null,yDefMadre);
+if(visitado[p.MADRE]&&valorNodo[p.MADRE]!==undefined){
+var yMa=valorNodo[p.MADRE];
+acota(yMa+ANOCALC_LIMITES.edadMinMadre,yMa+ANOCALC_LIMITES.edadMaxMadre);
+}
+}
+}
+/* Frente a hijos ya fijados: la ventana aplicable depende de si "id" hace de padre o
+   de madre para cada hijo concreto (nunca de su SEXO en general — así una persona con
+   hijos como padre en un vínculo e hijos como madre en otro, si el dato lo permitiera,
+   queda acotada de forma correcta en cada caso). */
 (HD[id]||[]).forEach(function(hid){
-if(visitado[hid]&&valorNodo[hid]!==undefined){
+if(!visitado[hid]||valorNodo[hid]===undefined)return;
+var h=PI[hid];
+if(!h)return;
 var yHijo=valorNodo[hid];
-acota(yHijo-ANIOS_MAX_PADRE_HIJO,yHijo-EDAD_MIN_PROGENITOR);
-}
+if(h.PADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxPadre,yHijo-ANOCALC_LIMITES.edadMinPadre);
+else if(h.MADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxMadre,yHijo-ANOCALC_LIMITES.edadMinMadre);
 });
 [p.M1,p.M2].forEach(function(cid){
 if(cid&&visitado[cid]&&valorNodo[cid]!==undefined){
 var yC=valorNodo[cid];
-acota(yC-(DIF_EDAD_CONYUGES_EXTREMA-1),yC+(DIF_EDAD_CONYUGES_EXTREMA-1));
+acota(yC-ANOCALC_LIMITES.difEdadConyugesPlausible,yC+ANOCALC_LIMITES.difEdadConyugesPlausible);
 }
 });
 [['M1','MF1'],['M2','MF2']].forEach(function(par){
 var anioMat=extraerAnioTexto(p[par[1]]);
-if(anioMat!==null)acota(null,anioMat-EDAD_MIN_CONYUGE);
+if(anioMat!==null)acota(null,anioMat-ANOCALC_LIMITES.edadMinConyuge);
 });
+/* NUEVO en v2: frente a hermanos completos ya fijados. v1 no tenía ningún límite
+   duro aquí, pese a que sí propagaba años a través de hermanos (con diferencia 0):
+   nada impedía que dos hermanos estimados por caminos distintos acabasen con años
+   muy alejados entre sí. Se exige mismo padre Y misma madre, ambos presentes —
+   igual que en el resto del motor— para no mezclar medios hermanos. */
+if(p.PADRE&&p.MADRE){
+gHerm(id).forEach(function(h){
+if(visitado[h.ID]&&valorNodo[h.ID]!==undefined){
+var yH=valorNodo[h.ID];
+acota(yH-ANOCALC_LIMITES.dispersionMaxHermanos,yH+ANOCALC_LIMITES.dispersionMaxHermanos);
+}
+});
+}
 var yDefPropia=getDeathYear(p);
 if(yDefPropia!==null)acota(null,yDefPropia);
 if(isAl(p))acota(new Date().getFullYear()-EDAD_VIVO_EXTREMA,null);
 return{lo:lo,hi:hi};
+}
+/* ===== FASE C (nueva en v2): relajación global por consenso ponderado =====
+   La fase B (Dijkstra) da a cada persona estimada el valor de UN único camino: el
+   más fiable, pero solo uno. Si una persona tiene, además de ese camino, otros
+   parientes con año conocido o ya estimado (p.ej. se llega por el padre, pero
+   también se conoce el año del cónyuge o de un hermano), esa información adicional
+   se descartaba por completo en v1.
+   La fase C corrige esto sin tocar el resultado de la fase B como explicación
+   "estructural" (el motivo de texto y la vista de depuración siguen señalando el
+   mismo camino/pariente principal): a partir del resultado de la fase B, cada
+   persona ESTIMADA se recalcula como la media de "lo que implica cada pariente
+   conocido", ponderada por 1/varianza de cada tipo de relación — el mismo principio
+   que combinar varias medidas independientes de una misma magnitud en topografía,
+   o las actualizaciones de un filtro de Kalman: cuanto más fiable (menor varianza)
+   es un tipo de relación, más pesa su opinión sobre el año final. Tras cada ronda se
+   vuelve a proyectar sobre los límites verosímiles (gesLimitesDuros), igual que en
+   la fase B. Se repite un número acotado de rondas (Gauss–Seidel) hasta que el
+   mayor cambio de una ronda es insignificante — convergencia rápida garantizada
+   porque el árbol es una red dispersa (casi un árbol de verdad, salvo los ciclos que
+   introducen las segundas nupcias) y porque se parte ya del resultado de la fase B,
+   muy cercano a la solución final. */
+var ANOCALC_RELAJACION_SWEEPS=8;
+var ANOCALC_RELAJACION_TOLERANCIA=0.05;
+function aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats){
+var fuentesPorNodo={};
+var nodosEstimados=Object.keys(origen).filter(function(id){return origen[id]&&origen[id].pred!==null;});
+if(!nodosEstimados.length)return fuentesPorNodo;
+for(var sweep=0;sweep<ANOCALC_RELAJACION_SWEEPS;sweep++){
+var maxCambio=0;
+for(var i=0;i<nodosEstimados.length;i++){
+var id=nodosEstimados[i];
+var p=PI[id];
+if(!p)continue;
+var sumaPeso=0,sumaValor=0,fuentes=0;
+var considerar=function(vecinoId,deltaHaciaId,sigmaTipo){
+if(!vecinoId||!visitado[vecinoId]||valorNodo[vecinoId]===undefined)return;
+var s=sigmaTipo>0?sigmaTipo:1;
+var peso=1/(s*s);
+sumaPeso+=peso;
+sumaValor+=peso*(valorNodo[vecinoId]+deltaHaciaId);
+fuentes++;
+};
+if(p.PADRE)considerar(p.PADRE,stats.padre.media,stats.padre.desv);
+if(p.MADRE)considerar(p.MADRE,stats.madre.media,stats.madre.desv);
+(HD[id]||[]).forEach(function(hid){
+var h=PI[hid];
+if(!h)return;
+if(h.PADRE===id)considerar(hid,-stats.padre.media,stats.padre.desv);
+else if(h.MADRE===id)considerar(hid,-stats.madre.media,stats.madre.desv);
+});
+considerar(p.M1,0,stats.conyuge.desv);
+considerar(p.M2,0,stats.conyuge.desv);
+if(p.PADRE&&p.MADRE)gHerm(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv);});
+/* Con 0 o 1 fuente no hay nada que "consensuar": el valor de la fase B ya es la
+única evidencia disponible y se deja tal cual (evita recomputar en balde y deja
+claro, vía fuentesPorNodo, que esta persona no se ha visto afectada por la fase C). */
+if(fuentes<2||sumaPeso<=0)continue;
+var nuevoValor=Math.round(sumaValor/sumaPeso);
+var lim=gesLimitesDuros(id,valorNodo,visitado);
+if(lim&&lim.lo<=lim.hi){
+if(nuevoValor<lim.lo)nuevoValor=Math.round(lim.lo);
+else if(nuevoValor>lim.hi)nuevoValor=Math.round(lim.hi);
+}
+var cambio=Math.abs(nuevoValor-valorNodo[id]);
+if(cambio>maxCambio)maxCambio=cambio;
+valorNodo[id]=nuevoValor;
+fuentesPorNodo[id]=fuentes;
+}
+if(maxCambio<ANOCALC_RELAJACION_TOLERANCIA)break;
+}
+return fuentesPorNodo;
 }
 function calcularAnosEstimados(statsPrecalculadas){
 var stats=statsPrecalculadas||calcularEstadisticasArbol();
@@ -2431,7 +2646,16 @@ encolar(ar.id,costeNuevo,saltos[id]+1,id,ar.tipo,valorNuevo);
 });
 }
 }
-return{origen:origen,valorNodo:valorNodo,saltos:saltos,dist:dist,stats:stats};
+/* Instantánea del resultado de la fase B (antes de la relajación global de la fase
+   C), para poder mostrar el "antes → después" en el motivo de cada persona y en la
+   vista de depuración. Solo interesa para nodos ESTIMADOS (origen[id].pred!==null);
+   los años reales nunca pasan por la fase C. */
+var valorInicial={};
+Object.keys(origen).forEach(function(id){
+if(origen[id]&&origen[id].pred!==null)valorInicial[id]=valorNodo[id];
+});
+var refinado=aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats);
+return{dist:dist,origen:origen,valorNodo:valorNodo,saltos:saltos,visitado:visitado,stats:stats,valorInicial:valorInicial,refinado:refinado};
 }
 function etiquetaRelacionEstimada(tipo,sexoNodo){
 if(tipo==='padre')return'padre';
@@ -2451,11 +2675,20 @@ var anioPred=resultado.valorNodo[info.pred];
 var predEsReal=getYearReal(pred)!==null;
 var base='Calculado automáticamente el '+fecha+': '+fn(nodo).trim()+' es '+rel+' de '+fn(pred).trim()+' ('+(predEsReal?anioPred:('\u2248'+anioPred))+'), usando la diferencia media de edad real calculada en este árbol para ese tipo de parentesco.';
 if(info.recorte)base+=' El resultado directo de esa diferencia (\u2248'+info.recorte.desde+') se ha ajustado a \u2248'+info.recorte.hasta+' para no violar las edades mínimas/máximas frente a un familiar cercano que ya tenía año fijado.';
+var fuentes=resultado.refinado?resultado.refinado[id]:undefined;
+var valorIni=resultado.valorInicial?resultado.valorInicial[id]:undefined;
+var valorFin=resultado.valorNodo[id];
+if(fuentes&&valorIni!==undefined&&valorFin!==valorIni){
+base+=' Además, este año se ha afinado combinando otros '+fuentes+' familiar(es) con año conocido o estimado, mediante una media ponderada por fiabilidad: pasa de \u2248'+valorIni+' a \u2248'+valorFin+'.';
+}
 return base;
 }
 /* ===== TAREA 4: VISTA DE DEPURACIÓN — reconstrucción del camino =====
    Reutiliza exclusivamente la información que ya produce calcularAnosEstimados()
-   (origen/valorNodo/saltos): no se ejecuta un segundo algoritmo de trazado. */
+   (origen/valorNodo/saltos): no se ejecuta un segundo algoritmo de trazado. Desde
+   v2, valorNodo contiene el resultado YA refinado por la fase C, así que el camino
+   mostrado usa siempre los años finales (los mismos que aparecen en la ficha de cada
+   persona); ver valorInicial/refinado en el resultado para el antes/después. */
 function construirCaminoANOCALC(id,resultado){
 var cadena=[],actual=id,guard=0;
 while(actual&&guard++<2000){
@@ -7630,6 +7863,8 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios autorizados</div><div class="herr-desc">Ver, añadir o quitar quién puede acceder a este árbol</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
+<button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
+<div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();borrarTodosAprox()"><div class="herr-icon"><i class="fa-solid fa-eraser"></i></div><div class="herr-text"><div class="herr-title">Borrar todos los años aproximados (APROX)</div><div class="herr-desc">Elimina el campo heredado de Access en toda la base y recalcula el año estimado (ANOCALC) donde haga falta</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
