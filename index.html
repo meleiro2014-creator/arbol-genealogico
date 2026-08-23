@@ -4946,7 +4946,11 @@ var todasAplicables=lista.length>1&&lista.every(function(x){return typeof x.apli
 var conFlag=lista.filter(function(x){return typeof x.calculado==='boolean';});
 var nCalculado=conFlag.filter(function(x){return x.calculado;}).length;
 var nIngresado=conFlag.length-nCalculado;
-var descCompleta=meta.desc+(conFlag.length?(' · '+nCalculado+' con año CALCULADO (ANOCALC) implicado · '+nIngresado+' solo con datos INGRESADOS (reales)'):'');
+/* v2.5: el desglose YA NO se mete en el texto de descripción (pasaba desapercibido ahí
+abajo, en gris pequeño); se muestra en su lugar como sub-badge junto al contador rojo
+principal (ver gesRenderCat) — el mismo bulto de datos, en el sitio donde el usuario
+realmente lo mira primero. La descripción se deja tal cual, sin el añadido de texto. */
+var descCompleta=meta.desc;
 cats.push({
 id:id,fuente:'inc',grupo:'inconsistencias',
 titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
@@ -5356,7 +5360,19 @@ h+='<header class="ges-cat-head" onclick="gesToggle(\''+c.id+'\')">';
 h+='<i class="fa-solid '+esc(c.icono||'fa-circle-info')+' ges-ico"></i>';
 h+='<div class="ges-cat-txt"><div class="ges-cat-titulo">'+esc(c.titulo)+' <span class="ges-chip">'+(chips[c.grupo]||c.grupo)+'</span></div>';
 h+='<div class="ges-cat-desc">'+esc(c.descripcion||'')+'</div></div>';
+/* v2.5: desglose CALCULADO/INGRESADO junto al contador rojo (antes solo aparecía en el
+texto gris de la descripción, donde el usuario tenía que buscarlo). c.nCalculado/nIngresado
+ya vienen calculados en construirCategoriasMantenimiento(); si la categoría no es de edad
+(nCalculado===null), se muestra solo el badge de siempre, sin sub-línea. */
+if(c.nCalculado!==null&&c.nCalculado!==undefined){
+h+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">';
 h+='<span class="ges-badge">'+c.items.length+'</span>';
+h+='<span style="font-size:9px;line-height:1.3;color:var(--muted);white-space:nowrap;font-weight:600">';
+h+='<i class="fa-solid fa-calculator" style="color:var(--accent)"></i> '+c.nCalculado+' calc · <i class="fa-solid fa-pen"></i> '+c.nIngresado+' ing.';
+h+='</span></div>';
+}else{
+h+='<span class="ges-badge">'+c.items.length+'</span>';
+}
 h+='<i class="fa-solid fa-chevron-down ges-chev"></i>';
 h+='</header>';
 h+='<div class="ges-cat-body">';
