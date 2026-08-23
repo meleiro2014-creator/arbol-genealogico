@@ -77,6 +77,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
 .anocalc-tag{color:var(--accent);font-style:italic}
+.fv-anio{font-size:11px;font-weight:400;color:var(--muted);margin-left:4px}
 .etq-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(196,101,58,.1);color:var(--accent);border-radius:999px;padding:4px 10px 4px 12px;font-size:11px;font-weight:700;margin:2px 5px 2px 0;cursor:pointer;border:1px solid rgba(196,101,58,.2)}
 .etq-chip:hover{background:rgba(196,101,58,.18)}
 .etq-chip button{background:none;border:none;color:var(--accent);cursor:pointer;font-weight:700;font-size:13px;line-height:1;padding:0}
@@ -2245,6 +2246,24 @@ return esAnioEstimado(p)?'año estimado automáticamente':'sin año calculado di
 var unico=detalle.filter(function(v,i){return detalle.indexOf(v)===i;});
 return' (' +unico.join(' / ')+', no un dato confirmado)';
 }
+/* algunoAnioNoConfirmado: version booleana de notaAnioNoConfirmado, para poder etiquetar cada
+   inconsistencia (campo `calculado`) segun si alguno de los años implicados viene de ANOCALC
+   (estimacion automatica) o esta sin calcular, en vez de ser un dato NACA confirmado. Se usa
+   en el Gestor de datos para separar, dentro de cada grupo de inconsistencias, los casos que
+   dependen de un año CALCULADO de los que son puramente sobre datos INGRESADOS (reales). */
+function algunoAnioNoConfirmado(){
+return Array.prototype.slice.call(arguments).filter(Boolean).some(esAnioNoConfirmado);
+}
+/* etiquetaAnioRelacion: pequeña etiqueta de año para mostrar junto a un familiar en la ficha
+   (padre, madre, cónyuge, hermano, abuelo...): año real si lo hay, año CALCULADO (ANOCALC) si
+   no, marcado como tal, o un aviso neutro si no hay ningún año disponible. */
+function etiquetaAnioRelacion(p){
+if(!p)return'';
+var yr=getYearReal(p);
+if(yr!==null)return' <span class="fv-anio">(n. '+yr+')</span>';
+if(esAnioEstimado(p))return' <span class="fv-anio anocalc-tag">(\u2248'+esc(String(p.ANOCALC))+', año CALCULADO)</span>';
+return' <span class="fv-anio" style="color:var(--muted)">(año no calculado)</span>';
+}
 function textoNacimientoFicha(p){
 var f=fDate(p.NACD,p.NACM,p.NACA);
 if(f)return f;
@@ -3416,16 +3435,36 @@ h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span>
 if(esAnioEstimado(p)){
 h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
 }
-var pl=p.PADRE&&PI[p.PADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(PI[p.PADRE]))+'</a>':'<span style="color:var(--muted)">Desconocido</span>';
-var ml=p.MADRE&&PI[p.MADRE]?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(PI[p.MADRE]))+'</a>':'<span style="color:var(--muted)">Desconocida</span>';
-var m1l=p.M1&&PI[p.M1]?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(PI[p.M1]))+'</a>':'Ninguno';
-var m2l=p.M2&&PI[p.M2]?'<a class="fl2" onclick="selP(\''+safeId(p.M2)+'\')">'+esc(fn(PI[p.M2]))+'</a>':'Ninguno';
+var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
+var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
+var c1obj=p.M1&&PI[p.M1]?PI[p.M1]:null;
+var c2obj=p.M2&&PI[p.M2]?PI[p.M2]:null;
+var pl=padreObj?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(padreObj))+'</a>'+etiquetaAnioRelacion(padreObj):'<span style="color:var(--muted)">Desconocido</span>';
+var ml=madreObj?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(madreObj))+'</a>'+etiquetaAnioRelacion(madreObj):'<span style="color:var(--muted)">Desconocida</span>';
+var m1l=c1obj?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(c1obj))+'</a>'+etiquetaAnioRelacion(c1obj):'Ninguno';
+var m2l=c2obj?'<a class="fl2" onclick="selP(\''+safeId(p.M2)+'\')">'+esc(fn(c2obj))+'</a>'+etiquetaAnioRelacion(c2obj):'Ninguno';
 h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Cónyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Cónyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
+/* Abuelos (nuevo, v2.3): mismo patron padre.PADRE/madre.MADRE que ya usa la Cronologia
+   ("Comparativa familiar ampliada"), aqui como bloque propio de la ficha, con año real o
+   CALCULADO (ANOCALC) junto a cada uno via etiquetaAnioRelacion. */
+var abuelos=[];
+if(padreObj){
+if(padreObj.PADRE&&PI[padreObj.PADRE])abuelos.push(['Abuelo paterno',PI[padreObj.PADRE]]);
+if(padreObj.MADRE&&PI[padreObj.MADRE])abuelos.push(['Abuela paterna',PI[padreObj.MADRE]]);
+}
+if(madreObj){
+if(madreObj.PADRE&&PI[madreObj.PADRE])abuelos.push(['Abuelo materno',PI[madreObj.PADRE]]);
+if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj.MADRE]]);
+}
+if(abuelos.length){
+var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv"><a class="fl2" onclick="selP(\''+safeId(par[1].ID)+'\')">'+esc(fn(par[1]))+'</a>'+etiquetaAnioRelacion(par[1])+'</span></div>';}).join('');
+h+='<div class="fs"><h3>Abuelos</h3>'+ah+'</div>';
+}
 var her=gHerm(id);
 if(her.length){
 her=ordenarPersonasPorEdad(her);
 var hh='';
-her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a></li>';});
+her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a>'+etiquetaAnioRelacion(x)+'</li>';});
 h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
 }
 var hij=ordenarIdsPorEdad(HD[id]||[]);
@@ -4325,7 +4364,8 @@ if(detalleFam.length)problemas.push({
 icono:'fa-child-reaching',
 etiqueta:'Posible inconsistencia: fallecido en la infancia con descendencia o cónyuge registrados',
 mensaje:esc(fn(p))+' nace en '+yPropiaReal+' y fallece en '+yDefPropia+' (con solo '+edadAlMorir+' año(s)), pero tiene '+detalleFam.join(' y ')+'. Es probable causa raíz de otras inconsistencias de edad que salen más abajo en su descendencia: revisa si el año de nacimiento, el de defunción, o el vínculo familiar son correctos.',
-verId:p.ID
+verId:p.ID,
+calculado:false /* siempre real vs real: NACA + DEFA confirmados, nunca ANOCALC */
 });
 }
 }
@@ -4354,7 +4394,8 @@ var prob={
 icono:'fa-calendar-xmark',
 etiqueta:'Posible edad incoherente entre padres e hijos',
 mensaje:msg,
-verId:p.ID
+verId:p.ID,
+calculado:algunoAnioNoConfirmado(p,prog)
 };
 /* La corrección automática (desvincular) es destructiva: solo se ofrece cuando
 AMBOS años son datos confirmados (NACA). Si cualquiera de los dos viene de un
@@ -4367,7 +4408,8 @@ problemas.push({
 icono:'fa-calendar-xmark',
 etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria',
 mensaje:esc(fn(p))+' ('+yHijo+') nace '+diff+' años después que su '+rel+' '+esc(fn(prog))+' ('+yProg+'), más de '+ANIOS_MAX_PADRE_HIJO+' años de diferencia.'+notaAnioNoConfirmado(p,prog),
-verId:p.ID
+verId:p.ID,
+calculado:algunoAnioNoConfirmado(p,prog)
 });
 }
 }
@@ -4383,7 +4425,8 @@ problemas.push({
 icono:'fa-calendar-xmark',
 etiqueta:'Posible inconsistencia: hijo nacido tras la defunción del progenitor',
 mensaje:esc(fn(p))+' nace en '+yHijo+', después de la defunción de su '+rel+' '+esc(fn(prog))+' en '+yDefProg+'.'+notaAnioNoConfirmado(p),
-verId:p.ID
+verId:p.ID,
+calculado:esAnioNoConfirmado(p)
 });
 }
 }
@@ -4406,11 +4449,11 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio pos
 }
 var yConyuge=obtenerAnio(conyuge);
 if(yHijo!==null&&yConyuge!==null&&Math.abs(yConyuge-yHijo)>=DIF_EDAD_CONYUGES_EXTREMA){
-problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.'+notaAnioNoConfirmado(p,conyuge),verId:p.ID});
+problemas.push({icono:'fa-people-arrows',etiqueta:'Posible inconsistencia: diferencia de edad extraordinaria entre cónyuges',mensaje:esc(fn(p))+' ('+yHijo+') y '+esc(fn(conyuge))+' ('+yConyuge+') tienen '+Math.abs(yConyuge-yHijo)+' años de diferencia como cónyuges.'+notaAnioNoConfirmado(p,conyuge),verId:p.ID,calculado:algunoAnioNoConfirmado(p,conyuge)});
 }
 }
 if(yHijo!==null&&(m.anio-yHijo)<EDAD_MIN_CONYUGE){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID});
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID,calculado:esAnioNoConfirmado(p)});
 }
 });
 if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
@@ -4419,7 +4462,7 @@ problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrim
 if(isAl(p)&&yHijo!==null&&!p.ANOCALC_CONTAMINADO){
 var edadActual=new Date().getFullYear()-yHijo;
 if(edadActual>EDAD_VIVO_EXTREMA){
-problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID});
+problemas.push({icono:'fa-hourglass-half',etiqueta:'Posible inconsistencia: persona viva con edad extraordinaria',mensaje:esc(fn(p))+' figura como viva y tendría '+edadActual+' años (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID,calculado:esAnioNoConfirmado(p)});
 }
 }
 });
@@ -4869,11 +4912,24 @@ var lista=porEtq[etq];
 var meta=gesMetaCat(etq);
 var id=gesSlug(etq);
 var todasAplicables=lista.length>1&&lista.every(function(x){return typeof x.aplicar==='function';});
+/* Desglose CALCULADO vs INGRESADO (v2.3): dentro de cada grupo de inconsistencias, separa
+   cuántos casos implican un año CALCULADO (ANOCALC, estimación automática todavía sin
+   confirmar) de cuántos son enteramente sobre datos INGRESADOS (NACA/DEFA reales, confirmados
+   por el usuario). Solo tiene sentido para las comprobaciones de edad, que son las únicas que
+   marcan el campo `calculado` en detectarInconsistencias(); el resto de comprobaciones (género,
+   vínculos duplicados, hermanos muy próximos...) no dependen de ningún año y se dejan sin
+   desglosar. */
+var conFlag=lista.filter(function(x){return typeof x.calculado==='boolean';});
+var nCalculado=conFlag.filter(function(x){return x.calculado;}).length;
+var nIngresado=conFlag.length-nCalculado;
+var descCompleta=meta.desc+(conFlag.length?(' · '+nCalculado+' con año CALCULADO (ANOCALC) implicado · '+nIngresado+' solo con datos INGRESADOS (reales)'):'');
 cats.push({
 id:id,fuente:'inc',grupo:'inconsistencias',
 titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
-descripcion:meta.desc,
-items:lista.map(function(pr){return{verId:pr.verId,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar};}),
+descripcion:descCompleta,
+nCalculado:conFlag.length?nCalculado:null,
+nIngresado:conFlag.length?nIngresado:null,
+items:lista.map(function(pr){return{verId:pr.verId,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar,calculado:pr.calculado};}),
 accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:null
 });
 });
@@ -5195,8 +5251,9 @@ gesRender();
 }
 function gesRenderItemInc(c,it,idx){
 var btnSolucionar=(typeof it.aplicar==='function')?('<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesAplicarItem(\''+c.id+'\','+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>'):'';
+var tagCalc=typeof it.calculado==='boolean'?(it.calculado?'<span class="inc-tag anocalc-tag" style="margin-right:6px"><i class="fa-solid fa-calculator"></i> CALCULADO</span>':'<span class="inc-tag" style="margin-right:6px;color:var(--muted)"><i class="fa-solid fa-pen"></i> INGRESADO</span>'):'';
 return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(it.icono||'fa-triangle-exclamation')+'"></i></div>'+
-'<div class="inc-msg">'+it.mensaje+
+'<div class="inc-msg">'+tagCalc+it.mensaje+
 '<div class="inc-actions">'+btnSolucionar+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId)+'\')">Ver ficha</button>'+
 '</div></div></div>';
