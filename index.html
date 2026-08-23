@@ -2955,6 +2955,37 @@ rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
 toast('Campo APROX borrado en '+afectados.length+' persona(s).');
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
+/* Campos que, si cambian al guardar una ficha, pueden afectar al año estimado propio
+o de otras personas (progenitores, hijos, cónyuges, hermanos). NACA/DEFA/FALLECIDO
+porque cambian qué es "año real" o "límite de defunción"; PADRE/MADRE/M1/M2/MF1/MF2
+porque cambian de qué parientes se propaga o qué límites se aplican. */
+var ANOCALC_CAMPOS_QUE_AFECTAN_EDAD=['NACA','DEFA','FALLECIDO','PADRE','MADRE','M1','M2','MF1','MF2'];
+function cambianCamposQueAfectanEdad(antes,despues){
+return ANOCALC_CAMPOS_QUE_AFECTAN_EDAD.some(function(k){return String((antes&&antes[k])!==undefined&&antes[k]!==null?antes[k]:'')!==String((despues&&despues[k])!==undefined&&despues[k]!==null?despues[k]:'');});
+}
+/* Sincronización silenciosa tras editar una ficha (sin overlay ni confirmación, a
+diferencia del botón manual de Herramientas): recalcula ANOCALC en segundo plano y,
+solo si quien está conectado es el administrador y hay sesión de Drive activa, sube
+también el snapshot de años calculados que lee el Gestor de datos. Objetivo concreto:
+antes, si alguien corregía por ejemplo la fecha de defunción de una madre, las
+estimaciones ya calculadas de sus hijos podían quedar desactualizadas hasta la
+siguiente carga de la página o hasta que alguien pulsara el botón manual — y
+mientras tanto el Gestor de datos seguía comparando esa cifra obsoleta contra el
+dato ya corregido, mostrando como "inconsistencia" algo que el propio recálculo ya
+habría resuelto. Cualquier fallo aquí se registra en consola pero no interrumpe a
+quien está editando, igual que el resto de sincronizaciones de fondo con Drive de
+la app. Esto NUNCA toca NACA ni ningún otro dato introducido por el usuario: solo
+actualiza el campo separado ANOCALC, exactamente igual que el botón manual. */
+function recalcularYSincronizarAnosEstimadosSilencioso(){
+ejecutarFasesAnosEstimados({
+onDone:function(){
+if(esAdministrador()&&tokenDriveValido()){
+guardarAniosCalculadosDrive().catch(function(err){console.error('No se pudo sincronizar el snapshot de años calculados en Drive tras la edición:',err);});
+}
+},
+onError:function(err){console.error('No se pudo recalcular ANOCALC tras la edición:',err);}
+});
+}
 async function recalcularAnosEstimadosManual(){
 if(!D.length){toast('No hay datos cargados',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
@@ -4012,6 +4043,7 @@ p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0'
 var antesPropagacion=mapaPersonas(D);
 var nPropagados=propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
+var afectaEdad=cambianCamposQueAfectanEdad(antesCambio,p);
 sAll(D).then(function(){
 editMode=false;
 rStats();
@@ -4019,6 +4051,7 @@ rFic(id);
 toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
+if(afectaEdad)recalcularYSincronizarAnosEstimadosSilencioso();
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(finOperacionFicha);
 }
 async function eliminarFicha(id){
