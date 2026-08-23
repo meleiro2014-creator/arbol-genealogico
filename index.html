@@ -776,6 +776,21 @@ return googleIdentidad;
 function esAdministrador(){
 return !!(googleIdentidad&&googleIdentidad.email&&googleIdentidad.email.toLowerCase()===ADMIN_EMAIL.toLowerCase());
 }
+/* Avisa en el momento de conectar si la cuenta de Google activa no es la del
+   administrador (ADMIN_EMAIL). Objetivo: detectar al instante si se está
+   editando desde una cuenta equivocada (p.ej. una segunda cuenta personal),
+   en vez de descubrirlo después de acumular muchos cambios como "pendientes"
+   en vez de quedar auto-conformados. Se guarda un aviso por sesión de pestaña
+   (sessionStorage) para no repetir el toast en cada reconexión silenciosa. */
+function avisarSiCuentaNoEsAdmin(){
+if(!googleIdentidad||!googleIdentidad.email)return;
+if(esAdministrador())return;
+var yaAvisado=false;
+try{yaAvisado=sessionStorage.getItem('avisoCuentaNoAdmin')===googleIdentidad.email;}catch(e){}
+if(yaAvisado)return;
+try{sessionStorage.setItem('avisoCuentaNoAdmin',googleIdentidad.email);}catch(e){}
+toast('Conectado como '+(googleIdentidad.name||googleIdentidad.email)+' ('+googleIdentidad.email+') · esta cuenta NO es la de administrador. Tus cambios quedarán pendientes de aprobación.',true);
+}
 /* ===== Panel de administración de usuarios autorizados (solo admin) ===== */
 function validarFormatoEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
 async function abrirGestionUsuarios(){
@@ -979,7 +994,7 @@ function valorCambio(v){if(v===null||v===undefined||v==='')return '(vacío)';if(
 function nombrePersonaSnapshot(p){return p?fn(p).replace(/\s+/g,' ').trim()||('ID '+p.ID):'';}
 function camposDiferentes(a,b){var keys={},r=[];Object.keys(a||{}).forEach(function(k){keys[k]=1;});Object.keys(b||{}).forEach(function(k){keys[k]=1;});Object.keys(keys).forEach(function(k){if(CAMBIOS_IGNORAR.indexOf(k)>=0)return;var va=a?a[k]:undefined,vb=b?b[k]:undefined;if(JSON.stringify(va)!==JSON.stringify(vb))r.push({campo:k,antes:va===undefined?'':va,despues:vb===undefined?'':vb});});return r;}
 function construirDescripcion(usuario,tipo,p,campos){var nombre=nombrePersonaSnapshot(p)||'persona';var accion={editar:'editó',crear:'creó',eliminar:'eliminó',fusionar:'fusionó',vincular:'modificó vínculos de'}[tipo]||'modificó';if(!campos.length)return usuario+' '+accion+' '+nombre+'.';var partes=campos.slice(0,12).map(function(c){return (CAMBIOS_LABELS[c.campo]||c.campo)+': '+valorCambio(c.antes)+' → «'+valorCambio(c.despues)+'»';});if(campos.length>12)partes.push('… y '+(campos.length-12)+' cambio(s) más');return usuario+' '+accion+' '+nombre+' (ID '+p.ID+'): '+partes.join('; ')+'.';}
-function registrarCambiosDesdeSnapshots(antes,despues,tipo){var usuario=usuarioActualParaCambios();var esAdmin=esAdministrador();var ahora=new Date().toISOString();var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;var reg={id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:ahora,usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:esAdmin?'conforme':CAMBIOS_ESTADO,actualizadoEn:ahora};if(esAdmin){reg.resueltoPor=usuario;reg.resueltoEn=ahora;}registros.push(reg);});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});}
+function registrarCambiosDesdeSnapshots(antes,despues,tipo){if(esAdministrador())return Promise.resolve(0);var usuario=usuarioActualParaCambios();var esAdmin=esAdministrador();var ahora=new Date().toISOString();var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;var reg={id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:ahora,usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:esAdmin?'conforme':CAMBIOS_ESTADO,actualizadoEn:ahora};if(esAdmin){reg.resueltoPor=usuario;reg.resueltoEn=ahora;}registros.push(reg);});if(!registros.length)return Promise.resolve(0);return new Promise(function(res,rej){var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);registros.forEach(function(x){st.put(x);});tx.oncomplete=function(){res(registros.length);};tx.onerror=function(){rej(tx.error);};}).then(function(n){sincronizarCambiosDrive(false);actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return n;});}
 function listarCambios(){return new Promise(function(res,rej){var r=db.transaction(CAMBIOS_STORE,'readonly').objectStore(CAMBIOS_STORE).getAll();r.onsuccess=function(){res(r.result||[]);};r.onerror=function(){rej(r.error);};});}
 function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
@@ -1115,7 +1130,7 @@ googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
 callback:async function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();await cargarConfigRaizDrive();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
+if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();avisarSiCuentaNoEsAdmin();await cargarConfigRaizDrive();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -4151,10 +4166,11 @@ function gesDetectarLugares(){
 var entradas=gesDiccionarioLugares();
 var A=gesLugaresNivelA(entradas);
 var resto=entradas.filter(function(e){return !A.usadas[e.txt];});
-var B=gesLugaresNivelB(resto);
-resto=resto.filter(function(e){return !B.usadas[e.txt];});
+/* Nivel B (contención) desactivado a propósito: generaba falsos positivos
+   uniendo lugares distintos que solo comparten una palabra (p.ej. "Santiago"
+   con "Santiago de Compostela"), y ya causó una unificación incorrecta. */
 var C=gesLugaresNivelC(resto);
-return A.grupos.concat(B.grupos,C.grupos);
+return A.grupos.concat(C.grupos);
 }
 function gesGrupoKey(g){
 var claves=g.variantes.map(function(v){return normTxt(v.txt);});
@@ -4297,7 +4313,7 @@ cats.push({
 id:'lugares_no_homogeneos',fuente:'lugares',grupo:'lugares',
 titulo:'Lugares con escritura no homogénea',
 icono:'fa-location-dot',severidad:'revision',
-descripcion:gruposLug.length+' grupo(s) de topónimos que parecen el mismo lugar escrito de formas distintas en LUGARNAC/LUGARDEF. Nivel A: solo difieren mayúsculas, tildes o puntuación (unificación segura). Niveles B (contención) y C (erratas): sugerencias, revisa antes de aplicar.',
+descripcion:gruposLug.length+' grupo(s) de topónimos que parecen el mismo lugar escrito de formas distintas en LUGARNAC/LUGARDEF. Nivel A: solo difieren mayúsculas, tildes o puntuación (unificación segura). Nivel C (posibles erratas): sugerencia, revisa antes de aplicar.',
 items:gruposLug.map(function(g){return{tipo:'lugar',grupo:g};}),
 accionMasiva:gruposLugA.length?{etiqueta:'Unificar automáticamente los '+gruposLugA.length+' grupo(s) de Nivel A'}:null
 });
