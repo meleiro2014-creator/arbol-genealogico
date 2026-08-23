@@ -2636,6 +2636,18 @@ return{lo:lo,hi:hi};
    muy cercano a la solución final. */
 var ANOCALC_RELAJACION_SWEEPS=16;
 var ANOCALC_RELAJACION_TOLERANCIA=0.05;
+/* v2.6 — ANOCALC_FACTOR_CONYUGE_CONTAMINADO: hasta ahora, si uno de los dos cónyuges
+quedaba marcado 'contaminado' (conflicto real entre SUS OTROS familiares, nada que ver con
+la pareja), `considerar()` lo excluía por completo como fuente para el otro cónyuge — ni
+como límite duro (correcto, eso no cambia) ni como voto blando en el consenso de la Fase
+C. Eso podía dejar a la pareja totalmente desacoplada: si Fulano está contaminado por un
+conflicto ajeno a Mengana, el año de Mengana dejaba de recibir CUALQUIER influencia de su
+propio cónyuge, y un desfase real (67-88 años en casos vistos en el Gestor de datos, muy
+por encima incluso del aviso de 45) podía quedarse sin corregir ronda tras ronda. Con este
+factor, un cónyuge contaminado SIGUE contando como voto en el consenso (nunca como límite
+duro), pero con una desviación mucho mayor (peso muy reducido): tira un poco hacia la
+plausibilidad sin imponerse sobre el resto de familiares fiables. */
+var ANOCALC_FACTOR_CONYUGE_CONTAMINADO=3;
 function aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats){
 var fuentesPorNodo={},detallePorNodo={};
 /* Cuarentena (v2.1): un nodo cuyos límites biográficos ya resultaron contradictorios
@@ -2676,13 +2688,27 @@ else if(h.MADRE===id)considerar(hid,-stats.madre.media,stats.madre.desv,'hijo/a'
 /* Cónyuges: si se conoce la fecha de la boda (MF1/MF2), el vínculo queda anclado
    en el tiempo y se usa la fiabilidad normal; si no, no se sabe en qué momento
    de la vida de la persona ocurrió ese matrimonio, así que pesa menos (misma
-   idea que en aristasParentesco/Fase B: ver ANOCALC_FACTOR_CONYUGE_SIN_FECHA). */
+   idea que en aristasParentesco/Fase B: ver ANOCALC_FACTOR_CONYUGE_SIN_FECHA).
+   considerarConyuge (v2.6), a diferencia de considerar(), NO descarta a un cónyuge
+   contaminado: lo incluye igualmente en el consenso pero con una desviación mayor
+   (ver ANOCALC_FACTOR_CONYUGE_CONTAMINADO más arriba), para no dejar a la pareja
+   completamente desacoplada por un conflicto ajeno a ella. */
+var considerarConyuge=function(vecinoId,sigmaTipo,etiqueta){
+if(!vecinoId||!visitado[vecinoId]||valorNodo[vecinoId]===undefined)return;
+var contam=!!(origen[vecinoId]&&origen[vecinoId].contaminado);
+var s=(sigmaTipo>0?sigmaTipo:1)*(contam?ANOCALC_FACTOR_CONYUGE_CONTAMINADO:1);
+var peso=1/(s*s);
+sumaPeso+=peso;
+sumaValor+=peso*valorNodo[vecinoId];
+fuentes++;
+detalle.push({tipo:etiqueta+(contam?' (dato contaminado, peso reducido)':''),id:vecinoId,peso:peso});
+};
 [['M1','MF1'],['M2','MF2']].forEach(function(par){
 var cid=p[par[0]];
 if(!cid)return;
 var fechaConocida=extraerAnioTexto(p[par[1]])!==null;
 var sigmaConyuge=fechaConocida?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA;
-considerar(cid,0,sigmaConyuge,'cónyuge');
+considerarConyuge(cid,sigmaConyuge,'cónyuge');
 });
 if(p.PADRE&&p.MADRE)gHerm(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv,'hermano/a');});
 /* Medios hermanos (v2.1): misma idea que un hermano completo, pero con menos
