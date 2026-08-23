@@ -2407,8 +2407,14 @@ if(!h)return;
 if(h.PADRE===id)out.push({id:hid,tipo:'hijo',delta:stats.padre.media,coste:stats.padre.desv});
 else if(h.MADRE===id)out.push({id:hid,tipo:'hijo',delta:stats.madre.media,coste:stats.madre.desv});
 });
-if(p.M1&&PI[p.M1])out.push({id:p.M1,tipo:'conyuge',delta:0,coste:stats.conyuge.desv});
-if(p.M2&&PI[p.M2])out.push({id:p.M2,tipo:'conyuge',delta:0,coste:stats.conyuge.desv});
+if(p.M1&&PI[p.M1]){
+var fechaM1=extraerAnioTexto(p.MF1)!==null;
+out.push({id:p.M1,tipo:'conyuge',delta:0,coste:fechaM1?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA});
+}
+if(p.M2&&PI[p.M2]){
+var fechaM2=extraerAnioTexto(p.MF2)!==null;
+out.push({id:p.M2,tipo:'conyuge',delta:0,coste:fechaM2?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA});
+}
 /* CORRECCIÓN v2: en v1 esta línea no comprobaba p.PADRE&&p.MADRE antes de llamar a
    gHerm(id). gHerm agrupa por la clave interna (PADRE||'')+'|'+(MADRE||''); si dos o
    más personas del árbol no tienen NINGÚN progenitor registrado, esa clave es la misma
@@ -2450,6 +2456,60 @@ difEdadConyugesPlausible:40,
 edadMinConyuge:14,
 dispersionMaxHermanos:35
 };
+/* ===== CONSTANTES NUEVAS EN v2.1 =====
+   ANOCALC_PESO_MEDIO_HERMANO: peso relativo de un medio hermano (mismo padre O
+     misma madre, no ambos) frente a un hermano completo en la Fase C. Un medio
+     hermano sigue siendo información real, pero la dispersión natural entre
+     medios hermanos es mayor (solo comparten la mitad de la ventana biológica),
+     así que se pondera menos, no se descarta.
+   ANOCALC_RELAJACION_ALFA: factor de amortiguación (damping) del barrido
+     Gauss-Seidel de la Fase C. En vez de sustituir el valor de golpe por el
+     consenso de cada ronda, se avanza solo una fracción ALFA de la distancia.
+     Sin amortiguación, un árbol con ciclos indirectos (matrimonios entre primos,
+     etc.) podría oscilar en vez de converger; con ALFA<1 la convergencia está
+     garantizada (es la misma idea que la sub-relajación en SOR).
+   ANOCALC_EDAD_TIPICA_BODA / ANOCALC_BODA_DESV: ancla positiva nueva en la Fase
+     C. Una fecha de boda conocida (MF1/MF2) ya se usaba como límite duro (cota
+     superior) en gesLimitesDuros; en v2.1 además aporta una estimación blanda
+     ("nació hacia boda − edad típica de casarse") con una desviación amplia,
+     porque la edad al casarse varía mucho más que la diferencia padre-hijo.
+   ANOCALC_FACTOR_CONYUGE_SIN_FECHA: si no se conoce la fecha de la boda, no se
+     sabe en qué momento de la vida de la persona ocurrió ese matrimonio, así que
+     el cónyuge pesa menos como fuente (tanto en el coste de Dijkstra de la Fase
+     B como en el peso de la Fase C) que cuando sí hay una fecha que ancla el
+     vínculo en el tiempo. */
+var ANOCALC_PESO_MEDIO_HERMANO=0.6;
+var ANOCALC_RELAJACION_ALFA=0.5;
+var ANOCALC_EDAD_TIPICA_BODA=24;
+var ANOCALC_BODA_DESV=9;
+var ANOCALC_FACTOR_CONYUGE_SIN_FECHA=1.6;
+/* Medios hermanos: comparten padre O madre (no ambos — los hermanos completos ya
+   los cubre gHerm()). Se calculan a partir de HD (hijos por progenitor), no de
+   HERM_PM (que agrupa por la pareja padre+madre exacta), así que no hace falta
+   que el otro progenitor esté registrado. Solo se usan en la Fase C (consenso),
+   nunca como arista de la Fase B ni en la estadística de la Fase A: su
+   dispersión real no está medida y forzarla en el Dijkstra o en las medias del
+   árbol sería mezclar dos poblaciones distintas (hermanos completos y medios
+   hermanos) bajo una sola media. */
+function gMediosHermanos(id){
+var p=PI[id];
+if(!p)return[];
+var out=[],vistos={};
+function esCompleto(h){return!!(p.PADRE&&p.MADRE&&h.PADRE===p.PADRE&&h.MADRE===p.MADRE);}
+if(p.PADRE)(HD[p.PADRE]||[]).forEach(function(hid){
+if(hid===id||vistos[hid])return;
+var h=PI[hid];
+if(!h||esCompleto(h))return;
+vistos[hid]=true;out.push(h);
+});
+if(p.MADRE)(HD[p.MADRE]||[]).forEach(function(hid){
+if(hid===id||vistos[hid])return;
+var h=PI[hid];
+if(!h||esCompleto(h))return;
+vistos[hid]=true;out.push(h);
+});
+return out;
+}
 /* ===== LÍMITES DUROS: ningún año estimado puede "cruzar" los límites biográficos
 verosímiles de ANOCALC_LIMITES frente a ningún familiar directo que ya tenga un año
 fijado (real, o ya calculado y cerrado antes por llegar por un camino más fiable).
@@ -2460,11 +2520,12 @@ primero lo más fiable y la relajación repite la proyección en cada ronda, cua
 persona calculada después queda recortada para no violar la relación con lo que ya
 está fijado — así ninguna pareja de familiares directos puede acabar con una edad
 imposible entre ellos. */
-function gesLimitesDuros(id,valorNodo,visitado){
+function gesLimitesDuros(id,valorNodo,visitado,origen){
 var p=PI[id];
 if(!p)return null;
 var lo=-Infinity,hi=Infinity;
 function acota(loN,hiN){if(loN!==null&&loN!==undefined&&loN>lo)lo=loN;if(hiN!==null&&hiN!==undefined&&hiN<hi)hi=hiN;}
+function contaminado(vid){return!!(origen&&origen[vid]&&origen[vid].contaminado);}
 if(p.PADRE){
 var padre=PI[p.PADRE];
 if(padre){
@@ -2473,7 +2534,7 @@ var yDefPadre=getDeathYear(padre);
    de la muerte del padre (embarazo ya en curso). No se aplica a la madre: ver más
    abajo. */
 if(yDefPadre!==null)acota(null,yDefPadre+ANOCALC_LIMITES.graciaPostuma);
-if(visitado[p.PADRE]&&valorNodo[p.PADRE]!==undefined){
+if(visitado[p.PADRE]&&valorNodo[p.PADRE]!==undefined&&!contaminado(p.PADRE)){
 var yPa=valorNodo[p.PADRE];
 acota(yPa+ANOCALC_LIMITES.edadMinPadre,yPa+ANOCALC_LIMITES.edadMaxPadre);
 }
@@ -2484,7 +2545,7 @@ var madre=PI[p.MADRE];
 if(madre){
 var yDefMadre=getDeathYear(madre);
 if(yDefMadre!==null)acota(null,yDefMadre);
-if(visitado[p.MADRE]&&valorNodo[p.MADRE]!==undefined){
+if(visitado[p.MADRE]&&valorNodo[p.MADRE]!==undefined&&!contaminado(p.MADRE)){
 var yMa=valorNodo[p.MADRE];
 acota(yMa+ANOCALC_LIMITES.edadMinMadre,yMa+ANOCALC_LIMITES.edadMaxMadre);
 }
@@ -2495,7 +2556,7 @@ acota(yMa+ANOCALC_LIMITES.edadMinMadre,yMa+ANOCALC_LIMITES.edadMaxMadre);
    hijos como padre en un vínculo e hijos como madre en otro, si el dato lo permitiera,
    queda acotada de forma correcta en cada caso). */
 (HD[id]||[]).forEach(function(hid){
-if(!visitado[hid]||valorNodo[hid]===undefined)return;
+if(!visitado[hid]||valorNodo[hid]===undefined||contaminado(hid))return;
 var h=PI[hid];
 if(!h)return;
 var yHijo=valorNodo[hid];
@@ -2503,7 +2564,7 @@ if(h.PADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxPadre,yHijo-ANOCALC_LIMITES.e
 else if(h.MADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxMadre,yHijo-ANOCALC_LIMITES.edadMinMadre);
 });
 [p.M1,p.M2].forEach(function(cid){
-if(cid&&visitado[cid]&&valorNodo[cid]!==undefined){
+if(cid&&visitado[cid]&&valorNodo[cid]!==undefined&&!contaminado(cid)){
 var yC=valorNodo[cid];
 acota(yC-ANOCALC_LIMITES.difEdadConyugesPlausible,yC+ANOCALC_LIMITES.difEdadConyugesPlausible);
 }
@@ -2516,10 +2577,11 @@ if(anioMat!==null)acota(null,anioMat-ANOCALC_LIMITES.edadMinConyuge);
    duro aquí, pese a que sí propagaba años a través de hermanos (con diferencia 0):
    nada impedía que dos hermanos estimados por caminos distintos acabasen con años
    muy alejados entre sí. Se exige mismo padre Y misma madre, ambos presentes —
-   igual que en el resto del motor— para no mezclar medios hermanos. */
+   igual que en el resto del motor— para no mezclar medios hermanos (esos entran
+   solo en la Fase C, con peso reducido: ver gMediosHermanos). */
 if(p.PADRE&&p.MADRE){
 gHerm(id).forEach(function(h){
-if(visitado[h.ID]&&valorNodo[h.ID]!==undefined){
+if(visitado[h.ID]&&valorNodo[h.ID]!==undefined&&!contaminado(h.ID)){
 var yH=valorNodo[h.ID];
 acota(yH-ANOCALC_LIMITES.dispersionMaxHermanos,yH+ANOCALC_LIMITES.dispersionMaxHermanos);
 }
@@ -2550,56 +2612,100 @@ return{lo:lo,hi:hi};
    porque el árbol es una red dispersa (casi un árbol de verdad, salvo los ciclos que
    introducen las segundas nupcias) y porque se parte ya del resultado de la fase B,
    muy cercano a la solución final. */
-var ANOCALC_RELAJACION_SWEEPS=8;
+var ANOCALC_RELAJACION_SWEEPS=16;
 var ANOCALC_RELAJACION_TOLERANCIA=0.05;
 function aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats){
-var fuentesPorNodo={};
-var nodosEstimados=Object.keys(origen).filter(function(id){return origen[id]&&origen[id].pred!==null;});
-if(!nodosEstimados.length)return fuentesPorNodo;
+var fuentesPorNodo={},detallePorNodo={};
+/* Cuarentena (v2.1): un nodo cuyos límites biográficos ya resultaron contradictorios
+   en la Fase B (lo>hi, conflicto entre datos REALES de dos familiares distintos) se
+   excluye por completo de la relajación: ni se recalcula a sí mismo con el consenso
+   de sus vecinos (el conflicto es estructural, no lo resuelve más información), ni
+   se usa como fuente para nadie más — así no puede "contagiar" su valor, ya de por
+   sí sospechoso, al resto del árbol. Sigue apareciendo con el valor bruto de la Fase
+   B y con un aviso explícito en su motivo (ver construirMotivoEstimacion), a la
+   espera de que el usuario resuelva la inconsistencia real en el Gestor de datos. */
+var nodosEstimados=Object.keys(origen).filter(function(id){return origen[id]&&origen[id].pred!==null&&!origen[id].contaminado;});
+if(!nodosEstimados.length)return{fuentes:fuentesPorNodo,detalle:detallePorNodo};
 for(var sweep=0;sweep<ANOCALC_RELAJACION_SWEEPS;sweep++){
 var maxCambio=0;
 for(var i=0;i<nodosEstimados.length;i++){
 var id=nodosEstimados[i];
 var p=PI[id];
 if(!p)continue;
-var sumaPeso=0,sumaValor=0,fuentes=0;
-var considerar=function(vecinoId,deltaHaciaId,sigmaTipo){
+var sumaPeso=0,sumaValor=0,fuentes=0,detalle=[];
+var considerar=function(vecinoId,deltaHaciaId,sigmaTipo,etiqueta){
 if(!vecinoId||!visitado[vecinoId]||valorNodo[vecinoId]===undefined)return;
+if(origen[vecinoId]&&origen[vecinoId].contaminado)return;
 var s=sigmaTipo>0?sigmaTipo:1;
 var peso=1/(s*s);
 sumaPeso+=peso;
 sumaValor+=peso*(valorNodo[vecinoId]+deltaHaciaId);
 fuentes++;
+detalle.push({tipo:etiqueta,id:vecinoId,peso:peso});
 };
-if(p.PADRE)considerar(p.PADRE,stats.padre.media,stats.padre.desv);
-if(p.MADRE)considerar(p.MADRE,stats.madre.media,stats.madre.desv);
+if(p.PADRE)considerar(p.PADRE,stats.padre.media,stats.padre.desv,'padre');
+if(p.MADRE)considerar(p.MADRE,stats.madre.media,stats.madre.desv,'madre');
 (HD[id]||[]).forEach(function(hid){
 var h=PI[hid];
 if(!h)return;
-if(h.PADRE===id)considerar(hid,-stats.padre.media,stats.padre.desv);
-else if(h.MADRE===id)considerar(hid,-stats.madre.media,stats.madre.desv);
+if(h.PADRE===id)considerar(hid,-stats.padre.media,stats.padre.desv,'hijo/a');
+else if(h.MADRE===id)considerar(hid,-stats.madre.media,stats.madre.desv,'hijo/a');
 });
-considerar(p.M1,0,stats.conyuge.desv);
-considerar(p.M2,0,stats.conyuge.desv);
-if(p.PADRE&&p.MADRE)gHerm(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv);});
+/* Cónyuges: si se conoce la fecha de la boda (MF1/MF2), el vínculo queda anclado
+   en el tiempo y se usa la fiabilidad normal; si no, no se sabe en qué momento
+   de la vida de la persona ocurrió ese matrimonio, así que pesa menos (misma
+   idea que en aristasParentesco/Fase B: ver ANOCALC_FACTOR_CONYUGE_SIN_FECHA). */
+[['M1','MF1'],['M2','MF2']].forEach(function(par){
+var cid=p[par[0]];
+if(!cid)return;
+var fechaConocida=extraerAnioTexto(p[par[1]])!==null;
+var sigmaConyuge=fechaConocida?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA;
+considerar(cid,0,sigmaConyuge,'cónyuge');
+});
+if(p.PADRE&&p.MADRE)gHerm(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv,'hermano/a');});
+/* Medios hermanos (v2.1): misma idea que un hermano completo, pero con menos
+   peso (mayor sigma efectiva) porque solo comparten la mitad de la ventana
+   biológica — ver ANOCALC_PESO_MEDIO_HERMANO. */
+gMediosHermanos(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv/Math.sqrt(ANOCALC_PESO_MEDIO_HERMANO),'medio hermano/a');});
+/* Ancla positiva de boda (v2.1): una fecha de boda conocida ya actúa como límite
+   duro (cota superior) en gesLimitesDuros; aquí, además, aporta una estimación
+   blanda propia ("nació hacia boda − edad típica de casarse"), con una
+   desviación amplia porque la edad al casarse varía mucho más que la
+   diferencia padre-hijo. No depende de que el cónyuge tenga año propio. */
+[['MF1'],['MF2']].forEach(function(par){
+var anioMat=extraerAnioTexto(p[par[0]]);
+if(anioMat===null)return;
+var peso=1/(ANOCALC_BODA_DESV*ANOCALC_BODA_DESV);
+sumaPeso+=peso;
+sumaValor+=peso*(anioMat-ANOCALC_EDAD_TIPICA_BODA);
+fuentes++;
+detalle.push({tipo:'boda',id:null,peso:peso});
+});
 /* Con 0 o 1 fuente no hay nada que "consensuar": el valor de la fase B ya es la
 única evidencia disponible y se deja tal cual (evita recomputar en balde y deja
 claro, vía fuentesPorNodo, que esta persona no se ha visto afectada por la fase C). */
 if(fuentes<2||sumaPeso<=0)continue;
-var nuevoValor=Math.round(sumaValor/sumaPeso);
-var lim=gesLimitesDuros(id,valorNodo,visitado);
+var consenso=sumaValor/sumaPeso;
+var valorAnterior=valorNodo[id];
+/* Amortiguación (v2.1): se avanza solo una fracción ANOCALC_RELAJACION_ALFA de
+   la distancia al consenso de esta ronda, no se sustituye de golpe. Evita que
+   ciclos indirectos del grafo (matrimonios entre parientes lejanos) produzcan
+   oscilaciones en vez de converger. */
+var nuevoValor=Math.round(valorAnterior+ANOCALC_RELAJACION_ALFA*(consenso-valorAnterior));
+var lim=gesLimitesDuros(id,valorNodo,visitado,origen);
 if(lim&&lim.lo<=lim.hi){
 if(nuevoValor<lim.lo)nuevoValor=Math.round(lim.lo);
 else if(nuevoValor>lim.hi)nuevoValor=Math.round(lim.hi);
 }
-var cambio=Math.abs(nuevoValor-valorNodo[id]);
+var cambio=Math.abs(nuevoValor-valorAnterior);
 if(cambio>maxCambio)maxCambio=cambio;
 valorNodo[id]=nuevoValor;
 fuentesPorNodo[id]=fuentes;
+detallePorNodo[id]=detalle;
 }
 if(maxCambio<ANOCALC_RELAJACION_TOLERANCIA)break;
 }
-return fuentesPorNodo;
+return{fuentes:fuentesPorNodo,detalle:detallePorNodo};
 }
 function calcularAnosEstimados(statsPrecalculadas){
 var stats=statsPrecalculadas||calcularEstadisticasArbol();
@@ -2615,6 +2721,23 @@ buckets[b].push(id);
 if(b>maxBucket)maxBucket=b;
 }
 D.forEach(function(p){var yr=getYearReal(p);if(yr!==null)encolar(p.ID,0,0,null,null,yr);});
+/* v2.1: ancla de boda como fuente de ÚLTIMO RECURSO para personas sin ningún año
+   real propio y sin ningún camino por parentesco hacia alguien con año real (p.ej.
+   un matrimonio "suelto" del que solo se conserva la fecha de la boda). Se siembra
+   con un coste igual a ANOCALC_BODA_DESV — la misma desviación que se usa como
+   peso en la Fase C — para que cualquier camino real por parentesco, casi siempre
+   más barato, gane si existe (encolar() ya se queda con el más barato). pred se
+   marca con el centinela '__BODA__' (nunca un ID real de persona) precisamente
+   para que SÍ pase por los límites duros de la Fase B como cualquier otra
+   estimación (nunca se salta gesLimitesDuros), y para que el motivo de texto lo
+   explique aparte como la estimación menos fiable que ofrece el motor. */
+D.forEach(function(p){
+if(dist[p.ID]!==undefined)return;
+var anioMat=extraerAnioTexto(p.MF1);
+if(anioMat===null)anioMat=extraerAnioTexto(p.MF2);
+if(anioMat===null)return;
+encolar(p.ID,ANOCALC_BODA_DESV,0,'__BODA__',null,Math.round(anioMat-ANOCALC_EDAD_TIPICA_BODA));
+});
 for(var b=0;b<=maxBucket;b++){
 var cola=buckets[b];
 if(!cola)continue;
@@ -2630,12 +2753,19 @@ familiares ya fijados: no hay ningún valor que respete a la vez a todos, así
 que no se fuerza nada aquí (ese conflicto seguirá saliendo, correctamente,
 como inconsistencia real en el Gestor de datos, sin depender de esta persona). */
 if(origen[id].pred!==null){
-var lim=gesLimitesDuros(id,valorNodo,visitado);
+var lim=gesLimitesDuros(id,valorNodo,visitado,origen);
 if(lim&&lim.lo<=lim.hi){
 var valorCrudo=valorNodo[id];
 if(valorNodo[id]<lim.lo)valorNodo[id]=Math.round(lim.lo);
 else if(valorNodo[id]>lim.hi)valorNodo[id]=Math.round(lim.hi);
 if(valorNodo[id]!==valorCrudo)origen[id].recorte={desde:valorCrudo,hasta:valorNodo[id]};
+}else if(lim){
+/* v2.1: conflicto real entre dos familiares con año YA fijado (lo>hi). No se
+   inventa ningún valor "razonable" aquí — se marca contaminado para que la Fase
+   C lo excluya como fuente (ver aplicarRelajacionGlobalANOCALC) y para que el
+   motivo de texto avise al usuario; la inconsistencia de fondo debe resolverse
+   en el Gestor de datos, no aquí. */
+origen[id].contaminado=true;
 }
 }
 aristasParentesco(id,stats).forEach(function(ar){
@@ -2655,7 +2785,7 @@ Object.keys(origen).forEach(function(id){
 if(origen[id]&&origen[id].pred!==null)valorInicial[id]=valorNodo[id];
 });
 var refinado=aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats);
-return{dist:dist,origen:origen,valorNodo:valorNodo,saltos:saltos,visitado:visitado,stats:stats,valorInicial:valorInicial,refinado:refinado};
+return{dist:dist,origen:origen,valorNodo:valorNodo,saltos:saltos,visitado:visitado,stats:stats,valorInicial:valorInicial,refinado:refinado.fuentes,refinadoDetalle:refinado.detalle};
 }
 function etiquetaRelacionEstimada(tipo,sexoNodo){
 if(tipo==='padre')return'padre';
@@ -2668,8 +2798,18 @@ return tipo||'pariente';
 function construirMotivoEstimacion(id,resultado,fecha){
 var info=resultado.origen[id];
 if(!info||!info.pred)return'';
-var pred=PI[info.pred],nodo=PI[id];
-if(!pred||!nodo)return'';
+var nodo=PI[id];
+if(!nodo)return'';
+if(info.pred==='__BODA__'){
+var anioMat=extraerAnioTexto(nodo.MF1);
+if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF2);
+var baseBoda='Calculado automáticamente el '+fecha+': no se ha encontrado ningún familiar con año conocido (ni real ni estimado) conectado a '+fn(nodo).trim()+', así que se ha estimado únicamente a partir de la fecha de boda conocida ('+anioMat+'), asumiendo una edad típica de casarse de '+ANOCALC_EDAD_TIPICA_BODA+' años. Es la estimación menos fiable que ofrece este motor: revísala con especial cautela.';
+if(info.recorte)baseBoda+=' El resultado directo de esa edad típica (\u2248'+info.recorte.desde+') se ha ajustado a \u2248'+info.recorte.hasta+' para no violar las edades mínimas/máximas frente a un familiar cercano que ya tenía año fijado.';
+if(info.contaminado)baseBoda+=' Aviso: esta persona tiene datos familiares reales que se contradicen entre sí (revisa el Gestor de datos); esta estimación puede no ser fiable.';
+return baseBoda;
+}
+var pred=PI[info.pred];
+if(!pred)return'';
 var rel=etiquetaRelacionEstimada(info.tipo,sexoLetra(nodo));
 var anioPred=resultado.valorNodo[info.pred];
 var predEsReal=getYearReal(pred)!==null;
@@ -2679,8 +2819,23 @@ var fuentes=resultado.refinado?resultado.refinado[id]:undefined;
 var valorIni=resultado.valorInicial?resultado.valorInicial[id]:undefined;
 var valorFin=resultado.valorNodo[id];
 if(fuentes&&valorIni!==undefined&&valorFin!==valorIni){
-base+=' Además, este año se ha afinado combinando otros '+fuentes+' familiar(es) con año conocido o estimado, mediante una media ponderada por fiabilidad: pasa de \u2248'+valorIni+' a \u2248'+valorFin+'.';
+/* v2.1: además del recuento de fuentes, se detalla cuáles fueron (tipo de
+   parentesco, y con quién cuando aplica) y qué peso relativo tuvo cada una en
+   la media ponderada, para que el motivo sea accionable y no solo un número. */
+var detalle=resultado.refinadoDetalle?resultado.refinadoDetalle[id]:null;
+var listado='';
+if(detalle&&detalle.length){
+var sumaPeso=detalle.reduce(function(s,d){return s+d.peso;},0);
+var partes=detalle.map(function(d){
+var pct=sumaPeso>0?Math.round(100*d.peso/sumaPeso):0;
+var quien=d.id&&PI[d.id]?fn(PI[d.id]).trim():'';
+return d.tipo+(quien?' de '+quien:'')+' ('+pct+'%)';
+});
+listado=' — '+partes.join(', ');
 }
+base+=' Además, este año se ha afinado combinando otras '+fuentes+' fuente(s) con año conocido o estimado, mediante una media ponderada por fiabilidad: pasa de \u2248'+valorIni+' a \u2248'+valorFin+listado+'.';
+}
+if(info.contaminado)base+=' Aviso: esta persona tiene datos familiares reales que se contradicen entre sí (revisa el Gestor de datos); esta estimación puede no ser fiable.';
 return base;
 }
 /* ===== TAREA 4: VISTA DE DEPURACIÓN — reconstrucción del camino =====
@@ -2693,8 +2848,8 @@ function construirCaminoANOCALC(id,resultado){
 var cadena=[],actual=id,guard=0;
 while(actual&&guard++<2000){
 var info=resultado.origen[actual];
-cadena.unshift({id:actual,valor:resultado.valorNodo[actual],esOrigenReal:!info||!info.pred,relacionDesde:info?info.tipo:null,predId:info?info.pred:null});
-if(!info||!info.pred)break;
+cadena.unshift({id:actual,valor:resultado.valorNodo[actual],esOrigenReal:!info||!info.pred,relacionDesde:info?info.tipo:null,predId:info?info.pred:null,contaminado:!!(info&&info.contaminado)});
+if(!info||!info.pred||info.pred==='__BODA__')break;
 actual=info.pred;
 }
 return cadena;
@@ -2902,19 +3057,25 @@ modal.style.display='flex';
 return;
 }
 var cadena=construirCaminoANOCALC(id,resultado),stats=resultado.stats;
-var origenP=PI[cadena[0].id];
+var raiz=cadena[0],origenP=PI[raiz.id];
 var h='<div class="fs" style="margin-bottom:12px"><h3>Resumen</h3>';
 h+='<div class="fr"><span class="fl">Persona</span><span class="fv">'+esc(fn(p))+'</span></div>';
 h+='<div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(String(resultado.valorNodo[id]))+'</span></div>';
 h+='<div class="fr"><span class="fl">Pasos</span><span class="fv">'+esc(String(resultado.saltos[id]||0))+'</span></div>';
+if(raiz.esOrigenReal){
 h+='<div class="fr"><span class="fl">Origen real</span><span class="fv">'+esc(fn(origenP))+' — '+(origenP.NACA?'año de nacimiento':'año aproximado')+'</span></div>';
+}else{
+h+='<div class="fr"><span class="fl">Origen</span><span class="fv">Sin ningún familiar con año conocido — solo la fecha de boda de '+esc(fn(origenP))+'</span></div>';
+}
 h+='</div><div class="fs"><h3>Camino de propagación</h3>';
 cadena.forEach(function(nodo,idx){
 var pp=PI[nodo.id];
 h+='<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(idx===0?'fa-flag':'fa-arrow-down')+'"></i></div><div class="inc-msg">';
 h+='<b>'+esc(fn(pp))+'</b> <span style="color:var(--muted)">(ID '+esc(pp.ID)+')</span><br>';
-if(idx===0){
+if(idx===0&&nodo.esOrigenReal){
 h+='<span style="color:var(--green)">Año conocido: '+esc(String(nodo.valor))+' ('+(pp.NACA?'año de nacimiento':'año aproximado')+')</span>';
+}else if(idx===0){
+h+='<span style="color:var(--muted)">Sin ningún familiar con año conocido — estimado únicamente a partir de la fecha de boda conocida (\u2248 '+esc(String(nodo.valor))+', edad típica al casarse: '+esc(String(ANOCALC_EDAD_TIPICA_BODA))+' años)</span>';
 }else{
 var etiqueta=etiquetaRelacionEstimada(nodo.relacionDesde,sexoLetra(pp));
 var med=etiquetaMediaPasoANOCALC(nodo.relacionDesde,nodo.predId,nodo.id,stats);
@@ -2923,6 +3084,7 @@ if(med.valor!==null&&med.valor!==undefined)h+='Diferencia aplicada ('+esc(etique
 else h+='Sin diferencia de año (misma generación aproximada)<br>';
 h+='Año estimado en este paso: \u2248 '+esc(String(nodo.valor));
 }
+if(nodo.contaminado)h+='<br><span style="color:var(--red,#c0392b)">\u26a0 Datos familiares reales contradictorios — estimación en cuarentena, no se usa como fuente para otras personas</span>';
 h+='</div></div>';
 });
 h+='</div><div class="fs"><h3>Medias utilizadas en este cálculo</h3>';
