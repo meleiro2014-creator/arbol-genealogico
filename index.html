@@ -1977,7 +1977,27 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function sv(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+/* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
+   Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
+   navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
+   de salir de la app, volvemos a renderizar la pantalla anterior con svInternal (sin volver a apilar
+   historial). Solo cuando ya no queda ninguna pantalla propia en la pila, el siguiente "Atrás" sale
+   de la app de verdad, igual que hacen Gmail, Maps, etc. en su versión web. */
+var __vistaActual='bus';
+function sv(v){
+  if(v!==__vistaActual){
+    try{history.pushState({appView:v},'',location.pathname+location.search+'#'+v);}catch(e){}
+  }
+  __vistaActual=v;
+  svInternal(v);
+}
+window.addEventListener('popstate',function(e){
+  var v=(e.state&&e.state.appView)?e.state.appView:'bus';
+  __vistaActual=v;
+  svInternal(v);
+});
+try{history.replaceState({appView:'bus'},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
