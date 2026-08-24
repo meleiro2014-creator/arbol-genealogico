@@ -35,6 +35,12 @@ header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px soli
 .nav-hist-btn{width:30px;height:30px;border-radius:50%;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .nav-hist-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 .nav-hist-btn:disabled{opacity:.3;cursor:default}
+.quick-search-backdrop{display:none;position:fixed;inset:0;background:rgba(61,44,30,.45);z-index:1000;padding:10vh 16px 16px;overflow-y:auto}
+.quick-search-backdrop.open{display:block}
+.quick-search-panel{max-width:520px;margin:0 auto;background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:14px;animation:qsPop .15s ease-out}
+@keyframes qsPop{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.quick-search-head{display:flex;gap:8px;align-items:center}
+.quick-search-results{margin-top:10px;max-height:56vh;overflow-y:auto}
 .logo{display:flex;align-items:center;gap:8px;min-width:0}
 .logo-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:640px){.logo-text{display:none}}
@@ -440,6 +446,7 @@ body{background:#fff}
 <div class="nav-hist">
 <button type="button" class="nav-hist-btn" id="navBackBtn" onclick="navHistBack()" title="Atrás" aria-label="Ir a la pantalla anterior" disabled><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
 <button type="button" class="nav-hist-btn" id="navFwdBtn" onclick="navHistForward()" title="Adelante" aria-label="Ir a la pantalla siguiente" disabled><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+<button type="button" class="nav-hist-btn" id="quickSearchBtn" onclick="abrirBusquedaRapida()" title="Buscar una persona" aria-label="Buscar una persona (sin salir de esta pantalla)" aria-haspopup="dialog"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
 </div>
 <div class="logo"><div class="logo-icon"><i class="fa-solid fa-tree"></i></div><div class="logo-text">Libro de los Ancestros</div></div>
 <nav id="mn" aria-label="Navegación principal">
@@ -455,6 +462,19 @@ body{background:#fff}
 <span class="activebar-label" id="activebarLabelTxt">Persona activa</span>
 <span class="activebar-name" id="activeBarName" role="button" tabindex="0" onclick="irFicha()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();irFicha();}" aria-describedby="activebarLabelTxt"></span>
 <button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="sv('bus')" aria-label="Cambiar persona activa">Cambiar</button>
+</div>
+<!-- ===== Búsqueda rápida flotante =====
+     Se abre encima de la pantalla actual (Árbol, Ficha, Informes...) sin
+     cambiar de pestaña. Al elegir a alguien, la capa se cierra y se navega
+     directo a esa persona, sin pasar por la portada "Buscar". -->
+<div class="quick-search-backdrop" id="quickSearchOverlay" role="dialog" aria-modal="true" aria-label="Buscar una persona" onclick="if(event.target===this)cerrarBusquedaRapida()">
+<div class="quick-search-panel">
+<div class="quick-search-head">
+<div class="search-box" style="margin:0;flex:1"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="quickSearchInput" class="sr-only">Buscar personas por nombre, apellido o lugar</label><input type="text" id="quickSearchInput" placeholder="Nombre, apellido, lugar..." autocomplete="off"></div>
+<button type="button" class="nav-hist-btn" onclick="cerrarBusquedaRapida()" title="Cerrar" aria-label="Cerrar búsqueda"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+</div>
+<div id="quickSearchResults" class="quick-search-results"></div>
+</div>
 </div>
 <main id="mainContent">
 <div class="view active" id="vBus">
@@ -3427,6 +3447,54 @@ if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Si
 else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
 document.getElementById('rl').innerHTML=h;
 }
+/* ===== Búsqueda rápida flotante (icono de lupa del cabecero) =====
+   Filtro más simple que doSrch (solo texto, sin los filtros avanzados de la
+   pantalla "Buscar"): pensado para encontrar a alguien rápido desde
+   cualquier pantalla sin perder el sitio en el que estabas. */
+function abrirBusquedaRapida(){
+var ov=document.getElementById('quickSearchOverlay');
+if(!ov)return;
+ov.classList.add('open');
+var inp=document.getElementById('quickSearchInput');
+if(inp){inp.value='';document.getElementById('quickSearchResults').innerHTML='';setTimeout(function(){inp.focus();},10);}
+}
+function cerrarBusquedaRapida(){
+var ov=document.getElementById('quickSearchOverlay');
+if(ov)ov.classList.remove('open');
+}
+function busquedaRapidaEstaAbierta(){
+var ov=document.getElementById('quickSearchOverlay');
+return !!(ov&&ov.classList.contains('open'));
+}
+function doSrchRapida(q){
+q=(q||'').toLowerCase().trim();
+var cont=document.getElementById('quickSearchResults');
+if(!cont)return;
+if(!q){cont.innerHTML='';return;}
+var f=D.filter(function(p){
+var an=String(pdAnioTexto(p)||'').toLowerCase();
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
+return texto.indexOf(q)>=0;
+});
+f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+var total=f.length;
+f=f.slice(0,40);
+var h='';
+f.forEach(function(p){
+var al=isAl(p),y=pdAnioTexto(p);
+h+='<div class="ri" onclick="elegirPersonaBusquedaRapida(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
+});
+if(!f.length)h='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px">Sin resultados</p>';
+else if(total>40)h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px">Mostrando 40 de '+total+' resultados. Afina tu búsqueda para ver más.</p>';
+cont.innerHTML=h;
+}
+function elegirPersonaBusquedaRapida(id){
+cerrarBusquedaRapida();
+selP(id);
+}
+document.addEventListener('keydown',function(e){
+if(e.key==='Escape'&&busquedaRapidaEstaAbierta())cerrarBusquedaRapida();
+});
 function selP(id){cid=id;sv('arb');rTree(id);}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -4721,6 +4789,41 @@ return h;
 }
 /* ===== POSIBLES DUPLICADOS ===== */
 function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+/* ===== INTEGRIDAD REFERENCIAL =====
+   Ninguna comprobación de arriba (detectarInconsistencias, detectarDuplicados) puede ver
+   estos dos casos: por diseño, cada una solo mira PADRE/MADRE/M1/M2 cuando PI[esa_id] SÍ
+   existe, así que un vínculo roto pasa desapercibido para todo lo demás. Son justo el tipo
+   de avería que puede dejar una sincronización de Drive cruzada (dos guardados casi a la
+   vez) o una fusión/eliminación incompleta:
+   - Dos fichas con el mismo ID (una puede estar pisando los datos de la otra).
+   - Un vínculo familiar que apunta a un ID que ya no existe en la base. */
+function detectarIntegridadReferencial(){
+var problemas=[];
+var porId={};
+D.forEach(function(p){var id=String(p.ID);if(!porId[id])porId[id]=[];porId[id].push(p);});
+Object.keys(porId).forEach(function(id){
+var lista=porId[id];
+if(lista.length<2)return;
+problemas.push({
+tipo:'id_duplicado',verId:id,
+mensaje:'El ID <b>'+esc(id)+'</b> aparece en '+lista.length+' registros distintos: '+lista.map(function(p){return '<b>'+esc(fn(p)||'(sin nombre)')+'</b>';}).join(', ')+'. Es la señal más clara de una sincronización cruzada con Drive (dos guardados casi a la vez): uno de los dos registros puede estar pisando los datos del otro. «Ver ficha» solo puede abrir uno de los dos; localiza al otro por nombre en el buscador.'
+});
+});
+var camposRef=[['PADRE','padre'],['MADRE','madre'],['M1','cónyuge (primer matrimonio)'],['M2','cónyuge (segundo matrimonio)']];
+D.forEach(function(p){
+camposRef.forEach(function(par){
+var campo=par[0],etiqueta=par[1],ref=p[campo];
+if(ref&&!PI[ref]){
+problemas.push({
+tipo:'ref_rota',verId:p.ID,
+mensaje:esc(fn(p))+' tiene registrado un/a <b>'+etiqueta+'</b> con ID <b>'+esc(ref)+'</b>, pero esa persona no existe en la base (probablemente una ficha borrada o una sincronización incompleta).',
+aplicar:function(){p[campo]='';return true;}
+});
+}
+});
+});
+return problemas;
+}
 function detectarDuplicados(){
 var grupos={};
 D.forEach(function(p){
@@ -5072,6 +5175,30 @@ accionMasiva:{etiqueta:'Calcular años estimados ('+sinPropio.length+')'}
 }
 function construirCategoriasMantenimiento(){
 var cats=[];
+/* §4.0 Integridad referencial: se comprueba y se muestra ANTES que nada más, porque si hay
+IDs duplicados o vínculos rotos, cualquier otra cifra de este Gestor (edades, duplicados por
+nombre, completitud...) puede estar calculada sobre un dato ya dañado. Es además la comprobación
+más ligada a lo que de verdad puede fallar de forma silenciosa: una sincronización de Drive
+cruzada, o una fusión/eliminación que no terminó de propagarse. */
+var probIntegridad=detectarIntegridadReferencial();
+var dupIds=probIntegridad.filter(function(x){return x.tipo==='id_duplicado';});
+var refRotas=probIntegridad.filter(function(x){return x.tipo==='ref_rota';});
+if(dupIds.length)cats.push({
+id:'integridad_ids_duplicados',fuente:'integridad_dup',grupo:'integridad',
+titulo:'IDs duplicados entre distintos registros',
+icono:'fa-clone',severidad:'critica',
+descripcion:'Dos o más fichas comparten el mismo ID. Suele ser la huella de una sincronización con Drive cruzada (dos guardados casi a la vez): revísalos cuanto antes, uno de los dos probablemente necesita pasar a tener un ID distinto para no seguir pisando al otro.',
+items:dupIds.map(function(x){return{verId:x.verId,mensaje:x.mensaje};}),
+accionMasiva:null
+});
+if(refRotas.length)cats.push({
+id:'integridad_vinculos_rotos',fuente:'integridad_ref',grupo:'integridad',
+titulo:'Vínculos que apuntan a una persona que ya no existe',
+icono:'fa-link-slash',severidad:'critica',
+descripcion:'El padre, la madre o un cónyuge registrado en estas fichas apunta a un ID que ya no está en la base. El resto de comprobaciones de este Gestor no puede detectar estos casos porque no hay una segunda ficha con la que compararlos.',
+items:refRotas.map(function(x){return{verId:x.verId,mensaje:x.mensaje,aplicar:x.aplicar};}),
+accionMasiva:refRotas.length?{etiqueta:'Desvincular todos los IDs inexistentes ('+refRotas.length+')'}:null
+});
 /* §4.1 Inconsistencias: agrupadas por `etiqueta`, sin tocar detectarInconsistencias().
 El Gestor de datos pasa getYearDesdeSnapshot para que las comprobaciones de edad usen
 exclusivamente el año calculado tal y como quedó guardado en Drive al pulsar "Recalcular",
@@ -5268,6 +5395,27 @@ if(!cat||!cat.accionMasiva)return;
 if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGes();return;}
 if(cat.fuente==='anocalc'){gesCalcularAnosGes();return;}
 if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
+if(cat.fuente==='integridad_ref'){
+var conSolucionInt=cat.items.filter(function(it){return typeof it.aplicar==='function';});
+if(!conSolucionInt.length)return;
+if(!confirm('Se desvincularán automáticamente los '+conSolucionInt.length+' vínculo(s) que apuntan a un ID que ya no existe (el resto de cada ficha no se toca). ¿Continuar?'))return;
+var antesInt=mapaPersonas(D);
+var aplicadasInt=0;
+conSolucionInt.forEach(function(it){if(it.aplicar())aplicadasInt++;});
+if(aplicadasInt){
+bIdx(D);
+sAll(D).then(function(){
+rStats();
+toast(aplicadasInt+' vínculo(s) corregido(s)');
+registrarCambiosDesdeSnapshots(antesInt,D,'vincular');
+rGes();
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGes();});
+}else{
+toast('No se pudo aplicar ninguna corrección automáticamente',true);
+rGes();
+}
+return;
+}
 if(cat.fuente!=='inc')return;
 var conSolucion=cat.items.filter(function(it){return typeof it.aplicar==='function';}).length;
 if(!conSolucion)return;
@@ -5510,7 +5658,7 @@ return h;
 }
 function gesRenderCat(c){
 var abierta=gesEstaAbierta(c);
-var chips={inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var chips={integridad:'Integridad',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
 var h='<section class="ges-cat sev-'+(c.severidad||'info')+(abierta?' abierta':'')+'" data-id="'+c.id+'">';
 h+='<header class="ges-cat-head" onclick="gesToggle(\''+c.id+'\')">';
 h+='<i class="fa-solid '+esc(c.icono||'fa-circle-info')+' ges-ico"></i>';
@@ -5547,8 +5695,17 @@ var cont=document.getElementById('gesPanel');
 var res=document.getElementById('gesResumen');
 if(!cont)return;
 var cats=(GES_CACHE||[]).slice();
-/* §5: primero las que tienen accionMasiva (limpiar lo fácil), luego por nº de items descendente */
+/* §5: se ordena primero por GRUPO (Integridad > Inconsistencias > Duplicados > Completitud >
+Lugares > Otros), de lo más urgente/factual a lo más informativo, y dentro de cada grupo,
+primero las que tienen accionMasiva (limpiar lo fácil) y luego por nº de items descendente.
+Antes se ordenaba solo por accionMasiva+tamaño sin mirar el grupo, así que "Duplicados" podía
+aparecer, desaparecer y volver a aparecer entre categorías de otro tipo — de ahí la sensación
+de desorden. */
+var GES_GRUPO_ORDEN=['integridad','inconsistencias','duplicados','completitud','lugares','otros'];
 cats.sort(function(a,b){
+var oa=GES_GRUPO_ORDEN.indexOf(a.grupo);if(oa<0)oa=99;
+var ob=GES_GRUPO_ORDEN.indexOf(b.grupo);if(ob<0)ob=99;
+if(oa!==ob)return oa-ob;
 var am=(a.accionMasiva?1:0)-(b.accionMasiva?1:0);
 if(am)return -am;
 return b.items.length-a.items.length;
@@ -5574,8 +5731,15 @@ if(!cats.length){
 cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>Todo limpio: no queda ningún problema pendiente en el árbol.</div></div>';
 return;
 }
-var h=avisoSnapshot;
-cats.forEach(function(c){h+=gesRenderCat(c);});
+var titulosGrupo={integridad:'Integridad de los datos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var h=avisoSnapshot,grupoAnterior=null;
+cats.forEach(function(c){
+if(c.grupo!==grupoAnterior){
+h+='<div class="herr-section" style="margin:18px 4px 4px">'+(titulosGrupo[c.grupo]||c.grupo)+'</div>';
+grupoAnterior=c.grupo;
+}
+h+=gesRenderCat(c);
+});
 cont.innerHTML=h;
 }
 /* §5: cada vez que se entra en la pantalla o se aplica una correccion se recalcula desde cero.
@@ -8320,6 +8484,15 @@ document.getElementById('si').addEventListener('input',function(){
 var val=this.value;
 clearTimeout(srchTimer);
 srchTimer=setTimeout(function(){doSrch(val);},150);
+});
+})();
+(function(){
+var srchTimerRapida=null;
+var inp=document.getElementById('quickSearchInput');
+if(inp)inp.addEventListener('input',function(){
+var val=this.value;
+clearTimeout(srchTimerRapida);
+srchTimerRapida=setTimeout(function(){doSrchRapida(val);},150);
 });
 })();
 (function(){
