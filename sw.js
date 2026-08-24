@@ -8,13 +8,13 @@
 
    Actualizar CACHE_NAME (ej. 'libro-ancestros-v2') cuando haya un cambio
    estructural del propio PWA que deba forzar una limpieza de caché. */
-const CACHE_NAME = 'libro-ancestros-v1';
+const CACHE_NAME = 'libro-ancestros-v2';
 
 /* Rutas relativas al lugar donde vive este sw.js (mismo directorio que el
    HTML), para no asumir que la aplicación está publicada en la raíz del
    dominio (ej. GitHub Pages con subcarpeta de proyecto). */
 const APP_SHELL = [
-  './arbolgenealogico_3.html',
+  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

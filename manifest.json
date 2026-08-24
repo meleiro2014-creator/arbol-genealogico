@@ -2,7 +2,7 @@
   "name": "El Libro de los Ancestros",
   "short_name": "Ancestros",
   "description": "Gestión del árbol genealógico El Libro de los Ancestros",
-  "start_url": "./arbolgenealogico_3.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
