@@ -30,8 +30,14 @@ html{overscroll-behavior-y:contain}
 body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior-y:contain}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 600px 400px at 20% 20%,rgba(196,101,58,.06) 0%,transparent 60%),radial-gradient(ellipse 500px 500px at 80% 80%,rgba(90,138,60,.05) 0%,transparent 60%);pointer-events:none;z-index:-1}
 h1,h2,h3,h4{font-family:'Cinzel',serif}
-header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100}
-.logo{display:flex;align-items:center;gap:8px}
+header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;gap:8px}
+.nav-hist{display:flex;gap:2px;flex-shrink:0}
+.nav-hist-btn{width:30px;height:30px;border-radius:50%;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.nav-hist-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.nav-hist-btn:disabled{opacity:.3;cursor:default}
+.logo{display:flex;align-items:center;gap:8px;min-width:0}
+.logo-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:640px){.logo-text{display:none}}
 .logo-icon{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
 .logo-text{font-family:'Cinzel',serif;font-size:16px;font-weight:700}
 nav{display:flex;gap:2px;flex-wrap:nowrap}
@@ -431,6 +437,10 @@ body{background:#fff}
 <div class="toast-c" id="toastC" role="status" aria-live="polite" aria-atomic="false"></div>
 <div id="updateBanner" class="update-banner" style="display:none" role="status" aria-live="polite"></div>
 <header>
+<div class="nav-hist">
+<button type="button" class="nav-hist-btn" id="navBackBtn" onclick="navHistBack()" title="Atrás" aria-label="Ir a la pantalla anterior" disabled><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
+<button type="button" class="nav-hist-btn" id="navFwdBtn" onclick="navHistForward()" title="Adelante" aria-label="Ir a la pantalla siguiente" disabled><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+</div>
 <div class="logo"><div class="logo-icon"><i class="fa-solid fa-tree"></i></div><div class="logo-text">Libro de los Ancestros</div></div>
 <nav id="mn" aria-label="Navegación principal">
 <button class="active" data-view="bus" aria-label="Buscar" aria-current="page" onclick="sv('bus')"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> <span class="mh">Buscar</span></button>
@@ -1603,6 +1613,12 @@ toast('No se pudo preparar la subida a Drive: '+err.message,true);
 docsSubidaEnCurso=false;
 if(prog)prog.style.display='none';
 toast(subidos+' archivo(s) subido(s)'+(errores?(' · '+errores+' con error'):''),errores>0&&subidos===0);
+/* Antes, tras subir un archivo (sobre todo con "Hacer foto"), la lista de la
+   carpeta se quedaba con el contenido antiguo hasta que el usuario salía y
+   volvía a entrar: parecía que la foto no se había subido aunque sí estaba en
+   Drive. Repasamos la carpeta otra vez para que el archivo recién subido
+   aparezca de inmediato, sin que el usuario tenga que hacer nada más. */
+if(subidos>0&&DOC_EXPLORER_PERSONA&&DOC_EXPLORER_PERSONA.id===id)docExplorerRepasarCarpeta();
 }
 
 /* Igual que la regla del programa externo: cualquier .json de la carpeta que
@@ -2054,19 +2070,48 @@ function svInternal(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges','d
    historial). Solo cuando ya no queda ninguna pantalla propia en la pila, el siguiente "Atrás" sale
    de la app de verdad, igual que hacen Gmail, Maps, etc. en su versión web. */
 var __vistaActual='bus';
+/* ===== Pila de navegación propia (además del historial real del navegador) =====
+   Antes, sv(v) solo apilaba una entrada de historial cuando cambiaba la VISTA (v).
+   Eso significa que moverse de una ficha a otra (p.ej. pulsar sobre el padre, luego
+   sobre un hermano, luego sobre un hijo) no dejaba rastro: "Atrás" saltaba de golpe
+   hasta antes de entrar en la primera ficha, en vez de deshacer persona a persona,
+   que es lo que se sentía "raro". Ahora cada combinación distinta de (vista, persona
+   activa) es un paso de navegación propio, y además llevamos nuestra propia pila
+   __navStack/__navPos para poder pintar y habilitar/deshabilitar los botones
+   visibles de "Atrás"/"Adelante" del cabecero (no todos los navegadores/PWA en
+   móvil muestran flechas de atrás-adelante propias). */
+var __navStack=[{appView:'bus',cidNav:null}];
+var __navPos=0;
+function __claveNav(v,c){return v+'|'+(c||'');}
+function actualizarBotonesNavHist(){
+  var b=document.getElementById('navBackBtn'),f=document.getElementById('navFwdBtn');
+  if(b)b.disabled=(__navPos<=0);
+  if(f)f.disabled=(__navPos>=__navStack.length-1);
+}
 function sv(v){
-  if(v!==__vistaActual){
-    try{history.pushState({appView:v},'',location.pathname+location.search+'#'+v);}catch(e){}
+  var actual=__navStack[__navPos];
+  if(!actual||__claveNav(v,cid)!==__claveNav(actual.appView,actual.cidNav)){
+    __navStack=__navStack.slice(0,__navPos+1);
+    __navStack.push({appView:v,cidNav:cid});
+    __navPos=__navStack.length-1;
+    try{history.pushState({navPos:__navPos,appView:v,cidNav:cid},'',location.pathname+location.search+'#'+v);}catch(e){}
   }
   __vistaActual=v;
   svInternal(v);
+  actualizarBotonesNavHist();
 }
 window.addEventListener('popstate',function(e){
-  var v=(e.state&&e.state.appView)?e.state.appView:'bus';
+  var st=e.state,v='bus',c=null,pos=0;
+  if(st){v=st.appView||'bus';c=('cidNav' in st)?st.cidNav:null;pos=(typeof st.navPos==='number')?st.navPos:0;}
+  cid=c;
   __vistaActual=v;
+  __navPos=pos;
   svInternal(v);
+  actualizarBotonesNavHist();
 });
-try{history.replaceState({appView:'bus'},'',location.pathname+location.search+'#bus');}catch(e){}
+function navHistBack(){history.back();}
+function navHistForward(){history.forward();}
+try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
