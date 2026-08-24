@@ -1488,7 +1488,7 @@ host.innerHTML='<div style="display:flex;justify-content:space-between;align-ite
 '<input type="file" id="docExplorerCameraInput" accept="image/*" capture="environment" style="display:none" onchange="docExplorerHandleInputChange(event,\''+safeId(id)+'\')">'+
 '<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button> '+
 '<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerCameraInput\').click()"><i class="fa-solid fa-camera"></i> Hacer foto</button>'+
-'<p style="font-size:11px;color:var(--muted);margin-top:8px">Se sube el archivo tal cual a Drive, dentro de la carpeta de esta persona (se crea automáticamente si todavía no existe). «Hacer foto» abre la cámara del móvil directamente. Tardará en aparecer aquí hasta que el programa de archivo documental familiar le cree su ficha (sidecar) — mientras tanto, sigue estando accesible desde «Abrir carpeta en Drive».</p>'+
+'<p style="font-size:11px;color:var(--muted);margin-top:8px">Los archivos normales se suben a Drive tal cual. «Hacer foto» abre la cámara del móvil y prepara una copia JPG optimizada antes de subirla directamente a DOCUMENTOS/<ID>; no se guarda como documento en el teléfono.</p>'+
 '<div id="docExplorerProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docExplorerProgresoBarra"></div></div><div id="docExplorerProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>'+
 '</div>';
 }
@@ -1499,11 +1499,75 @@ if(zona)zona.classList.remove('drag');
 var files=ev.dataTransfer&&ev.dataTransfer.files;
 if(files&&files.length)docExplorerSubirArchivos(id,files);
 }
-function docExplorerHandleInputChange(ev,id){
+async function docExplorerHandleInputChange(ev,id){
 var files=ev.target.files;
-if(files&&files.length)docExplorerSubirArchivos(id,files);
+if(!files||!files.length){ev.target.value='';return;}
+/* «Hacer foto» tiene un tratamiento especial: la imagen de cámara se reduce
+   antes de tocar Drive, evitando mantener en memoria el original de alta
+   resolución y evitando DataURL/base64. Los archivos normales se suben tal cual. */
+if(ev.target.id==='docExplorerCameraInput'){
+  try{
+    toast('Preparando la fotografía para subirla a Drive...');
+    var foto=await docExplorerPrepararFotoCamara(files[0]);
+    await docExplorerSubirArchivos(id,[foto]);
+  }catch(err){
+    toast('No se pudo preparar la fotografía: '+err.message,true);
+  }
+}else{
+  docExplorerSubirArchivos(id,files);
+}
 ev.target.value='';
 }
+async function docExplorerPrepararFotoCamara(file){
+/* La cámara puede entregar una imagen de muchos MB. No la convertimos a
+   DataURL/base64: eso dispara el consumo de memoria del navegador. La
+   reducimos directamente a un Blob JPEG y ese Blob es el que se sube a Drive. */
+if(!file)throw new Error('No se recibió la fotografía');
+if(!file.type||file.type.indexOf('image/')!==0)throw new Error('La cámara no devolvió una imagen válida');
+var MAX=2200,QUALITY=0.82;
+var url=URL.createObjectURL(file);
+try{
+var canvas=document.createElement('canvas');
+var w=0,h=0;
+if(window.createImageBitmap){
+  try{
+    var bmp=await createImageBitmap(file,{imageOrientation:'from-image'});
+    w=bmp.width;h=bmp.height;
+    if(w>MAX||h>MAX){if(w>=h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+    canvas.width=w;canvas.height=h;
+    var ctx=canvas.getContext('2d',{alpha:false});
+    ctx.drawImage(bmp,0,0,w,h);
+    if(bmp.close)bmp.close();
+  }catch(eBitmap){
+    var img=new Image();
+    await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=function(){reject(new Error('No se pudo leer la fotografía de la cámara'));};img.src=url;});
+    w=img.width;h=img.height;
+    if(w>MAX||h>MAX){if(w>=h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d',{alpha:false}).drawImage(img,0,0,w,h);
+    img.src='';
+  }
+}else{
+  var img2=new Image();
+  await new Promise(function(resolve,reject){img2.onload=resolve;img2.onerror=function(){reject(new Error('No se pudo leer la fotografía de la cámara'));};img2.src=url;});
+  w=img2.width;h=img2.height;
+  if(w>MAX||h>MAX){if(w>=h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+  canvas.width=w;canvas.height=h;
+  canvas.getContext('2d',{alpha:false}).drawImage(img2,0,0,w,h);
+  img2.src='';
+}
+var blob=await new Promise(function(resolve,reject){
+  canvas.toBlob(function(b){if(b)resolve(b);else reject(new Error('No se pudo preparar la fotografía'));},'image/jpeg',QUALITY);
+});
+canvas.width=1;canvas.height=1;
+var ahora=new Date();
+function z(n){return String(n).padStart(2,'0');}
+var nombre='foto_'+ahora.getFullYear()+z(ahora.getMonth()+1)+z(ahora.getDate())+'_'+z(ahora.getHours())+z(ahora.getMinutes())+z(ahora.getSeconds())+'.jpg';
+try{return new File([blob],nombre,{type:'image/jpeg',lastModified:Date.now()});}
+catch(e){blob.name=nombre;return blob;}
+}finally{URL.revokeObjectURL(url);}
+}
+
 async function docExplorerSubirArchivos(id,fileList){
 if(docsSubidaEnCurso){toast('Ya hay una subida de documentos en curso; espera a que termine',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
