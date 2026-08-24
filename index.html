@@ -1301,7 +1301,7 @@ return texto.indexOf(q)>=0;
 }).slice(0,10);
 if(!coincidencias.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin resultados.</p>';return;}
 cont.innerHTML=coincidencias.map(function(p){
-return '<button type="button" class="ef-btn ghost" style="display:block;width:100%;text-align:left;margin-bottom:4px" onclick="docExplorerSeleccionarPersona(\''+safeId(p.ID)+'\')">'+esc(fn(p))+(p.LUGARNAC?' <span style="color:var(--muted);font-weight:400;font-size:11px">— '+esc(p.LUGARNAC)+'</span>':'')+'</button>';
+return '<button type="button" class="ef-btn ghost" style="display:block;width:100%;text-align:left;margin-bottom:4px" onclick="docExplorerSeleccionarPersona(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span>'+(p.LUGARNAC?' <span style="color:var(--muted);font-weight:400;font-size:11px">— '+esc(p.LUGARNAC)+'</span>':'')+'</button>';
 }).join('');
 }
 
@@ -1485,8 +1485,10 @@ host.innerHTML='<div style="display:flex;justify-content:space-between;align-ite
 '<div id="docExplorerDropZone" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="docExplorerHandleDrop(event,\''+safeId(id)+'\')" class="iz" style="padding:16px;margin:0 0 12px">'+
 '<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí un documento o una foto para subirlo a la carpeta de Drive de esta persona</p>'+
 '<input type="file" id="docExplorerFileInput" multiple style="display:none" onchange="docExplorerHandleInputChange(event,\''+safeId(id)+'\')">'+
-'<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button>'+
-'<p style="font-size:11px;color:var(--muted);margin-top:8px">Se sube el archivo tal cual a Drive. Tardará en aparecer aquí hasta que el programa de archivo documental familiar le cree su ficha (sidecar) — mientras tanto, sigue estando accesible desde «Abrir carpeta en Drive».</p>'+
+'<input type="file" id="docExplorerCameraInput" accept="image/*" capture="environment" style="display:none" onchange="docExplorerHandleInputChange(event,\''+safeId(id)+'\')">'+
+'<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button> '+
+'<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerCameraInput\').click()"><i class="fa-solid fa-camera"></i> Hacer foto</button>'+
+'<p style="font-size:11px;color:var(--muted);margin-top:8px">Se sube el archivo tal cual a Drive, dentro de la carpeta de esta persona (se crea automáticamente si todavía no existe). «Hacer foto» abre la cámara del móvil directamente. Tardará en aparecer aquí hasta que el programa de archivo documental familiar le cree su ficha (sidecar) — mientras tanto, sigue estando accesible desde «Abrir carpeta en Drive».</p>'+
 '<div id="docExplorerProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docExplorerProgresoBarra"></div></div><div id="docExplorerProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>'+
 '</div>';
 }
@@ -3310,7 +3312,7 @@ f=f.slice(0,80);
 var h='';
 f.forEach(function(p){
 var al=isAl(p),y=pdAnioTexto(p);
-h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
+h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
 });
 if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
 else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
@@ -3519,7 +3521,7 @@ var hij=ordenarIdsPorEdad(HD[id]||[]);
 h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
 if(hij.length){
 var hi='';
-hij.forEach(function(x){hi+='<li><a onclick="selP(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a></li>';});
+hij.forEach(function(x){hi+='<li><a onclick="selP(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a>'+etiquetaAnioRelacion(PI[x])+'</li>';});
 h+='<ul class="ul">'+hi+'</ul>';
 } else {
 h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
