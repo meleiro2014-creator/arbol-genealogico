@@ -943,9 +943,87 @@ function esMiFicha(personaId){
 var mid=miFichaId();
 return !!(mid&&personaId!=null&&String(mid)===String(personaId));
 }
-/* Preparado para la fase 2 (Amigos): solo el dueño de la ficha o el administrador. */
+/* Amigos: solo el dueño de la ficha o el administrador. */
 function puedeEditarAmigosDe(personaId){
 return esAdministrador()||esMiFicha(personaId);
+}
+function puedeVerAmigosDe(personaId){
+return esAdministrador()||esMiFicha(personaId);
+}
+/* ===== AMIGOS: campo propio (no parentesco), simétrico, visible solo dueño/admin ===== */
+function amigosIdsDe(p){
+if(!p)return [];
+var a=p.AMIGOS;
+if(Array.isArray(a))return a.map(function(x){return String(x);}).filter(function(id,i,arr){return id&&arr.indexOf(id)===i;});
+if(typeof a==='string'&&a.trim())return a.split(/[,;|]/).map(function(s){return String(s).trim();}).filter(function(id,i,arr){return id&&arr.indexOf(id)===i;});
+return [];
+}
+function asegurarAmigosArray(p){
+if(!p)return;
+p.AMIGOS=amigosIdsDe(p);
+}
+function htmlSeccionAmigos(id){
+if(!puedeVerAmigosDe(id))return '';
+var p=PI[id];
+if(!p)return '';
+var ids=amigosIdsDe(p);
+var puedeEditar=puedeEditarAmigosDe(id);
+var h='<div class="fs"><h3>Amigos ('+ids.length+')</h3>';
+if(ids.length){
+h+='<ul class="ul">';
+ids.forEach(function(aid){
+var a=PI[aid];
+if(!a){
+h+='<li style="color:var(--muted)">ID '+esc(String(aid))+' (no encontrado)';
+if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\')">Quitar</button>';
+h+='</li>';
+return;
+}
+h+='<li><a onclick="irAFicha(\''+safeId(aid)+'\')">'+esc(fn(a))+'</a>'+etiquetaAnioRelacion(a);
+if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\')" title="Quitar amigo"><i class="fa-solid fa-xmark"></i></button>';
+h+='</li>';
+});
+h+='</ul>';
+}else{
+h+='<p style="font-size:12px;color:var(--muted)">Sin amigos registrados</p>';
+}
+if(puedeEditar){
+h+='<div style="margin-top:10px"><button type="button" class="ef-btn ghost" onclick="abrirSelectorAmigo(\''+safeId(id)+'\')"><i class="fa-solid fa-user-plus"></i> Añadir amigo</button></div>';
+}
+h+='</div>';
+return h;
+}
+function abrirSelectorAmigo(id){
+if(!puedeEditarAmigosDe(id)){toast('Solo puedes gestionar los amigos de tu propia ficha (o ser administrador)',true);return;}
+if(!PI[id]){toast('Persona no encontrada',true);return;}
+abrirSelectorRelacion(id,'AMIGOS');
+}
+async function quitarAmigoUI(idPersona,idAmigo){
+if(!puedeEditarAmigosDe(idPersona)){toast('No tienes permiso para quitar amigos de esta ficha',true);return;}
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+var a=PI[idPersona],b=PI[idAmigo];
+var nombreB=b?fn(b).trim():('ID '+idAmigo);
+if(!confirm('¿Quitar a '+nombreB+' de la lista de amigos? (no se borra ninguna ficha)')){finOperacionFicha();return;}
+var antes=mapaPersonas(D);
+if(a){asegurarAmigosArray(a);a.AMIGOS=amigosIdsDe(a).filter(function(x){return String(x)!==String(idAmigo);});}
+if(b){asegurarAmigosArray(b);b.AMIGOS=amigosIdsDe(b).filter(function(x){return String(x)!==String(idPersona);});}
+bIdx(D);
+sAll(D).then(function(){
+rFic(idPersona);
+toast('Amigo quitado');
+registrarCambiosDesdeSnapshots(antes,D,'vincular');
+}).catch(function(err){toast('No se pudo quitar el amigo: '+err.message,true);}).finally(finOperacionFicha);
+}
+async function anadirAmigoEntre(idA,idB){
+var a=PI[idA],b=PI[idB];
+if(!a||!b)return false;
+if(String(idA)===String(idB))return false;
+asegurarAmigosArray(a);
+asegurarAmigosArray(b);
+if(amigosIdsDe(a).indexOf(String(idB))<0)a.AMIGOS=amigosIdsDe(a).concat([String(idB)]);
+if(amigosIdsDe(b).indexOf(String(idA))<0)b.AMIGOS=amigosIdsDe(b).concat([String(idA)]);
+return true;
 }
 /* ===== UI administrador: gestión de vínculos email ↔ ficha (en Herramientas) ===== */
 var vinculoPendienteEmail=null; /* email en espera de que el admin elija ficha */
@@ -3890,26 +3968,27 @@ if(madreObj.PADRE&&PI[madreObj.PADRE])abuelos.push(['Abuelo materno',PI[madreObj
 if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj.MADRE]]);
 }
 if(abuelos.length){
-var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv"><a class="fl2" onclick="selP(\''+safeId(par[1].ID)+'\')">'+esc(fn(par[1]))+'</a>'+etiquetaAnioRelacion(par[1])+'</span></div>';}).join('');
+var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv"><a class="fl2" onclick="irAFicha(\''+safeId(par[1].ID)+'\')">'+esc(fn(par[1]))+'</a>'+etiquetaAnioRelacion(par[1])+'</span></div>';}).join('');
 h+='<div class="fs"><h3>Abuelos</h3>'+ah+'</div>';
 }
 var her=gHerm(id);
 if(her.length){
 her=ordenarPersonasPorEdad(her);
 var hh='';
-her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="selP(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a>'+etiquetaAnioRelacion(x)+'</li>';});
+her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="irAFicha(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a>'+etiquetaAnioRelacion(x)+'</li>';});
 h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
 }
 var hij=ordenarIdsPorEdad(HD[id]||[]);
 h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
 if(hij.length){
 var hi='';
-hij.forEach(function(x){hi+='<li><a onclick="selP(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a>'+etiquetaAnioRelacion(PI[x])+'</li>';});
+hij.forEach(function(x){hi+='<li><a onclick="irAFicha(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a>'+etiquetaAnioRelacion(PI[x])+'</li>';});
 h+='<ul class="ul">'+hi+'</ul>';
 } else {
 h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
 }
 h+='</div>';
+h+=htmlSeccionAmigos(id);
 if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
@@ -4552,6 +4631,11 @@ if(!confirm('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta 
 var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
 var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
 ['PADRE','MADRE','M1','M2'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
+/* Quitar también de listas de amigos simétricas */
+if(copia.AMIGOS!=null){
+var listaAm=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);
+copia.AMIGOS=listaAm.filter(function(aid){return String(aid)!==String(id);});
+}
 return copia;
 });
 sAll(nuevos).then(function(){
@@ -4615,7 +4699,7 @@ editMode=true;
 rFic(linkedId);
 }
 var selectorRelacion=null;
-var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2'};
+var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2',AMIGOS:'amigo'};
 /* ===== FIX: evita perder texto sin guardar del formulario de edición cuando
    una acción intermedia (vincular/quitar relación) reconstruye el formulario
    con rFic() antes de que el usuario pulse "Guardar". ===== */
@@ -4663,10 +4747,18 @@ function cerrarSelectorRelacion(){document.getElementById('modalConyuge').style.
 function filtrarRelacion(){
 if(!selectorRelacion)return;
 var q=document.getElementById('buscarConyuge').value.toLowerCase().trim(),actual=PI[selectorRelacion.id],campo=selectorRelacion.campo,lista=document.getElementById('listaConyuges');
+if(!actual){lista.innerHTML='<p style="font-size:12px;color:var(--muted);padding:10px 0">Persona no encontrada.</p>';return;}
 var excluir={};excluir[actual.ID]=true;
 if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2)excluir[actual.M2]=true;}
+if(campo==='AMIGOS'){amigosIdsDe(actual).forEach(function(aid){excluir[aid]=true;});}
 var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCase().indexOf(q)>=0||String(p.ID).indexOf(q)>=0);}).slice(0,80);
-lista.innerHTML=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
+var html=candidatos.length?candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join(''):'<p style="font-size:12px;color:var(--muted);padding:10px 0">No se encontraron personas.</p>';
+if(campo==='AMIGOS'){
+html+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">';
+html+='<button type="button" class="ef-btn" style="width:100%;justify-content:center" onclick="crearPersonaYAnadirAmigo()"><i class="fa-solid fa-user-plus"></i> Crear persona nueva y añadir como amigo</button>';
+html+='</div>';
+}
+lista.innerHTML=html;
 }
 async function elegirRelacion(otroId){
 if(!iniciarOperacionFicha())return;
@@ -4675,6 +4767,15 @@ var antesRelacion=mapaPersonas(D);
 if(!selectorRelacion){finOperacionFicha();return;}
 var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
 if(!actual||!otro){finOperacionFicha();return;}
+if(campo==='AMIGOS'){
+if(!puedeEditarAmigosDe(actual.ID)){toast('No tienes permiso para añadir amigos a esta ficha',true);finOperacionFicha();return;}
+if(String(actual.ID)===String(otro.ID)){toast('No puedes añadirte a ti mismo como amigo',true);finOperacionFicha();return;}
+if(amigosIdsDe(actual).indexOf(String(otro.ID))>=0){toast('Ya está en la lista de amigos',true);finOperacionFicha();return;}
+await anadirAmigoEntre(actual.ID,otro.ID);
+var camposPreviosA=capturarCamposEdicionSiProcede(actual.ID);
+bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(finOperacionFicha);
+return;
+}
 if(campo==='M1'||campo==='M2'){
 var yaReciproco=otro.M1===actual.ID||otro.M2===actual.ID;
 var campoReciproco=yaReciproco?null:(!otro.M1?'M1':(!otro.M2?'M2':''));
@@ -4688,6 +4789,28 @@ actual[campo]=otro.ID;
 }
 var camposPrevios=capturarCamposEdicionSiProcede(actual.ID);
 bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(finOperacionFicha);
+}
+async function crearPersonaYAnadirAmigo(){
+if(!selectorRelacion||selectorRelacion.campo!=='AMIGOS')return;
+var idDuenio=selectorRelacion.id;
+if(!puedeEditarAmigosDe(idDuenio)){toast('No tienes permiso para añadir amigos a esta ficha',true);return;}
+if(!iniciarOperacionFicha())return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+if(!confirm('Se creará una persona nueva y se añadirá como amigo. Luego podrás completar su ficha. ¿Continuar?')){finOperacionFicha();return;}
+var newId=await elegirIdNueva();
+if(!newId){finOperacionFicha();return;}
+var antes=mapaPersonas(D);
+var duenio=PI[idDuenio];
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
+D.push(nuevo);
+bIdx(D);
+await anadirAmigoEntre(idDuenio,newId);
+cerrarSelectorRelacion();
+sAll(D).then(function(){
+registrarCambiosDesdeSnapshots(antes,D,'crear');
+cid=newId;editMode=true;rFic(newId);
+toast('Persona creada y añadida como amigo de '+(duenio?fn(duenio).trim():idDuenio)+'. Completa los datos y guarda.');
+}).catch(function(err){toast('No se pudo crear: '+err.message,true);}).finally(finOperacionFicha);
 }
 async function quitarConyuge(id,campo){
 if(!iniciarOperacionFicha())return;
@@ -8764,7 +8887,7 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
+function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
 function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio APLICADO y CONFORME. Recuerda: solo tu subes la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
 function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio rechazado (no se aplico al arbol)');};};}
 function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!confirm('Se aplicaran al arbol y se marcaran COMO CONFORME '+pend.length+' cambio(s). ¿Continuar?'))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'. Sube ahora la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
