@@ -1557,7 +1557,7 @@ ev.preventDefault();
 var zona=document.getElementById('docExplorerDropZone');
 if(zona)zona.classList.remove('drag');
 var files=ev.dataTransfer&&ev.dataTransfer.files;
-if(files&&files.length)docExplorerSubirArchivos(id,files);
+if(files&&files.length)docExplorerSubirArchivos(id,Array.prototype.slice.call(files));
 }
 async function docExplorerHandleInputChange(ev,id){
 var files=ev.target.files;
@@ -1566,17 +1566,26 @@ if(!files||!files.length){ev.target.value='';return;}
    antes de tocar Drive, evitando mantener en memoria el original de alta
    resolución y evitando DataURL/base64. Los archivos normales se suben tal cual. */
 if(ev.target.id==='docExplorerCameraInput'){
+  var fotoOriginal=files[0];
+  ev.target.value='';
   try{
     toast('Preparando la fotografía para subirla a Drive...');
-    var foto=await docExplorerPrepararFotoCamara(files[0]);
+    var foto=await docExplorerPrepararFotoCamara(fotoOriginal);
     await docExplorerSubirArchivos(id,[foto]);
   }catch(err){
     toast('No se pudo preparar la fotografía: '+err.message,true);
   }
 }else{
-  docExplorerSubirArchivos(id,files);
+  /* IMPORTANTE: hay que copiar los archivos a un array propio ANTES de vaciar
+     el input. "files" apunta al FileList en vivo del <input>: si se vacía
+     ev.target.value primero (como se hacía antes), para cuando la subida
+     (que primero comprueba la sesión de Google de forma asíncrona) llega a
+     leer los archivos, el FileList ya está vacío y no se sube nada, sin
+     ningún aviso de error. */
+  var filesArr=Array.prototype.slice.call(files);
+  ev.target.value='';
+  docExplorerSubirArchivos(id,filesArr);
 }
-ev.target.value='';
 }
 async function docExplorerPrepararFotoCamara(file){
 /* La cámara puede entregar una imagen de muchos MB. No la convertimos a
