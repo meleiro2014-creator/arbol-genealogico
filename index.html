@@ -3526,6 +3526,11 @@ document.addEventListener('keydown',function(e){
 if(e.key==='Escape'&&busquedaRapidaEstaAbierta())cerrarBusquedaRapida();
 });
 function selP(id){cid=id;sv('arb');rTree(id);}
+/* Ir a la ficha de una persona quedándose en la propia pantalla de ficha
+   (a diferencia de selP, que lleva al Árbol). Se usa para los enlaces a
+   Padre/Madre/Cónyuge/Abuelos/Hermanos/Hijos dentro de la ficha, y también
+   desde el botón "Abrir ficha" del árbol. */
+function irAFicha(id){cid=id;editMode=false;sv('fic');}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
@@ -3696,10 +3701,10 @@ var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
 var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
 var c1obj=p.M1&&PI[p.M1]?PI[p.M1]:null;
 var c2obj=p.M2&&PI[p.M2]?PI[p.M2]:null;
-var pl=padreObj?'<a class="fl2" onclick="selP(\''+safeId(p.PADRE)+'\')">'+esc(fn(padreObj))+'</a>'+etiquetaAnioRelacion(padreObj):'<span style="color:var(--muted)">Desconocido</span>';
-var ml=madreObj?'<a class="fl2" onclick="selP(\''+safeId(p.MADRE)+'\')">'+esc(fn(madreObj))+'</a>'+etiquetaAnioRelacion(madreObj):'<span style="color:var(--muted)">Desconocida</span>';
-var m1l=c1obj?'<a class="fl2" onclick="selP(\''+safeId(p.M1)+'\')">'+esc(fn(c1obj))+'</a>'+etiquetaAnioRelacion(c1obj):'Ninguno';
-var m2l=c2obj?'<a class="fl2" onclick="selP(\''+safeId(p.M2)+'\')">'+esc(fn(c2obj))+'</a>'+etiquetaAnioRelacion(c2obj):'Ninguno';
+var pl=padreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.PADRE)+'\')">'+esc(fn(padreObj))+'</a>'+etiquetaAnioRelacion(padreObj):'<span style="color:var(--muted)">Desconocido</span>';
+var ml=madreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.MADRE)+'\')">'+esc(fn(madreObj))+'</a>'+etiquetaAnioRelacion(madreObj):'<span style="color:var(--muted)">Desconocida</span>';
+var m1l=c1obj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.M1)+'\')">'+esc(fn(c1obj))+'</a>'+etiquetaAnioRelacion(c1obj):'Ninguno';
+var m2l=c2obj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.M2)+'\')">'+esc(fn(c2obj))+'</a>'+etiquetaAnioRelacion(c2obj):'Ninguno';
 h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Cónyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Cónyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
 /* Abuelos (nuevo, v2.3): mismo patron padre.PADRE/madre.MADRE que ya usa la Cronologia
    ("Comparativa familiar ampliada"), aqui como bloque propio de la ficha, con año real o
