@@ -51,6 +51,11 @@ nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-f
 nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
 main{max-width:100%;margin:0 auto;padding:14px}
 .view{display:none}.view.active{display:block}
+.view.active.dir-fwd{animation:viewSlideFromRight .24s ease}
+.view.active.dir-back{animation:viewSlideFromLeft .24s ease}
+@keyframes viewSlideFromRight{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
+@keyframes viewSlideFromLeft{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
+@media (prefers-reduced-motion:reduce){.view.active.dir-fwd,.view.active.dir-back{animation:none}}
 .hero{text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
@@ -446,7 +451,6 @@ body{background:#fff}
 <div class="nav-hist">
 <button type="button" class="nav-hist-btn" id="navBackBtn" onclick="navHistBack()" title="Atrás" aria-label="Ir a la pantalla anterior" disabled><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
 <button type="button" class="nav-hist-btn" id="navFwdBtn" onclick="navHistForward()" title="Adelante" aria-label="Ir a la pantalla siguiente" disabled><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
-<button type="button" class="nav-hist-btn" id="quickSearchBtn" onclick="abrirBusquedaRapida()" title="Buscar una persona" aria-label="Buscar una persona (sin salir de esta pantalla)" aria-haspopup="dialog"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
 </div>
 <div class="logo"><div class="logo-icon"><i class="fa-solid fa-tree"></i></div><div class="logo-text">Libro de los Ancestros</div></div>
 <nav id="mn" aria-label="Navegación principal">
@@ -462,6 +466,7 @@ body{background:#fff}
 <span class="activebar-label" id="activebarLabelTxt">Persona activa</span>
 <span class="activebar-name" id="activeBarName" role="button" tabindex="0" onclick="irFicha()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();irFicha();}" aria-describedby="activebarLabelTxt"></span>
 <button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="sv('bus')" aria-label="Cambiar persona activa">Cambiar</button>
+<button type="button" class="nav-hist-btn" id="quickSearchBtn" style="width:26px;height:26px;font-size:11px" onclick="abrirBusquedaRapida()" title="Buscar una persona" aria-label="Buscar una persona (sin salir de esta pantalla)" aria-haspopup="dialog"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
 </div>
 <!-- ===== Búsqueda rápida flotante =====
      Se abre encima de la pantalla actual (Árbol, Ficha, Informes...) sin
@@ -2082,7 +2087,7 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function svInternal(v){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1)).classList.remove('active');});document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1)).classList.add('active');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v,dir){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
 /* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
    Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
    navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
@@ -2117,20 +2122,27 @@ function sv(v){
     try{history.pushState({navPos:__navPos,appView:v,cidNav:cid},'',location.pathname+location.search+'#'+v);}catch(e){}
   }
   __vistaActual=v;
-  svInternal(v);
+  svInternal(v,'fwd');
   actualizarBotonesNavHist();
 }
 window.addEventListener('popstate',function(e){
   var st=e.state,v='bus',c=null,pos=0;
   if(st){v=st.appView||'bus';c=('cidNav' in st)?st.cidNav:null;pos=(typeof st.navPos==='number')?st.navPos:0;}
+  var dir=pos<__navPos?'back':'fwd';
   cid=c;
   __vistaActual=v;
   __navPos=pos;
-  svInternal(v);
+  svInternal(v,dir);
   actualizarBotonesNavHist();
 });
 function navHistBack(){history.back();}
 function navHistForward(){history.forward();}
+/* Usado por los enlaces "Volver" de dentro de una pantalla (ficha, árbol de
+   costados...): a diferencia del botón de flecha del cabecero, estos enlaces
+   no se deshabilitan visualmente cuando no hay una pantalla anterior, así que
+   comprobamos __navPos antes de pedir "Atrás" al navegador; si no hay nada
+   detrás en nuestra propia pila, vamos a Buscar en vez de salir de la app. */
+function navHistBackSafe(){if(__navPos>0)history.back();else sv('bus');}
 try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
 function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
@@ -3647,7 +3659,7 @@ function rFicView(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
-var h='<div class="bb" onclick="sv(\'bus\')"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
+var h='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
 h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
@@ -5905,7 +5917,7 @@ else{nextGen.push(null,null);}
 });
 ancestors.push(nextGen);
 }
-var h=`<div class="tree-back"><button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border);font-family:Lato,sans-serif;font-size:12px;padding:6px 14px;border-radius:10px;cursor:pointer" onclick="sv('bus')"><i class="fa-solid fa-arrow-left"></i> Volver</button></div>`;
+var h=`<div class="tree-back"><button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border);font-family:Lato,sans-serif;font-size:12px;padding:6px 14px;border-radius:10px;cursor:pointer" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</button></div>`;
 h+=`<div class="pedigree-container" id="pedigree-container" style="zoom:${treeZoom}">`;
 h+=`<svg id="pedigree-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></svg>`;
 var hijos=ordenarIdsPorEdad(HD[id]||[]);
