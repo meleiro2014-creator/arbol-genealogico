@@ -812,6 +812,9 @@ toast('La cuenta '+emailNormalizado+' no está autorizada para acceder a este á
 return null;
 }
 googleIdentidad={email:emailNormalizado,name:d.name||'',picture:d.picture||''};
+/* Carga en segundo plano el mapa email↔ficha (si existe) para que miFichaId()
+   y puedeEditarAmigosDe() funcionen en cuanto haya sesión. Fallos silenciosos. */
+try{cargarVinculosFichas(false);}catch(eVin){}
 return googleIdentidad;
 }catch(err){googleIdentidad=null;return null;}
 }
@@ -869,6 +872,174 @@ async function quitarUsuarioAutorizadoUI(email){
 if(!confirm('¿Quitar el acceso a '+email+'?'))return;
 var lista=(usuariosAutorizadosCache||[]).filter(function(e){return e!==email;});
 try{await guardarUsuariosAutorizados(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
+catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
+}
+/* ===== VÍNCULO EMAIL ↔ FICHA (base para privacidad de Amigos y ramas propias) =====
+   Archivo en Drive: vinculo-fichas.json
+   Formato: { formato, version, fecha, vinculos: { "email@x.com": "idPersona" } }
+   Solo el administrador puede asignar o quitar vínculos.
+   Un email solo puede apuntar a una ficha y una ficha solo a un email.
+   Esto NO afecta aún a la visibilidad del árbol; solo deja lista la identidad
+   "esta cuenta de Google = esta persona del árbol" para la fase de Amigos. */
+var VINCULO_FICHAS_ARCHIVO='vinculo-fichas.json';
+var vinculosFichasCache=null; /* objeto {emailLower: idPersonaString} o null si aún no se ha cargado */
+async function obtenerArchivoVinculosFichasDrive(){
+if(!driveRootFolderId)return null;
+var q="'"+driveRootFolderId+"' in parents and name='"+VINCULO_FICHAS_ARCHIVO+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return null;
+var d=await r.json();
+return d.files&&d.files.length?d.files[0]:null;
+}
+async function cargarVinculosFichas(forzar){
+if(vinculosFichasCache&&!forzar)return vinculosFichasCache;
+try{
+var f=await obtenerArchivoVinculosFichasDrive();
+if(!f){vinculosFichasCache={};return vinculosFichasCache;}
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok){vinculosFichasCache={};return vinculosFichasCache;}
+var x=await r.json();
+var mapa={};
+if(x&&x.vinculos&&typeof x.vinculos==='object'){
+Object.keys(x.vinculos).forEach(function(email){
+var e=String(email).trim().toLowerCase();
+var id=x.vinculos[email];
+if(e&&id!=null&&String(id).trim()!=='')mapa[e]=String(id).trim();
+});
+}
+vinculosFichasCache=mapa;
+return vinculosFichasCache;
+}catch(err){vinculosFichasCache={};return vinculosFichasCache;}
+}
+async function guardarVinculosFichas(mapa){
+var limpio={};
+Object.keys(mapa||{}).forEach(function(email){
+var e=String(email).trim().toLowerCase();
+var id=mapa[email];
+if(e&&id!=null&&String(id).trim()!=='')limpio[e]=String(id).trim();
+});
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - vinculo email-ficha',version:1,fecha:new Date().toISOString(),vinculos:limpio});
+var existente=await obtenerArchivoVinculosFichasDrive();
+var r=await subirArchivoDrive(VINCULO_FICHAS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+vinculosFichasCache=limpio;
+}
+function fichaVinculadaDeEmail(email){
+if(!email||!vinculosFichasCache)return null;
+return vinculosFichasCache[String(email).trim().toLowerCase()]||null;
+}
+function emailVinculadoDeFicha(personaId){
+if(!personaId||!vinculosFichasCache)return null;
+var id=String(personaId);
+var keys=Object.keys(vinculosFichasCache);
+for(var i=0;i<keys.length;i++){if(vinculosFichasCache[keys[i]]===id)return keys[i];}
+return null;
+}
+function miFichaId(){
+if(!googleIdentidad||!googleIdentidad.email)return null;
+return fichaVinculadaDeEmail(googleIdentidad.email);
+}
+function esMiFicha(personaId){
+var mid=miFichaId();
+return !!(mid&&personaId!=null&&String(mid)===String(personaId));
+}
+/* Preparado para la fase 2 (Amigos): solo el dueño de la ficha o el administrador. */
+function puedeEditarAmigosDe(personaId){
+return esAdministrador()||esMiFicha(personaId);
+}
+/* ===== UI administrador: gestión de vínculos email ↔ ficha (en Herramientas) ===== */
+var vinculoPendienteEmail=null; /* email en espera de que el admin elija ficha */
+async function abrirGestionVinculos(){
+if(!esAdministrador()){toast('Solo el administrador puede gestionar los vínculos email-ficha',true);return;}
+if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para gestionar los vínculos',true);return;}
+document.getElementById('modalVinculos').style.display='flex';
+document.getElementById('listaVinculosFichas').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
+await cargarVinculosFichas(true);
+pintarListaVinculosFichas();
+}
+function cerrarGestionVinculos(){
+document.getElementById('modalVinculos').style.display='none';
+vinculoPendienteEmail=null;
+var sel=document.getElementById('vinculoSelectorPersona');
+if(sel)sel.style.display='none';
+}
+function pintarListaVinculosFichas(){
+var cont=document.getElementById('listaVinculosFichas');
+if(!cont)return;
+var mapa=vinculosFichasCache||{};
+var emails=Object.keys(mapa).sort();
+if(!emails.length){
+cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Todavía no hay ningún vínculo. Asígnale a cada colaborador la ficha del árbol que le corresponde.</div>';
+return;
+}
+cont.innerHTML=emails.map(function(email){
+var id=mapa[email];
+var p=PI&&PI[id]?PI[id]:null;
+var nombre=p?fn(p).trim():('(ficha '+id+' no encontrada)');
+var botonQuitar='<button class="ef-btn ghost" style="padding:4px 10px" onclick="quitarVinculoFichaUI(\''+email.replace(/'/g,"\\'")+'\')"><i class="fa-solid fa-trash"></i></button>';
+var botonVer=p?'<button class="ef-btn ghost" style="padding:4px 10px" onclick="cerrarGestionVinculos();cid=\''+safeId(id)+'\';editMode=false;sv(\'fic\')"><i class="fa-solid fa-id-card"></i></button>':'';
+return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:10px 4px;border-bottom:1px solid var(--border)"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;word-break:break-all">'+esc(email)+'</div><div style="font-size:12px;color:var(--muted);margin-top:2px">→ '+esc(nombre)+(p?' <span style="color:var(--muted)">· ID '+esc(String(id))+'</span>':'')+'</div></div><div style="display:flex;gap:4px;flex-shrink:0">'+botonVer+botonQuitar+'</div></div>';
+}).join('');
+}
+async function anadirVinculoFichaUI(){
+if(!esAdministrador()){toast('Solo el administrador puede asignar vínculos',true);return;}
+var email=prompt('Correo de Google del colaborador al que quieres vincular una ficha:','');
+if(!email)return;
+email=String(email).trim().toLowerCase();
+if(!validarFormatoEmail(email)){toast('Ese texto no parece un correo electrónico válido',true);return;}
+vinculoPendienteEmail=email;
+var sel=document.getElementById('vinculoSelectorPersona');
+var inp=document.getElementById('buscarVinculoPersona');
+var tit=document.getElementById('vinculoSelectorTitulo');
+if(tit)tit.textContent='Elegir ficha para '+email;
+if(sel)sel.style.display='block';
+if(inp){inp.value='';filtrarVinculoPersona();setTimeout(function(){inp.focus();},30);}
+}
+function filtrarVinculoPersona(){
+var q=(document.getElementById('buscarVinculoPersona').value||'').toLowerCase().trim();
+var lista=document.getElementById('listaVinculoPersonas');
+if(!lista)return;
+var candidatos=[];
+if(D&&D.length){
+for(var i=0;i<D.length;i++){
+var p=D[i];
+if(!p||!p.ID)continue;
+var txt=(fn(p)+' '+p.ID).toLowerCase();
+if(!q||txt.indexOf(q)!==-1)candidatos.push(p);
+if(candidatos.length>=40)break;
+}
+}
+if(!candidatos.length){lista.innerHTML='<div style="padding:8px;color:var(--muted);font-size:12px">Ninguna persona coincide.</div>';return;}
+lista.innerHTML=candidatos.map(function(p){
+var ya=emailVinculadoDeFicha(p.ID);
+var aviso=ya?(ya===vinculoPendienteEmail?'':' <span style="color:var(--accent);font-size:10px">(ya vinculada a '+esc(ya)+')</span>'):'';
+return '<button type="button" class="herr-item" style="width:100%" onclick="confirmarVinculoFichaUI(\''+safeId(p.ID)+'\')"><div class="herr-icon"><i class="fa-solid fa-user"></i></div><div class="herr-text"><div class="herr-title">'+esc(fn(p).trim())+'</div><div class="herr-desc">ID '+esc(String(p.ID))+aviso+'</div></div></button>';
+}).join('');
+}
+async function confirmarVinculoFichaUI(personaId){
+if(!vinculoPendienteEmail){toast('No hay correo pendiente de vincular',true);return;}
+if(!personaId||!PI||!PI[personaId]){toast('Esa persona no existe en el árbol',true);return;}
+var email=vinculoPendienteEmail;
+var mapa=Object.assign({},vinculosFichasCache||{});
+/* Un email solo una ficha: sobrescribe si ya tenía otra */
+/* Una ficha solo un email: quita el vínculo previo de esa ficha */
+var emailAnterior=emailVinculadoDeFicha(personaId);
+if(emailAnterior&&emailAnterior!==email)delete mapa[emailAnterior];
+mapa[email]=String(personaId);
+try{
+await guardarVinculosFichas(mapa);
+vinculoPendienteEmail=null;
+var sel=document.getElementById('vinculoSelectorPersona');
+if(sel)sel.style.display='none';
+pintarListaVinculosFichas();
+toast('Vinculado: '+email+' → '+fn(PI[personaId]).trim());
+}catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
+}
+async function quitarVinculoFichaUI(email){
+if(!confirm('¿Quitar el vínculo de '+email+'? Esa cuenta dejará de estar asociada a ninguna ficha.'))return;
+var mapa=Object.assign({},vinculosFichasCache||{});
+delete mapa[String(email).trim().toLowerCase()];
+try{await guardarVinculosFichas(mapa);pintarListaVinculosFichas();toast('Vínculo retirado a '+email);}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 function usuarioActualParaCambios(){
@@ -8639,6 +8810,23 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="ef-btn save" onclick="anadirUsuarioAutorizadoUI()"><i class="fa-solid fa-user-plus"></i> Añadir persona</button>
 </div>
 </div>
+<div id="modalVinculos" role="dialog" aria-modal="true" aria-labelledby="modalVinculosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:231;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<h2 id="modalVinculosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-link" aria-hidden="true" style="color:var(--accent)"></i> Vínculo email ↔ ficha</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarGestionVinculos()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo el administrador puede enlazar cada colaborador con su ficha del árbol. Ese enlace permitirá más adelante que cada persona gestione su propia rama de Amigos sin que el resto la vea.</p>
+<div id="listaVinculosFichas" style="overflow:auto;flex:1;margin-bottom:12px"></div>
+<button class="ef-btn save" onclick="anadirVinculoFichaUI()"><i class="fa-solid fa-link"></i> Asignar vínculo</button>
+<div id="vinculoSelectorPersona" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+<div id="vinculoSelectorTitulo" style="font-size:13px;font-weight:700;margin-bottom:8px">Elegir ficha</div>
+<label for="buscarVinculoPersona" class="sr-only">Buscar persona por nombre o ID</label>
+<input id="buscarVinculoPersona" class="ef-input" placeholder="Nombre, apellido o ID..." oninput="filtrarVinculoPersona()" autocomplete="off">
+<div id="listaVinculoPersonas" style="overflow:auto;max-height:28vh;margin-top:8px"></div>
+</div>
+</div>
+</div>
 <div id="modalLimpiar" role="dialog" aria-modal="true" aria-labelledby="modalLimpiarTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="font-size:36px;color:var(--accent);margin-bottom:14px;display:block"></i>
@@ -8695,6 +8883,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Acceso</div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios autorizados</div><div class="herr-desc">Ver, añadir o quitar quién puede acceder a este árbol</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirGestionVinculos()"><div class="herr-icon"><i class="fa-solid fa-link"></i></div><div class="herr-text"><div class="herr-title">Vínculo email ↔ ficha</div><div class="herr-desc">Asocia cada colaborador con su propia ficha del árbol (solo administrador)</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
 <button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
@@ -8803,7 +8992,8 @@ var MODAL_CLOSERS={
 'modalPosterAscendenteV2':function(){if(typeof cerrarModalAscendentePosterV2==='function')cerrarModalAscendentePosterV2();},
 'modalImportFotos':function(){if(typeof cerrarModalImportFotos==='function')cerrarModalImportFotos();},
 'modalConfigANOCALC':function(){if(typeof cerrarModalConfigANOCALC==='function')cerrarModalConfigANOCALC();},
-'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();}
+'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
+'modalVinculos':function(){if(typeof cerrarGestionVinculos==='function')cerrarGestionVinculos();}
 };
 var lastFocused=null;
 function esVisible(m){return m&&getComputedStyle(m).display!=='none';}
