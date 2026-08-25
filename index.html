@@ -680,10 +680,11 @@ body{background:#fff}
 </div>
 <div style="display:flex;gap:7px;flex-wrap:wrap">
 <button class="ef-btn ghost" id="btnMiIdentidad" onclick="mostrarMiIdentidad()"><i class="fa-solid fa-user-check"></i> <span id="usuarioCamTxt">Mi identidad</span></button>
-<button class="ef-btn ghost" onclick="sincronizarCambiosDrive(true)"><i class="fa-brands fa-google-drive"></i> Comprobar cambios en Drive</button>
-<button class="ef-btn ghost" onclick="restaurarCambiosDesdeDrive()"><i class="fa-solid fa-cloud-arrow-down"></i> Cargar cambios desde Drive</button>
+<button class="ef-btn ghost" id="btnSincronizarCambios" onclick="sincronizarCambiosDrive(true)" title="Sube tus cambios pendientes a Drive y trae los de los demás"><i class="fa-brands fa-google-drive"></i> Sincronizar con Drive</button>
+<button class="ef-btn ghost" id="btnRestaurarCambios" style="display:none" onclick="restaurarCambiosDesdeDrive()" title="Solo administrador: sustituye TODO este registro local por el de Drive"><i class="fa-solid fa-cloud-arrow-down"></i> Restaurar desde Drive</button>
 </div>
 </div>
+<p id="cambiosAyuda" style="max-width:900px;margin:0 auto 6px;font-size:11px;color:var(--muted)"><strong>Sincronizar con Drive</strong>: sube tus cambios pendientes y descarga los de los demás colaboradores (es el botón que hace falta casi siempre). <strong>Restaurar desde Drive</strong> es solo para el administrador y en casos excepcionales: descarta el registro local y lo sustituye entero por el que hay en Drive.</p>
 <div id="cambiosEstadoSync" class="cambio-sync" style="max-width:900px;margin:0 auto 10px"></div>
 <div id="listaCambios"></div>
 </div>
@@ -908,8 +909,9 @@ if(e&&id!=null&&String(id).trim()!=='')mapa[e]=String(id).trim();
 });
 }
 vinculosFichasCache=mapa;
+invalidarCachePersonasVisibles();
 return vinculosFichasCache;
-}catch(err){vinculosFichasCache={};return vinculosFichasCache;}
+}catch(err){vinculosFichasCache={};invalidarCachePersonasVisibles();return vinculosFichasCache;}
 }
 async function guardarVinculosFichas(mapa){
 var limpio={};
@@ -923,6 +925,7 @@ var existente=await obtenerArchivoVinculosFichasDrive();
 var r=await subirArchivoDrive(VINCULO_FICHAS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 vinculosFichasCache=limpio;
+invalidarCachePersonasVisibles();
 }
 function fichaVinculadaDeEmail(email){
 if(!email||!vinculosFichasCache)return null;
@@ -1024,6 +1027,62 @@ asegurarAmigosArray(b);
 if(amigosIdsDe(a).indexOf(String(idB))<0)a.AMIGOS=amigosIdsDe(a).concat([String(idB)]);
 if(amigosIdsDe(b).indexOf(String(idA))<0)b.AMIGOS=amigosIdsDe(b).concat([String(idA)]);
 return true;
+}
+/* ===== VISIBILIDAD: qué personas puede ver cada colaborador =====
+   Regla (especificación "Amigos/Colaboradores/Administrador"):
+   - El administrador ve todo, sin restricción.
+   - Un colaborador ve: su propia ficha, las personas que él mismo ha
+     añadido como amigos, y los parientes de esos amigos (relaciones de
+     sangre/matrimonio ya existentes en el árbol: padre, madre, hijos,
+     cónyuges y las derivadas de estas, p.ej. hermanos o abuelos).
+   - La amistad NO se propaga: los amigos de un amigo, o los amigos de
+     otro colaborador, no se hacen visibles por esta vía.
+   Esta es la única función que debe usarse en toda la aplicación para
+   decidir si una persona puede mostrarse/buscarse/abrirse. */
+var __cachePersonasVisibles=null; /* {clave, set} o null */
+function invalidarCachePersonasVisibles(){__cachePersonasVisibles=null;}
+function parientesDeAmigo(idAmigo){
+/* Recorrido en anchura únicamente por relaciones familiares
+   (vecinosParentesco: padre, madre, hijos, hermanos, cónyuges), nunca
+   por AMIGOS, para no propagar la amistad. Evita bucles/duplicados. */
+if(!PI[idAmigo])return [];
+var visitado={};visitado[idAmigo]=true;
+var cola=[idAmigo],resultado=[idAmigo],visitas=0;
+while(cola.length){
+visitas++;
+if(visitas>50000)break; /* salvaguarda anti-bucle en árboles muy grandes */
+var actual=cola.shift();
+var vecinos=(typeof vecinosParentesco==='function')?vecinosParentesco(actual):[];
+for(var i=0;i<vecinos.length;i++){
+var v=vecinos[i];
+if(visitado[v.id])continue;
+visitado[v.id]=true;
+resultado.push(v.id);
+cola.push(v.id);
+}
+}
+return resultado;
+}
+function personasVisiblesColaborador(){
+var mid=miFichaId();
+var amigos=mid?amigosIdsDe(PI[mid]):[];
+var clave=(mid||'')+'|'+amigos.slice().sort().join(',');
+if(__cachePersonasVisibles&&__cachePersonasVisibles.clave===clave)return __cachePersonasVisibles.set;
+var set={};
+if(mid)set[String(mid)]=true;
+amigos.forEach(function(aid){
+if(!PI[aid])return;
+set[String(aid)]=true;
+parientesDeAmigo(aid).forEach(function(pid){set[String(pid)]=true;});
+});
+__cachePersonasVisibles={clave:clave,set:set};
+return set;
+}
+function puedeVerPersona(id){
+if(id==null||id==='')return false;
+if(esAdministrador())return true;
+var set=personasVisiblesColaborador();
+return !!set[String(id)];
 }
 /* ===== UI administrador: gestión de vínculos email ↔ ficha (en Herramientas) ===== */
 var vinculoPendienteEmail=null; /* email en espera de que el admin elija ficha */
@@ -1291,7 +1350,7 @@ function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBI
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 function confirmarCambio(id){var cId=id;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(cId);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio confirmado');};};tx.onerror=function(){toast('No se pudo confirmar el cambio',true);};}
 function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de cambios de la lista. ¿Continuar?'))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
-function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}cid=id;editMode=false;sv('fic');}
+function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
 async function obtenerArchivoCambiosDrive(){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
 async function subirCambiosDriveDatos(cambios,existente){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);if(r.status===404&&existente){r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,null);}if(!r.ok)throw new Error('Drive respondió '+r.status);}
@@ -2338,7 +2397,7 @@ toast('Aun no existe una carpeta con el ID '+id+'. Sube un documento desde la fi
 /* HERM_PM: índice de hermanos, agrupando a todas las personas por la clave literal
 "PADRE|MADRE" (con '' para el progenitor que falte). */
 var HERM_PM={};
-function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});}
+function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});if(typeof invalidarCachePersonasVisibles==='function')invalidarCachePersonasVisibles();}
 function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE;if(!pa&&!ma)return[];var ids=HERM_PM[(pa||'')+'|'+(ma||'')]||[];var r=[];for(var i=0;i<ids.length;i++){if(ids[i]!==id&&PI[ids[i]])r.push(PI[ids[i]]);}return r;}
 function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
 function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
@@ -3689,6 +3748,7 @@ var activos=busFiltrosActivos();
 var cEl=document.getElementById('busFiltrosCount');
 if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textContent='';return;}
 var f=D.filter(function(p){
+if(!puedeVerPersona(p.ID))return false;
 if(q){
 var an=String(pdAnioTexto(p)||'').toLowerCase();
 var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
@@ -3751,6 +3811,7 @@ var cont=document.getElementById('quickSearchResults');
 if(!cont)return;
 if(!q){cont.innerHTML='';return;}
 var f=D.filter(function(p){
+if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
 var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
 return texto.indexOf(q)>=0;
@@ -3769,17 +3830,22 @@ cont.innerHTML=h;
 }
 function elegirPersonaBusquedaRapida(id){
 cerrarBusquedaRapida();
-selP(id);
+/* Mantener la pantalla desde la que se abrió la lupa: si se buscaba
+   desde la Ficha, ir a la ficha de la persona elegida sin saltar al
+   Árbol; en cualquier otro caso se conserva el comportamiento previo
+   (seleccionar en el Árbol). */
+if(__vistaActual==='fic')irAFicha(id);
+else selP(id);
 }
 document.addEventListener('keydown',function(e){
 if(e.key==='Escape'&&busquedaRapidaEstaAbierta())cerrarBusquedaRapida();
 });
-function selP(id){cid=id;sv('arb');rTree(id);}
+function selP(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;sv('arb');rTree(id);}
 /* Ir a la ficha de una persona quedándose en la propia pantalla de ficha
    (a diferencia de selP, que lleva al Árbol). Se usa para los enlaces a
    Padre/Madre/Cónyuge/Abuelos/Hermanos/Hijos dentro de la ficha, y también
    desde el botón "Abrir ficha" del árbol. */
-function irAFicha(id){cid=id;editMode=false;sv('fic');}
+function irAFicha(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
@@ -3922,7 +3988,7 @@ var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
 }
 function irFicha(){editMode=false;sv('fic');}
-function abrirFichaDesdeArbol(id){cid=id;editMode=false;sv('fic');}
+function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
 function rFic(id){
 if(editMode) rFicEdit(id); else rFicView(id);
 actualizarBarraActiva();
@@ -6344,7 +6410,7 @@ document.getElementById('rlCro').innerHTML='';
 document.getElementById('siCro').value='';
 renderCronologia(id);
 }
-function selPDesdeGantt(id){croId=id;renderCronologia(id);var box=document.getElementById('croSelBox');box.textContent=fn(PI[id]);box.classList.remove('empty');}
+function selPDesdeGantt(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}croId=id;renderCronologia(id);var box=document.getElementById('croSelBox');box.textContent=fn(PI[id]);box.classList.remove('empty');}
 function extraerAnioTexto(s){if(!s)return null;var m=String(s).match(/(\d{4})/);return m?parseInt(m[1],10):null;}
 function anioNacimientoPersona(p){return getYear(p);}
 function construirEventosPersona(p){
@@ -8918,9 +8984,9 @@ var esAdmin=esAdministrador();
 btnGes.style.display=esAdmin?'':'none';
 if(!esAdmin&&document.getElementById('vGes')&&document.getElementById('vGes').classList.contains('active'))sv('bus');
 }
-function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;var esAdmin=esAdministrador();listarCambios().then(function(arr){arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML='<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Tus cambios quedan pendientes hasta que el administrador los revise y les dé conformidad.</div>';lista.innerHTML=extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
-function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';mostrarCambios('pendientes');}
-(function(){var right=document.querySelector('#vCam .cambios-toolbar > div:last-child');if(right)right.insertAdjacentHTML('afterbegin','<span class="drive-status" id="driveStatusCam" onclick="accionDriveStatusPill()" style="margin-top:0"><span class="dot"></span><span id="driveStatusCamTxt">Comprobando Google Drive...</span></span><button class="ef-btn ghost" onclick="guardarCambiosEnDrive()"><i class="fa-solid fa-floppy-disk"></i> Guardar cambios en Drive</button>');})();
+function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es la última guardada en este dispositivo, puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var btnR=document.getElementById('btnRestaurarCambios');if(btnR)btnR.style.display=esAdministrador()?'':'none';mostrarCambios('pendientes');}
+(function(){var right=document.querySelector('#vCam .cambios-toolbar > div:last-child');if(right)right.insertAdjacentHTML('afterbegin','<span class="drive-status" id="driveStatusCam" onclick="accionDriveStatusPill()" style="margin-top:0"><span class="dot"></span><span id="driveStatusCamTxt">Comprobando Google Drive...</span></span>');})();
 </script>
 <div id="modalUsuarios" role="dialog" aria-modal="true" aria-labelledby="modalUsuariosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
