@@ -747,52 +747,159 @@ var googleTokenClient=null,driveAccessToken=null,driveTokenExpira=0,driveRootFol
 /* ===== IDENTIDAD DE GOOGLE PARA EL REGISTRO DE CAMBIOS (punto 17) ===== */
 var googleIdentidad=null; /* {email,name,picture} de la sesión actual, o null */
 var ADMIN_EMAIL='meleiro2014@gmail.com';
-/* ===== USUARIOS AUTORIZADOS (árbol con datos de personas vivas: el acceso
-   se limita a familiares de confianza elegidos por el administrador) =====
-   La lista se guarda como un archivo JSON en la propia carpeta de Drive
-   (no solo en este código), así que se comparte entre todos los
-   dispositivos y el administrador puede añadir o quitar personas desde la
-   propia app, sin tener que tocar el código ni GitHub cada vez.
+/* ===== USUARIOS (modelo unificado: email + tipo + ficha vinculada) =====
+   Un único archivo en Drive, usuarios.json, sustituye a los dos antiguos
+   ("usuarios-autorizados.json" con la lista de emails, y "vinculo-fichas.json"
+   con el email->ficha): { formato, version, fecha, usuarios:[{email,tipo,fichaId}] }
+   tipo: 'administrador' | 'colaborador' | 'amigo'.
    IMPORTANTE (aviso honesto): esto es un filtro "blando" del lado del
    navegador, no una barrera de seguridad real de servidor. Cualquier
    persona con conocimientos técnicos podría saltárselo editando el
    código en las herramientas de desarrollador de su navegador. Sirve
    para evitar accesos accidentales o de curiosos que encuentren el
    enlace, no para proteger datos frente a alguien decidido a acceder
-   sin permiso. */
-var USUARIOS_AUTORIZADOS_ARCHIVO='usuarios-autorizados.json';
+   sin permiso.
+   Roles:
+   - administrador (ADMIN_EMAIL, siempre fijo): ve y edita todo, sin
+     restricción.
+   - colaborador: ve todo el árbol principal de la familia, más las ramas
+     de "Amigos" que él mismo haya vinculado a su propia ficha. NO ve las
+     ramas de Amigos que otros colaboradores hayan vinculado a las suyas.
+   - amigo: ve únicamente su propio árbol (la rama familiar conectada por
+     parentesco de sangre/matrimonio a su propia ficha), nada más.
+   Si "usuarios.json" todavía no existe en Drive, se migra automáticamente
+   la primera vez desde los dos archivos antiguos (que no se borran, quedan
+   como copia de la migración). */
+var USUARIOS_ARCHIVO='usuarios.json';
+var USUARIOS_AUTORIZADOS_ARCHIVO_LEGADO='usuarios-autorizados.json';
+var VINCULO_FICHAS_ARCHIVO_LEGADO='vinculo-fichas.json';
 var USUARIOS_AUTORIZADOS_DEFECTO=['meleiro2014@gmail.com','belzuneguipilar@gmail.com','jcmeleiro@gmail.com','jeduardomoreda@gmail.com'];
-var usuariosAutorizadosCache=null; /* array de emails en minúsculas, o null si aún no se ha cargado */
-async function obtenerArchivoUsuariosAutorizadosDrive(){
+var usuariosCache=null; /* array de {email,tipo,fichaId} o null si aún no se ha cargado */
+async function obtenerArchivoEnDrivePorNombre(nombre){
 if(!driveRootFolderId)return null;
-var q="'"+driveRootFolderId+"' in parents and name='"+USUARIOS_AUTORIZADOS_ARCHIVO+"' and trashed=false";
+var q="'"+driveRootFolderId+"' in parents and name='"+nombre+"' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(!r.ok)return null;
 var d=await r.json();
 return d.files&&d.files.length?d.files[0]:null;
 }
-async function cargarUsuariosAutorizados(forzar){
-if(usuariosAutorizadosCache&&!forzar)return usuariosAutorizadosCache;
-try{
-var f=await obtenerArchivoUsuariosAutorizadosDrive();
-if(!f){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
-var x=await r.json();
-usuariosAutorizadosCache=(x&&Array.isArray(x.usuarios)&&x.usuarios.length)?x.usuarios.map(function(e){return String(e).trim().toLowerCase();}):USUARIOS_AUTORIZADOS_DEFECTO.slice();
-return usuariosAutorizadosCache;
-}catch(err){usuariosAutorizadosCache=USUARIOS_AUTORIZADOS_DEFECTO.slice();return usuariosAutorizadosCache;}
+async function leerArchivoDriveJSON(fileMeta){
+if(!fileMeta)return null;
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileMeta.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return null;
+try{return await r.json();}catch(e){return null;}
 }
-async function guardarUsuariosAutorizados(lista){
-var contenido=JSON.stringify({formato:'Libro de los Ancestros - usuarios autorizados',version:1,fecha:new Date().toISOString(),usuarios:lista});
-var existente=await obtenerArchivoUsuariosAutorizadosDrive();
-var r=await subirArchivoDrive(USUARIOS_AUTORIZADOS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
+function normalizarTipoUsuario(t){
+t=String(t||'').trim().toLowerCase();
+if(t==='administrador'||t==='admin')return 'administrador';
+if(t==='amigo')return 'amigo';
+return 'colaborador';
+}
+/* Migra desde los dos archivos antiguos (solo se usa si usuarios.json aún
+   no existe): cada email de usuarios-autorizados.json pasa a ser un
+   colaborador (o administrador si es ADMIN_EMAIL), con la fichaId que
+   tuviera en vinculo-fichas.json, si tenía alguna. */
+async function migrarUsuariosDesdeFormatoAntiguo(){
+var lista=[];
+var fLegado=await obtenerArchivoEnDrivePorNombre(USUARIOS_AUTORIZADOS_ARCHIVO_LEGADO);
+var xLegado=await leerArchivoDriveJSON(fLegado);
+var emails=(xLegado&&Array.isArray(xLegado.usuarios)&&xLegado.usuarios.length)?xLegado.usuarios.map(function(e){return String(e).trim().toLowerCase();}):USUARIOS_AUTORIZADOS_DEFECTO.slice();
+var fVinc=await obtenerArchivoEnDrivePorNombre(VINCULO_FICHAS_ARCHIVO_LEGADO);
+var xVinc=await leerArchivoDriveJSON(fVinc);
+var vinculos={};
+if(xVinc&&xVinc.vinculos&&typeof xVinc.vinculos==='object'){
+Object.keys(xVinc.vinculos).forEach(function(email){
+var e=String(email).trim().toLowerCase();
+var id=xVinc.vinculos[email];
+if(e&&id!=null&&String(id).trim()!=='')vinculos[e]=String(id).trim();
+});
+}
+emails.forEach(function(email){
+if(!email)return;
+lista.push({email:email,tipo:(email===ADMIN_EMAIL.toLowerCase())?'administrador':'colaborador',fichaId:vinculos[email]||null});
+});
+if(lista.every(function(u){return u.email!==ADMIN_EMAIL.toLowerCase();})){
+lista.unshift({email:ADMIN_EMAIL.toLowerCase(),tipo:'administrador',fichaId:null});
+}
+return lista;
+}
+async function cargarUsuarios(forzar){
+if(usuariosCache&&!forzar)return usuariosCache;
+try{
+var f=await obtenerArchivoEnDrivePorNombre(USUARIOS_ARCHIVO);
+if(f){
+var x=await leerArchivoDriveJSON(f);
+if(x&&Array.isArray(x.usuarios)){
+usuariosCache=x.usuarios.map(function(u){
+return {email:String(u.email||'').trim().toLowerCase(),tipo:normalizarTipoUsuario(u.tipo),fichaId:(u.fichaId!=null&&String(u.fichaId).trim()!=='')?String(u.fichaId).trim():null};
+}).filter(function(u){return !!u.email;});
+invalidarCachePersonasVisibles();
+return usuariosCache;
+}
+}
+var migrada=await migrarUsuariosDesdeFormatoAntiguo();
+usuariosCache=migrada;
+invalidarCachePersonasVisibles();
+try{await guardarUsuarios(usuariosCache);}catch(eGuardar){/* si falla el guardado, se sigue usando en memoria y se reintenta luego */}
+return usuariosCache;
+}catch(err){
+usuariosCache=USUARIOS_AUTORIZADOS_DEFECTO.map(function(email){return {email:email,tipo:(email===ADMIN_EMAIL.toLowerCase())?'administrador':'colaborador',fichaId:null};});
+invalidarCachePersonasVisibles();
+return usuariosCache;
+}
+}
+async function guardarUsuarios(lista){
+var limpia=(lista||[]).map(function(u){
+return {email:String(u.email||'').trim().toLowerCase(),tipo:normalizarTipoUsuario(u.tipo),fichaId:(u.fichaId!=null&&String(u.fichaId).trim()!=='')?String(u.fichaId).trim():null};
+}).filter(function(u){return !!u.email;});
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - usuarios',version:1,fecha:new Date().toISOString(),usuarios:limpia});
+var existente=await obtenerArchivoEnDrivePorNombre(USUARIOS_ARCHIVO);
+var r=await subirArchivoDrive(USUARIOS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
 if(!r.ok)throw new Error('Drive respondió '+r.status);
-usuariosAutorizadosCache=lista.slice();
+usuariosCache=limpia;
+invalidarCachePersonasVisibles();
+}
+function usuarioPorEmail(email){
+if(!email||!usuariosCache)return null;
+var e=String(email).trim().toLowerCase();
+for(var i=0;i<usuariosCache.length;i++){if(usuariosCache[i].email===e)return usuariosCache[i];}
+return null;
 }
 function esUsuarioAutorizado(email){
-var lista=usuariosAutorizadosCache||USUARIOS_AUTORIZADOS_DEFECTO;
-return !!(email&&lista.indexOf(String(email).trim().toLowerCase())!==-1);
+if(!email)return false;
+var e=String(email).trim().toLowerCase();
+if(e===ADMIN_EMAIL.toLowerCase())return true;
+return !!usuarioPorEmail(e);
+}
+function tipoDeEmail(email){
+if(!email)return null;
+var e=String(email).trim().toLowerCase();
+if(e===ADMIN_EMAIL.toLowerCase())return 'administrador';
+var u=usuarioPorEmail(e);
+return u?u.tipo:null;
+}
+function fichaVinculadaDeEmail(email){
+if(!email)return null;
+var u=usuarioPorEmail(String(email).trim().toLowerCase());
+return u?(u.fichaId||null):null;
+}
+function emailVinculadoDeFicha(personaId){
+if(!personaId||!usuariosCache)return null;
+var id=String(personaId);
+for(var i=0;i<usuariosCache.length;i++){if(usuariosCache[i].fichaId===id)return usuariosCache[i].email;}
+return null;
+}
+function tipoUsuarioActual(){
+if(!googleIdentidad||!googleIdentidad.email)return null;
+return tipoDeEmail(googleIdentidad.email);
+}
+function miFichaId(){
+if(!googleIdentidad||!googleIdentidad.email)return null;
+return fichaVinculadaDeEmail(googleIdentidad.email);
+}
+function esMiFicha(personaId){
+var mid=miFichaId();
+return !!(mid&&personaId!=null&&String(mid)===String(personaId));
 }
 async function obtenerIdentidadGoogle(){
 if(!tokenDriveValido()){googleIdentidad=null;return null;}
@@ -802,7 +909,7 @@ if(!r.ok){googleIdentidad=null;return null;}
 var d=await r.json();
 if(!d.email){googleIdentidad=null;return null;}
 var emailNormalizado=String(d.email).trim().toLowerCase();
-await cargarUsuariosAutorizados();
+await cargarUsuarios();
 if(!esUsuarioAutorizado(emailNormalizado)){
 /* Cuenta válida de Google pero no autorizada para esta app: se revoca el
    token localmente (y en Google, si es posible) para no dejar la sesión
@@ -813,14 +920,17 @@ toast('La cuenta '+emailNormalizado+' no está autorizada para acceder a este á
 return null;
 }
 googleIdentidad={email:emailNormalizado,name:d.name||'',picture:d.picture||''};
-/* Carga en segundo plano el mapa email↔ficha (si existe) para que miFichaId()
-   y puedeEditarAmigosDe() funcionen en cuanto haya sesión. Fallos silenciosos. */
-try{cargarVinculosFichas(false);}catch(eVin){}
 return googleIdentidad;
 }catch(err){googleIdentidad=null;return null;}
 }
 function esAdministrador(){
-return !!(googleIdentidad&&googleIdentidad.email&&googleIdentidad.email.toLowerCase()===ADMIN_EMAIL.toLowerCase());
+return tipoUsuarioActual()==='administrador';
+}
+function esColaborador(){
+return tipoUsuarioActual()==='colaborador';
+}
+function esAmigo(){
+return tipoUsuarioActual()==='amigo';
 }
 /* Avisa en el momento de conectar si la cuenta de Google activa no es la del
    administrador (ADMIN_EMAIL). Objetivo: detectar al instante si se está
@@ -837,25 +947,40 @@ if(yaAvisado)return;
 try{sessionStorage.setItem('avisoCuentaNoAdmin',googleIdentidad.email);}catch(e){}
 toast('Conectado como '+(googleIdentidad.name||googleIdentidad.email)+' ('+googleIdentidad.email+') · esta cuenta NO es la de administrador. Tus cambios quedarán pendientes de aprobación.',true);
 }
-/* ===== Panel de administración de usuarios autorizados (solo admin) ===== */
+/* ===== Panel de administración de usuarios (email + tipo + ficha, unificado) ===== */
 function validarFormatoEmail(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
 async function abrirGestionUsuarios(){
-if(!esAdministrador()){toast('Solo el administrador puede gestionar los usuarios autorizados',true);return;}
+if(!esAdministrador()){toast('Solo el administrador puede gestionar los usuarios',true);return;}
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para gestionar los usuarios',true);return;}
 document.getElementById('modalUsuarios').style.display='flex';
 document.getElementById('listaUsuariosAutorizados').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
-await cargarUsuariosAutorizados(true);
+await cargarUsuarios(true);
 pintarListaUsuariosAutorizados();
 }
-function cerrarGestionUsuarios(){document.getElementById('modalUsuarios').style.display='none';}
+function cerrarGestionUsuarios(){
+document.getElementById('modalUsuarios').style.display='none';
+vinculoPendienteEmail=null;
+var sel=document.getElementById('vinculoSelectorPersona');
+if(sel)sel.style.display='none';
+}
+var ETIQUETAS_TIPO_USUARIO={administrador:'Administrador',colaborador:'Colaborador',amigo:'Amigo'};
 function pintarListaUsuariosAutorizados(){
-var lista=usuariosAutorizadosCache||[];
+var lista=usuariosCache||[];
 var cont=document.getElementById('listaUsuariosAutorizados');
-if(!lista.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No hay ningún usuario autorizado (esto dejaría a todos sin acceso, incluido tú mismo la próxima vez). Añade al menos tu propio correo.</div>';return;}
-cont.innerHTML=lista.map(function(email){
-var esYoMismo=(email===ADMIN_EMAIL.toLowerCase());
-var botonQuitar=esYoMismo?'':'<button class="ef-btn ghost" style="padding:4px 10px" onclick="quitarUsuarioAutorizadoUI(\''+email.replace(/'/g,"\\'")+'\')"><i class="fa-solid fa-trash"></i></button>';
-return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border)"><span style="font-size:13px">'+esc(email)+(esYoMismo?' <span style="color:var(--muted);font-size:11px">(administrador, no se puede quitar)</span>':'')+'</span>'+botonQuitar+'</div>';
+if(!lista.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No hay ningún usuario en la lista (el administrador siempre tiene acceso). Añade al menos un colaborador o un amigo.</div>';return;}
+cont.innerHTML=lista.map(function(u){
+var esYoMismo=(u.email===ADMIN_EMAIL.toLowerCase());
+var ficha=u.fichaId&&PI&&PI[u.fichaId]?PI[u.fichaId]:null;
+var textoFicha=u.fichaId?(ficha?esc(fn(ficha).trim())+' · ID '+esc(String(u.fichaId)):'ficha '+esc(String(u.fichaId))+' (no encontrada)'):'sin ficha vinculada';
+var selectorTipo=esYoMismo?'<span style="color:var(--muted);font-size:11px">Administrador (fijo)</span>':('<select class="ef-input" style="padding:4px 6px;font-size:12px;width:auto" onchange="cambiarTipoUsuarioUI(\''+u.email.replace(/'/g,"\\'")+'\',this.value)">'+['colaborador','amigo'].map(function(t){return '<option value="'+t+'"'+(u.tipo===t?' selected':'')+'>'+ETIQUETAS_TIPO_USUARIO[t]+'</option>';}).join('')+'</select>');
+var botonFicha='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirSelectorVinculoUI(\''+u.email.replace(/'/g,"\\'")+'\')"><i class="fa-solid fa-link"></i> '+(u.fichaId?'Cambiar ficha':'Vincular ficha')+'</button>';
+var botonQuitarFicha=u.fichaId?'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="quitarFichaUsuarioUI(\''+u.email.replace(/'/g,"\\'")+'\')" title="Quitar vínculo de ficha"><i class="fa-solid fa-link-slash"></i></button>':'';
+var botonQuitarUsuario=esYoMismo?'':'<button class="ef-btn ghost" style="padding:4px 10px" onclick="quitarUsuarioAutorizadoUI(\''+u.email.replace(/'/g,"\\'")+'\')" title="Quitar acceso"><i class="fa-solid fa-trash"></i></button>';
+return '<div style="padding:10px 4px;border-bottom:1px solid var(--border)">'
++'<div style="font-size:13px;font-weight:700;word-break:break-all">'+esc(u.email)+(esYoMismo?' <span style="color:var(--muted);font-size:11px">(tú)</span>':'')+'</div>'
++'<div style="font-size:12px;color:var(--muted);margin:4px 0">→ '+textoFicha+'</div>'
++'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px">'+selectorTipo+botonFicha+botonQuitarFicha+botonQuitarUsuario+'</div>'
++'</div>';
 }).join('');
 }
 async function anadirUsuarioAutorizadoUI(){
@@ -863,95 +988,97 @@ var email=prompt('Correo de Google de la persona a la que quieres dar acceso (no
 if(!email)return;
 email=String(email).trim().toLowerCase();
 if(!validarFormatoEmail(email)){toast('Ese texto no parece un correo electrónico válido',true);return;}
-var lista=(usuariosAutorizadosCache||USUARIOS_AUTORIZADOS_DEFECTO.slice()).slice();
-if(lista.indexOf(email)!==-1){toast('Ese correo ya estaba en la lista');pintarListaUsuariosAutorizados();return;}
-lista.push(email);
-try{await guardarUsuariosAutorizados(lista);pintarListaUsuariosAutorizados();toast('Añadido: '+email+'. Ya puede entrar en la app con esa cuenta de Google.');}
+if(email===ADMIN_EMAIL.toLowerCase()){toast('Esa cuenta ya es la del administrador',true);return;}
+if(usuarioPorEmail(email)){toast('Ese correo ya estaba en la lista');pintarListaUsuariosAutorizados();return;}
+var lista=(usuariosCache||[]).slice();
+lista.push({email:email,tipo:'colaborador',fichaId:null});
+try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Añadido como colaborador: '+email+'. Ya puede entrar en la app con esa cuenta de Google.');}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 async function quitarUsuarioAutorizadoUI(email){
 if(!confirm('¿Quitar el acceso a '+email+'?'))return;
-var lista=(usuariosAutorizadosCache||[]).filter(function(e){return e!==email;});
-try{await guardarUsuariosAutorizados(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
+var lista=(usuariosCache||[]).filter(function(u){return u.email!==email;});
+try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
-/* ===== VÍNCULO EMAIL ↔ FICHA (base para privacidad de Amigos y ramas propias) =====
-   Archivo en Drive: vinculo-fichas.json
-   Formato: { formato, version, fecha, vinculos: { "email@x.com": "idPersona" } }
-   Solo el administrador puede asignar o quitar vínculos.
-   Un email solo puede apuntar a una ficha y una ficha solo a un email.
-   Esto NO afecta aún a la visibilidad del árbol; solo deja lista la identidad
-   "esta cuenta de Google = esta persona del árbol" para la fase de Amigos. */
-var VINCULO_FICHAS_ARCHIVO='vinculo-fichas.json';
-var vinculosFichasCache=null; /* objeto {emailLower: idPersonaString} o null si aún no se ha cargado */
-async function obtenerArchivoVinculosFichasDrive(){
-if(!driveRootFolderId)return null;
-var q="'"+driveRootFolderId+"' in parents and name='"+VINCULO_FICHAS_ARCHIVO+"' and trashed=false";
-var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok)return null;
-var d=await r.json();
-return d.files&&d.files.length?d.files[0]:null;
+async function cambiarTipoUsuarioUI(email,tipo){
+var lista=(usuariosCache||[]).slice();
+var u=lista.filter(function(x){return x.email===email;})[0];
+if(!u){toast('Usuario no encontrado',true);return;}
+u.tipo=normalizarTipoUsuario(tipo);
+try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Tipo actualizado: '+email+' → '+ETIQUETAS_TIPO_USUARIO[u.tipo]);}
+catch(err){toast('No se pudo guardar en Drive: '+err.message,true);pintarListaUsuariosAutorizados();}
 }
-async function cargarVinculosFichas(forzar){
-if(vinculosFichasCache&&!forzar)return vinculosFichasCache;
+/* ===== Vincular ficha a un usuario (embebido en el panel de Usuarios) ===== */
+var vinculoPendienteEmail=null;
+async function abrirSelectorVinculoUI(email){
+vinculoPendienteEmail=email;
+var sel=document.getElementById('vinculoSelectorPersona');
+var inp=document.getElementById('buscarVinculoPersona');
+var tit=document.getElementById('vinculoSelectorTitulo');
+if(tit)tit.textContent='Elegir ficha para '+email;
+if(sel){sel.style.display='block';sel.scrollIntoView({block:'nearest'});}
+if(inp){inp.value='';filtrarVinculoPersona();setTimeout(function(){inp.focus();},30);}
+}
+function filtrarVinculoPersona(){
+var q=(document.getElementById('buscarVinculoPersona').value||'').toLowerCase().trim();
+var lista=document.getElementById('listaVinculoPersonas');
+if(!lista)return;
+var candidatos=[];
+if(D&&D.length){
+for(var i=0;i<D.length;i++){
+var p=D[i];
+if(!p||!p.ID)continue;
+var txt=(fn(p)+' '+p.ID).toLowerCase();
+if(!q||txt.indexOf(q)!==-1)candidatos.push(p);
+if(candidatos.length>=40)break;
+}
+}
+if(!candidatos.length){lista.innerHTML='<div style="padding:8px;color:var(--muted);font-size:12px">Ninguna persona coincide.</div>';return;}
+lista.innerHTML=candidatos.map(function(p){
+var ya=emailVinculadoDeFicha(p.ID);
+var aviso=ya?(ya===vinculoPendienteEmail?'':' <span style="color:var(--accent);font-size:10px">(ya vinculada a '+esc(ya)+')</span>'):'';
+return '<button type="button" class="herr-item" style="width:100%" onclick="confirmarVinculoFichaUI(\''+safeId(p.ID)+'\')"><div class="herr-icon"><i class="fa-solid fa-user"></i></div><div class="herr-text"><div class="herr-title">'+esc(fn(p).trim())+'</div><div class="herr-desc">ID '+esc(String(p.ID))+aviso+'</div></div></button>';
+}).join('');
+}
+async function confirmarVinculoFichaUI(personaId){
+if(!vinculoPendienteEmail){toast('No hay correo pendiente de vincular',true);return;}
+if(!personaId||!PI||!PI[personaId]){toast('Esa persona no existe en el árbol',true);return;}
+var email=vinculoPendienteEmail;
+var lista=(usuariosCache||[]).slice();
+var u=lista.filter(function(x){return x.email===email;})[0];
+if(!u){toast('Usuario no encontrado',true);return;}
+/* Una ficha solo un email: quita el vínculo previo de esa ficha si la tenía otro usuario */
+var otroConEllaAntes=lista.filter(function(x){return x.fichaId===String(personaId)&&x.email!==email;})[0];
+if(otroConEllaAntes)otroConEllaAntes.fichaId=null;
+u.fichaId=String(personaId);
 try{
-var f=await obtenerArchivoVinculosFichasDrive();
-if(!f){vinculosFichasCache={};return vinculosFichasCache;}
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok){vinculosFichasCache={};return vinculosFichasCache;}
-var x=await r.json();
-var mapa={};
-if(x&&x.vinculos&&typeof x.vinculos==='object'){
-Object.keys(x.vinculos).forEach(function(email){
-var e=String(email).trim().toLowerCase();
-var id=x.vinculos[email];
-if(e&&id!=null&&String(id).trim()!=='')mapa[e]=String(id).trim();
-});
+await guardarUsuarios(lista);
+vinculoPendienteEmail=null;
+var sel=document.getElementById('vinculoSelectorPersona');
+if(sel)sel.style.display='none';
+pintarListaUsuariosAutorizados();
+toast('Vinculado: '+email+' → '+fn(PI[personaId]).trim());
+}catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
-vinculosFichasCache=mapa;
-invalidarCachePersonasVisibles();
-return vinculosFichasCache;
-}catch(err){vinculosFichasCache={};invalidarCachePersonasVisibles();return vinculosFichasCache;}
+async function quitarFichaUsuarioUI(email){
+if(!confirm('¿Quitar el vínculo de ficha de '+email+'?'))return;
+var lista=(usuariosCache||[]).slice();
+var u=lista.filter(function(x){return x.email===email;})[0];
+if(!u){toast('Usuario no encontrado',true);return;}
+u.fichaId=null;
+try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Vínculo de ficha retirado a '+email);}
+catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
-async function guardarVinculosFichas(mapa){
-var limpio={};
-Object.keys(mapa||{}).forEach(function(email){
-var e=String(email).trim().toLowerCase();
-var id=mapa[email];
-if(e&&id!=null&&String(id).trim()!=='')limpio[e]=String(id).trim();
-});
-var contenido=JSON.stringify({formato:'Libro de los Ancestros - vinculo email-ficha',version:1,fecha:new Date().toISOString(),vinculos:limpio});
-var existente=await obtenerArchivoVinculosFichasDrive();
-var r=await subirArchivoDrive(VINCULO_FICHAS_ARCHIVO,contenido,'application/json',driveRootFolderId,existente?existente.id:null);
-if(!r.ok)throw new Error('Drive respondió '+r.status);
-vinculosFichasCache=limpio;
-invalidarCachePersonasVisibles();
-}
-function fichaVinculadaDeEmail(email){
-if(!email||!vinculosFichasCache)return null;
-return vinculosFichasCache[String(email).trim().toLowerCase()]||null;
-}
-function emailVinculadoDeFicha(personaId){
-if(!personaId||!vinculosFichasCache)return null;
-var id=String(personaId);
-var keys=Object.keys(vinculosFichasCache);
-for(var i=0;i<keys.length;i++){if(vinculosFichasCache[keys[i]]===id)return keys[i];}
-return null;
-}
-function miFichaId(){
-if(!googleIdentidad||!googleIdentidad.email)return null;
-return fichaVinculadaDeEmail(googleIdentidad.email);
-}
-function esMiFicha(personaId){
-var mid=miFichaId();
-return !!(mid&&personaId!=null&&String(mid)===String(personaId));
-}
-/* Amigos: solo el dueño de la ficha o el administrador. */
+/* Amigos (rama propia dentro de una ficha): solo el colaborador dueño de la
+   ficha, o el administrador. Un usuario de tipo 'amigo' no gestiona ni ve
+   la rama de Amigos de su propia ficha (eso es cosa de colaboradores/admin,
+   ya que "amigo" es precisamente alguien traído por un colaborador). */
 function puedeEditarAmigosDe(personaId){
-return esAdministrador()||esMiFicha(personaId);
+return esAdministrador()||(esColaborador()&&esMiFicha(personaId));
 }
 function puedeVerAmigosDe(personaId){
-return esAdministrador()||esMiFicha(personaId);
+return esAdministrador()||(esColaborador()&&esMiFicha(personaId));
 }
 /* ===== AMIGOS: campo propio (no parentesco), simétrico, visible solo dueño/admin ===== */
 function amigosIdsDe(p){
@@ -1028,23 +1155,53 @@ if(amigosIdsDe(a).indexOf(String(idB))<0)a.AMIGOS=amigosIdsDe(a).concat([String(
 if(amigosIdsDe(b).indexOf(String(idA))<0)b.AMIGOS=amigosIdsDe(b).concat([String(idA)]);
 return true;
 }
-/* ===== VISIBILIDAD: qué personas puede ver cada colaborador =====
-   Regla (especificación "Amigos/Colaboradores/Administrador"):
-   - El administrador ve todo, sin restricción.
-   - Un colaborador ve: su propia ficha, las personas que él mismo ha
-     añadido como amigos, y los parientes de esos amigos (relaciones de
-     sangre/matrimonio ya existentes en el árbol: padre, madre, hijos,
-     cónyuges y las derivadas de estas, p.ej. hermanos o abuelos).
-   - La amistad NO se propaga: los amigos de un amigo, o los amigos de
-     otro colaborador, no se hacen visibles por esta vía.
+/* ===== VISIBILIDAD: qué personas puede ver cada usuario, según su tipo =====
+   - administrador: ve todo, sin restricción.
+   - colaborador: ve todo el "árbol principal" (la componente conexa más
+     grande, unida por parentesco de sangre/matrimonio), más cualquier rama
+     de Amigos que él mismo haya vinculado a su propia ficha. NO ve las
+     ramas de Amigos vinculadas por OTROS colaboradores a las suyas.
+   - amigo: ve únicamente su propio árbol: la componente conexa por
+     parentesco de sangre/matrimonio que contiene su propia ficha.
+   El campo AMIGOS es el único puente entre dos componentes que, por
+   parentesco puro, estarían desconectadas; por eso basta con calcular las
+   componentes conexas usando solo vecinosParentesco (nunca AMIGOS) para
+   saber qué es "árbol principal" y qué es una rama traída por alguien.
    Esta es la única función que debe usarse en toda la aplicación para
    decidir si una persona puede mostrarse/buscarse/abrirse. */
-var __cachePersonasVisibles=null; /* {clave, set} o null */
-function invalidarCachePersonasVisibles(){__cachePersonasVisibles=null;}
+var __cacheComponentes=null; /* {clave,indice,tamanos,principal} o null */
+function invalidarCachePersonasVisibles(){__cacheComponentes=null;}
+function calcularComponentesConexos(){
+var clave=(D&&D.length?D.length+'|'+D[D.length-1].ID:'0');
+if(__cacheComponentes&&__cacheComponentes.clave===clave)return __cacheComponentes;
+var indice={},tamanos=[],visitadoGlobal={};
+Object.keys(PI).forEach(function(id0){
+if(visitadoGlobal[id0])return;
+var num=tamanos.length,cola=[id0],tam=0;
+visitadoGlobal[id0]=true;
+while(cola.length){
+var actual=cola.shift();
+indice[actual]=num;tam++;
+var vecinos=vecinosParentesco(actual);
+for(var i=0;i<vecinos.length;i++){
+var v=vecinos[i];
+if(visitadoGlobal[v.id])continue;
+visitadoGlobal[v.id]=true;
+cola.push(v.id);
+}
+}
+tamanos.push(tam);
+});
+var principal=0;
+for(var i=1;i<tamanos.length;i++){if(tamanos[i]>tamanos[principal])principal=i;}
+__cacheComponentes={clave:clave,indice:indice,tamanos:tamanos,principal:tamanos.length?principal:-1};
+return __cacheComponentes;
+}
 function parientesDeAmigo(idAmigo){
 /* Recorrido en anchura únicamente por relaciones familiares
    (vecinosParentesco: padre, madre, hijos, hermanos, cónyuges), nunca
-   por AMIGOS, para no propagar la amistad. Evita bucles/duplicados. */
+   por AMIGOS, para no propagar la amistad. Evita bucles/duplicados.
+   Equivale a la componente conexa (por parentesco) que contiene a idAmigo. */
 if(!PI[idAmigo])return [];
 var visitado={};visitado[idAmigo]=true;
 var cola=[idAmigo],resultado=[idAmigo],visitas=0;
@@ -1063,121 +1220,51 @@ cola.push(v.id);
 }
 return resultado;
 }
-function personasVisiblesColaborador(){
-var mid=miFichaId();
-var amigos=mid?amigosIdsDe(PI[mid]):[];
-var clave=(mid||'')+'|'+amigos.slice().sort().join(',');
-if(__cachePersonasVisibles&&__cachePersonasVisibles.clave===clave)return __cachePersonasVisibles.set;
+function personasVisiblesAmigo(fichaId){
 var set={};
-if(mid)set[String(mid)]=true;
+if(!fichaId||!PI[fichaId])return set;
+parientesDeAmigo(fichaId).forEach(function(pid){set[String(pid)]=true;});
+return set;
+}
+/* Componentes que un colaborador "trae" a la familia a través de su propio
+   campo AMIGOS (la componente completa de cada amigo vinculado). */
+function componentesPropiosDeColaborador(fichaId){
+var set={};
+if(!fichaId||!PI[fichaId])return set;
+var amigos=amigosIdsDe(PI[fichaId]);
+var c=calcularComponentesConexos();
 amigos.forEach(function(aid){
 if(!PI[aid])return;
-set[String(aid)]=true;
-parientesDeAmigo(aid).forEach(function(pid){set[String(pid)]=true;});
+var n=c.indice[String(aid)];
+if(n!=null)set[n]=true;
 });
-__cachePersonasVisibles={clave:clave,set:set};
 return set;
 }
 function puedeVerPersona(id){
 if(id==null||id==='')return false;
 if(esAdministrador())return true;
-var set=personasVisiblesColaborador();
-return !!set[String(id)];
+var tipo=tipoUsuarioActual();
+if(!tipo)return false;
+var mid=miFichaId();
+if(tipo==='amigo'){
+if(!mid)return false;
+var setPropio=personasVisiblesAmigo(mid);
+return !!setPropio[String(id)];
 }
-/* ===== UI administrador: gestión de vínculos email ↔ ficha (en Herramientas) ===== */
-var vinculoPendienteEmail=null; /* email en espera de que el admin elija ficha */
-async function abrirGestionVinculos(){
-if(!esAdministrador()){toast('Solo el administrador puede gestionar los vínculos email-ficha',true);return;}
-if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para gestionar los vínculos',true);return;}
-document.getElementById('modalVinculos').style.display='flex';
-document.getElementById('listaVinculosFichas').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
-await cargarVinculosFichas(true);
-pintarListaVinculosFichas();
+if(tipo==='colaborador'){
+var c=calcularComponentesConexos();
+var comp=c.indice[String(id)];
+if(comp==null)return false;
+if(comp===c.principal)return true; // árbol principal: visible para cualquier colaborador
+if(mid){
+var compMid=c.indice[String(mid)];
+if(compMid!=null&&compMid===comp)return true; // su propia componente, aunque no sea la principal
+var propios=componentesPropiosDeColaborador(mid);
+if(propios[comp])return true; // rama de amigos que él mismo trajo
 }
-function cerrarGestionVinculos(){
-document.getElementById('modalVinculos').style.display='none';
-vinculoPendienteEmail=null;
-var sel=document.getElementById('vinculoSelectorPersona');
-if(sel)sel.style.display='none';
+return false; // rama de amigos traída por otro colaborador: oculta
 }
-function pintarListaVinculosFichas(){
-var cont=document.getElementById('listaVinculosFichas');
-if(!cont)return;
-var mapa=vinculosFichasCache||{};
-var emails=Object.keys(mapa).sort();
-if(!emails.length){
-cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Todavía no hay ningún vínculo. Asígnale a cada colaborador la ficha del árbol que le corresponde.</div>';
-return;
-}
-cont.innerHTML=emails.map(function(email){
-var id=mapa[email];
-var p=PI&&PI[id]?PI[id]:null;
-var nombre=p?fn(p).trim():('(ficha '+id+' no encontrada)');
-var botonQuitar='<button class="ef-btn ghost" style="padding:4px 10px" onclick="quitarVinculoFichaUI(\''+email.replace(/'/g,"\\'")+'\')"><i class="fa-solid fa-trash"></i></button>';
-var botonVer=p?'<button class="ef-btn ghost" style="padding:4px 10px" onclick="cerrarGestionVinculos();cid=\''+safeId(id)+'\';editMode=false;sv(\'fic\')"><i class="fa-solid fa-id-card"></i></button>':'';
-return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:10px 4px;border-bottom:1px solid var(--border)"><div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:700;word-break:break-all">'+esc(email)+'</div><div style="font-size:12px;color:var(--muted);margin-top:2px">→ '+esc(nombre)+(p?' <span style="color:var(--muted)">· ID '+esc(String(id))+'</span>':'')+'</div></div><div style="display:flex;gap:4px;flex-shrink:0">'+botonVer+botonQuitar+'</div></div>';
-}).join('');
-}
-async function anadirVinculoFichaUI(){
-if(!esAdministrador()){toast('Solo el administrador puede asignar vínculos',true);return;}
-var email=prompt('Correo de Google del colaborador al que quieres vincular una ficha:','');
-if(!email)return;
-email=String(email).trim().toLowerCase();
-if(!validarFormatoEmail(email)){toast('Ese texto no parece un correo electrónico válido',true);return;}
-vinculoPendienteEmail=email;
-var sel=document.getElementById('vinculoSelectorPersona');
-var inp=document.getElementById('buscarVinculoPersona');
-var tit=document.getElementById('vinculoSelectorTitulo');
-if(tit)tit.textContent='Elegir ficha para '+email;
-if(sel)sel.style.display='block';
-if(inp){inp.value='';filtrarVinculoPersona();setTimeout(function(){inp.focus();},30);}
-}
-function filtrarVinculoPersona(){
-var q=(document.getElementById('buscarVinculoPersona').value||'').toLowerCase().trim();
-var lista=document.getElementById('listaVinculoPersonas');
-if(!lista)return;
-var candidatos=[];
-if(D&&D.length){
-for(var i=0;i<D.length;i++){
-var p=D[i];
-if(!p||!p.ID)continue;
-var txt=(fn(p)+' '+p.ID).toLowerCase();
-if(!q||txt.indexOf(q)!==-1)candidatos.push(p);
-if(candidatos.length>=40)break;
-}
-}
-if(!candidatos.length){lista.innerHTML='<div style="padding:8px;color:var(--muted);font-size:12px">Ninguna persona coincide.</div>';return;}
-lista.innerHTML=candidatos.map(function(p){
-var ya=emailVinculadoDeFicha(p.ID);
-var aviso=ya?(ya===vinculoPendienteEmail?'':' <span style="color:var(--accent);font-size:10px">(ya vinculada a '+esc(ya)+')</span>'):'';
-return '<button type="button" class="herr-item" style="width:100%" onclick="confirmarVinculoFichaUI(\''+safeId(p.ID)+'\')"><div class="herr-icon"><i class="fa-solid fa-user"></i></div><div class="herr-text"><div class="herr-title">'+esc(fn(p).trim())+'</div><div class="herr-desc">ID '+esc(String(p.ID))+aviso+'</div></div></button>';
-}).join('');
-}
-async function confirmarVinculoFichaUI(personaId){
-if(!vinculoPendienteEmail){toast('No hay correo pendiente de vincular',true);return;}
-if(!personaId||!PI||!PI[personaId]){toast('Esa persona no existe en el árbol',true);return;}
-var email=vinculoPendienteEmail;
-var mapa=Object.assign({},vinculosFichasCache||{});
-/* Un email solo una ficha: sobrescribe si ya tenía otra */
-/* Una ficha solo un email: quita el vínculo previo de esa ficha */
-var emailAnterior=emailVinculadoDeFicha(personaId);
-if(emailAnterior&&emailAnterior!==email)delete mapa[emailAnterior];
-mapa[email]=String(personaId);
-try{
-await guardarVinculosFichas(mapa);
-vinculoPendienteEmail=null;
-var sel=document.getElementById('vinculoSelectorPersona');
-if(sel)sel.style.display='none';
-pintarListaVinculosFichas();
-toast('Vinculado: '+email+' → '+fn(PI[personaId]).trim());
-}catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
-}
-async function quitarVinculoFichaUI(email){
-if(!confirm('¿Quitar el vínculo de '+email+'? Esa cuenta dejará de estar asociada a ninguna ficha.'))return;
-var mapa=Object.assign({},vinculosFichasCache||{});
-delete mapa[String(email).trim().toLowerCase()];
-try{await guardarVinculosFichas(mapa);pintarListaVinculosFichas();toast('Vínculo retirado a '+email);}
-catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
+return false;
 }
 function usuarioActualParaCambios(){
 if(!googleIdentidad||!googleIdentidad.email){throw new Error('No hay identidad Google para registrar el cambio');}
@@ -1204,7 +1291,7 @@ function mostrarMiIdentidad(){
 if(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email)){
 var txt=googleIdentidad.name||googleIdentidad.email;
 if(googleIdentidad.email&&googleIdentidad.name)txt+=' ('+googleIdentidad.email+')';
-toast('Identificado como: '+txt+(esAdministrador()?' · administrador':' · colaborador'));
+toast('Identificado como: '+txt+' · '+(ETIQUETAS_TIPO_USUARIO[tipoUsuarioActual()]||'sin acceso'));
 }else{
 toast('Sin sesión de Google conectada. Conecta para que tus ediciones queden atribuidas.',true);
 }
@@ -7721,7 +7808,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
-{titulo:'Copias de seguridad para cualquier usuario',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. Estas tres funciones, en Herramientas, estan disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia</strong>: descarga a tu dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere Google.</li><li><strong>Restaurar copia</strong>: carga un archivo de respaldo previamente descargado y sustituye por completo los datos actuales. Requiere identidad de Google conectada.</li><li><strong>Restaurar desde Drive</strong>: descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la aplicacion. Tambien requiere identidad de Google.</li></ul><div class="manual-warn">Restaurar una copia (por cualquiera de las dos vias) sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
+{titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En Herramientas hay tres funciones relacionadas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar copia</strong> (cualquier usuario): carga un archivo de respaldo previamente descargado y sustituye por completo los datos actuales. Requiere identidad de Google conectada.</li><li><strong>Restaurar desde Drive</strong> (cualquier usuario): descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la aplicacion. Tambien requiere identidad de Google.</li></ul><div class="manual-warn">Restaurar una copia (por cualquiera de las dos vias) sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
 {titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Activar copia automatica local</strong>: guarda, cada 24 horas como maximo, un respaldo en el disco duro del ordenador desde el que se activo, con rotacion circular de 5 archivos. Es exclusiva de ese navegador y ese dispositivo, y se puede desactivar en cualquier momento sin borrar las copias ya hechas.</li><li><strong>Configurar y actualizar la copia local de fotografias y documentos</strong>: elige una carpeta del disco duro y copia alli, tal cual, todo el contenido actual de las carpetas FOTO y DOCUMENTOS de Drive (respetando su estructura de subcarpetas), como salvaguarda adicional independiente de Google. Es una copia de solo lectura hacia el disco: nunca sube nada de vuelta a Drive ni borra archivos locales por su cuenta.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
 {titulo:'Importar CSV desde Access',soloAdmin:true,html:'<p>La carga y actualizacion masiva de toda la base de datos se hace importando un archivo CSV, exclusivamente por el administrador, desde Herramientas → «Importar CSV».</p><p>El formato esperado tiene siempre <strong>28 columnas</strong>, sin fila de cabecera, separadas por punto y coma, en codificacion Windows-1252 (ANSI), tal y como las exporta el programa Access de referencia: las 26 columnas originales mas ANOCALC y ANOCALC_MOTIVO al final. La columna APROX (columna 2) se conserva por compatibilidad estructural, pero <strong>se ignora por completo</strong> al importar: no se incorpora a la base de datos.</p><p>Al terminar la importacion, la aplicacion informa de cuantas personas se cargaron, cuantas filas se omitieron por datos incompletos, si hubo identificadores duplicados (se conserva el ultimo registro con ese ID) y si quedo alguna referencia de padre o madre sin coincidencia dentro del propio archivo.</p>'},
 {titulo:'Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas, el administrador puede exportar toda la base de datos en dos formatos:</p><ul><li><strong>Exportar GEDCOM</strong>: genera un archivo .ged estandar, compatible con la mayoria de programas de genealogia externos, con individuos, familias, fechas y notas.</li><li><strong>Exportar CSV (Access)</strong>: genera un CSV con las mismas 28 columnas del formato de importacion (Windows-1252, separador «;», sin cabecera), listo para volver a cargarse en el programa Access de referencia tras actualizar su especificacion de importacion a 28 columnas.</li></ul><p>En la exportacion CSV, cualquier caracter que no tenga representacion exacta en la codificacion Windows-1252 se sustituye por un signo de interrogacion, y la aplicacion avisa si esto ha ocurrido.</p>'},
@@ -7818,8 +7905,8 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 4 — Conceder el permiso de Google Drive',html:'<p>A continuacion aparecen dos pantallas de permiso: la primera pide compartir el nombre y el correo (pulsar «Continuar»), y la segunda pide acceso a Google Drive. En esta ultima hace falta marcar la casilla junto a «Ver, modificar, crear y eliminar archivos de Google Drive» antes de que el boton «Continuar» quede activo.</p><p>El texto suena mas amplio de lo que realmente hace la app: en la practica solo lee y guarda dentro de las carpetas familiares que el administrador ha compartido con esa persona.</p>'},
 {titulo:'Paso 5 — La app comprueba automaticamente si esa cuenta tiene acceso',html:'<p>En cuanto se concede el permiso, la app comprueba en segundo plano si ese correo esta en la lista de «Usuarios autorizados». Hay dos resultados posibles:</p><ul><li><strong>Si esta autorizado:</strong> la pastilla se pone en verde y pasa a decir «Conectado a Google Drive». Puede continuar al paso 6.</li><li><strong>Si no esta autorizado:</strong> aparece el aviso «La cuenta [correo] no esta autorizada para acceder a este arbol familiar. Contacta con el administrador si crees que deberias tener acceso», y la app cierra la sesion de Drive sola.</li></ul>'},
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>Pulsa el icono de la caja de herramientas, en la esquina superior derecha.</li><li>En el panel «Herramientas», busca la opcion «Restaurar desde Drive» y pulsala.</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
-{titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Un colaborador no vera ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
-{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador (no administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Guardar copia, Restaurar copia, Restaurar desde Drive.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (usuarios autorizados, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive es, a proposito, una accion exclusiva del administrador: es la unica forma de que el arbol compartido no se desincronice entre dispositivos.</p>'},
+{titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
+{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar copia, Restaurar desde Drive.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
 {titulo:'Copias de seguridad: Guardar, Restaurar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay tres funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar copia:</strong> carga un archivo de respaldo descargado previamente y sustituye por completo los datos actuales. Requiere identidad de Google conectada.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Tambien requiere identidad de Google conectada.</li></ul><div class="manual-warn">Restaurar una copia, por cualquiera de las dos vias, sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
 {titulo:'Instalar la aplicacion (sobre todo en el movil)',html:'<p>La app funciona directamente desde el navegador, sin necesidad de instalarla, pero tambien se puede anadir como si fuera un programa independiente: con icono propio y abriendose a pantalla completa, sin la barra del navegador. Es especialmente recomendable en el movil.</p><p><strong>En un movil Android (Chrome):</strong></p><ul><li>Abre el enlace de la app y accede con tu cuenta de Google como en los pasos anteriores.</li><li>Toca el icono de la caja de herramientas y busca «Instalar aplicacion» (solo aparece si el navegador lo permite en ese momento).</li><li>Si no aparece esa opcion, toca el menu de tres puntos de Chrome, arriba a la derecha, y elige «Instalar aplicacion» o «Anadir a pantalla de inicio».</li></ul><p><strong>En un iPhone o iPad (Safari):</strong></p><ul><li>Abre el enlace de la app en Safari — en iPhone, la instalacion solo funciona desde Safari, no desde Chrome.</li><li>Toca el icono de compartir (el cuadrado con una flecha hacia arriba), en la parte inferior de la pantalla.</li><li>Baja hasta «Anadir a pantalla de inicio» y tocalo, luego confirma con «Anadir».</li></ul><p><strong>En un ordenador (Chrome o Edge):</strong> en la barra de direcciones suele aparecer un icono de instalacion; si no aparece, usa Herramientas → «Instalar aplicacion».</p><div class="manual-tip">Este paso es opcional: la app funciona igual de bien abierta desde el navegador. La ventaja de instalarla es tener un acceso mas rapido, sobre todo en el movil.</div>'},
@@ -8027,6 +8114,7 @@ if(!esAdministrador()){toast('Solo el administrador puede importar CSV',true);re
 document.getElementById('fi').click();
 }
 function exportarCopia(){
+if(!esAdministrador()){toast('Guardar copia contiene todos los datos sin filtrar, por eso es exclusivo del administrador. Pide a la persona administradora que te pase una copia si la necesitas.',true);return;}
 if(!D.length){toast('No hay datos para guardar',true);return;}
 var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
 var blob=new Blob([JSON.stringify(copia)],{type:'application/json;charset=utf-8'});
@@ -8989,25 +9077,14 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 (function(){var right=document.querySelector('#vCam .cambios-toolbar > div:last-child');if(right)right.insertAdjacentHTML('afterbegin','<span class="drive-status" id="driveStatusCam" onclick="accionDriveStatusPill()" style="margin-top:0"><span class="dot"></span><span id="driveStatusCamTxt">Comprobando Google Drive...</span></span>');})();
 </script>
 <div id="modalUsuarios" role="dialog" aria-modal="true" aria-labelledby="modalUsuariosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-<h2 id="modalUsuariosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-users-gear" aria-hidden="true" style="color:var(--accent)"></i> Usuarios autorizados</h2>
-<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarGestionUsuarios()">×</button>
-</div>
-<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo estas cuentas de Google pueden entrar en el árbol. No hace falta que sean @gmail.com: vale cualquier cuenta de Google (por ejemplo, una de trabajo o de un dominio propio), siempre que la persona inicie sesión con ella.</p>
-<div id="listaUsuariosAutorizados" style="overflow:auto;flex:1;margin-bottom:12px"></div>
-<button class="ef-btn save" onclick="anadirUsuarioAutorizadoUI()"><i class="fa-solid fa-user-plus"></i> Añadir persona</button>
-</div>
-</div>
-<div id="modalVinculos" role="dialog" aria-modal="true" aria-labelledby="modalVinculosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:231;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-<h2 id="modalVinculosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-link" aria-hidden="true" style="color:var(--accent)"></i> Vínculo email ↔ ficha</h2>
-<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarGestionVinculos()">×</button>
+<h2 id="modalUsuariosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-users-gear" aria-hidden="true" style="color:var(--accent)"></i> Usuarios</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarGestionUsuarios()">×</button>
 </div>
-<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo el administrador puede enlazar cada colaborador con su ficha del árbol. Ese enlace permitirá más adelante que cada persona gestione su propia rama de Amigos sin que el resto la vea.</p>
-<div id="listaVinculosFichas" style="overflow:auto;flex:1;margin-bottom:12px"></div>
-<button class="ef-btn save" onclick="anadirVinculoFichaUI()"><i class="fa-solid fa-link"></i> Asignar vínculo</button>
+<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo estas cuentas de Google pueden entrar en el árbol (no hace falta que sean @gmail.com, vale cualquier cuenta de Google). Para cada una, elige su tipo y, si corresponde, la ficha del árbol vinculada a esa persona: <strong>Administrador</strong> ve y edita todo; <strong>Colaborador</strong> ve el árbol principal completo, más las ramas de Amigos que él mismo vincule; <strong>Amigo</strong> ve únicamente su propio árbol.</p>
+<div id="listaUsuariosAutorizados" style="overflow:auto;flex:1;margin-bottom:12px"></div>
+<button class="ef-btn save" onclick="anadirUsuarioAutorizadoUI()"><i class="fa-solid fa-user-plus"></i> Añadir persona</button>
 <div id="vinculoSelectorPersona" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
 <div id="vinculoSelectorTitulo" style="font-size:13px;font-weight:700;margin-bottom:8px">Elegir ficha</div>
 <label for="buscarVinculoPersona" class="sr-only">Buscar persona por nombre o ID</label>
@@ -9061,7 +9138,6 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-subhead">Dispositivo</div>
 <button class="herr-item" id="herrInstalarBtn" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div class="herr-subhead">Copias de seguridad</div>
-<button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un archivo de respaldo con todos los datos y fotos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
 <div class="herr-subhead">Fotos</div>
@@ -9071,8 +9147,8 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Acceso</div>
-<button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios autorizados</div><div class="herr-desc">Ver, añadir o quitar quién puede acceder a este árbol</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();abrirGestionVinculos()"><div class="herr-icon"><i class="fa-solid fa-link"></i></div><div class="herr-text"><div class="herr-title">Vínculo email ↔ ficha</div><div class="herr-desc">Asocia cada colaborador con su propia ficha del árbol (solo administrador)</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
 <button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
@@ -9182,7 +9258,7 @@ var MODAL_CLOSERS={
 'modalImportFotos':function(){if(typeof cerrarModalImportFotos==='function')cerrarModalImportFotos();},
 'modalConfigANOCALC':function(){if(typeof cerrarModalConfigANOCALC==='function')cerrarModalConfigANOCALC();},
 'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
-'modalVinculos':function(){if(typeof cerrarGestionVinculos==='function')cerrarGestionVinculos();}
+'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();}
 };
 var lastFocused=null;
 function esVisible(m){return m&&getComputedStyle(m).display!=='none';}
