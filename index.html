@@ -462,6 +462,10 @@ body{background:#fff}
 <body>
 <a href="#mainContent" class="skip-link">Saltar al contenido principal</a>
 <div class="toast-c" id="toastC" role="status" aria-live="polite" aria-atomic="false"></div>
+<div id="progresoCrearPersonaWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
+<div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
+<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
+</div>
 <div id="updateBanner" class="update-banner" style="display:none" role="status" aria-live="polite"></div>
 <header>
 <div class="nav-hist">
@@ -1040,7 +1044,7 @@ try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Añadid
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 async function quitarUsuarioAutorizadoUI(email){
-if(!confirm('¿Quitar el acceso a '+email+'?'))return;
+if(!(await confirmarApp('¿Quitar el acceso a '+email+'?')))return;
 var lista=(usuariosCache||[]).filter(function(u){return u.email!==email;});
 try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
@@ -1106,7 +1110,7 @@ toast('Vinculado: '+email+' → '+fn(PI[personaId]).trim());
 }catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 async function quitarFichaUsuarioUI(email){
-if(!confirm('¿Quitar el vínculo de ficha de '+email+'?'))return;
+if(!(await confirmarApp('¿Quitar el vínculo de ficha de '+email+'?')))return;
 var lista=(usuariosCache||[]).slice();
 var u=lista.filter(function(x){return x.email===email;})[0];
 if(!u){toast('Usuario no encontrado',true);return;}
@@ -1178,7 +1182,7 @@ if(!iniciarOperacionFicha(btn,''))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var a=PI[idPersona],b=PI[idAmigo];
 var nombreB=b?fn(b).trim():('ID '+idAmigo);
-if(!confirm('¿Quitar a '+nombreB+' de la lista de amigos? (no se borra ninguna ficha)')){finOperacionFicha(btn);return;}
+if(!(await confirmarApp('¿Quitar a '+nombreB+' de la lista de amigos? (no se borra ninguna ficha)'))){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 if(a){asegurarAmigosArray(a);a.AMIGOS=amigosIdsDe(a).filter(function(x){return String(x)!==String(idAmigo);});}
 if(b){asegurarAmigosArray(b);b.AMIGOS=amigosIdsDe(b).filter(function(x){return String(x)!==String(idPersona);});}
@@ -1347,6 +1351,39 @@ function toast(m,e){var c=document.getElementById('toastC'),t=document.createEle
    elemento (dataset) para poder restaurarlo tal cual al terminar, sea cual sea
    el resultado. btn es opcional: si no se pasa (o el elemento ya no existe),
    no hace nada, para no romper llamadas que no vienen de un clic de botón. */
+/* ===== MEJORA: sustituye al confirm() nativo del navegador (feo, del sistema
+   operativo, bloquea la pantalla y en móvil puede sentirse como si la app se
+   hubiera colgado) por un cuadro de confirmación con el estilo propio de la
+   app, igual que el resto de modales. Se usa como: if(!(await
+   confirmarApp('mensaje')))return;  — misma forma que confirm(), pero async. */
+var confirmarAppResolver=null;
+function confirmarApp(mensaje,opciones){
+opciones=opciones||{};
+return new Promise(function(resolve){
+var modal=document.getElementById('modalConfirmApp');
+if(!modal){resolve(window.confirm(mensaje));return;}
+document.getElementById('modalConfirmAppTitulo').textContent=opciones.titulo||'¿Continuar?';
+document.getElementById('modalConfirmAppTexto').textContent=mensaje;
+var btnAceptar=document.getElementById('modalConfirmAppAceptar'),btnCancelar=document.getElementById('modalConfirmAppCancelar');
+btnAceptar.textContent=opciones.textoAceptar||'Continuar';
+btnCancelar.textContent=opciones.textoCancelar||'Cancelar';
+confirmarAppResolver=resolve;
+modal.style.display='flex';
+btnAceptar.focus();
+});
+}
+function resolverConfirmarApp(valor){
+document.getElementById('modalConfirmApp').style.display='none';
+if(confirmarAppResolver){var r=confirmarAppResolver;confirmarAppResolver=null;r(valor);}
+}
+(function(){
+document.addEventListener('DOMContentLoaded',function(){
+var btnA=document.getElementById('modalConfirmAppAceptar'),btnC=document.getElementById('modalConfirmAppCancelar'),modal=document.getElementById('modalConfirmApp');
+if(btnA)btnA.onclick=function(){resolverConfirmarApp(true);};
+if(btnC)btnC.onclick=function(){resolverConfirmarApp(false);};
+if(modal)modal.addEventListener('keydown',function(e){if(e.key==='Escape')resolverConfirmarApp(false);});
+});
+})();
 function botonCargando(btn,activo,textoCarga){
 if(!btn)return;
 if(activo){
@@ -1522,7 +1559,7 @@ function listarCambios(){return new Promise(function(res,rej){var r=db.transacti
 function actualizarContadorCambios(){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 function confirmarCambio(id){var cId=id;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(cId);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio confirmado');};};tx.onerror=function(){toast('No se pudo confirmar el cambio',true);};}
-function eliminarRegistroCambio(id){if(!confirm('Se eliminará este registro de cambios de la lista. ¿Continuar?'))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
+async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios de la lista.')))return;var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c)return;c.estado='eliminado';c.eliminadoEn=new Date().toISOString();c.actualizadoEn=c.eliminadoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Registro eliminado');};};tx.onerror=function(){toast('No se pudo eliminar el registro',true);};}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
 async function obtenerArchivoCambiosDrive(){var folderId=DRIVE_BACKUP_SECONDARY_FOLDER_ID||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
@@ -2796,7 +2833,7 @@ var edad=anoActual-y;
 if(edad>100)candidatos.push(p);
 });
 if(!candidatos.length){toast('No se encontraron personas vivas con más de 100 años',true);return;}
-if(!confirm('Se marcaran como fallecidas '+candidatos.length+' persona(s) con más de 100 años (según su año de nacimiento o aproximado). ¿Continuar?'))return;
+if(!(await confirmarApp('Se marcarán como fallecidas '+candidatos.length+' persona(s) con más de 100 años (según su año de nacimiento o aproximado).')))return;
 candidatos.forEach(function(p){p.FALLECIDO='1';});
 bIdx(D);
 sAll(D).then(function(){
@@ -3695,7 +3732,7 @@ introducido por el usuario. */
 async function recalcularAnosEstimadosManual(){
 if(!D.length){toast('No hay datos cargados',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
-if(!confirm('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol (padres, hijos, cónyuges y hermanos).\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (marcado siempre con el símbolo ≈). Al terminar se subirá también a la carpeta de Seguridad de Drive el archivo con los años calculados, que es lo único que usa el Gestor de datos para sus comprobaciones de edad. ¿Continuar?'))return;
+if(!(await confirmarApp('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol (padres, hijos, cónyuges y hermanos).\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (marcado siempre con el símbolo ≈). Al terminar se subirá también a la carpeta de Seguridad de Drive el archivo con los años calculados, que es lo único que usa el Gestor de datos para sus comprobaciones de edad.')))return;
 var cont=document.getElementById('pbAnoCalc'),barra=document.getElementById('pfAnoCalc'),label=document.getElementById('pfAnoCalcLabel'),btn=document.getElementById('btnCalcularAnosEstimados');
 function fase(pct,texto){if(barra)barra.style.width=pct+'%';if(label)label.textContent=texto;}
 if(cont)cont.style.display='block';
@@ -3764,20 +3801,20 @@ valores[tipo]=n;
 if(!ok){toast('Introduce números positivos razonables (entre 0 y 100 años), o deja el campo vacío para usar el cálculo automático',true);return;}
 var cambios=['padre','madre','hermanos','conyuge'].some(function(tipo){return ANOCALC_MEDIAS_MANUAL[tipo]!==valores[tipo];});
 ['padre','madre','hermanos','conyuge'].forEach(function(tipo){ANOCALC_MEDIAS_MANUAL[tipo]=valores[tipo];});
-guardarMediasManualesANOCALC().then(function(){
+guardarMediasManualesANOCALC().then(async function(){
 toast('Configuración de ANOCALC guardada');
 cerrarModalConfigANOCALC();
-if(cambios&&D.length&&confirm('Has cambiado las medias de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?'))recalcularAnosEstimadosManual();
+if(cambios&&D.length&&(await confirmarApp('Has cambiado las medias de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?')))recalcularAnosEstimadosManual();
 }).catch(function(err){toast('No se pudo guardar la configuración: '+err.message,true);});
 }
 async function restaurarConfigANOCALCAutomatica(){
 if(!(await exigirIdentidadGoogle()))return;
 var huboManual=['padre','madre','hermanos','conyuge'].some(function(tipo){return ANOCALC_MEDIAS_MANUAL[tipo]!==null;});
 ['padre','madre','hermanos','conyuge'].forEach(function(tipo){ANOCALC_MEDIAS_MANUAL[tipo]=null;});
-guardarMediasManualesANOCALC().then(function(){
+guardarMediasManualesANOCALC().then(async function(){
 toast('Configuración manual eliminada: se usará el cálculo automático');
 renderConfigANOCALC();
-if(huboManual&&D.length&&confirm('Has restaurado el cálculo automático de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?'))recalcularAnosEstimadosManual();
+if(huboManual&&D.length&&(await confirmarApp('Has restaurado el cálculo automático de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?')))recalcularAnosEstimadosManual();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 /* ===== TAREA 4: VISTA DE DEPURACIÓN POR PERSONA (solo lectura) =====
@@ -4107,17 +4144,20 @@ reintenta automáticamente con la lista ya actualizada — así nunca pueden
 quedarse dos personas con el mismo ID. No se le pregunta nada al colaborador:
 la asignación es transparente. */
 async function reservarIdNuevo(){
-if(!(await exigirIdentidadGoogle()))return null;
-if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada; no se puede reservar un ID sin riesgo de que choque con otro colaborador',true);return null;}
+mostrarProgresoDrive('Comprobando tu identidad de Google...','progresoCrearPersonaWrap');
+if(!(await exigirIdentidadGoogle())){ocultarProgresoDrive('progresoCrearPersonaWrap');return null;}
+if(!driveRootFolderId){ocultarProgresoDrive('progresoCrearPersonaWrap');toast('No hay ninguna carpeta de Drive configurada; no se puede reservar un ID sin riesgo de que choque con otro colaborador',true);return null;}
 if(!tokenDriveValido()){
-try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive para reservar el ID: '+err.message,true);return null;}
+actualizarProgresoDrive('Conectando con Google Drive...','progresoCrearPersonaWrap');
+try{await conectarGoogleDrive();}catch(err){ocultarProgresoDrive('progresoCrearPersonaWrap');toast('No se pudo conectar con Google Drive para reservar el ID: '+err.message,true);return null;}
 }
 var usadosLocal={},maxUsado=0;
 D.forEach(function(p){var n=parseInt(p.ID,10);if(!isNaN(n)&&String(n)===String(p.ID).trim()){usadosLocal[n]=true;if(n>maxUsado)maxUsado=n;}});
 for(var intento=0;intento<IDS_RESERVADOS_MAX_REINTENTOS;intento++){
+actualizarProgresoDrive(intento===0?'Comprobando los IDs ya reservados por otros colaboradores...':'Otro colaborador ha reservado ese hueco justo ahora; buscando el siguiente libre...','progresoCrearPersonaWrap');
 var estado;
 try{estado=await leerIdsReservadosDrive();}
-catch(err){if(err.message==='sesion_caducada'){avisarSesionDriveCaducada();return null;}toast('No se pudo comprobar los IDs reservados: '+err.message,true);return null;}
+catch(err){ocultarProgresoDrive('progresoCrearPersonaWrap');if(err.message==='sesion_caducada'){avisarSesionDriveCaducada();return null;}toast('No se pudo comprobar los IDs reservados: '+err.message,true);return null;}
 var ocupados={};
 Object.keys(usadosLocal).forEach(function(k){ocupados[k]=true;});
 var maxTotal=maxUsado;
@@ -4127,13 +4167,16 @@ for(var i=1;i<=maxTotal+1;i++){if(!ocupados[i]){candidato=i;break;}}
 if(candidato===null)candidato=maxTotal+1;
 var nuevaLista=(estado.reservados||[]).slice();
 nuevaLista.push(candidato);
+actualizarProgresoDrive('Reservando el ID '+candidato+' en Drive antes de que lo coja nadie más...','progresoCrearPersonaWrap');
 var resp;
 try{resp=await guardarIdsReservadosDrive(estado.fileId,estado.etag,nuevaLista);}
-catch(err){if(err.message==='sesion_caducada'){avisarSesionDriveCaducada();return null;}toast('No se pudo reservar el ID: '+err.message,true);return null;}
+catch(err){ocultarProgresoDrive('progresoCrearPersonaWrap');if(err.message==='sesion_caducada'){avisarSesionDriveCaducada();return null;}toast('No se pudo reservar el ID: '+err.message,true);return null;}
 if(resp&&resp.status===412)continue; /* otro colaborador reservó justo a la vez: reintentar con datos frescos */
+ocultarProgresoDrive('progresoCrearPersonaWrap');
 if(!resp||!resp.ok){toast('No se pudo reservar un ID nuevo (Drive respondió '+(resp?resp.status:'sin respuesta')+')',true);return null;}
 return String(candidato);
 }
+ocultarProgresoDrive('progresoCrearPersonaWrap');
 toast('No se pudo reservar un ID sin colisiones tras varios intentos; inténtalo de nuevo en unos segundos',true);
 return null;
 }
@@ -4794,11 +4837,11 @@ resultado.push({id:hid,campo:'APELLIDO2'});
 });
 return resultado;
 }
-function propagarPrimerApellido(personaId,valorAntiguo,valorNuevo){
+async function propagarPrimerApellido(personaId,valorAntiguo,valorNuevo){
 if(!valorAntiguo||normApellido(valorAntiguo)===normApellido(valorNuevo))return 0;
 var afectados=recopilarDescendientesConApellido(personaId,valorAntiguo,[]);
 if(!afectados.length)return 0;
-if(!confirm('Este apellido ("'+valorAntiguo+'") también lo llevan '+afectados.length+' descendiente(s) (heredado como primer o segundo apellido). ¿Cambiarlo también en ellos a "'+valorNuevo+'"?'))return 0;
+if(!(await confirmarApp('Este apellido ("'+valorAntiguo+'") también lo llevan '+afectados.length+' descendiente(s) (heredado como primer o segundo apellido). ¿Cambiarlo también en ellos a "'+valorNuevo+'"?')))return 0;
 afectados.forEach(function(a){var d=PI[a.id];if(d)d[a.campo]=valorNuevo;});
 return afectados.length;
 }
@@ -4845,7 +4888,7 @@ else eliminarFotoPersonaDeDrive(idParaDrive);
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 var antesPropagacion=mapaPersonas(D);
-var nPropagados=propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
+var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
 sAll(D).then(function(){
 editMode=false;
@@ -4861,7 +4904,7 @@ if(!(await exigirIdentidadGoogle()))return;
 var persona=PI[id];
 if(!persona){toast('Ficha no encontrada',true);return;}
 var antesCambioEliminar=mapaPersonas(D);
-if(!confirm('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular. ¿Continuar?'))return;
+if(!(await confirmarApp('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular.')))return;
 var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
 var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
 ['PADRE','MADRE','M1','M2'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
@@ -4901,7 +4944,7 @@ return true;
 }
 async function crearVinculado(id,campo,sexoNuevo,btn){
 if(!(await exigirIdentidadGoogle()))return;
-if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
+if(!(await confirmarApp('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán.')))return;
 botonCargando(btn,true,'');
 try{
 var newId=await elegirIdNueva();
@@ -4926,11 +4969,11 @@ registrarCambiosDesdeSnapshots(antesCambioCrear,D,'vincular');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);});
 }finally{botonCargando(btn,false);}
 }
-function editarVinculado(id,campo){
+async function editarVinculado(id,campo){
 var actual=PI[id];
 var linkedId=actual?actual[campo]:null;
 if(!linkedId||!PI[linkedId]){toast('No hay nadie vinculado en ese campo',true);return;}
-if(editMode && !confirm('Se perderán los cambios sin guardar en este formulario. Continuar?'))return;
+if(editMode && !(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
 cid=linkedId;
 editMode=true;
 rFic(linkedId);
@@ -5045,7 +5088,7 @@ var idDuenio=selectorRelacion.id;
 if(!puedeEditarAmigosDe(idDuenio)){toast('No tienes permiso para añadir amigos a esta ficha',true);return;}
 if(!iniciarOperacionFicha(btn,'Creando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
-if(!confirm('Se creará una persona nueva y se añadirá como amigo. Luego podrás completar su ficha. ¿Continuar?')){finOperacionFicha(btn);return;}
+if(!(await confirmarApp('Se creará una persona nueva y se añadirá como amigo. Luego podrás completar su ficha.'))){finOperacionFicha(btn);return;}
 var newId=await elegirIdNueva();
 if(!newId){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
@@ -5067,14 +5110,14 @@ if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesRelacion=mapaPersonas(D);
 var actual=PI[id],otroId=actual?actual[campo]:'';
 if(!actual||!otroId){finOperacionFicha(btn);return;}
-if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?')){finOperacionFicha(btn);return;}
+if(!(await confirmarApp('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha.'))){finOperacionFicha(btn);return;}
 var otro=PI[otroId];actual[campo]='';
 if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
 var camposPrevios=capturarCamposEdicionSiProcede(id);
 bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
-function editarDescendiente(id){
-if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
+async function editarDescendiente(id){
+if(editMode&&!(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
 cid=id;editMode=true;rFic(id);
 }
 async function crearDescendiente(id,parejaId,btn){
@@ -5082,7 +5125,7 @@ if(!iniciarOperacionFicha(btn,'Creando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 if(!progenitor){toast('No se encontró la persona seleccionada',true);finOperacionFicha(btn);return;}
-if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?')){finOperacionFicha(btn);return;}
+if(!(await confirmarApp('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán.'))){finOperacionFicha(btn);return;}
 var newIdDesc=await elegirIdNueva();
 if(!newIdDesc){finOperacionFicha(btn);return;}
 var antesCambioDesc=mapaPersonas(D);
@@ -5976,7 +6019,7 @@ if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
 if(cat.fuente==='integridad_ref'){
 var conSolucionInt=cat.items.filter(function(it){return typeof it.aplicar==='function';});
 if(!conSolucionInt.length)return;
-if(!confirm('Se desvincularán automáticamente los '+conSolucionInt.length+' vínculo(s) que apuntan a un ID que ya no existe (el resto de cada ficha no se toca). ¿Continuar?'))return;
+if(!(await confirmarApp('Se desvincularán automáticamente los '+conSolucionInt.length+' vínculo(s) que apuntan a un ID que ya no existe (el resto de cada ficha no se toca).')))return;
 var antesInt=mapaPersonas(D);
 var aplicadasInt=0;
 conSolucionInt.forEach(function(it){if(it.aplicar())aplicadasInt++;});
@@ -5997,7 +6040,7 @@ return;
 if(cat.fuente!=='inc')return;
 var conSolucion=cat.items.filter(function(it){return typeof it.aplicar==='function';}).length;
 if(!conSolucion)return;
-if(!confirm('Se aplicarán automáticamente las correcciones seguras de "'+cat.titulo+'" ('+conSolucion+' caso(s)). El resto de posibles inconsistencias no se toca: hay que revisarlas una a una. ¿Continuar?'))return;
+if(!(await confirmarApp('Se aplicarán automáticamente las correcciones seguras de "'+cat.titulo+'" ('+conSolucion+' caso(s)). El resto de posibles inconsistencias no se toca: hay que revisarlas una a una.')))return;
 var antes=mapaPersonas(D);
 var aplicadas=0,aplicadosMsg={},fallidos={},prev=Infinity,guarda=0;
 while(guarda++<5000){
@@ -6036,7 +6079,7 @@ var idMantener=inverso?it.bId:it.aId;
 var idEliminar=inverso?it.aId:it.bId;
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE){rGes();return;}
-if(!confirm('Se fusionarán las dos fichas en una sola.\nSe conservará: '+fn(pM)+' (ID '+idMantener+')\nSe eliminará: '+fn(pE)+' (ID '+idEliminar+')\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer. ¿Continuar?'))return;
+if(!(await confirmarApp('Se fusionarán las dos fichas en una sola.\nSe conservará: '+fn(pM)+' (ID '+idMantener+')\nSe eliminará: '+fn(pE)+' (ID '+idEliminar+')\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer.')))return;
 var antesFusion=mapaPersonas(D);
 if(!(await fusionarPersonas(idMantener,idEliminar)))return;
 sAll(D).then(function(){
@@ -6055,9 +6098,9 @@ toast('Pareja marcada como no duplicada');
 rGes();
 }
 /* Años estimados desde el Gestor: reutiliza el motor por fases con barra de progreso propia */
-function gesCalcularAnosGes(){
+async function gesCalcularAnosGes(){
 if(!D.length){toast('No hay datos cargados',true);return;}
-if(!confirm('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol.\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (≈). ¿Continuar?'))return;
+if(!(await confirmarApp('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol.\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (≈).')))return;
 var btn=document.querySelector('[data-masiva="anios_estimados"]');
 var wrap=document.getElementById('gesPbAnocalc');
 var barra=wrap?wrap.querySelector('.pf'):null;
@@ -6094,7 +6137,7 @@ var nIds=Object.keys(ids).length;
 var aviso=(g.nivel==='A')
 ?('¿Unificar '+nIds+' ficha(s) con la forma "'+forma+'"?')
 :('¿Reescribir '+nIds+' ficha(s) con la forma "'+forma+'"? Comprueba que todas las variantes son realmente el mismo lugar.');
-if(!confirm(aviso))return;
+if(!(await confirmarApp(aviso)))return;
 var antes=mapaPersonas(D);
 g.variantes.forEach(function(v){
 v.personas.forEach(function(ref){
@@ -6125,7 +6168,7 @@ return '  · '+g.variantes.map(function(v){return '"'+v.txt+'"';}).join(' / ')+'
 }).join('\n');
 grupos.slice(12).forEach(function(g){var ids={};g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});totalFichas+=Object.keys(ids).length;});
 var extra=grupos.length>12?('\n  … y '+(grupos.length-12)+' grupo(s) más'):'';
-if(!confirm('Se unificarán '+grupos.length+' grupo(s) de Nivel A, afectando a '+totalFichas+' ficha(s) en total:\n\n'+preview+extra+'\n\n¿Continuar?'))return;
+if(!(await confirmarApp('Se unificarán '+grupos.length+' grupo(s) de Nivel A, afectando a '+totalFichas+' ficha(s) en total:\n\n'+preview+extra)))return;
 var antes=mapaPersonas(D);
 var fichasTocadas={};
 grupos.forEach(function(g){
@@ -8220,7 +8263,7 @@ a.href=url;a.download='copia-arbol-genealogico-'+fecha+'.json';document.body.app
 toast('Copia descargada con '+D.length+' personas y sus fotos');
 registrarUltimaCopia();
 }
-function restaurarDesdeJSONTexto(texto){
+async function restaurarDesdeJSONTexto(texto){
 var copia;
 try{copia=JSON.parse(texto);}catch(err){ocultarProgresoDrive();toast('El archivo no es una copia válida',true);return;}
 var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
@@ -8233,7 +8276,7 @@ if(ids[personas[i].ID]){ocultarProgresoDrive();toast('La copia contiene IDs dupl
 ids[personas[i].ID]=true;
 }
 ocultarProgresoDrive();
-if(!confirm('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos. Continuar?'))return;
+if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.')))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
 sAll(personas,{marcarANOCALCSucio:false}).then(function(){
 D=personas;bIdx(D);cid=null;editMode=false;
@@ -8855,9 +8898,9 @@ function cerrarModalCopiaLocalDrive() {
 }
 
 var copiaLocalDriveUltimaActualizacionUI = 0;
-function actualizarCopiaLocalDriveUI() {
+async function actualizarCopiaLocalDriveUI() {
   if (copiaLocalDriveEnCurso) { toast('Ya hay una copia local en curso', true); return; }
-  if (!confirm('Se copiarán localmente los archivos de FOTO y DOCUMENTOS almacenados en Google Drive. El proceso puede tardar y ocupar espacio en disco. ¿Continuar?')) return;
+  if (!(await confirmarApp('Se copiarán localmente los archivos de FOTO y DOCUMENTOS almacenados en Google Drive. El proceso puede tardar y ocupar espacio en disco.'))) return;
   abrirModalCopiaLocalDrive();
   sincronizarCopiaLocalDrive({
     onFase: function (texto, hechos, total) {
@@ -9157,13 +9200,13 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
 function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
 function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio APLICADO y CONFORME. Recuerda: solo tu subes la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
 function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio rechazado (no se aplico al arbol)');};};}
-function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!confirm('Se aplicaran al arbol y se marcaran COMO CONFORME '+pend.length+' cambio(s). ¿Continuar?'))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'. Sube ahora la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
-function eliminarTodosCambiosPendientes(){if(!esAdministrador()){toast('Solo el administrador puede eliminar cambios en bloque',true);return;}listarCambios().then(function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!confirm('Se eliminarán '+pend.length+' registro(s) de cambios pendientes de la lista (no afecta a los datos del árbol, que ya están guardados). ¿Continuar?'))return;var ahora=new Date().toISOString();pend.forEach(function(c){c.estado='eliminado';c.eliminadoEn=ahora;c.actualizadoEn=ahora;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast(pend.length+' registro(s) de cambios eliminados de la lista');};tx.onerror=function(){toast('No se pudieron eliminar los registros',true);};});}
+function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'. Sube ahora la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
+function eliminarTodosCambiosPendientes(){if(!esAdministrador()){toast('Solo el administrador puede eliminar cambios en bloque',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se eliminarán '+pend.length+' registro(s) de cambios pendientes de la lista (no afecta a los datos del árbol, que ya están guardados).')))return;var ahora=new Date().toISOString();pend.forEach(function(c){c.estado='eliminado';c.eliminadoEn=ahora;c.actualizadoEn=ahora;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast(pend.length+' registro(s) de cambios eliminados de la lista');};tx.onerror=function(){toast('No se pudieron eliminar los registros',true);};});}
 function guardarCambiosEnDrive(){if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para guardar tus cambios',true);accionDriveStatusPill();return;}sincronizarCambiosDrive(true);}
-function restaurarCambiosDesdeDrive(){
+async function restaurarCambiosDesdeDrive(){
 if(!esAdministrador()){toast('Solo el administrador puede cargar el registro de cambios desde Drive',true);return;}
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
-if(!confirm('Esto sustituira TODO el registro de cambios guardado en este dispositivo por el contenido exacto del archivo cambios-arbol.json de Drive. Los registros que ya no esten en ese archivo desapareceran de este dispositivo (aunque este los tuviera). ¿Continuar?'))return;
+if(!(await confirmarApp('Esto sustituirá TODO el registro de cambios guardado en este dispositivo por el contenido exacto del archivo cambios-arbol.json de Drive. Los registros que ya no estén en ese archivo desaparecerán de este dispositivo (aunque este los tuviera).')))return;
 descargarCambiosDrive().then(function(remoto){
 var lista=(remoto&&Array.isArray(remoto.cambios))?remoto.cambios:[];
 var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);
@@ -9214,6 +9257,16 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div style="display:flex;gap:10px;justify-content:center;">
 <button class="btn" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="document.getElementById('modalLimpiar').style.display='none'">Cancelar</button>
 <button class="btn" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="ejecutarLimpiar()"><i class="fa-solid fa-trash-can"></i> Si, limpiar todo</button>
+</div>
+</div>
+</div>
+<div id="modalConfirmApp" role="alertdialog" aria-modal="true" aria-labelledby="modalConfirmAppTitulo" aria-describedby="modalConfirmAppTexto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:280;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.25);">
+<h2 id="modalConfirmAppTitulo" style="font-family:'Cinzel',serif;font-size:17px;margin:0 0 10px">¿Continuar?</h2>
+<p id="modalConfirmAppTexto" style="font-size:13px;color:var(--text);line-height:1.5;margin:0 0 18px;white-space:pre-line"></p>
+<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+<button type="button" class="btn" id="modalConfirmAppCancelar" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Cancelar</button>
+<button type="button" class="btn" id="modalConfirmAppAceptar" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Continuar</button>
 </div>
 </div>
 </div>
