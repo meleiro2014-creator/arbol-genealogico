@@ -1077,8 +1077,8 @@ if(D&&D.length){
 for(var i=0;i<D.length;i++){
 var p=D[i];
 if(!p||!p.ID)continue;
-var txt=(fn(p)+' '+p.ID).toLowerCase();
-if(!q||txt.indexOf(q)!==-1)candidatos.push(p);
+var txt=fn(p)+' '+p.ID;
+if(!q||coincideBusqueda(txt,q))candidatos.push(p);
 if(candidatos.length>=40)break;
 }
 }
@@ -1882,8 +1882,8 @@ if(!cont)return;
 q=(q||'').trim().toLowerCase();
 if(q.length<2){cont.innerHTML='';return;}
 var coincidencias=D.filter(function(p){
-var texto=(fn(p)+' '+(p.OBSERVACIONES||'')).toLowerCase();
-return texto.indexOf(q)>=0;
+var texto=fn(p)+' '+(p.OBSERVACIONES||'');
+return coincideBusqueda(texto,q);
 }).slice(0,10);
 if(!coincidencias.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin resultados.</p>';return;}
 cont.innerHTML=coincidencias.map(function(p){
@@ -3959,7 +3959,7 @@ if(!puedeVerPersona(p.ID))return false;
 if(q){
 var an=String(pdAnioTexto(p)||'').toLowerCase();
 var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
-if(texto.indexOf(q)<0)return false;
+if(!coincideBusqueda(texto,q))return false;
 }
 if(busFiltros.lugar){
 var lugares=(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||'')).toLowerCase();
@@ -4021,7 +4021,7 @@ var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
 var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
-return texto.indexOf(q)>=0;
+return coincideBusqueda(texto,q);
 });
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 var total=f.length;
@@ -5032,7 +5032,7 @@ if(!actual){lista.innerHTML='<p style="font-size:12px;color:var(--muted);padding
 var excluir={};excluir[actual.ID]=true;
 if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2)excluir[actual.M2]=true;}
 if(campo==='AMIGOS'){amigosIdsDe(actual).forEach(function(aid){excluir[aid]=true;});}
-var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||fn(p).toLowerCase().indexOf(q)>=0||String(p.ID).indexOf(q)>=0);}).slice(0,80);
+var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||coincideBusqueda(fn(p),q)||String(p.ID).indexOf(q)>=0);}).slice(0,80);
 var html='';
 /* ===== MEJORA: el botón para crear una persona nueva (habitual al añadir un
    amigo, que por definición suele no estar todavía en el árbol) se muestra
@@ -5410,6 +5410,21 @@ return h;
 }
 /* ===== POSIBLES DUPLICADOS ===== */
 function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+/* ===== MEJORA: búsqueda de personas más flexible en todos los buscadores de
+   la app. Antes se exigía que lo escrito apareciera tal cual, letra por
+   letra y en ese mismo orden, dentro del texto de la persona (nombre,
+   apellidos, lugar...); por eso "Ana Meleiro" no encontraba a "Ana Rosa
+   Meleiro Sánchez" (el orden de las palabras no coincidía). Ahora basta con
+   que cada palabra escrita aparezca en algún sitio del texto, en cualquier
+   orden, e ignorando tildes/mayúsculas: "Ana Meleiro", "Meleiro Ana" o
+   "meleiro sanchez" encuentran igualmente a esa persona. */
+function coincideBusqueda(texto,q){
+q=normTxt(q);
+if(!q)return true;
+texto=normTxt(texto);
+var palabras=q.split(' ').filter(Boolean);
+return palabras.every(function(palabra){return texto.indexOf(palabra)>=0;});
+}
 /* ===== INTEGRIDAD REFERENCIAL =====
    Ninguna comprobación de arriba (detectarInconsistencias, detectarDuplicados) puede ver
    estos dos casos: por diseño, cada una solo mira PADRE/MADRE/M1/M2 cuando PI[esa_id] SÍ
@@ -6590,7 +6605,7 @@ function doSrchInf(q){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlInf');
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
@@ -6621,7 +6636,7 @@ function doSrchCro(q){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlCro');
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
@@ -6934,7 +6949,7 @@ function doSrchRel(q,letra){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlRel'+letra);
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return sn(p).toLowerCase().indexOf(q)>=0||fn(p).toLowerCase().indexOf(q)>=0;});
+var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
