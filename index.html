@@ -530,7 +530,6 @@ body{background:#fff}
 <div id="rl"></div>
 <input type="file" id="fi" accept=".csv,.txt" style="display:none">
 <input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
-<input type="file" id="fiCopia" accept="application/json,.json" style="display:none">
 <datalist id="dlEtiquetasGlobal"></datalist>
 </div>
 <div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
@@ -1146,12 +1145,12 @@ ids.forEach(function(aid){
 var a=PI[aid];
 if(!a){
 h+='<li style="color:var(--muted)">ID '+esc(String(aid))+' (no encontrado)';
-if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\')">Quitar</button>';
+if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\',this)">Quitar</button>';
 h+='</li>';
 return;
 }
 h+='<li><a onclick="irAFicha(\''+safeId(aid)+'\')">'+esc(fn(a))+'</a>'+etiquetaAnioRelacion(a);
-if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\')" title="Quitar amigo"><i class="fa-solid fa-xmark"></i></button>';
+if(puedeEditar)h+=' <button type="button" class="ef-btn ghost" style="padding:2px 8px;font-size:11px;min-height:28px;margin-left:6px" onclick="quitarAmigoUI(\''+safeId(id)+'\',\''+safeId(aid)+'\',this)" title="Quitar amigo"><i class="fa-solid fa-xmark"></i></button>';
 h+='</li>';
 });
 h+='</ul>';
@@ -1169,13 +1168,13 @@ if(!puedeEditarAmigosDe(id)){toast('Solo puedes gestionar los amigos de tu propi
 if(!PI[id]){toast('Persona no encontrada',true);return;}
 abrirSelectorRelacion(id,'AMIGOS');
 }
-async function quitarAmigoUI(idPersona,idAmigo){
+async function quitarAmigoUI(idPersona,idAmigo,btn){
 if(!puedeEditarAmigosDe(idPersona)){toast('No tienes permiso para quitar amigos de esta ficha',true);return;}
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+if(!iniciarOperacionFicha(btn,''))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var a=PI[idPersona],b=PI[idAmigo];
 var nombreB=b?fn(b).trim():('ID '+idAmigo);
-if(!confirm('¿Quitar a '+nombreB+' de la lista de amigos? (no se borra ninguna ficha)')){finOperacionFicha();return;}
+if(!confirm('¿Quitar a '+nombreB+' de la lista de amigos? (no se borra ninguna ficha)')){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 if(a){asegurarAmigosArray(a);a.AMIGOS=amigosIdsDe(a).filter(function(x){return String(x)!==String(idAmigo);});}
 if(b){asegurarAmigosArray(b);b.AMIGOS=amigosIdsDe(b).filter(function(x){return String(x)!==String(idPersona);});}
@@ -1184,7 +1183,7 @@ sAll(D).then(function(){
 rFic(idPersona);
 toast('Amigo quitado');
 registrarCambiosDesdeSnapshots(antes,D,'vincular');
-}).catch(function(err){toast('No se pudo quitar el amigo: '+err.message,true);}).finally(finOperacionFicha);
+}).catch(function(err){toast('No se pudo quitar el amigo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function anadirAmigoEntre(idA,idB){
 var a=PI[idA],b=PI[idB];
@@ -1338,8 +1337,28 @@ toast('Sin sesión de Google conectada. Conecta para que tus ediciones queden at
 }
 }
 function toast(m,e){var c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast'+(e?' err':'');t.textContent=m;c.appendChild(t);setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);}
+/* ===== MEJORA: spinner reutilizable en el propio botón para acciones puntuales
+   (guardar ficha, crear/vincular personas...) que antes no daban ninguna señal
+   visual de que estaban trabajando. Guarda el HTML original en el propio
+   elemento (dataset) para poder restaurarlo tal cual al terminar, sea cual sea
+   el resultado. btn es opcional: si no se pasa (o el elemento ya no existe),
+   no hace nada, para no romper llamadas que no vienen de un clic de botón. */
+function botonCargando(btn,activo,textoCarga){
+if(!btn)return;
+if(activo){
+if(btn.dataset.htmlOriginal===undefined)btn.dataset.htmlOriginal=btn.innerHTML;
+btn.disabled=true;
+btn.setAttribute('aria-busy','true');
+var texto=textoCarga===undefined?'Un momento...':textoCarga;
+btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>'+(texto?(' '+texto):'');
+}else{
+btn.disabled=false;
+btn.removeAttribute('aria-busy');
+if(btn.dataset.htmlOriginal!==undefined){btn.innerHTML=btn.dataset.htmlOriginal;delete btn.dataset.htmlOriginal;}
+}
+}
 /* ===== MEJORA: indicador de progreso persistente para operaciones de Drive
-   (Restaurar desde Drive, Restaurar copia, Sincronizar) que antes solo mostraban
+   (Restaurar desde Drive, Sincronizar) que antes solo mostraban
    un toast de 3 segundos y podían parecer bloqueadas si tardaban más. ===== */
 function mostrarProgresoDrive(texto,contenedorId){
 var wrap=document.getElementById(contenedorId||'driveOpProgresoWrap');
@@ -2000,7 +2019,7 @@ host.innerHTML='<div style="display:flex;justify-content:space-between;align-ite
 '<button type="button" class="ef-btn ghost" onclick="catalogoAnadirPersonaAlMaestro(\''+safeId(id)+'\',\''+safeId(DOC_EXPLORER_PERSONA.nombre)+'\')"><i class="fa-solid fa-file-excel"></i> Añadir al catálogo Excel</button>'+
 '<button type="button" class="ef-btn ghost" onclick="catalogoAbrirEnDrive()"><i class="fa-brands fa-google-drive"></i> Abrir catálogo</button>'+
 '<button type="button" class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(id)+'\');irFicha()">Ver ficha</button>'+
-'<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>'+
+'<button type="button" class="ef-btn ghost" onclick="abrirCarpetaEnDrive(\''+safeId(id)+'\',this)"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button>'+
 '</div></div>'+
 '<div id="docExplorerDropZone" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="docExplorerHandleDrop(event,\''+safeId(id)+'\')" class="iz" style="padding:16px;margin:0 0 12px">'+
 '<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí un documento o una foto para subirlo a la carpeta de Drive de esta persona</p>'+
@@ -2161,13 +2180,20 @@ function docExplorerEsAgregadoDePersona(nombre){
 return /\.json$/i.test(nombre)&&!docExplorerEsSidecarPropio(nombre);
 }
 
+/* Barra de progreso indeterminada reutilizada en los distintos avisos de
+   "cargando" del explorador de documentos, para que quede claro que la app
+   sigue trabajando y no se ha quedado colgada durante la consulta a Drive. */
+function docExplorerHtmlCargando(texto){
+return '<div style="padding:4px 0"><div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div><p style="font-size:12px;color:var(--muted);margin:0">'+esc(texto)+'</p></div>';
+}
+
 async function docExplorerRepasarCarpeta(){
 var lista=document.getElementById('docExplorerLista');
 if(!lista||!DOC_EXPLORER_PERSONA)return;
 var id=DOC_EXPLORER_PERSONA.id;
 if(!driveRootFolderId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Selecciona primero la carpeta raíz de Google Drive.</p><button class="ef-btn ghost" onclick="elegirCarpetaDocumentos()"><i class="fa-brands fa-google-drive"></i> Configurar carpeta de Drive</button>';return;}
 if(!tokenDriveValido()){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Conéctate con Google Drive para consultar los documentos.</p><button class="ef-btn ghost" onclick="docExplorerConectarYRepasar(\''+safeId(id)+'\')"><i class="fa-brands fa-google-drive"></i> Conectar con Google Drive</button>';return;}
-lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando en Drive...</p>';
+lista.innerHTML=docExplorerHtmlCargando('Buscando en Drive...');
 try{
 var carpetaDocsId=await obtenerCarpetaDocumentosId(false);
 if(!carpetaDocsId){lista.innerHTML='<p style="font-size:12px;color:var(--muted)">No se encuentra la carpeta DOCUMENTOS dentro de la carpeta raíz configurada.</p>';return;}
@@ -2190,7 +2216,7 @@ var archivosReales=todos.filter(function(f){return !docExplorerEsSidecarPropio(f
 
 if(!archivosReales.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta carpeta todavía no tiene ningún documento o fotografía.</p>';return;}
 
-lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Leyendo '+sidecars.length+' ficha(s) de '+archivosReales.length+' archivo(s)...</p>';
+lista.innerHTML=docExplorerHtmlCargando('Leyendo '+sidecars.length+' ficha(s) de '+archivosReales.length+' archivo(s)...');
 
 var metaPorId={};
 for(var i=0;i<sidecars.length;i++){
@@ -2407,7 +2433,7 @@ var det=document.getElementById('docExplorerDetalle');
 if(!det)return;
 await sugCargarDescartadas();
 var persona=PI&&DOC_EXPLORER_PERSONA&&PI[DOC_EXPLORER_PERSONA.id];
-var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">'+esc(el.nombreDrive||'')+'</h3><div style="display:flex;gap:8px"><button type="button" class="ef-btn ghost" onclick="docExplorerRenombrar('+idx+')"><i class="fa-solid fa-pen"></i> Renombrar</button><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div></div>';
+var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">'+esc(el.nombreDrive||'')+'</h3><div style="display:flex;gap:8px"><button type="button" class="ef-btn ghost" onclick="docExplorerRenombrar('+idx+',this)"><i class="fa-solid fa-pen"></i> Renombrar</button><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDetalle\').style.display=\'none\'">Cerrar</button></div></div>';
 
 h+=docExplorerHtmlVisor(el);
 
@@ -2417,7 +2443,7 @@ h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:60
 h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">Tamaño</th><td style="padding:3px 0">'+(docsTamanoTexto(el.size)||'—')+'</td></tr>';
 if(el.createdTime)h+='<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">Creado en Drive</th><td style="padding:3px 0">'+esc(String(el.createdTime).slice(0,10))+'</td></tr>';
 h+='</table>';
-h+='<div style="background:#fdf6e8;border:1px solid #e6cf8f;border-radius:8px;padding:10px;margin-top:10px;font-size:12px">Este archivo todavía no tiene ficha (sidecar) propia — no ha pasado por el programa de archivo documental familiar, así que no hay OCR, fecha estimada, ni sugerencias. <button type="button" class="ef-btn save" style="margin-top:8px" onclick="docExplorerCrearFicha('+idx+')"><i class="fa-solid fa-file-circle-plus"></i> Crear ficha con estos metadatos</button></div>';
+h+='<div style="background:#fdf6e8;border:1px solid #e6cf8f;border-radius:8px;padding:10px;margin-top:10px;font-size:12px">Este archivo todavía no tiene ficha (sidecar) propia — no ha pasado por el programa de archivo documental familiar, así que no hay OCR, fecha estimada, ni sugerencias. <button type="button" class="ef-btn save" style="margin-top:8px" onclick="docExplorerCrearFicha('+idx+',this)"><i class="fa-solid fa-file-circle-plus"></i> Crear ficha con estos metadatos</button></div>';
 }else{
 var m=el.meta,exif=m.exif||{};
 var filas=[];
@@ -2460,7 +2486,7 @@ var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'P
 if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 }
-async function docExplorerRenombrar(idx){
+async function docExplorerRenombrar(idx,btn){
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
 if(!(await exigirIdentidadGoogle()))return;
@@ -2468,6 +2494,7 @@ var nuevo=prompt('Nuevo nombre para "'+el.nombreDrive+'":',el.nombreDrive);
 if(nuevo===null)return;
 nuevo=nuevo.trim();
 if(!nuevo||nuevo===el.nombreDrive)return;
+botonCargando(btn,true,'Renombrando...');
 try{
 await driveRenombrarArchivo(el.driveFileId,nuevo);
 el.nombreDrive=nuevo;
@@ -2487,16 +2514,18 @@ docExplorerPintarLista();
 var det=document.getElementById('docExplorerDetalle');
 if(det&&det.style.display!=='none')docExplorerVerDetalle(idx);
 }catch(err){toast('No se pudo renombrar: '+err.message,true);}
+finally{botonCargando(btn,false);}
 }
 
 /* Crea una ficha (sidecar) mínima para un archivo que todavía no la tiene,
    con los metadatos que ya sabemos por Drive. El programa de archivo
    documental familiar puede completarla más adelante (OCR, fecha exacta...)
    sin perder lo que aquí se guarde: el driveFileId es siempre el mismo. */
-async function docExplorerCrearFicha(idx){
+async function docExplorerCrearFicha(idx,btn){
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el||el.tieneSidecar)return;
 if(!(await exigirIdentidadGoogle()))return;
+botonCargando(btn,true,'Creando...');
 try{
 var esImagen=el.mimeType&&el.mimeType.indexOf('image/')===0;
 var contenido={
@@ -2525,13 +2554,15 @@ toast('Ficha creada. El programa de archivo documental familiar puede completarl
 docExplorerPintarLista();
 docExplorerVerDetalle(idx);
 }catch(err){toast('No se pudo crear la ficha: '+err.message,true);}
+finally{botonCargando(btn,false);}
 }
 
-async function abrirCarpetaEnDrive(id){
+async function abrirCarpetaEnDrive(id,btn){
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
+botonCargando(btn,true,'Abriendo...');
 try{
 var carpetaDocsId=await obtenerCarpetaDocumentosId(false);
 if(!carpetaDocsId){toast('No se encontro una carpeta llamada "DOCUMENTOS" dentro de la carpeta raíz configurada',true);return;}
@@ -2545,6 +2576,7 @@ window.open('https://drive.google.com/drive/folders/'+carpetaDocsId,'_blank');
 toast('Aun no existe una carpeta con el ID '+id+'. Sube un documento desde la ficha y se creará sola.',true);
 }
 }catch(err){toast('Error al abrir Google Drive: '+err.message,true);}
+finally{botonCargando(btn,false);}
 }
 /* HERM_PM: índice de hermanos, agrupando a todas las personas por la clave literal
 "PADRE|MADRE" (con '' para el progenitor que falte). */
@@ -3643,37 +3675,13 @@ onDone(cambios);
 /* APROX ya no se usa en ningún cálculo de la aplicación (ver getYear/getYearReal).
 Se eliminó la herramienta de limpieza del menú porque ya se ejecutó sobre los datos
 compartidos y no queda ningún campo APROX heredado por borrar. */
-/* Campos que, si cambian al guardar una ficha, pueden afectar al año estimado propio
-o de otras personas (progenitores, hijos, cónyuges, hermanos). NACA/DEFA/FALLECIDO
-porque cambian qué es "año real" o "límite de defunción"; PADRE/MADRE/M1/M2/MF1/MF2
-porque cambian de qué parientes se propaga o qué límites se aplican. */
-var ANOCALC_CAMPOS_QUE_AFECTAN_EDAD=['NACA','DEFA','FALLECIDO','PADRE','MADRE','M1','M2','MF1','MF2'];
-function cambianCamposQueAfectanEdad(antes,despues){
-return ANOCALC_CAMPOS_QUE_AFECTAN_EDAD.some(function(k){return String((antes&&antes[k])!==undefined&&antes[k]!==null?antes[k]:'')!==String((despues&&despues[k])!==undefined&&despues[k]!==null?despues[k]:'');});
-}
-/* Sincronización silenciosa tras editar una ficha (sin overlay ni confirmación, a
-diferencia del botón manual de Herramientas): recalcula ANOCALC en segundo plano y,
-solo si quien está conectado es el administrador y hay sesión de Drive activa, sube
-también el snapshot de años calculados que lee el Gestor de datos. Objetivo concreto:
-antes, si alguien corregía por ejemplo la fecha de defunción de una madre, las
-estimaciones ya calculadas de sus hijos podían quedar desactualizadas hasta la
-siguiente carga de la página o hasta que alguien pulsara el botón manual — y
-mientras tanto el Gestor de datos seguía comparando esa cifra obsoleta contra el
-dato ya corregido, mostrando como "inconsistencia" algo que el propio recálculo ya
-habría resuelto. Cualquier fallo aquí se registra en consola pero no interrumpe a
-quien está editando, igual que el resto de sincronizaciones de fondo con Drive de
-la app. Esto NUNCA toca NACA ni ningún otro dato introducido por el usuario: solo
-actualiza el campo separado ANOCALC, exactamente igual que el botón manual. */
-function recalcularYSincronizarAnosEstimadosSilencioso(){
-ejecutarFasesAnosEstimados({
-onDone:function(){
-if(esAdministrador()&&tokenDriveValido()){
-guardarAniosCalculadosDrive().catch(function(err){console.error('No se pudo sincronizar el snapshot de años calculados en Drive tras la edición:',err);});
-}
-},
-onError:function(err){console.error('No se pudo recalcular ANOCALC tras la edición:',err);}
-});
-}
+/* El recálculo de ANOCALC tras editar una ficha se quitó a propósito: ahora el
+motor SOLO se ejecuta cuando el administrador pulsa el botón manual de
+Herramientas ("Configurar años estimados (ANOCALC)" → Recalcular ahora, o el
+botón dedicado). Así se evita trabajo innecesario en segundo plano en cada
+edición; el año estimado (≈) de alguien puede quedar desactualizado hasta el
+siguiente recálculo manual, sin que eso afecte a NACA ni a ningún otro dato
+introducido por el usuario. */
 async function recalcularAnosEstimadosManual(){
 if(!D.length){toast('No hay datos cargados',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
@@ -4221,8 +4229,8 @@ var esConyuge=campo==='M1'||campo==='M2';
 var lblTxt=esc(labelTxt);
 var acciones='<button type="button" class="ef-nbtn" title="Editar vinculado" aria-label="Editar '+lblTxt+' vinculado/a"'+(linked?'':' disabled')+' onclick="editarVinculado(\''+safeId(p.ID)+'\',\''+campo+'\')">E</button>';
 acciones+='<button type="button" class="ef-nbtn" title="Elegir persona existente" aria-label="Elegir persona existente para '+lblTxt+'" onclick="abrirSelectorRelacion(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
-acciones+='<button type="button" class="ef-nbtn" title="Crear nuevo y vincular" aria-label="Crear nueva persona y vincular como '+lblTxt+'" onclick="crearVinculado(\''+safeId(p.ID)+'\',\''+campo+'\',\''+sexoNuevo+'\')">N</button>';
-if(esConyuge&&linked)acciones+='<button type="button" class="ef-nbtn" title="Quitar vínculo" aria-label="Quitar vínculo de '+lblTxt+'" onclick="quitarConyuge(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-link-slash" aria-hidden="true"></i></button>';
+acciones+='<button type="button" class="ef-nbtn" title="Crear nuevo y vincular" aria-label="Crear nueva persona y vincular como '+lblTxt+'" onclick="crearVinculado(\''+safeId(p.ID)+'\',\''+campo+'\',\''+sexoNuevo+'\',this)">N</button>';
+if(esConyuge&&linked)acciones+='<button type="button" class="ef-nbtn" title="Quitar vínculo" aria-label="Quitar vínculo de '+lblTxt+'" onclick="quitarConyuge(\''+safeId(p.ID)+'\',\''+campo+'\',this)"><i class="fa-solid fa-link-slash" aria-hidden="true"></i></button>';
 return '<div class="ef-row"><div class="ef-field" style="flex:0 0 90px;min-width:90px"><span class="ef-label" id="lbl_'+safeId(campo)+'_'+safeId(p.ID)+'">'+lblTxt+'</span></div>'+
 '<div class="ef-linkgroup">'+
 '<div class="ef-linkname'+(linked?' set':'')+'" aria-describedby="lbl_'+safeId(campo)+'_'+safeId(p.ID)+'">'+nameHtml+'</div>'+
@@ -4237,7 +4245,7 @@ efEtiquetasEdit=etiquetasArray(p).slice();
 var fallecido=!isAl(p);
 var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
 h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
-h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
 h+='<div class="fs"><h3>Foto</h3><div style="display:flex;align-items:center;gap:14px">';
 h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:150px;height:105px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
 h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
@@ -4277,9 +4285,9 @@ h+='<div class="fs"><h3>Descendientes ('+descendientes.length+')</h3>';
 if(descendientes.length){
 descendientes.forEach(function(hid){var hp=PI[hid];if(hp)h+='<div class="fr" style="align-items:center;margin-bottom:8px"><span class="fv" style="flex:1">'+esc(fn(hp))+'</span><button type="button" class="ef-btn ghost" style="padding:4px 8px" onclick="editarDescendiente(\''+safeId(hid)+'\')">Editar</button></div>';});
 }else h+='<p style="font-size:11px;color:var(--muted);margin-bottom:8px">No hay descendientes registrados.</p>';
-h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\')"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
-if(p.M1&&PI[p.M1])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M1)+'\')"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M1]))+'</button>';
-if(p.M2&&PI[p.M2])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M2)+'\')"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M2]))+'</button>';
+h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\',this)"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
+if(p.M1&&PI[p.M1])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M1)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M1]))+'</button>';
+if(p.M2&&PI[p.M2])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M2)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M2]))+'</button>';
 h+='</div></div>';
 h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
 document.getElementById('fco').innerHTML=h;
@@ -4784,12 +4792,12 @@ if(!confirm('Este apellido ("'+valorAntiguo+'") también lo llevan '+afectados.l
 afectados.forEach(function(a){var d=PI[a.id];if(d)d[a.campo]=valorNuevo;});
 return afectados.length;
 }
-async function guardarFicha(id){
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+async function guardarFicha(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 var antesCambio=clonarPersona(p);
-if(!p){toast('Registro no encontrado',true);finOperacionFicha();return;}
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
 var apellido1Anterior=p.APELLIDO1;
 p.APELLIDO1=leerCampo('ef-ap1');
 p.APELLIDO2=leerCampo('ef-ap2');
@@ -4829,7 +4837,6 @@ p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0'
 var antesPropagacion=mapaPersonas(D);
 var nPropagados=propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
-var afectaEdad=cambianCamposQueAfectanEdad(antesCambio,p);
 sAll(D).then(function(){
 editMode=false;
 rStats();
@@ -4837,8 +4844,7 @@ rFic(id);
 toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
-if(afectaEdad)recalcularYSincronizarAnosEstimadosSilencioso();
-}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(finOperacionFicha);
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function eliminarFicha(id){
 if(!(await exigirIdentidadGoogle()))return;
@@ -4883,9 +4889,11 @@ p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
 p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
 return true;
 }
-async function crearVinculado(id,campo,sexoNuevo){
+async function crearVinculado(id,campo,sexoNuevo,btn){
 if(!(await exigirIdentidadGoogle()))return;
 if(!confirm('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán. Continuar?'))return;
+botonCargando(btn,true,'');
+try{
 var newId=await elegirIdNueva();
 if(!newId)return;
 var antesCambioCrear=mapaPersonas(D);
@@ -4898,7 +4906,7 @@ if(campo==='M1'||campo==='M2')nuevo.M1=actual.ID;
 }
 bIdx(D);
 estimarNodoLocal(newId);
-sAll(D).then(function(){
+await sAll(D).then(function(){
 rStats();
 cid=newId;
 editMode=true;
@@ -4906,6 +4914,7 @@ rFic(newId);
 toast('Nueva persona creada y vinculada');
 registrarCambiosDesdeSnapshots(antesCambioCrear,D,'vincular');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);});
+}finally{botonCargando(btn,false);}
 }
 function editarVinculado(id,campo){
 var actual=PI[id];
@@ -4949,12 +4958,13 @@ el.value=vals[idc];
    carrera cuando se pulsa dos veces seguidas un botón que hace una operación
    asíncrona (guardar, crear descendiente, vincular). ===== */
 var operacionFichaEnCurso=false;
-function iniciarOperacionFicha(){
+function iniciarOperacionFicha(btn,textoCarga){
 if(operacionFichaEnCurso){toast('Espera, ya se está guardando…',true);return false;}
 operacionFichaEnCurso=true;
+botonCargando(btn,true,textoCarga);
 return true;
 }
-function finOperacionFicha(){operacionFichaEnCurso=false;}
+function finOperacionFicha(btn){operacionFichaEnCurso=false;botonCargando(btn,false);}
 function abrirSelectorRelacion(id,campo){
 selectorRelacion={id:id,campo:campo};
 var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
@@ -4978,37 +4988,37 @@ var html='';
    había quedado bloqueado al no encontrar a nadie. ===== */
 if(campo==='AMIGOS'){
 html+='<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">';
-html+='<button type="button" class="ef-btn" style="width:100%;justify-content:center" onclick="crearPersonaYAnadirAmigo()"><i class="fa-solid fa-user-plus"></i> Crear persona nueva y añadir como amigo</button>';
+html+='<button type="button" class="ef-btn" style="width:100%;justify-content:center" onclick="crearPersonaYAnadirAmigo(this)"><i class="fa-solid fa-user-plus"></i> Crear persona nueva y añadir como amigo</button>';
 html+='<p style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center">Úsalo si la persona todavía no está en el árbol (lo más habitual al añadir un amigo)</p>';
 html+='</div>';
 }
 if(candidatos.length){
-html+=candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\')">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join('');
+html+=candidatos.map(function(p){return '<button type="button" class="ef-btn ghost" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="elegirRelacion(\''+safeId(p.ID)+'\',this)">'+esc(fn(p))+' <span style="margin-left:auto;color:var(--muted)">ID '+esc(p.ID)+'</span></button>';}).join('');
 }else{
 html+='<p style="font-size:12px;color:var(--muted);padding:10px 0">'+(campo==='AMIGOS'?'Nadie en el árbol coincide con esa búsqueda. Si es correcto, usa el botón de arriba para crear una persona nueva.':'No se encontraron personas.')+'</p>';
 }
 lista.innerHTML=html;
 }
-async function elegirRelacion(otroId){
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+async function elegirRelacion(otroId,btn){
+if(!iniciarOperacionFicha(btn,''))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesRelacion=mapaPersonas(D);
-if(!selectorRelacion){finOperacionFicha();return;}
+if(!selectorRelacion){finOperacionFicha(btn);return;}
 var actual=PI[selectorRelacion.id],otro=PI[otroId],campo=selectorRelacion.campo;
-if(!actual||!otro){finOperacionFicha();return;}
+if(!actual||!otro){finOperacionFicha(btn);return;}
 if(campo==='AMIGOS'){
-if(!puedeEditarAmigosDe(actual.ID)){toast('No tienes permiso para añadir amigos a esta ficha',true);finOperacionFicha();return;}
-if(String(actual.ID)===String(otro.ID)){toast('No puedes añadirte a ti mismo como amigo',true);finOperacionFicha();return;}
-if(amigosIdsDe(actual).indexOf(String(otro.ID))>=0){toast('Ya está en la lista de amigos',true);finOperacionFicha();return;}
+if(!puedeEditarAmigosDe(actual.ID)){toast('No tienes permiso para añadir amigos a esta ficha',true);finOperacionFicha(btn);return;}
+if(String(actual.ID)===String(otro.ID)){toast('No puedes añadirte a ti mismo como amigo',true);finOperacionFicha(btn);return;}
+if(amigosIdsDe(actual).indexOf(String(otro.ID))>=0){toast('Ya está en la lista de amigos',true);finOperacionFicha(btn);return;}
 await anadirAmigoEntre(actual.ID,otro.ID);
 var camposPreviosA=capturarCamposEdicionSiProcede(actual.ID);
-bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(finOperacionFicha);
+bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 return;
 }
 if(campo==='M1'||campo==='M2'){
 var yaReciproco=otro.M1===actual.ID||otro.M2===actual.ID;
 var campoReciproco=yaReciproco?null:(!otro.M1?'M1':(!otro.M2?'M2':''));
-if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);finOperacionFicha();return;}
+if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);finOperacionFicha(btn);return;}
 var anterior=actual[campo];
 if(anterior&&PI[anterior]){if(PI[anterior].M1===actual.ID)PI[anterior].M1='';if(PI[anterior].M2===actual.ID)PI[anterior].M2='';}
 actual[campo]=otro.ID;
@@ -5017,17 +5027,17 @@ if(campoReciproco)otro[campoReciproco]=actual.ID;
 actual[campo]=otro.ID;
 }
 var camposPrevios=capturarCamposEdicionSiProcede(actual.ID);
-bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(finOperacionFicha);
+bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
-async function crearPersonaYAnadirAmigo(){
+async function crearPersonaYAnadirAmigo(btn){
 if(!selectorRelacion||selectorRelacion.campo!=='AMIGOS')return;
 var idDuenio=selectorRelacion.id;
 if(!puedeEditarAmigosDe(idDuenio)){toast('No tienes permiso para añadir amigos a esta ficha',true);return;}
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
-if(!confirm('Se creará una persona nueva y se añadirá como amigo. Luego podrás completar su ficha. ¿Continuar?')){finOperacionFicha();return;}
+if(!iniciarOperacionFicha(btn,'Creando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+if(!confirm('Se creará una persona nueva y se añadirá como amigo. Luego podrás completar su ficha. ¿Continuar?')){finOperacionFicha(btn);return;}
 var newId=await elegirIdNueva();
-if(!newId){finOperacionFicha();return;}
+if(!newId){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 var duenio=PI[idDuenio];
 var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
@@ -5039,32 +5049,32 @@ sAll(D).then(function(){
 registrarCambiosDesdeSnapshots(antes,D,'crear');
 cid=newId;editMode=true;rFic(newId);
 toast('Persona creada y añadida como amigo de '+(duenio?fn(duenio).trim():idDuenio)+'. Completa los datos y guarda.');
-}).catch(function(err){toast('No se pudo crear: '+err.message,true);}).finally(finOperacionFicha);
+}).catch(function(err){toast('No se pudo crear: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
-async function quitarConyuge(id,campo){
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+async function quitarConyuge(id,campo,btn){
+if(!iniciarOperacionFicha(btn,''))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesRelacion=mapaPersonas(D);
 var actual=PI[id],otroId=actual?actual[campo]:'';
-if(!actual||!otroId){finOperacionFicha();return;}
-if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?')){finOperacionFicha();return;}
+if(!actual||!otroId){finOperacionFicha(btn);return;}
+if(!confirm('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha. ¿Continuar?')){finOperacionFicha(btn);return;}
 var otro=PI[otroId];actual[campo]='';
 if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
 var camposPrevios=capturarCamposEdicionSiProcede(id);
-bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(finOperacionFicha);
+bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 function editarDescendiente(id){
 if(editMode&&!confirm('Se perderán los cambios sin guardar en este formulario. ¿Continuar?'))return;
 cid=id;editMode=true;rFic(id);
 }
-async function crearDescendiente(id,parejaId){
-if(!iniciarOperacionFicha())return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha();return;}
+async function crearDescendiente(id,parejaId,btn){
+if(!iniciarOperacionFicha(btn,'Creando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
-if(!progenitor){toast('No se encontró la persona seleccionada',true);finOperacionFicha();return;}
-if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?')){finOperacionFicha();return;}
+if(!progenitor){toast('No se encontró la persona seleccionada',true);finOperacionFicha(btn);return;}
+if(!confirm('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán. ¿Continuar?')){finOperacionFicha(btn);return;}
 var newIdDesc=await elegirIdNueva();
-if(!newIdDesc){finOperacionFicha();return;}
+if(!newIdDesc){finOperacionFicha(btn);return;}
 var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
@@ -5073,7 +5083,7 @@ var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(pa
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
-registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(finOperacionFicha);
+registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
 Todas las comprobaciones se presentan como "posible inconsistencia", nunca como error.
@@ -7884,7 +7894,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
-{titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En Herramientas hay tres funciones relacionadas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar copia</strong> (cualquier usuario): carga un archivo de respaldo previamente descargado y sustituye por completo los datos actuales. Requiere identidad de Google conectada.</li><li><strong>Restaurar desde Drive</strong> (cualquier usuario): descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la aplicacion. Tambien requiere identidad de Google.</li></ul><div class="manual-warn">Restaurar una copia (por cualquiera de las dos vias) sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
+{titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En Herramientas hay dos funciones relacionadas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar desde Drive</strong> (cualquier usuario): descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la aplicacion. Requiere identidad de Google conectada.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
 {titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Activar copia automatica local</strong>: guarda, cada 24 horas como maximo, un respaldo en el disco duro del ordenador desde el que se activo, con rotacion circular de 5 archivos. Es exclusiva de ese navegador y ese dispositivo, y se puede desactivar en cualquier momento sin borrar las copias ya hechas.</li><li><strong>Configurar y actualizar la copia local de fotografias y documentos</strong>: elige una carpeta del disco duro y copia alli, tal cual, todo el contenido actual de las carpetas FOTO y DOCUMENTOS de Drive (respetando su estructura de subcarpetas), como salvaguarda adicional independiente de Google. Es una copia de solo lectura hacia el disco: nunca sube nada de vuelta a Drive ni borra archivos locales por su cuenta.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
 {titulo:'Importar CSV desde Access',soloAdmin:true,html:'<p>La carga y actualizacion masiva de toda la base de datos se hace importando un archivo CSV, exclusivamente por el administrador, desde Herramientas → «Importar CSV».</p><p>El formato esperado tiene siempre <strong>28 columnas</strong>, sin fila de cabecera, separadas por punto y coma, en codificacion Windows-1252 (ANSI), tal y como las exporta el programa Access de referencia: las 26 columnas originales mas ANOCALC y ANOCALC_MOTIVO al final. La columna APROX (columna 2) se conserva por compatibilidad estructural, pero <strong>se ignora por completo</strong> al importar: no se incorpora a la base de datos.</p><p>Al terminar la importacion, la aplicacion informa de cuantas personas se cargaron, cuantas filas se omitieron por datos incompletos, si hubo identificadores duplicados (se conserva el ultimo registro con ese ID) y si quedo alguna referencia de padre o madre sin coincidencia dentro del propio archivo.</p>'},
 {titulo:'Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas, el administrador puede exportar toda la base de datos en dos formatos:</p><ul><li><strong>Exportar GEDCOM</strong>: genera un archivo .ged estandar, compatible con la mayoria de programas de genealogia externos, con individuos, familias, fechas y notas.</li><li><strong>Exportar CSV (Access)</strong>: genera un CSV con las mismas 28 columnas del formato de importacion (Windows-1252, separador «;», sin cabecera), listo para volver a cargarse en el programa Access de referencia tras actualizar su especificacion de importacion a 28 columnas.</li></ul><p>En la exportacion CSV, cualquier caracter que no tenga representacion exacta en la codificacion Windows-1252 se sustituye por un signo de interrogacion, y la aplicacion avisa si esto ha ocurrido.</p>'},
@@ -7982,9 +7992,9 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 5 — La app comprueba automaticamente si esa cuenta tiene acceso',html:'<p>En cuanto se concede el permiso, la app comprueba en segundo plano si ese correo esta en la lista de «Usuarios autorizados». Hay dos resultados posibles:</p><ul><li><strong>Si esta autorizado:</strong> la pastilla se pone en verde y pasa a decir «Conectado a Google Drive». Puede continuar al paso 6.</li><li><strong>Si no esta autorizado:</strong> aparece el aviso «La cuenta [correo] no esta autorizada para acceder a este arbol familiar. Contacta con el administrador si crees que deberias tener acceso», y la app cierra la sesion de Drive sola.</li></ul>'},
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>Pulsa el icono de la caja de herramientas, en la esquina superior derecha.</li><li>En el panel «Herramientas», busca la opcion «Restaurar desde Drive» y pulsala.</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
 {titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
-{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar copia, Restaurar desde Drive.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
+{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar desde Drive.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
-{titulo:'Copias de seguridad: Guardar, Restaurar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay tres funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar copia:</strong> carga un archivo de respaldo descargado previamente y sustituye por completo los datos actuales. Requiere identidad de Google conectada.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Tambien requiere identidad de Google conectada.</li></ul><div class="manual-warn">Restaurar una copia, por cualquiera de las dos vias, sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
+{titulo:'Copias de seguridad: Guardar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay dos funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Requiere identidad de Google conectada.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
 {titulo:'Instalar la aplicacion (sobre todo en el movil)',html:'<p>La app funciona directamente desde el navegador, sin necesidad de instalarla, pero tambien se puede anadir como si fuera un programa independiente: con icono propio y abriendose a pantalla completa, sin la barra del navegador. Es especialmente recomendable en el movil.</p><p><strong>En un movil Android (Chrome):</strong></p><ul><li>Abre el enlace de la app y accede con tu cuenta de Google como en los pasos anteriores.</li><li>Toca el icono de la caja de herramientas y busca «Instalar aplicacion» (solo aparece si el navegador lo permite en ese momento).</li><li>Si no aparece esa opcion, toca el menu de tres puntos de Chrome, arriba a la derecha, y elige «Instalar aplicacion» o «Anadir a pantalla de inicio».</li></ul><p><strong>En un iPhone o iPad (Safari):</strong></p><ul><li>Abre el enlace de la app en Safari — en iPhone, la instalacion solo funciona desde Safari, no desde Chrome.</li><li>Toca el icono de compartir (el cuadrado con una flecha hacia arriba), en la parte inferior de la pantalla.</li><li>Baja hasta «Anadir a pantalla de inicio» y tocalo, luego confirma con «Anadir».</li></ul><p><strong>En un ordenador (Chrome o Edge):</strong> en la barra de direcciones suele aparecer un icono de instalacion; si no aparece, usa Herramientas → «Instalar aplicacion».</p><div class="manual-tip">Este paso es opcional: la app funciona igual de bien abierta desde el navegador. La ventaja de instalarla es tener un acceso mas rapido, sobre todo en el movil.</div>'},
 {titulo:'Manual de usuario',html:'<p>Dentro de Herramientas hay tambien un «Manual de usuario» completo, con todas las secciones de la aplicacion, desde los primeros pasos hasta un glosario y la solucion de problemas. Se abre en una pestana nueva y desde ahi se puede guardar como PDF con la opcion de imprimir del navegador. Es el mejor sitio para resolver dudas puntuales sobre el manejo de la app una vez superado este primer acceso.</p>'}
 ];
@@ -8227,16 +8237,6 @@ toast('Copia restaurada y años estimados recalculados: '+D.length+' personas');
 });
 }).catch(function(err){ocultarProgresoDrive();toast('No se pudo restaurar la copia: '+err.message,true);});
 }
-async function restaurarCopia(archivo){
-if(!archivo)return;
-mostrarProgresoDrive('Comprobando tu identidad de Google...');
-if(!await exigirIdentidadGoogle()){ocultarProgresoDrive();return;}
-mostrarProgresoDrive('Leyendo el archivo de copia de seguridad...');
-var lector=new FileReader();
-lector.onerror=function(){ocultarProgresoDrive();toast('No se pudo leer la copia de seguridad',true);};
-lector.onload=function(e){restaurarDesdeJSONTexto(e.target.result);};
-lector.readAsText(archivo,'utf-8');
-}
 function subirArchivoDrive(nombre,contenidoTexto,mimeType,folderId,fileIdExistente){
 if(fileIdExistente){
 return fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileIdExistente+'?uploadType=media',{
@@ -8347,11 +8347,12 @@ if(subiendoCopiaDrive){toast('Ya hay una subida de copia en curso; espera a que 
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
 if(!DRIVE_BACKUP_SECONDARY_FOLDER_ID){toast('No hay configurado el destino secundario protegido de copias',true);return;}
+mostrarProgresoDrive('Comprobando la conexión con Google Drive...','subirCopiaProgresoWrap');
 if(!tokenDriveValido()){
-try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+actualizarProgresoDrive('Conectando con Google Drive...','subirCopiaProgresoWrap');
+try{await conectarGoogleDrive();}catch(err){ocultarProgresoDrive('subirCopiaProgresoWrap');toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
 subiendoCopiaDrive=true;
-toast('Subiendo copia blindada a Drive...');
 try{
 var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
 var contenido=JSON.stringify(copia);
@@ -8360,17 +8361,21 @@ var nombreHoy=nombreBackupHistorico(fechaHoy);
 /* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
    representa una única copia independiente, punto 26) la copia fechada al destino
    secundario protegido. */
+actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...','subirCopiaProgresoWrap');
 var existenteHoy;
 try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
-catch(e){if(e.message==='sesion_caducada'){avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
+catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive('subirCopiaProgresoWrap');avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
+actualizarProgresoDrive('Subiendo la copia de hoy ('+D.length+' personas)...','subirCopiaProgresoWrap');
 var rHistorico=await subirArchivoDrive(nombreHoy,contenido,'application/json',DRIVE_BACKUP_SECONDARY_FOLDER_ID,existenteHoy?existenteHoy.id:null);
 /* 3) Verificación. Si falla aquí, se aborta sin tocar copias históricas ni el alias. */
 if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pudo crear la copia blindada de hoy (Drive respondió '+rHistorico.status+'): '+errTxt.slice(0,200));}
 /* 4) Limpieza: solo ahora que la copia nueva está confirmada. */
+actualizarProgresoDrive('Limpiando copias históricas antiguas...','subirCopiaProgresoWrap');
 var resultadoLimpieza=null;
 try{resultadoLimpieza=await limpiarBackupsHistoricosAntiguos();}
 catch(errLimpieza){console.warn('No se pudo completar la limpieza de copias antiguas (la copia nueva se conserva de todos modos):',errLimpieza.message);}
 /* 5) Alias de la carpeta raíz, para restauración general (cualquier usuario). */
+actualizarProgresoDrive('Actualizando la copia general de restauración...','subirCopiaProgresoWrap');
 var aliasOk=true,aliasError='';
 try{
 var existenteAlias=await buscarArchivoBackupDrive();
@@ -8384,7 +8389,7 @@ if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resu
 toast(msg);
 if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
-finally{subiendoCopiaDrive=false;}
+finally{subiendoCopiaDrive=false;ocultarProgresoDrive('subirCopiaProgresoWrap');}
 }
 /* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
    Copia automática al disco duro local, solo para quien la active en su
@@ -8917,7 +8922,6 @@ registrarSincronizacionDrive();
 }
 document.getElementById('fi').addEventListener('change',function(e){handleFile(e.target.files[0]);});
 document.getElementById('fiFotos').addEventListener('change',function(e){importarFotosCarpeta(e.target.files);this.value='';});
-document.getElementById('fiCopia').addEventListener('change',function(e){restaurarCopia(e.target.files[0]);this.value='';});
 function handleFile(f){
 if(!f)return;
 document.getElementById('pb').style.display='block';document.getElementById('pf').style.width='10%';
@@ -9237,7 +9241,6 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-subhead">Dispositivo</div>
 <button class="herr-item" id="herrInstalarBtn" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div class="herr-subhead">Copias de seguridad</div>
-<button class="herr-item" onclick="document.getElementById('fiCopia').click()"><div class="herr-icon"><i class="fa-solid fa-upload"></i></div><div class="herr-text"><div class="herr-title">Restaurar copia</div><div class="herr-desc">Reemplaza los datos actuales por los de un archivo de respaldo</div></div></button>
 <button class="herr-item" onclick="restaurarDesdeDrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Restaurar desde Drive</div><div class="herr-desc">Descarga la última copia subida a Drive y la carga aquí</div></div></button>
 <div id="driveOpProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
@@ -9267,7 +9270,11 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <button class="herr-item" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
 <div class="herr-subhead">Copia oficial en Drive (solo tú subes esta copia)</div>
-<button class="herr-item" onclick="cerrarHerramientas();subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
+<button class="herr-item" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
+<div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
+<div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
+<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
+</div>
 <button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <div class="herr-subhead">Exportación</div>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
