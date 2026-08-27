@@ -55,7 +55,14 @@ main{max-width:100%;margin:0 auto;padding:14px}
 @keyframes viewSlideFromRight{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
 @keyframes viewSlideFromLeft{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
 @media (prefers-reduced-motion:reduce){.view.active.dir-fwd,.view.active.dir-back{animation:none}}
-.hero{text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
+.hero{position:relative;overflow:hidden;text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
+.hero-carousel{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.hero-carousel-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 2.5s ease;filter:sepia(.45) saturate(.6) contrast(.95) brightness(1.1) blur(.3px)}
+.hero-carousel-img.on{opacity:.14}
+@media(prefers-reduced-motion:reduce){.hero-carousel-img{transition:none}}
+.hero-carousel-toggle{position:absolute;top:6px;right:6px;z-index:1;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.65;transition:all .2s}
+.hero-carousel-toggle:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
+.hero-carousel-toggle.off{color:var(--accent);border-color:var(--accent);opacity:.9}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
 .search-box{max-width:460px;margin:14px auto 0;position:relative}
@@ -80,8 +87,11 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .stat{text-align:center}.stat-num{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:var(--accent)}.stat-label{font-size:10px;color:var(--muted);font-weight:700}
 .ri{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .15s}
 .ri:hover{background:rgba(196,101,58,.06)}
-.ra{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.ra{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;box-sizing:border-box}
 .ra.al{background:rgba(44,95,138,.12);color:var(--alive)}.ra.de{background:rgba(61,44,30,.1);color:var(--dead)}
+.ra.foto{padding:0;overflow:hidden;background:var(--card)}
+.ra.foto.al{border:2px solid var(--alive)}.ra.foto.de{border:2px solid var(--dead)}
+.ra.foto img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
 .rn{font-weight:700;font-size:13px}.ry{font-size:11px;color:var(--muted)}
 .ficha{max-width:660px;margin:0 auto}
 .fh{display:flex;gap:16px;margin-bottom:18px;align-items:flex-start;flex-wrap:wrap}
@@ -501,6 +511,8 @@ body{background:#fff}
 <main id="mainContent">
 <div class="view active" id="vBus">
 <div class="hero">
+<div class="hero-carousel" id="heroCarousel" aria-hidden="true"><div class="hero-carousel-img" id="heroCarouselA"></div><div class="hero-carousel-img" id="heroCarouselB"></div></div>
+<button class="hero-carousel-toggle" id="heroCarouselToggle" onclick="alternarCarruselHero()" title="Desactivar fotos de fondo" aria-label="Activar o desactivar las fotos de fondo"><i class="fa-solid fa-image" aria-hidden="true"></i></button>
 <h1>Libro de los Ancestros</h1>
 <p>Tu árbol genealógico familiar</p>
 <div style="text-align:center"><div class="drive-status" id="driveStatusPill" onclick="accionDriveStatusPill()"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div><div id="backupWarnPill"></div></div>
@@ -2637,6 +2649,11 @@ function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+Strin
 function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
+function avatarHTML(p){
+var al=isAl(p);
+if(p.FOTO)return '<div class="ra foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy"></div>';
+return '<div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div>';
+}
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
 separado por "|" (evita conflictos con comas en nombres de etiqueta). */
 function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split('|').map(function(s){return s.trim();}).filter(Boolean);}
@@ -3986,7 +4003,7 @@ f=f.slice(0,80);
 var h='';
 f.forEach(function(p){
 var al=isAl(p),y=pdAnioTexto(p);
-h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
+h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
 });
 if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
 else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
@@ -4028,7 +4045,7 @@ f=f.slice(0,40);
 var h='';
 f.forEach(function(p){
 var al=isAl(p),y=pdAnioTexto(p);
-h+='<div class="ri" onclick="elegirPersonaBusquedaRapida(\''+safeId(p.ID)+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
+h+='<div class="ri" onclick="elegirPersonaBusquedaRapida(\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
 });
 if(!f.length)h='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px">Sin resultados</p>';
 else if(total>40)h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px">Mostrando 40 de '+total+' resultados. Afina tu búsqueda para ver más.</p>';
@@ -9087,7 +9104,7 @@ if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el 
 init();
 });
 }
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); comprobarInsignaNovedades();}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); comprobarInsignaNovedades(); mostrarCarruselHero();}
 document.addEventListener('DOMContentLoaded',function(){
 /* ===== MEJORA: recupera la sesión de Drive guardada (si sigue siendo válida)
    antes de decidir si hace falta pedir conexión de nuevo. Evita el "se
@@ -9141,12 +9158,104 @@ avisarSesionDriveCaducada();
 });
 },4*60*1000);
 });
+/* ===== Carrusel de fotos de fondo en Buscar =====
+   Lee directamente FOTO (dataURL) de las personas ya cargadas en D: no hay
+   ninguna petición a Drive ni a ningún sitio, es solo pintar algo que ya
+   está en memoria. Respeta puedeVerPersona (nunca muestra a nadie que un
+   colaborador no debería poder ver) y excluye por defecto a quien falleció
+   hace <=1 año (aproximado por año, no por fecha exacta) para no sorprender
+   a la familia con un fallecimiento reciente al entrar. Se detiene en
+   cuanto se escribe algo en el buscador y respeta prefers-reduced-motion. */
+var HERO_CARRUSEL_LS_KEY='heroCarruselDesactivado';
+var heroCarruselPool=[];
+var heroCarruselIdx=0;
+var heroCarruselActivo=false;
+var heroCarruselTimer=null;
+function heroCarruselDesactivadoPorUsuario(){
+try{return localStorage.getItem(HERO_CARRUSEL_LS_KEY)==='1';}catch(e){return false;}
+}
+function heroCarruselMovimientoReducido(){
+return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+function construirPoolCarruselHero(){
+var anioActual=new Date().getFullYear();
+var pool=D.filter(function(p){
+if(!p.FOTO)return false;
+if(!puedeVerPersona(p.ID))return false;
+if(!isAl(p)){
+var da=parseInt(p.DEFA,10);
+if(da&&(anioActual-da)<=1)return false;
+}
+return true;
+});
+for(var i=pool.length-1;i>0;i--){
+var j=Math.floor(Math.random()*(i+1));
+var t=pool[i];pool[i]=pool[j];pool[j]=t;
+}
+return pool.slice(0,20);
+}
+function programarSiguienteHeroCarrusel(){
+clearTimeout(heroCarruselTimer);
+if(!heroCarruselActivo||document.hidden)return;
+heroCarruselTimer=setTimeout(avanzarCarruselHero,7500);
+}
+function avanzarCarruselHero(){
+if(!heroCarruselActivo||!heroCarruselPool.length)return;
+heroCarruselIdx=(heroCarruselIdx+1)%heroCarruselPool.length;
+var a=document.getElementById('heroCarouselA'),b=document.getElementById('heroCarouselB');
+if(!a||!b)return;
+var saliente=a.classList.contains('on')?a:(b.classList.contains('on')?b:null);
+var entrante=saliente===a?b:a;
+entrante.style.backgroundImage='url("'+heroCarruselPool[heroCarruselIdx].FOTO+'")';
+if(saliente)saliente.classList.remove('on');
+requestAnimationFrame(function(){entrante.classList.add('on');});
+programarSiguienteHeroCarrusel();
+}
+function mostrarCarruselHero(){
+var cont=document.getElementById('heroCarousel');
+if(!cont||heroCarruselDesactivadoPorUsuario()||heroCarruselMovimientoReducido())return;
+if(!heroCarruselPool.length)heroCarruselPool=construirPoolCarruselHero();
+if(!heroCarruselPool.length)return;
+heroCarruselActivo=true;
+var a=document.getElementById('heroCarouselA'),b=document.getElementById('heroCarouselB');
+if(a&&!a.classList.contains('on')&&!b.classList.contains('on')){
+a.style.backgroundImage='url("'+heroCarruselPool[heroCarruselIdx].FOTO+'")';
+requestAnimationFrame(function(){a.classList.add('on');});
+}
+programarSiguienteHeroCarrusel();
+}
+function ocultarCarruselHero(){
+heroCarruselActivo=false;
+clearTimeout(heroCarruselTimer);
+var a=document.getElementById('heroCarouselA'),b=document.getElementById('heroCarouselB');
+if(a)a.classList.remove('on');
+if(b)b.classList.remove('on');
+}
+function actualizarBotonCarruselHero(){
+var btn=document.getElementById('heroCarouselToggle');
+if(!btn)return;
+var off=heroCarruselDesactivadoPorUsuario();
+btn.classList.toggle('off',off);
+btn.title=off?'Activar fotos de fondo':'Desactivar fotos de fondo';
+}
+function alternarCarruselHero(){
+var off=!heroCarruselDesactivadoPorUsuario();
+try{localStorage.setItem(HERO_CARRUSEL_LS_KEY,off?'1':'0');}catch(e){}
+if(off)ocultarCarruselHero();else mostrarCarruselHero();
+actualizarBotonCarruselHero();
+}
+document.addEventListener('visibilitychange',function(){
+if(document.hidden)clearTimeout(heroCarruselTimer);
+else if(heroCarruselActivo)programarSiguienteHeroCarrusel();
+});
+actualizarBotonCarruselHero();
 (function(){
 var srchTimer=null;
 document.getElementById('si').addEventListener('input',function(){
 var val=this.value;
 clearTimeout(srchTimer);
 srchTimer=setTimeout(function(){doSrch(val);},150);
+if(val.trim())ocultarCarruselHero();else mostrarCarruselHero();
 });
 })();
 (function(){
