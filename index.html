@@ -5527,6 +5527,92 @@ aplicar:function(){p[campo]='';return true;}
 });
 return problemas;
 }
+/* ===== DISCREPANCIAS EN NOMBRE Y APELLIDOS =====
+   Dos tipos de aviso, igual que en detectarInconsistencias: los de formato (texto con
+   basura evidente: -, _, ., espacios sobrantes, o un valor de relleno tipo "s/d") llevan
+   `aplicar` porque la corrección es segura y reversible; los de coherencia de filiación
+   (apellido distinto al del padre/madre, nombre y apellido idénticos...) NO llevan
+   `aplicar` porque pueden ser perfectamente reales (adopciones, apellido legal distinto,
+   aldeas con apellidos repetidos...) y solo se ofrecen para revisión manual. */
+function etiquetaCampoApellido(campo){
+return campo==='NOMBRE'?'Nombre':(campo==='APELLIDO1'?'Primer apellido':'Segundo apellido');
+}
+function limpiarFormatoApellido(v){
+return String(v||'').replace(/[-_.]/g,' ').replace(/\s+/g,' ').trim();
+}
+function detectarDiscrepanciasApellidos(){
+var problemas=[];
+var RELLENO_EXACTO={'?':1,'??':1,'x':1,'xx':1,'xxx':1,'-':1,'--':1,'.':1,'...':1};
+var RELLENO_TXT={'sd':1,'s d':1,'ns nc':1,'desconocido':1,'desconocida':1,'desconocidos':1,'sin dato':1,'sin datos':1,'no consta':1,'sin apellido':1};
+D.forEach(function(p){
+['NOMBRE','APELLIDO1','APELLIDO2'].forEach(function(campo){
+var v=p[campo];
+if(!v)return;
+var original=String(v);
+var limpio=limpiarFormatoApellido(original);
+if(limpio&&limpio!==original){
+problemas.push({
+icono:'fa-eraser',
+etiqueta:'Nombre o apellido con formato irregular',
+mensaje:esc(fn(p))+' tiene «'+esc(original)+'» en '+etiquetaCampoApellido(campo)+'; se propone dejarlo en «'+esc(limpio)+'» (sin guiones, guiones bajos, puntos ni espacios sobrantes).',
+verId:p.ID,
+aplicar:(function(pp,camp,val){return function(){pp[camp]=val;return true;};})(p,campo,limpio)
+});
+return;
+}
+var trimOriginal=original.trim().toLowerCase();
+var normOriginal=normTxt(original);
+if(RELLENO_EXACTO[trimOriginal]||RELLENO_TXT[normOriginal]){
+problemas.push({
+icono:'fa-ban',
+etiqueta:'Valor de relleno en vez de un dato real',
+mensaje:esc(fn(p))+' tiene «'+esc(original)+'» en '+etiquetaCampoApellido(campo)+', que parece un valor de relleno ("sin dato", "desconocido"...) en vez de un dato real; se propone dejarlo vacío.',
+verId:p.ID,
+aplicar:(function(pp,camp){return function(){pp[camp]='';return true;};})(p,campo)
+});
+}
+});
+if(p.NOMBRE&&p.APELLIDO1&&normTxt(p.NOMBRE)===normTxt(p.APELLIDO1)){
+problemas.push({
+icono:'fa-clone',
+etiqueta:'Nombre y primer apellido idénticos',
+mensaje:esc(fn(p))+' tiene el mismo texto en Nombre y en Primer apellido («'+esc(p.NOMBRE)+'»). Puede ser un error de captura (campos intercambiados o pegados dos veces).',
+verId:p.ID
+});
+}
+if(p.APELLIDO1&&p.APELLIDO2&&normTxt(p.APELLIDO1)===normTxt(p.APELLIDO2)){
+problemas.push({
+icono:'fa-clone',
+etiqueta:'Primer y segundo apellido idénticos',
+mensaje:esc(fn(p))+' tiene el mismo texto en Primer y Segundo apellido («'+esc(p.APELLIDO1)+'»). Puede ser real (apellidos coincidentes) o un error de captura.',
+verId:p.ID
+});
+}
+function compararConProgenitor(campoPropio,prog,campoProg,rel,etiquetaDistinto){
+var propio=p[campoPropio],deProg=prog&&prog[campoProg];
+if(!propio||!deProg)return;
+if(propio===deProg)return;
+if(normTxt(propio)===normTxt(deProg)){
+problemas.push({
+icono:'fa-spell-check',
+etiqueta:'Posible errata en apellido heredado de un progenitor',
+mensaje:esc(fn(p))+' tiene «'+esc(propio)+'» en '+etiquetaCampoApellido(campoPropio)+', mientras que su '+rel+' '+esc(fn(prog))+' tiene «'+esc(deProg)+'»: probablemente la misma grafía con tildes o mayúsculas distintas.',
+verId:p.ID
+});
+}else{
+problemas.push({
+icono:'fa-people-roof',
+etiqueta:etiquetaDistinto,
+mensaje:esc(fn(p))+' tiene «'+esc(propio)+'» en '+etiquetaCampoApellido(campoPropio)+', pero su '+rel+' '+esc(fn(prog))+' tiene «'+esc(deProg)+'». No tiene por qué ser un error (adopción, apellido legal distinto...), pero conviene revisarlo.',
+verId:p.ID
+});
+}
+}
+if(p.PADRE&&PI[p.PADRE])compararConProgenitor('APELLIDO1',PI[p.PADRE],'APELLIDO1','padre','Apellido distinto al del padre');
+if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1','madre','Apellido distinto al primer apellido de la madre');
+});
+return problemas;
+}
 function detectarDuplicados(){
 var grupos={};
 D.forEach(function(p){
@@ -5902,6 +5988,37 @@ descripcion:'El padre, la madre o un cónyuge registrado en estas fichas apunta 
 items:refRotas.map(function(x){return{verId:x.verId,mensaje:x.mensaje,aplicar:x.aplicar};}),
 accionMasiva:refRotas.length?{etiqueta:'Desvincular todos los IDs inexistentes ('+refRotas.length+')'}:null
 });
+/* §4.0b Discrepancias en nombre/apellidos: mismo patrón de agrupado por `etiqueta` que
+§4.1 (más abajo), pero con su propio detector (detectarDiscrepanciasApellidos) y su propio
+grupo/fuente ('apellidos') para no mezclarse con las inconsistencias de fechas/vínculos. */
+var apeMetaPorEtq={
+'Nombre o apellido con formato irregular':{sev:'info',icono:'fa-eraser'},
+'Valor de relleno en vez de un dato real':{sev:'info',icono:'fa-ban'},
+'Apellido distinto al del padre':{sev:'revision',icono:'fa-people-roof'},
+'Apellido distinto al primer apellido de la madre':{sev:'revision',icono:'fa-people-roof'},
+'Posible errata en apellido heredado de un progenitor':{sev:'revision',icono:'fa-spell-check'},
+'Nombre y primer apellido idénticos':{sev:'revision',icono:'fa-clone'},
+'Primer y segundo apellido idénticos':{sev:'revision',icono:'fa-clone'}
+};
+var apeProblemas=detectarDiscrepanciasApellidos();
+var apePorEtq={};
+apeProblemas.forEach(function(pr){
+var etq=String(pr.etiqueta||'Otras discrepancias de apellidos').trim();
+if(!apePorEtq[etq])apePorEtq[etq]=[];
+apePorEtq[etq].push(pr);
+});
+Object.keys(apePorEtq).forEach(function(etq){
+var lista=apePorEtq[etq];
+var meta=apeMetaPorEtq[etq]||{sev:'revision',icono:'fa-signature'};
+var todasAplicables=lista.every(function(x){return typeof x.aplicar==='function';});
+cats.push({
+id:'ape_'+gesSlug(etq),fuente:'apellidos',grupo:'apellidos',
+titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
+descripcion:todasAplicables?'Corrección de formato segura y reversible: revisa antes de aplicar en masa.':'Se muestra como sugerencia para que decidas tú: nada se corrige sin tu confirmación.',
+items:lista.map(function(pr){return{verId:pr.verId,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar};}),
+accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:null
+});
+});
 /* §4.1 Inconsistencias: agrupadas por `etiqueta`, sin tocar detectarInconsistencias().
 El Gestor de datos pasa getYearDesdeSnapshot para que las comprobaciones de edad usen
 exclusivamente el año calculado tal y como quedó guardado en Drive al pulsar "Recalcular",
@@ -6119,14 +6236,16 @@ rGes();
 }
 return;
 }
-if(cat.fuente!=='inc')return;
+if(cat.fuente!=='inc'&&cat.fuente!=='apellidos')return;
 var conSolucion=cat.items.filter(function(it){return typeof it.aplicar==='function';}).length;
 if(!conSolucion)return;
 if(!(await confirmarApp('Se aplicarán automáticamente las correcciones seguras de "'+cat.titulo+'" ('+conSolucion+' caso(s)). El resto de posibles inconsistencias no se toca: hay que revisarlas una a una.')))return;
 var antes=mapaPersonas(D);
 var aplicadas=0,aplicadosMsg={},fallidos={},prev=Infinity,guarda=0;
 while(guarda++<5000){
-var grupo=detectarInconsistencias(getYearDesdeSnapshot).filter(function(pr){return gesSlug(pr.etiqueta)===catId;});
+var grupo=cat.fuente==='apellidos'
+?detectarDiscrepanciasApellidos().filter(function(pr){return 'ape_'+gesSlug(pr.etiqueta)===catId;})
+:detectarInconsistencias(getYearDesdeSnapshot).filter(function(pr){return gesSlug(pr.etiqueta)===catId;});
 if(grupo.length>prev)break;
 prev=grupo.length;
 var it=null;
@@ -6351,7 +6470,7 @@ vistos.forEach(function(it,i){
 h+='<li>';
 if(it.tipo==='lugar')h+=gesRenderLugar(it.grupo);
 else if(it.tipo==='dup')h+=gesRenderItemDup(c,it,i);
-else if(c.fuente==='inc')h+=gesRenderItemInc(c,it,i);
+else if(c.fuente==='inc'||c.fuente==='apellidos')h+=gesRenderItemInc(c,it,i);
 else h+=gesRenderItemDef(c,it);
 h+='</li>';
 });
@@ -6363,7 +6482,7 @@ return h;
 }
 function gesRenderCat(c){
 var abierta=gesEstaAbierta(c);
-var chips={integridad:'Integridad',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var chips={integridad:'Integridad',apellidos:'Apellidos',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
 var h='<section class="ges-cat sev-'+(c.severidad||'info')+(abierta?' abierta':'')+'" data-id="'+c.id+'">';
 h+='<header class="ges-cat-head" onclick="gesToggle(\''+c.id+'\')">';
 h+='<i class="fa-solid '+esc(c.icono||'fa-circle-info')+' ges-ico"></i>';
@@ -6406,7 +6525,7 @@ primero las que tienen accionMasiva (limpiar lo fácil) y luego por nº de items
 Antes se ordenaba solo por accionMasiva+tamaño sin mirar el grupo, así que "Duplicados" podía
 aparecer, desaparecer y volver a aparecer entre categorías de otro tipo — de ahí la sensación
 de desorden. */
-var GES_GRUPO_ORDEN=['integridad','inconsistencias','duplicados','completitud','lugares','otros'];
+var GES_GRUPO_ORDEN=['integridad','apellidos','inconsistencias','duplicados','completitud','lugares','otros'];
 cats.sort(function(a,b){
 var oa=GES_GRUPO_ORDEN.indexOf(a.grupo);if(oa<0)oa=99;
 var ob=GES_GRUPO_ORDEN.indexOf(b.grupo);if(ob<0)ob=99;
@@ -6436,7 +6555,7 @@ if(!cats.length){
 cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>Todo limpio: no queda ningún problema pendiente en el árbol.</div></div>';
 return;
 }
-var titulosGrupo={integridad:'Integridad de los datos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var titulosGrupo={integridad:'Integridad de los datos',apellidos:'Discrepancias en nombre y apellidos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
 var h=avisoSnapshot,grupoAnterior=null;
 cats.forEach(function(c){
 if(c.grupo!==grupoAnterior){
@@ -8040,7 +8159,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
-{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
+{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes) o con un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real -con boton «Solucionar»-, y casos solo para revisar como un apellido distinto al del padre o al primer apellido de la madre, una posible errata (misma grafia con tildes o mayusculas distintas) o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
 {titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En Herramientas hay dos funciones relacionadas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar desde Drive</strong> (cualquier usuario): descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la aplicacion. Requiere identidad de Google conectada.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
