@@ -531,7 +531,7 @@ body{background:#fff}
 <div id="backupWarnPill"></div>
 <button type="button" class="herr-item" id="restaurarArbolPrincipalBtn" onclick="restaurarArbolOficialPrincipal()" style="display:flex;max-width:460px;margin:8px auto 0;text-align:left;border:1px solid var(--border);background:var(--card);border-radius:10px;padding:9px 12px;cursor:pointer;align-items:center;gap:10px;box-shadow:none">
 <div class="herr-icon" style="width:32px;height:32px;flex:0 0 32px"><i class="fa-solid fa-tree"></i></div>
-<div class="herr-text" style="text-align:left"><div class="herr-title">Restaurar árbol oficial</div><div class="herr-desc">Cargar la última copia oficial guardada en Google Drive</div></div>
+<div class="herr-text" style="text-align:left"><div class="herr-title">Restaurar árbol oficial</div><div class="herr-desc">Cargar la última copia oficial guardada en Google Drive</div><div class="herr-desc" id="arbolOficialFechaTxt" style="font-size:11px"></div></div>
 </button>
 <div id="driveOpProgresoPrincipal" role="status" aria-live="polite" style="display:none;max-width:460px;margin:6px auto 0;text-align:left">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
@@ -1758,7 +1758,7 @@ return;
 }
 if(!tokenDriveValido()){
 mostrarConectandoDrivePill();
-conectarGoogleDrive().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();toast('Conectado a Google Drive');}).catch(function(err){actualizarDriveStatusPill();toast('No se pudo conectar con Google Drive: '+err.message,true);});
+conectarGoogleDrive().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();actualizarFechaArbolOficial();toast('Conectado a Google Drive');}).catch(function(err){actualizarDriveStatusPill();toast('No se pudo conectar con Google Drive: '+err.message,true);});
 return;
 }
 toast('Ya estás conectado a Google Drive');
@@ -1817,11 +1817,11 @@ toast('Tu sesión de Google necesita confirmarse otra vez. Toca la pastilla de G
 function intentarConexionSilenciosaDrive(){
 if(!driveRootFolderId||tokenDriveValido()){
   if(tokenDriveValido()&&!googleIdentidad){
-    obtenerIdentidadGoogle().then(function(){actualizarDriveStatusPill();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){});
+    obtenerIdentidadGoogle().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){});
   }
   return;
 }
-conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){
+conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){
 /* Silencioso a propósito: si no había sesión/consentimiento previos de Google,
    no se muestra ningún aviso; el usuario verá las pantallas normales de acceso
    solo cuando use explícitamente una función de Drive. */
@@ -8600,6 +8600,19 @@ if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
 return (d.files&&d.files.length)?d.files[0]:null;
 }
+/* Pinta, junto al botón "Restaurar árbol oficial" de la pantalla principal, la
+   fecha real de la última publicación oficial (modifiedTime que ya devuelve
+   Drive en buscarArchivoBackupDrive). Falla en silencio si no hay conexión:
+   no debe bloquear ni ensuciar la pantalla principal por un fallo de red. */
+async function actualizarFechaArbolOficial(){
+var el=document.getElementById('arbolOficialFechaTxt');
+if(!el)return;
+if(!driveRootFolderId||!tokenDriveValido()){el.textContent='';return;}
+try{
+var archivo=await buscarArchivoBackupDrive();
+el.textContent=(archivo&&archivo.modifiedTime)?('Última actualización: '+formatoFechaCambio(archivo.modifiedTime)):'';
+}catch(e){/* silencioso */}
+}
 /* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
    Helpers de solo lectura/escritura de copias fechadas en la carpeta
    ARBOL_OFICIAL. Reutilizan subirArchivoDrive() y listarTodosArchivosDrive()
@@ -8724,6 +8737,7 @@ if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
 }catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
 registrarUltimaCopia();
 registrarSincronizacionDrive();
+actualizarFechaArbolOficial();
 var msg='Copia blindada subida a Drive ('+D.length+' personas) · '+nombreHoy;
 if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resultadoLimpieza.eliminadas+' copia(s) histórica(s) más antigua(s)';
 toast(msg);
@@ -9237,7 +9251,24 @@ if(!D||!D.length){
   await restaurarDesdeDrive('driveOpProgresoPrincipal');
   return;
 }
-if(!(await confirmarApp('Se descargará la última copia oficial del árbol desde Google Drive y sustituirá los datos que actualmente están guardados en este dispositivo. Esta operación no modifica la copia oficial de Drive.\n\n¿Quieres continuar?')))return;
+/* ===== Regla de restaurar con pendientes =====
+   Restaurar el árbol oficial sustituye por completo el árbol de trabajo local
+   (D / IndexedDB). Si hay propuestas de cambio todavía pendientes de revisión
+   (tuyas o de otros colaboradores sincronizadas en este dispositivo), hay que
+   avisarlo explícitamente antes de sustituir nada: los registros de la lista
+   de "Gestión de cambios" NO se borran por esta operación, pero mientras no
+   se den por conformes dejarán de estar reflejados en el árbol de este
+   dispositivo hasta que se aprueben. Cancelar deja todo como estaba. */
+var pendientes=[];
+try{pendientes=(await listarCambios()).filter(function(c){return c.estado==='pendiente';});}catch(e){pendientes=[];}
+var mensaje,opciones;
+if(pendientes.length){
+mensaje='Hay '+pendientes.length+' propuesta(s) de cambio pendiente(s) de revisión en este dispositivo, todavía no incorporada(s) al árbol oficial.\n\nSi continúas, se descargará la última copia oficial desde Google Drive y sustituirá los datos guardados en este dispositivo. Esta operación no modifica la copia oficial de Drive ni borra tus propuestas pendientes (siguen disponibles en Gestión de cambios), pero mientras no se aprueben dejarás de verlas reflejadas en el árbol local.\n\n¿Quieres continuar de todos modos?';
+opciones={titulo:'Tienes cambios pendientes sin incorporar',textoAceptar:'Continuar y sustituir',textoCancelar:'Cancelar'};
+}else{
+mensaje='Se descargará la última copia oficial del árbol desde Google Drive y sustituirá los datos que actualmente están guardados en este dispositivo. Esta operación no modifica la copia oficial de Drive.\n\n¿Quieres continuar?';
+}
+if(!(await confirmarApp(mensaje,opciones)))return;
 await restaurarDesdeDrive('driveOpProgresoPrincipal');
 }
 
@@ -9275,6 +9306,7 @@ var texto=await rContenido.text();
 actualizarProgresoDrive('Comprobando el contenido de la copia...',contenedorId);
 restaurarDesdeJSONTexto(texto);
 registrarSincronizacionDrive();
+actualizarFechaArbolOficial();
 }catch(err){_finRestore();toast('No se pudo restaurar desde Drive: '+err.message,true);}
 _finRestore();
 }
@@ -9393,7 +9425,7 @@ mostrarCacheCarruselHeroInicial();
 restaurarSesionDriveLocal();
 function cargarInicial(data){
 D=data;bIdx(data);
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
 /* Tarea 4: cargar la configuración de medias manuales ANTES de cualquier
    cálculo de ANOCALC, para que un recálculo inicial ya las respete. */
 cargarMediasManualesANOCALC().then(function(){
@@ -9703,9 +9735,22 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
 function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
-function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio APLICADO y CONFORME. Recuerda: solo tu subes la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
+function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio aplicado y conforme en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
 function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio rechazado (no se aplico al arbol)');};};}
-function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'. Sube ahora la copia oficial a Drive.');}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
+function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+' en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
+/* ===== Eslabón "Aceptada → publicar oficial" =====
+   Dar conformidad a un cambio solo lo aplica a la copia local del
+   administrador (IndexedDB de su dispositivo); backup-arbol.json en Drive no
+   se toca hasta que el administrador publica explícitamente. Este paso cierra
+   ese eslabón: tras aplicar la conformidad, se ofrece publicar ya el árbol
+   oficial, sin forzarlo (el admin puede seguir revisando más propuestas antes
+   de publicar una única vez al final). */
+async function ofrecerPublicarArbolOficial(){
+if(!esAdministrador())return;
+if(subiendoCopiaDrive)return;
+if(!(await confirmarApp('¿Quieres publicar ahora el árbol oficial en Google Drive para que el resto de la familia vea este cambio?',{titulo:'Publicar árbol oficial',textoAceptar:'Publicar ahora',textoCancelar:'Más tarde'})))return;
+await subirCopiaADrive();
+}
 function eliminarTodosCambiosPendientes(){if(!esAdministrador()){toast('Solo el administrador puede eliminar cambios en bloque',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se eliminarán '+pend.length+' registro(s) de cambios pendientes de la lista (no afecta a los datos del árbol, que ya están guardados).')))return;var ahora=new Date().toISOString();pend.forEach(function(c){c.estado='eliminado';c.eliminadoEn=ahora;c.actualizadoEn=ahora;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast(pend.length+' registro(s) de cambios eliminados de la lista');};tx.onerror=function(){toast('No se pudieron eliminar los registros',true);};});}
 function guardarCambiosEnDrive(){if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para guardar tus cambios',true);accionDriveStatusPill();return;}sincronizarCambiosDrive(true);}
 async function restaurarCambiosDesdeDrive(){
