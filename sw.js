@@ -13,8 +13,19 @@
    el manifest y se añaden los iconos "maskable". Sin este cambio de versión,
    quien ya tuviera la app instalada podría seguir viendo copias en caché de
    los archivos antiguos (index.html, manifest.json, iconos) durante más
-   tiempo del necesario. */
-const CACHE_NAME = 'libro-ancestros-v3';
+   tiempo del necesario.
+
+   ===== MEJORA (aviso de actualización en móvil): se sube a v4 porque cambia
+   la estrategia de caché para index.html (ver más abajo, en el listener de
+   'fetch'). Antes se servía "caché primero" igual que el resto del shell, lo
+   que hacía casi inútil el aviso de "hay una versión nueva" de la propia
+   aplicación: esa comprobación pide index.html con cache:'no-store', pero al
+   pasar por este Service Worker se le devolvía igualmente la copia guardada,
+   sin llegar a mirar la red primero, así que casi siempre se comparaba
+   consigo misma. Ahora index.html se sirve "red primero, caché como
+   respaldo sin conexión", que es la estrategia recomendada para el propio
+   documento HTML en cualquier PWA. */
+const CACHE_NAME = 'libro-ancestros-v4';
 
 /* Rutas relativas al lugar donde vive este sw.js (mismo directorio que el
    HTML), para no asumir que la aplicación está publicada en la raíz del
@@ -78,6 +89,14 @@ function esRecursoDelShell(pathname) {
   });
 }
 
+/* El propio documento HTML (index.html, y cualquier navegación normal del
+   navegador hacia la app) se identifica aparte del resto del shell, porque
+   necesita una estrategia de caché distinta: ver el porqué en el listener
+   de 'fetch', más abajo. */
+function esIndexHTML(pathname) {
+  return pathname.slice(-11) === '/index.html';
+}
+
 self.addEventListener('fetch', function (event) {
   var req = event.request;
 
@@ -95,12 +114,38 @@ self.addEventListener('fetch', function (event) {
 
   if (!esRecursoDelShell(url.pathname)) return;
 
-  /* Estrategia conservadora "cache-first con revalidación en segundo plano":
-     responde al instante con la copia en caché si existe (permite abrir la
-     app sin conexión), y en paralelo intenta traer la versión de red para
-     dejar la caché al día de cara a la próxima carga. Si no hay copia en
-     caché (primera visita) y tampoco hay red, la petición simplemente falla,
-     como sin Service Worker. */
+  /* ===== index.html (y cualquier navegación hacia la app): "red primero,
+     caché como respaldo sin conexión" =====
+     Es el único archivo del shell que se sirve así, a propósito: es el que
+     lleva el número de versión (APP_VERSION) y el que la propia aplicación
+     vuelve a pedir en segundo plano para comprobar si hay una versión más
+     reciente publicada. Si aquí se sirviera "caché primero" (como el resto
+     del shell), esa comprobación de versión casi nunca vería la copia real
+     del servidor, y el aviso de "hay una actualización disponible" dejaría
+     de funcionar de forma fiable, sobre todo en móvil. Si no hay red (modo
+     sin conexión), se cae de vuelta a la copia en caché para que la app
+     siga arrancando igualmente. */
+  if (req.mode === 'navigate' || esIndexHTML(url.pathname)) {
+    event.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.status === 200) {
+          var copia = res.clone();
+          caches.open(CACHE_NAME).then(function (cache) {
+            cache.put(req, copia);
+          });
+        }
+        return res;
+      }).catch(function () {
+        return caches.match(req);
+      })
+    );
+    return;
+  }
+
+  /* Resto del shell (manifest, iconos): estrategia conservadora "cache-first
+     con revalidación en segundo plano", como antes. Estos archivos no
+     necesitan estar siempre al segundo porque no llevan información de
+     versión ni afectan a la detección de actualizaciones. */
   event.respondWith(
     caches.match(req).then(function (cached) {
       var actualizarCache = fetch(req).then(function (res) {
