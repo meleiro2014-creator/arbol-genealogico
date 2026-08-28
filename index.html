@@ -103,7 +103,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .rn{font-weight:700;font-size:13px;overflow-wrap:anywhere}.ry{font-size:11px;color:var(--muted)}
 .ficha{max-width:660px;margin:0 auto}
 .fh{display:flex;gap:16px;margin-bottom:18px;align-items:flex-start;flex-wrap:wrap}
-.fa{width:150px;height:105px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:32px;font-weight:700;flex-shrink:0;overflow:hidden}
+.fa{width:130px;height:130px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:32px;font-weight:700;flex-shrink:0;overflow:hidden}
 .fa.al{background:rgba(44,95,138,.1);color:var(--alive);border:3px solid rgba(44,95,138,.25)}.fa.de{background:rgba(61,44,30,.07);color:var(--dead);border:3px solid rgba(61,44,30,.12)}
 .ft{flex:1;min-width:180px}.ft h2{font-size:20px;margin-bottom:2px}
 .ft .sub{font-size:11px;color:var(--muted)}
@@ -2675,8 +2675,22 @@ function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+Strin
    bisabuelo/a en el mismo patrón, etc. Dentro de cada generación van primero
    todos los antepasados varones (los "padre de...") y después todas las
    antepasadas (las "madre de..."), regla que se repite generación tras
-   generación. Se detiene en cuanto una generación entera queda sin ningún
-   antepasado conocido (o al llegar a maxGen, como límite de seguridad). */
+   generación. La cadena se PARA en seco (no solo se salta ese hueco) en
+   cuanto, siguiendo ese orden estricto, aparece un antepasado desconocido o
+   con el segundo apellido vacío o de relleno ("-", "s/d", "desconocido"...):
+   a partir de ahí no hay más eslabones fiables con los que seguir, así que
+   no tiene sentido enseñar apellidos de ramas más lejanas aunque consten en
+   el árbol (o al llegar a maxGen, como límite de seguridad). */
+function apellidoUtilizableEnCadena(v){
+if(!v)return false;
+var t=String(v).trim();
+if(!t)return false;
+var tl=t.toLowerCase();
+if({'?':1,'??':1,'x':1,'xx':1,'xxx':1,'-':1,'--':1,'.':1,'...':1}[tl])return false;
+var n=normTxt(t);
+if({'sd':1,'s d':1,'ns nc':1,'desconocido':1,'desconocida':1,'desconocidos':1,'sin dato':1,'sin datos':1,'no consta':1,'sin apellido':1}[n])return false;
+return true;
+}
 function fnEncadenado(p){
 if(!p)return'';
 var partes=[];
@@ -2684,14 +2698,15 @@ if(p.APELLIDO1)partes.push(String(p.APELLIDO1));
 if(p.APELLIDO2)partes.push(String(p.APELLIDO2));
 var gen=[p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null,p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null];
 var maxGen=8;
+fuera:
 for(var g=0;g<maxGen;g++){
-var hayAlguno=false,i;
+var next=[],i;
 for(i=0;i<gen.length;i++){
 var anc=gen[i];
-if(anc){hayAlguno=true;if(anc.APELLIDO2)partes.push(String(anc.APELLIDO2));}
+if(!anc)break fuera;
+if(!apellidoUtilizableEnCadena(anc.APELLIDO2))break fuera;
+partes.push(String(anc.APELLIDO2));
 }
-if(!hayAlguno)break;
-var next=[];
 for(i=0;i<gen.length;i++){var anc=gen[i];next.push(anc&&anc.PADRE&&PI[anc.PADRE]?PI[anc.PADRE]:null);}
 for(i=0;i<gen.length;i++){var anc=gen[i];next.push(anc&&anc.MADRE&&PI[anc.MADRE]?PI[anc.MADRE]:null);}
 gen=next;
@@ -4367,7 +4382,7 @@ var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="f
 h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
 h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
 h+='<div class="fs"><h3>Foto</h3><div style="display:flex;align-items:center;gap:14px">';
-h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:150px;height:105px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
 h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
 h+='</div><div>';
 h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="handleFotoSeleccionada(event)">';
