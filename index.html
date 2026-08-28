@@ -57,8 +57,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 @media (prefers-reduced-motion:reduce){.view.active.dir-fwd,.view.active.dir-back{animation:none}}
 .hero{position:relative;overflow:hidden;text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
 .hero-carousel{position:relative;width:min(360px,80vw);aspect-ratio:1/1;margin:16px auto 2px}
-.hero-carousel-img{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;cursor:pointer}
-.hero-carousel-img.on{opacity:.32}
+.hero-carousel-img{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;cursor:pointer;pointer-events:none}
+.hero-carousel-img.on{opacity:.32;pointer-events:auto}
 .hero-carousel-img::after{content:'';position:absolute;inset:0;background-image:var(--img-url);background-size:cover;background-position:center;filter:sepia(.45) saturate(.7) brightness(1.05);-webkit-mask-image:linear-gradient(to right,transparent 0%,#000 22%,#000 78%,transparent 100%),linear-gradient(to bottom,transparent 0%,#000 22%,#000 78%,transparent 100%);-webkit-mask-composite:intersect;mask-image:linear-gradient(to right,transparent 0%,#000 22%,#000 78%,transparent 100%),linear-gradient(to bottom,transparent 0%,#000 22%,#000 78%,transparent 100%);mask-composite:intersect}
 @media(prefers-reduced-motion:reduce){.hero-carousel-img{transition:none}}
 .hero-carousel-name{margin-top:4px;min-height:26px;font-family:'UnifrakturMaguntia',cursive;font-size:clamp(17px,3.6vw,23px);color:var(--accent);letter-spacing:.5px;opacity:0;transition:opacity .6s ease}
@@ -1706,19 +1706,7 @@ actualizarDriveStatusPill();
 function actualizarBackupWarnPill(){
 var cont=document.getElementById('backupWarnPill');
 if(!cont)return;
-if(!esAdministrador()){cont.innerHTML='';return;}
-leerValorCFG('ultimaCopiaFecha').then(function(f){
-if(!f){
-cont.innerHTML='<div class="backup-warn"><i class="fa-solid fa-triangle-exclamation"></i> Todavía no se ha hecho ninguna copia de seguridad. Usa Herramientas → Guardar copia / Subir copia a Drive.</div>';
-return;
-}
-var dias=Math.floor((Date.now()-new Date(f).getTime())/86400000);
-if(dias>=14){
-cont.innerHTML='<div class="backup-warn"><i class="fa-solid fa-triangle-exclamation"></i> Última copia de seguridad hace '+dias+' día(s) ('+esc(formatoFechaRelativa(f))+'). Conviene hacer una copia nueva.</div>';
-}else{
 cont.innerHTML='';
-}
-});
 }
 function extraerIdCarpetaDrive(texto){
 texto=String(texto||'').trim();
@@ -9305,6 +9293,12 @@ init();
 }
 function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); comprobarInsignaNovedades(); mostrarCarruselHero();}
 document.addEventListener('DOMContentLoaded',function(){
+/* Pinta de inmediato, con lo que quedó en caché local de la sesión anterior,
+   una cara y un nombre en el carrusel: así se ve algo desde el primer
+   instante, incluso antes de conectar y mientras los datos reales (locales
+   o de Drive) todavía se están cargando. En cuanto lleguen los datos
+   reales, mostrarCarruselHero() sigue el relevo con normalidad. */
+mostrarCacheCarruselHeroInicial();
 /* ===== MEJORA: recupera la sesión de Drive guardada (si sigue siendo válida)
    antes de decidir si hace falta pedir conexión de nuevo. Evita el "se
    desconecta de Drive" al recargar la página o reabrir la app con la sesión
@@ -9366,6 +9360,7 @@ avisarSesionDriveCaducada();
    a la familia con un fallecimiento reciente al entrar. Permanece visible
    siempre (también mientras se busca) y respeta prefers-reduced-motion. */
 var HERO_CARRUSEL_LS_KEY='heroCarruselDesactivado';
+var HERO_CARRUSEL_CACHE_LS_KEY='heroCarruselUltimaPersona';
 var heroCarruselPool=[];
 var heroCarruselIdx=0;
 var heroCarruselActivo=false;
@@ -9377,6 +9372,44 @@ try{return localStorage.getItem(HERO_CARRUSEL_LS_KEY)==='1';}catch(e){return fal
 }
 function heroCarruselMovimientoReducido(){
 return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+/* ===== Cache local de la última persona mostrada en el carrusel =====
+   Solo para que, al reabrir la app, se vea de inmediato una cara y un nombre
+   (los de la última persona vista en la sesión anterior) mientras los datos
+   reales todavía se están cargando desde IndexedDB o Drive. En cuanto los
+   datos reales están listos, el carrusel normal toma el relevo sin más. */
+function guardarCacheCarruselHero(persona){
+if(!persona||!persona.FOTO)return;
+var nombre=(String(persona.NOMBRE||'')+' '+String(persona.APELLIDO1||'')+' '+String(persona.APELLIDO2||'')).replace(/\s+/g,' ').trim();
+if(!nombre)return;
+try{
+var payload=JSON.stringify({id:persona.ID,nombre:nombre,foto:persona.FOTO});
+if(payload.length>3500000)return;
+localStorage.setItem(HERO_CARRUSEL_CACHE_LS_KEY,payload);
+}catch(e){/* localStorage lleno o no disponible: solo se pierde la mejora visual, nada más */}
+}
+function leerCacheCarruselHero(){
+try{
+var raw=localStorage.getItem(HERO_CARRUSEL_CACHE_LS_KEY);
+if(!raw)return null;
+var obj=JSON.parse(raw);
+if(!obj||!obj.foto||!obj.nombre)return null;
+return obj;
+}catch(e){return null;}
+}
+function mostrarCacheCarruselHeroInicial(){
+var cont=document.getElementById('heroCarousel');
+if(!cont||heroCarruselDesactivadoPorUsuario())return;
+if(heroCarruselActivo)return;
+var cache=leerCacheCarruselHero();
+if(!cache)return;
+var a=document.getElementById('heroCarouselA');
+if(!a||a.classList.contains('on'))return;
+a.style.setProperty('--img-url','url("'+cache.foto+'")');
+a.dataset.personId=cache.id||'';
+requestAnimationFrame(function(){a.classList.add('on');});
+var nombreCont=document.getElementById('heroCarouselName'),txt=document.getElementById('heroCarouselNameText');
+if(nombreCont&&txt){txt.textContent=cache.nombre;nombreCont.classList.add('on');}
 }
 function construirPoolCarruselHero(excluirVistos){
 var anioActual=new Date().getFullYear();
@@ -9417,6 +9450,7 @@ entrante.dataset.personId=personaActual.ID;
 if(saliente)saliente.classList.remove('on');
 requestAnimationFrame(function(){entrante.classList.add('on');});
 escribirNombreCarrusel(personaActual);
+guardarCacheCarruselHero(personaActual);
 heroCarruselActivo=true;
 if(!heroCarruselMovimientoReducido())programarSiguienteHeroCarrusel();
 toast('Cargadas otras '+heroCarruselPool.length+' personas en el carrusel');
@@ -9457,6 +9491,7 @@ entrante.dataset.personId=personaActual.ID;
 if(saliente)saliente.classList.remove('on');
 requestAnimationFrame(function(){entrante.classList.add('on');});
 escribirNombreCarrusel(personaActual);
+guardarCacheCarruselHero(personaActual);
 programarSiguienteHeroCarrusel();
 }
 function mostrarCarruselHero(){
@@ -9472,6 +9507,7 @@ a.style.setProperty('--img-url','url("'+personaActual.FOTO+'")');
 a.dataset.personId=personaActual.ID;
 requestAnimationFrame(function(){a.classList.add('on');});
 escribirNombreCarrusel(personaActual);
+guardarCacheCarruselHero(personaActual);
 }
 if(!heroCarruselMovimientoReducido())programarSiguienteHeroCarrusel();
 }
