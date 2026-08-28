@@ -58,7 +58,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .hero{position:relative;overflow:hidden;text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
 .hero-carousel{position:relative;width:min(360px,80vw);aspect-ratio:1/1;margin:16px auto 2px}
 .hero-carousel-img{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;cursor:pointer}
-.hero-carousel-img.on{opacity:1}
+.hero-carousel-img.on{opacity:.32}
 .hero-carousel-img::after{content:'';position:absolute;inset:0;background-image:var(--img-url);background-size:cover;background-position:center top;filter:sepia(.45) saturate(.7) brightness(1.05);-webkit-mask-image:radial-gradient(ellipse 70% 76% at 50% 36%,#000 28%,rgba(0,0,0,.75) 55%,rgba(0,0,0,.25) 80%,transparent 96%);mask-image:radial-gradient(ellipse 70% 76% at 50% 36%,#000 28%,rgba(0,0,0,.75) 55%,rgba(0,0,0,.25) 80%,transparent 96%)}
 @media(prefers-reduced-motion:reduce){.hero-carousel-img{transition:none}}
 .hero-carousel-name{margin-top:4px;min-height:26px;font-family:'UnifrakturMaguntia',cursive;font-size:clamp(17px,3.6vw,23px);color:var(--accent);letter-spacing:.5px;opacity:0;transition:opacity .6s ease}
@@ -688,18 +688,20 @@ body{background:#fff}
 <h1>Relación entre dos personas</h1>
 <p>Descubre el parentesco exacto y el camino genealógico entre dos personas del árbol</p>
 </div>
+<div class="rel-nombres-completos" id="relCadenaTop" style="max-width:640px;margin:0 auto 14px">
+<div id="relCadenaA" class="rel-nombre-completo" style="display:none"><span class="rel-nombre-completo-label">Persona A &middot; cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtA"></span></div>
+<div id="relCadenaB" class="rel-nombre-completo" style="display:none"><span class="rel-nombre-completo-label">Persona B &middot; cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtB"></span></div>
+</div>
 <div class="inf-sel" style="max-width:640px">
 <div class="rel-picker">
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona A</div>
-<div id="relCadenaA" class="rel-nombre-completo" style="margin-bottom:8px;display:none"><span class="rel-nombre-completo-label">Cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtA"></span></div>
 <div id="relSelBoxA" class="inf-sel-box empty">Ninguna seleccionada</div>
 <div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelA" class="sr-only">Buscar persona A</label><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
 <div id="rlRelA"></div>
 </div>
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona B</div>
-<div id="relCadenaB" class="rel-nombre-completo" style="margin-bottom:8px;display:none"><span class="rel-nombre-completo-label">Cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtB"></span></div>
 <div id="relSelBoxB" class="inf-sel-box empty">Ninguna seleccionada</div>
 <div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelB" class="sr-only">Buscar persona B</label><input type="text" id="siRelB" placeholder="Buscar persona B..." autocomplete="off"></div>
 <div id="rlRelB"></div>
@@ -2805,7 +2807,7 @@ function actualizarBarraActiva(){
 var bar=document.getElementById('activeBar');
 if(!bar)return;
 if(cid&&PI[cid]){
-document.getElementById('activeBarName').textContent=fnEncadenado(PI[cid]);
+document.getElementById('activeBarName').textContent=fn(PI[cid]);
 bar.style.display='flex';
 }else{
 bar.style.display='none';
@@ -5611,7 +5613,7 @@ resultados por categorias que desaparecen solas cuando su recuento llega a 0, y 
 comprobacion nueva: lugares (LUGARNAC/LUGARDEF) con escritura no homogenea (niveles A, B y C). */
 var GES_CFG={
 LIMITE_DUPLICADOS:150, /* mismo limite que tenia el modal de duplicados */
-COLAPSO_ITEMS:15,      /* categorias con mas de N items empiezan colapsadas */
+COLAPSO_ITEMS:15,      /* ya no se usa: todas las categorias empiezan colapsadas por defecto (ver gesEstaAbierta) */
 PAGINA_ITEMS:100,      /* patron "viendo N de M" en listados largos */
 LEV_MAX_DIST:2,        /* nivel C: distancia Levenshtein maxima */
 LEV_MIN_LEN:5          /* nivel C: longitud minima del topónimo */
@@ -6268,9 +6270,11 @@ rGes();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 /* --- Pintado del panel --- */
+/* Por defecto todas las categorías empiezan colapsadas; solo se abren si el
+   usuario pulsa su cabecera (gesToggle guarda esa decisión en GES_UI.fuerza). */
 function gesEstaAbierta(c){
 if(GES_UI.fuerza[c.id]!==undefined)return GES_UI.fuerza[c.id];
-return c.items.length<=GES_CFG.COLAPSO_ITEMS;
+return false;
 }
 function gesToggle(id){
 var el=document.querySelector('.ges-cat[data-id="'+id+'"]');
