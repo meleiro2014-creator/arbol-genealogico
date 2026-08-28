@@ -59,7 +59,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .hero-carousel{position:relative;width:min(360px,80vw);aspect-ratio:1/1;margin:16px auto 2px}
 .hero-carousel-img{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;cursor:pointer}
 .hero-carousel-img.on{opacity:1}
-.hero-carousel-img::after{content:'';position:absolute;inset:0;background-image:var(--img-url);background-size:cover;background-position:center top;filter:sepia(.45) saturate(.7) brightness(1.05);-webkit-mask-image:radial-gradient(ellipse 72% 78% at 50% 38%,#000 35%,transparent 92%);mask-image:radial-gradient(ellipse 72% 78% at 50% 38%,#000 35%,transparent 92%)}
+.hero-carousel-img::after{content:'';position:absolute;inset:0;background-image:var(--img-url);background-size:cover;background-position:center top;filter:sepia(.45) saturate(.7) brightness(1.05);-webkit-mask-image:radial-gradient(ellipse 70% 76% at 50% 36%,#000 28%,rgba(0,0,0,.75) 55%,rgba(0,0,0,.25) 80%,transparent 96%);mask-image:radial-gradient(ellipse 70% 76% at 50% 36%,#000 28%,rgba(0,0,0,.75) 55%,rgba(0,0,0,.25) 80%,transparent 96%)}
 @media(prefers-reduced-motion:reduce){.hero-carousel-img{transition:none}}
 .hero-carousel-name{margin-top:4px;min-height:26px;font-family:'UnifrakturMaguntia',cursive;font-size:clamp(17px,3.6vw,23px);color:var(--accent);letter-spacing:.5px;opacity:0;transition:opacity .6s ease}
 .hero-carousel-name.on{opacity:.85}
@@ -692,12 +692,14 @@ body{background:#fff}
 <div class="rel-picker">
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona A</div>
+<div id="relCadenaA" class="rel-nombre-completo" style="margin-bottom:8px;display:none"><span class="rel-nombre-completo-label">Cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtA"></span></div>
 <div id="relSelBoxA" class="inf-sel-box empty">Ninguna seleccionada</div>
 <div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelA" class="sr-only">Buscar persona A</label><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
 <div id="rlRelA"></div>
 </div>
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona B</div>
+<div id="relCadenaB" class="rel-nombre-completo" style="margin-bottom:8px;display:none"><span class="rel-nombre-completo-label">Cadena de apellidos</span><span class="rel-nombre-completo-txt" id="relCadenaTxtB"></span></div>
 <div id="relSelBoxB" class="inf-sel-box empty">Ninguna seleccionada</div>
 <div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelB" class="sr-only">Buscar persona B</label><input type="text" id="siRelB" placeholder="Buscar persona B..." autocomplete="off"></div>
 <div id="rlRelB"></div>
@@ -2662,24 +2664,35 @@ function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?
 function safeId(sid){return String(sid).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||'');}
 function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
-/* Nombre genealógico encadenado: NOMBRE + APELLIDO1 + APELLIDO2 propios, y a
-   partir de ahí sigue subiendo por la línea paterna (PADRE, PADRE del PADRE...)
-   añadiendo el APELLIDO2 de cada antepasado (el apellido que ese antepasado
-   heredó de su madre), tal y como se hacía tradicionalmente para dejar
-   constancia de varias generaciones en un único nombre. Se detiene en cuanto
-   falta el siguiente padre o su APELLIDO2 no consta. */
+/* Nombre genealógico encadenado, siguiendo el orden tradicional español de
+   apellidos por generaciones (ver p.ej. tataranietos.com/2015/12/22/cual-es-
+   el-orden-de-tus-apellidos): 1º apellido del padre, 2º primer apellido de
+   la madre, 3º segundo apellido del padre, 4º segundo apellido de la madre,
+   5º-8º segundo apellido de cada abuelo/a (abuelo paterno, abuelo materno,
+   abuela paterna, abuela materna), 9º-16º segundo apellido de cada
+   bisabuelo/a en el mismo patrón, etc. Dentro de cada generación van primero
+   todos los antepasados varones (los "padre de...") y después todas las
+   antepasadas (las "madre de..."), regla que se repite generación tras
+   generación. Se detiene en cuanto una generación entera queda sin ningún
+   antepasado conocido (o al llegar a maxGen, como límite de seguridad). */
 function fnEncadenado(p){
 if(!p)return'';
 var partes=[];
 if(p.APELLIDO1)partes.push(String(p.APELLIDO1));
 if(p.APELLIDO2)partes.push(String(p.APELLIDO2));
-var cursor=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
-var vistos={};
-vistos[p.ID]=true;
-while(cursor&&cursor.APELLIDO2&&!vistos[cursor.ID]){
-partes.push(String(cursor.APELLIDO2));
-vistos[cursor.ID]=true;
-cursor=cursor.PADRE&&PI[cursor.PADRE]?PI[cursor.PADRE]:null;
+var gen=[p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null,p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null];
+var maxGen=8;
+for(var g=0;g<maxGen;g++){
+var hayAlguno=false,i;
+for(i=0;i<gen.length;i++){
+var anc=gen[i];
+if(anc){hayAlguno=true;if(anc.APELLIDO2)partes.push(String(anc.APELLIDO2));}
+}
+if(!hayAlguno)break;
+var next=[];
+for(i=0;i<gen.length;i++){var anc=gen[i];next.push(anc&&anc.PADRE&&PI[anc.PADRE]?PI[anc.PADRE]:null);}
+for(i=0;i<gen.length;i++){var anc=gen[i];next.push(anc&&anc.MADRE&&PI[anc.MADRE]?PI[anc.MADRE]:null);}
+gen=next;
 }
 return (String(p.NOMBRE||'')+' '+partes.join(' ')).trim();
 }
@@ -6987,10 +7000,20 @@ if(paso.tipo==='conyuge')return sexoDestino==='M'?'Esposo':(sexoDestino==='F'?'E
 return capitalizar(paso.tipo);
 }
 var relIdA=null,relIdB=null;
+function actualizarCadenaRel(letra,persona){
+var box=document.getElementById('relSelBox'+letra);
+var cadena=document.getElementById('relCadena'+letra),cadenaTxt=document.getElementById('relCadenaTxt'+letra);
+if(persona){
+box.textContent=fn(persona);box.classList.remove('empty');
+cadenaTxt.textContent=fnEncadenado(persona);cadena.style.display='';
+}else{
+box.textContent='Ninguna seleccionada';box.classList.add('empty');
+cadenaTxt.textContent='';cadena.style.display='none';
+}
+}
 function initRelacion(){
-var boxA=document.getElementById('relSelBoxA'),boxB=document.getElementById('relSelBoxB');
-if(relIdA&&PI[relIdA]){boxA.textContent=fnEncadenado(PI[relIdA]);boxA.classList.remove('empty');}else{boxA.textContent='Ninguna seleccionada';boxA.classList.add('empty');}
-if(relIdB&&PI[relIdB]){boxB.textContent=fnEncadenado(PI[relIdB]);boxB.classList.remove('empty');}else{boxB.textContent='Ninguna seleccionada';boxB.classList.add('empty');}
+actualizarCadenaRel('A',relIdA&&PI[relIdA]?PI[relIdA]:null);
+actualizarCadenaRel('B',relIdB&&PI[relIdB]?PI[relIdB]:null);
 document.getElementById('rlRelA').innerHTML='';document.getElementById('rlRelB').innerHTML='';
 var ia=document.getElementById('siRelA'),ib=document.getElementById('siRelB');
 if(ia)ia.value='';if(ib)ib.value='';
@@ -7010,8 +7033,7 @@ lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px"
 }
 function seleccionarPersonaRel(id,letra){
 if(letra==='A')relIdA=id;else relIdB=id;
-var box=document.getElementById('relSelBox'+letra);
-box.textContent=fnEncadenado(PI[id]);box.classList.remove('empty');
+actualizarCadenaRel(letra,PI[id]);
 document.getElementById('rlRel'+letra).innerHTML='';
 document.getElementById('siRel'+letra).value='';
 if(relIdA&&relIdB)calcularYMostrarRelacion();
