@@ -569,8 +569,8 @@ body{background:#fff}
 </div>
 <div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
 <div class="stats" id="sb"></div>
-<button class="hero-carousel-toggle" id="heroCarouselToggle" onclick="alternarCarruselHero()" aria-label="Activar o desactivar los retratos de la familia que aparecen aquí"><i class="fa-solid fa-image" aria-hidden="true"></i> <span>Retratos de la familia</span></button>
-<button class="hero-carousel-toggle" onclick="cargarOtrasPersonasCarruselHero()" aria-label="Cambiar las fotos que se muestran"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> <span>Cambiar fotos</span></button>
+<button class="hero-carousel-toggle" id="heroCarouselToggle" onclick="alternarCarruselHero()" aria-label="Mostrar u ocultar las fotografías de familia que aparecen aquí"><i class="fa-solid fa-image" aria-hidden="true"></i> <span id="heroCarouselToggleText">Ocultar fotografías</span></button>
+<button class="hero-carousel-toggle" onclick="cargarOtrasPersonasCarruselHero()" aria-label="Renovar las fotos que se muestran"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> <span>Renovar fotos</span></button>
 <div class="hero-carousel" id="heroCarousel"><div class="hero-carousel-img" id="heroCarouselA" onclick="clicFotoCarruselHero('heroCarouselA')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselA');}" role="button" tabindex="0" aria-label="Ver ficha de esta persona"></div><div class="hero-carousel-img" id="heroCarouselB" onclick="clicFotoCarruselHero('heroCarouselB')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselB');}" role="button" tabindex="0" aria-label="Ver ficha de esta persona"></div></div>
 <div class="hero-carousel-name" id="heroCarouselName" aria-hidden="true"><span id="heroCarouselNameText"></span><span class="crsl-caret">|</span></div>
 <div class="hero-carousel-year" id="heroCarouselYear" aria-hidden="true"></div>
@@ -767,8 +767,14 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.29.1';
+var APP_VERSION = '2026.08.29.3';
 var APP_CHANGELOG = [
+  { version:'2026.08.29.3', fecha:'2026-08-29', cambios:[
+    'Al crear un cónyuge nuevo desde la ficha de alguien que ya tiene hijos: el apellido del cónyuge se rellena automáticamente a partir del apellido correspondiente de un hijo existente (2º apellido del hijo si se crea a la mujer, 1er apellido si se crea al hombre), y esos hijos quedan enlazados como madre/padre al cónyuge recién creado si les faltaba ese dato.'
+  ]},
+  { version:'2026.08.29.2', fecha:'2026-08-29', cambios:[
+    'Corregida de verdad la lupa "Cambiar persona activa" del cabecero (activeBar): antes, al elegir una persona desde cualquier pantalla que no fuera la Ficha, siempre saltaba al Árbol. Ahora respeta la pantalla en la que se estaba (Parentesco, Cronología, Informes, Documentos, Investigación, Gestor de datos, Registro de cambios) y solo va al Árbol cuando se busca desde la pantalla Buscar.'
+  ]},
   { version:'2026.08.29.1', fecha:'2026-08-29', cambios:[
     'Corregido «Confirmar todo» en el Registro de cambios: cuando un registro pendiente de creación correspondía a una persona que ya existía en el árbol, se quedaba bloqueado para siempre en vez de darse por conforme.',
     'Nuevo botón en la pantalla de Buscar para comprobar en cualquier momento si hay una versión más reciente de la aplicación publicada.',
@@ -2723,7 +2729,7 @@ finally{botonCargando(btn,false);}
 var HERM_PM={};
 function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});if(typeof invalidarCachePersonasVisibles==='function')invalidarCachePersonasVisibles();}
 function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE;if(!pa&&!ma)return[];var ids=HERM_PM[(pa||'')+'|'+(ma||'')]||[];var r=[];for(var i=0;i<ids.length;i++){if(ids[i]!==id&&PI[ids[i]])r.push(PI[ids[i]]);}return r;}
-function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
+function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];return d+' de '+ms[parseInt(m)||0]+' de '+a;}
 function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
 function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?::0{2})?(?:\.0+)?Z?$/,'');}
 function safeId(sid){return String(sid).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -4182,12 +4188,23 @@ cont.innerHTML=h;
 }
 function elegirPersonaBusquedaRapida(id){
 cerrarBusquedaRapida();
-/* Mantener la pantalla desde la que se abrió la lupa: si se buscaba
-   desde la Ficha, ir a la ficha de la persona elegida sin saltar al
-   Árbol; en cualquier otro caso se conserva el comportamiento previo
-   (seleccionar en el Árbol). */
-if(__vistaActual==='fic')irAFicha(id);
-else selP(id);
+/* Regla general: elegir una persona en esta búsqueda rápida (la lupa
+   del cabecero, "Cambiar persona activa") NUNCA debe sacar de la
+   pantalla en la que ya se estaba; solo se actualiza la persona activa
+   de esa pantalla, igual que si se buscara en su propio cuadro de
+   búsqueda interno. La única excepción es la pantalla Buscar, donde
+   no hay todavía una "persona activa" de la que partir y el
+   comportamiento esperado sigue siendo abrir su ficha en el Árbol. */
+switch(__vistaActual){
+case 'fic':irAFicha(id);break;
+case 'rel':seleccionarPersonaRel(id,relIdA?'B':'A');break;
+case 'cro':seleccionarPersonaCronologia(id);break;
+case 'inf':seleccionarPersonaInforme(id);break;
+case 'doc':docExplorerSeleccionarPersona(id);break;
+case 'inv':cid=id;actualizarInvExtPersonaActiva();actualizarBarraActiva();break;
+case 'ges':case 'cam':cid=id;actualizarBarraActiva();break;
+default:selP(id);/* 'bus', 'arb' y cualquier pantalla futura no contemplada aquí */
+}
 }
 document.addEventListener('keydown',function(e){
 if(e.key==='Escape'&&busquedaRapidaEstaAbierta())cerrarBusquedaRapida();
@@ -5100,7 +5117,24 @@ D.push(nuevo);
 var actual=PI[id];
 if(actual){
 actual[campo]=newId;
-if(campo==='M1'||campo==='M2')nuevo.M1=actual.ID;
+if(campo==='M1'||campo==='M2'){
+nuevo.M1=actual.ID;
+/* Si la persona ya tiene hijos (con este u otro cónyuge), se deduce el
+   apellido del cónyuge nuevo a partir de un hijo existente que ya tenga
+   ese apellido, siguiendo la convención española (1er apellido del padre
+   + 1er apellido de la madre = 2º apellido del hijo), y se enlaza como
+   madre/padre a los hijos a los que les faltara ese dato. */
+var hijos=D.filter(function(h){return h.PADRE===actual.ID||h.MADRE===actual.ID;});
+if(hijos.length&&(sexoNuevo==='Mujer'||sexoNuevo==='Hombre')){
+var esMujer=sexoNuevo==='Mujer';
+var hijoConApellido=hijos.find(function(h){return esMujer?h.APELLIDO2:h.APELLIDO1;});
+if(hijoConApellido)nuevo.APELLIDO1=esMujer?hijoConApellido.APELLIDO2:hijoConApellido.APELLIDO1;
+hijos.forEach(function(h){
+if(esMujer){if(!h.MADRE)h.MADRE=newId;}
+else{if(!h.PADRE)h.PADRE=newId;}
+});
+}
+}
 }
 bIdx(D);
 estimarNodoLocal(newId);
@@ -9616,7 +9650,18 @@ heroCarruselNombreTimer=setTimeout(paso,65);
 heroCarruselNombreTimer=setTimeout(paso,300);
 }
 function avanzarCarruselHero(){
-if(!heroCarruselActivo||!heroCarruselPool.length)return;
+if(!heroCarruselActivo)return;
+/* Autorreparación: si el pool se ha quedado vacío por cualquier motivo, se
+   reconstruye aquí en vez de dejar el carrusel parado para siempre. Si aun así
+   sigue vacío, se reintenta en el siguiente turno programado (nunca se detiene
+   por su cuenta; solo el usuario puede pararlo con el botón). */
+if(!heroCarruselPool.length){
+heroCarruselPool=construirPoolCarruselHero();
+heroCarruselIdx=0;
+if(!heroCarruselPool.length){programarSiguienteHeroCarrusel();return;}
+}
+/* El módulo hace que, al llegar al final del pool, vuelva siempre a la
+   primera foto (índice 0) en vez de detenerse. */
 heroCarruselIdx=(heroCarruselIdx+1)%heroCarruselPool.length;
 var a=document.getElementById('heroCarouselA'),b=document.getElementById('heroCarouselB');
 if(!a||!b)return;
@@ -9672,7 +9717,9 @@ var btn=document.getElementById('heroCarouselToggle');
 if(!btn)return;
 var off=heroCarruselDesactivadoPorUsuario();
 btn.classList.toggle('off',off);
-btn.title=off?'Mostrar los retratos de la familia':'Ocultar los retratos de la familia';
+btn.title=off?'Mostrar las fotografías de familia':'Ocultar las fotografías de familia';
+var txt=document.getElementById('heroCarouselToggleText');
+if(txt)txt.textContent=off?'Mostrar fotografías':'Ocultar fotografías';
 }
 function alternarCarruselHero(){
 var off=!heroCarruselDesactivadoPorUsuario();
