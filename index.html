@@ -394,8 +394,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .rel-nombres-completos{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .rel-nombre-completo{background:linear-gradient(135deg,rgba(196,101,58,.06),rgba(196,101,58,.02));border:1.5px solid var(--border);border-radius:12px;padding:10px 14px}
 .rel-nombre-completo-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:3px}
-.rel-nombre-completo-txt{font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.4;overflow-wrap:anywhere;cursor:pointer}
-.rel-nombre-completo-txt:hover{color:var(--accent)}
+.rel-nombre-completo-txt{font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.4;overflow-wrap:anywhere}
 /* ===== Árbol ASCENDENTE ESTILO BRACKET (poster simetrico, como un cuadro de torneo) ===== */
 .abr-poster{--pc:#3D2C1E;--pc-line:#b0a692;--pc-year:#8a7e6e;--pc-sub:#8a7e6e;--pc-frame:#b0a692;--pc-empty:#d8d0c0;display:flex;flex-direction:column;align-items:center;padding:10px 0 20px}
 .abr-halves{display:flex;align-items:flex-end;gap:12px}
@@ -543,6 +542,7 @@ body{background:#fff}
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados" aria-label="Filtros avanzados de búsqueda" aria-expanded="false" aria-controls="busFiltrosPanel"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+<button class="hero-icon-btn" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
@@ -767,8 +767,14 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.28.1';
+var APP_VERSION = '2026.08.29.1';
 var APP_CHANGELOG = [
+  { version:'2026.08.29.1', fecha:'2026-08-29', cambios:[
+    'Corregido «Confirmar todo» en el Registro de cambios: cuando un registro pendiente de creación correspondía a una persona que ya existía en el árbol, se quedaba bloqueado para siempre en vez de darse por conforme.',
+    'Nuevo botón en la pantalla de Buscar para comprobar en cualquier momento si hay una versión más reciente de la aplicación publicada.',
+    'En Relación entre dos personas, pulsar sobre la cadena de apellidos de la persona seleccionada ya no saca de la pantalla de parentesco.',
+    'En Relación entre dos personas, cuando no se encuentra parentesco entre las dos personas, el mensaje muestra ahora el nombre y los dos apellidos en vez de la cadena de apellidos completa.'
+  ]},
   { version:'2026.08.28.1', fecha:'2026-08-28', cambios:[
     'Restauración del árbol oficial accesible directamente desde la pantalla principal, con confirmación y barra de progreso, sin tener que entrar en Herramientas.',
     'Mejorado el arranque para que, cuando un colaborador ya tenga una sesión de Google válida, se identifique antes de volver a ejecutar la búsqueda y no aparezca el árbol vacío por unos instantes.',
@@ -7201,7 +7207,7 @@ var cadena=document.getElementById('relCadena'+letra),cadenaTxt=document.getElem
 if(persona){
 box.textContent=fn(persona);box.classList.remove('empty');
 cadenaTxt.textContent=fnEncadenado(persona);cadena.style.display='';
-cadenaTxt.onclick=function(){selP(persona.ID);};
+cadenaTxt.onclick=null;
 }else{
 box.textContent='Ninguna seleccionada';box.classList.add('empty');
 cadenaTxt.textContent='';cadena.style.display='none';
@@ -7246,7 +7252,7 @@ if(parentesco){
 h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
 h+='<p style="font-size:13px;margin-top:10px;line-height:1.5">'+esc(parentesco.texto)+'</p>';
 }else{
-h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún antepasado común conocido entre '+esc(fnEncadenado(PI[relIdA]))+' y '+esc(fnEncadenado(PI[relIdB]))+'. Puede que no haya relación de sangre, o que falten datos de ascendencia en alguna de las ramas.</p>';
+h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún antepasado común conocido entre '+esc(fn(PI[relIdA]).trim())+' y '+esc(fn(PI[relIdB]).trim())+'. Puede que no haya relación de sangre, o que falten datos de ascendencia en alguna de las ramas.</p>';
 }
 h+='</div><div class="cro-life"><h3>Camino genealógico</h3>';
 if(camino===null){
@@ -9761,7 +9767,7 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return false;var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
+function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return true;/* la persona ya existe (p.ej. se creó directamente como administrador): el registro pendiente ya está aplicado en la práctica, así que se da por conforme en vez de quedar bloqueado para siempre */var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
 function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio aplicado y conforme en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
 function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio rechazado (no se aplico al arbol)');};};}
 function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+' en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
@@ -10118,6 +10124,18 @@ var txt=await r.text();
 var m=txt.match(/var APP_VERSION\s*=\s*'([^']+)'/);
 if(m&&m[1]&&m[1]!==APP_VERSION)mostrarAvisoActualizacion(m[1]);
 }catch(e){/* sin conexion o CORS: no pasa nada, se reintenta mas tarde */}
+}
+async function comprobarVersionManual(){
+if(actualizacionDetectada){var bYa=document.getElementById('updateBanner');if(bYa)bYa.style.display='flex';return;}
+toast('Comprobando si hay una versión más reciente...');
+try{
+var r=await fetch(location.href,{cache:'no-store'});
+if(!r.ok){toast('No se pudo comprobar la versión ahora mismo',true);return;}
+var txt=await r.text();
+var m=txt.match(/var APP_VERSION\s*=\s*'([^']+)'/);
+if(m&&m[1]&&m[1]!==APP_VERSION){mostrarAvisoActualizacion(m[1]);}
+else{toast('Ya tienes la versión más reciente (v'+APP_VERSION+')');}
+}catch(e){toast('No se pudo comprobar la versión: revisa tu conexión',true);}
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')comprobarVersionRemota();});
 window.addEventListener('focus',comprobarVersionRemota);
