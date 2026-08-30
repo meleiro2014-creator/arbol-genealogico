@@ -774,8 +774,11 @@ body{background:#fff}
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.29.3';
+var APP_VERSION = '2026.08.30.1';
 var APP_CHANGELOG = [
+  { version:'2026.08.30.1', fecha:'2026-08-30', cambios:[
+    'Corregida la lupa "Cambiar persona activa" del cabecero: en Relación entre dos personas, Cronología, Informes y Documentos, elegir a alguien con esa lupa actualizaba solo la selección interna de esa pantalla (o, en Relación entre dos personas, rellenaba la Persona B en vez de la Persona A cuando esta ya estaba elegida) pero no la persona activa mostrada en la barra del cabecero. Ahora, en todas esas pantallas, la lupa actualiza también la persona activa del cabecero (y en Relación entre dos personas siempre la Persona A), sin salir de la pantalla en la que se estaba.'
+  ]},
   { version:'2026.08.29.3', fecha:'2026-08-29', cambios:[
     'Al crear un cónyuge nuevo desde la ficha de alguien que ya tiene hijos: el apellido del cónyuge se rellena automáticamente a partir del apellido correspondiente de un hijo existente (2º apellido del hijo si se crea a la mujer, 1er apellido si se crea al hombre), y esos hijos quedan enlazados como madre/padre al cónyuge recién creado si les faltaba ese dato.'
   ]},
@@ -4220,10 +4223,10 @@ cerrarBusquedaRapida();
    comportamiento esperado sigue siendo abrir su ficha en el Árbol. */
 switch(__vistaActual){
 case 'fic':irAFicha(id);break;
-case 'rel':seleccionarPersonaRel(id,relIdA?'B':'A');break;
-case 'cro':seleccionarPersonaCronologia(id);break;
-case 'inf':seleccionarPersonaInforme(id);break;
-case 'doc':docExplorerSeleccionarPersona(id);break;
+case 'rel':seleccionarPersonaRel(id,'A');cid=id;actualizarBarraActiva();break;
+case 'cro':seleccionarPersonaCronologia(id);cid=id;actualizarBarraActiva();break;
+case 'inf':seleccionarPersonaInforme(id);cid=id;actualizarBarraActiva();break;
+case 'doc':docExplorerSeleccionarPersona(id);cid=id;actualizarBarraActiva();break;
 case 'inv':cid=id;actualizarInvExtPersonaActiva();actualizarBarraActiva();break;
 case 'ges':case 'cam':cid=id;actualizarBarraActiva();break;
 default:selP(id);/* 'bus', 'arb' y cualquier pantalla futura no contemplada aquí */
