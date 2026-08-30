@@ -814,6 +814,7 @@ var DRIVE_CONFIG_ANCHOR_FOLDER_ID=DEFAULT_DRIVE_ROOT_FOLDER_ID;
 var DRIVE_ROOT_CONFIG_FILENAME='config-documentos.json';
 var DRIVE_SCOPE='https://www.googleapis.com/auth/drive email profile';
 var DRIVE_BACKUP_FILENAME='backup-arbol.json';
+var DRIVE_BACKUP_FOTOS_FILENAME='backup-fotos.json';
 /* ===== TAREA 1: COPIAS BLINDADAS EN DRIVE =====
    Destino secundario protegido para las copias fechadas (fuera de FOTO/DOCUMENTOS).
    El folderId queda fijado explícitamente en el código (no se busca por nombre) y su
@@ -8607,18 +8608,49 @@ if(!(await exigirIdentidadGoogle()))return;
 if(!esAdministrador()){toast('Solo el administrador puede importar CSV',true);return;}
 document.getElementById('fi').click();
 }
+/* ===== TAREA: SEPARAR DATOS Y FOTOS EN DOS ARCHIVOS DE BACKUP =====
+   El campo FOTO (dataURL en base64) es lo que hace crecer el backup sin control.
+   A partir de ahora se separa siempre en dos archivos, de forma transparente para
+   quien usa la app: backup-arbol.json (datos genealógicos, sin FOTO) y
+   backup-fotos.json (mapa ID->FOTO, solo con quien tiene foto). Subir y restaurar
+   siguen siendo una sola acción para el usuario; por debajo se suben/descargan los
+   dos archivos. Los históricos fechados (backup-arbol-AAAA-MM-DD.json) siguen
+   existiendo SOLO para los datos: las fotos cambian poco y duplicar 5 copias
+   fechadas de un archivo pesado no compensa. */
+function separarDatosYFotos(personas){
+var datos=[],fotos={};
+for(var i=0;i<personas.length;i++){
+var p=personas[i];
+var copia={};
+for(var k in p){if(k!=='FOTO')copia[k]=p[k];}
+datos.push(copia);
+if(p.FOTO)fotos[p.ID]=p.FOTO;
+}
+return{datos:datos,fotos:fotos};
+}
+function fusionarFotosEnDatos(personas,fotosMap){
+fotosMap=fotosMap||{};
+for(var i=0;i<personas.length;i++){personas[i].FOTO=fotosMap[personas[i].ID]||'';}
+return personas;
+}
+function descargarJSONComoArchivo(obj,nombreArchivo){
+var blob=new Blob([JSON.stringify(obj)],{type:'application/json;charset=utf-8'});
+var url=URL.createObjectURL(blob),a=document.createElement('a');
+a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
 function exportarCopia(){
 if(!esAdministrador()){toast('Guardar copia contiene todos los datos sin filtrar, por eso es exclusivo del administrador. Pide a la persona administradora que te pase una copia si la necesitas.',true);return;}
 if(!D.length){toast('No hay datos para guardar',true);return;}
-var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
-var blob=new Blob([JSON.stringify(copia)],{type:'application/json;charset=utf-8'});
+var sep=separarDatosYFotos(D);
 var fecha=new Date().toISOString().slice(0,10);
-var url=URL.createObjectURL(blob),a=document.createElement('a');
-a.href=url;a.download='copia-arbol-genealogico-'+fecha+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-toast('Copia descargada con '+D.length+' personas y sus fotos');
+var copiaDatos={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos};
+var copiaFotos={formato:'Libro de los Ancestros - Fotos',version:1,fecha:new Date().toISOString(),fotos:sep.fotos};
+descargarJSONComoArchivo(copiaDatos,'copia-arbol-genealogico-'+fecha+'.json');
+descargarJSONComoArchivo(copiaFotos,'copia-arbol-genealogico-'+fecha+'-fotos.json');
+toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
 registrarUltimaCopia();
 }
-async function restaurarDesdeJSONTexto(texto){
+async function restaurarDesdeJSONTexto(texto,textoFotos){
 var copia;
 try{copia=JSON.parse(texto);}catch(err){ocultarProgresoDrive();toast('El archivo no es una copia válida',true);return;}
 var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
@@ -8630,6 +8662,15 @@ personas[i].ID=String(personas[i].ID);
 if(ids[personas[i].ID]){ocultarProgresoDrive();toast('La copia contiene IDs duplicados',true);return;}
 ids[personas[i].ID]=true;
 }
+/* Las fotos vienen en un archivo aparte (backup-fotos.json). Si falta o no se
+   puede leer, no se aborta la restauración de los datos: se restaura sin fotos
+   y se avisa por consola, en vez de bloquear todo por un problema solo de fotos. */
+var fotosMap={};
+if(textoFotos){
+try{var copiaFotos=JSON.parse(textoFotos);if(copiaFotos&&copiaFotos.fotos&&typeof copiaFotos.fotos==='object')fotosMap=copiaFotos.fotos;}
+catch(errFotos){console.warn('No se pudo leer el archivo de fotos de la copia (se restaura solo con datos, sin fotos):',errFotos.message);}
+}
+fusionarFotosEnDatos(personas,fotosMap);
 ocultarProgresoDrive();
 if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.')))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
@@ -8666,6 +8707,15 @@ body:multipartBody
 }
 async function buscarArchivoBackupDrive(){
 var folderId=await obtenerCarpetaArbolOficialId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FILENAME+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+return (d.files&&d.files.length)?d.files[0]:null;
+}
+/* Gemela de buscarArchivoBackupDrive() pero para el archivo de fotos (backup-fotos.json).
+   Este archivo nunca tiene copias históricas fechadas: solo existe como alias "actual". */
+async function buscarArchivoBackupFotosDrive(){
+var folderId=await obtenerCarpetaArbolOficialId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FOTOS_FILENAME+"' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
@@ -8782,8 +8832,14 @@ try{carpetaArbolOficial=await obtenerCarpetaArbolOficialId(true);}catch(err){ocu
 if(!carpetaArbolOficial){ocultarProgresoDrive('subirCopiaProgresoWrap');toast('No se pudo preparar la carpeta ARBOL_OFICIAL',true);return;}
 subiendoCopiaDrive=true;
 try{
-var copia={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:D};
-var contenido=JSON.stringify(copia);
+/* Datos y fotos van separados desde aquí (ver separarDatosYFotos): los datos
+   siguen el mismo circuito de siempre (histórico fechado + alias), las fotos
+   solo se suben como alias "actual", sin histórico. */
+var sep=separarDatosYFotos(D);
+var copiaDatos={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos};
+var contenido=JSON.stringify(copiaDatos);
+var copiaFotos={formato:'Libro de los Ancestros - Fotos',version:1,fecha:new Date().toISOString(),fotos:sep.fotos};
+var contenidoFotos=JSON.stringify(copiaFotos);
 var fechaHoy=formatoFechaBackup(new Date());
 var nombreHoy=nombreBackupHistorico(fechaHoy);
 /* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
@@ -8793,7 +8849,7 @@ actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...','subirCop
 var existenteHoy;
 try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
 catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive('subirCopiaProgresoWrap');avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
-actualizarProgresoDrive('Subiendo la copia de hoy ('+D.length+' personas)...','subirCopiaProgresoWrap');
+actualizarProgresoDrive('Subiendo los datos de hoy ('+sep.datos.length+' personas)...','subirCopiaProgresoWrap');
 var rHistorico=await subirArchivoDrive(nombreHoy,contenido,'application/json',carpetaArbolOficial,existenteHoy?existenteHoy.id:null);
 /* 3) Verificación. Si falla aquí, se aborta sin tocar copias históricas ni el alias. */
 if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pudo crear la copia blindada de hoy (Drive respondió '+rHistorico.status+'): '+errTxt.slice(0,200));}
@@ -8810,6 +8866,15 @@ var existenteAlias=await buscarArchivoBackupDrive();
 var rAlias=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',carpetaArbolOficial,existenteAlias?existenteAlias.id:null);
 if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
 }catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
+/* 6) Fotos: alias aparte, sin histórico fechado. Un fallo aquí se avisa, pero
+   nunca deshace ni bloquea la subida de los datos, que ya está confirmada. */
+actualizarProgresoDrive('Actualizando las fotos...','subirCopiaProgresoWrap');
+var fotosOk=true,fotosError='';
+try{
+var existenteFotos=await buscarArchivoBackupFotosDrive();
+var rFotos=await subirArchivoDrive(DRIVE_BACKUP_FOTOS_FILENAME,contenidoFotos,'application/json',carpetaArbolOficial,existenteFotos?existenteFotos.id:null);
+if(!rFotos.ok){fotosOk=false;fotosError='Drive respondió '+rFotos.status;}
+}catch(errFotos){fotosOk=false;fotosError=errFotos.message;}
 registrarUltimaCopia();
 registrarSincronizacionDrive();
 actualizarFechaArbolOficial();
@@ -8817,6 +8882,7 @@ var msg='Copia blindada subida a Drive ('+D.length+' personas) · '+nombreHoy;
 if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resultadoLimpieza.eliminadas+' copia(s) histórica(s) más antigua(s)';
 toast(msg);
 if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
+if(!fotosOk)toast('Aviso: los datos se guardaron correctamente, pero no se pudieron actualizar las fotos ('+fotosError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 finally{subiendoCopiaDrive=false;ocultarProgresoDrive('subirCopiaProgresoWrap');}
 }
@@ -9378,8 +9444,23 @@ actualizarProgresoDrive('Descargando la copia desde Drive...',contenedorId);
 var rContenido=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(!rContenido.ok)throw new Error('No se pudo descargar el archivo (código '+rContenido.status+')');
 var texto=await rContenido.text();
+/* Fotos: en archivo aparte (backup-fotos.json). Si no existe o falla la
+   descarga, no se aborta la restauración: se restaura sin fotos y se avisa
+   por consola, sin bloquear la restauración de los datos por un problema
+   que solo afecta a las fotos. */
+var textoFotos=null;
+try{
+actualizarProgresoDrive('Buscando las fotos en la carpeta compartida...',contenedorId);
+var archivoFotos=await buscarArchivoBackupFotosDrive();
+if(archivoFotos){
+actualizarProgresoDrive('Descargando las fotos desde Drive...',contenedorId);
+var rFotos=await fetch('https://www.googleapis.com/drive/v3/files/'+archivoFotos.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(rFotos.ok)textoFotos=await rFotos.text();
+else console.warn('No se pudo descargar el archivo de fotos (código '+rFotos.status+'); se restaura sin fotos.');
+}
+}catch(errFotos){console.warn('No se pudieron descargar las fotos de la copia (se restaura sin fotos):',errFotos.message);}
 actualizarProgresoDrive('Comprobando el contenido de la copia...',contenedorId);
-restaurarDesdeJSONTexto(texto);
+restaurarDesdeJSONTexto(texto,textoFotos);
 registrarSincronizacionDrive();
 actualizarFechaArbolOficial();
 }catch(err){_finRestore();toast('No se pudo restaurar desde Drive: '+err.message,true);}
