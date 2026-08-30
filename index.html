@@ -9658,6 +9658,8 @@ var heroCarruselActivo=false;
 var heroCarruselTimer=null;
 var heroCarruselNombreTimer=null;
 var heroCarruselVistos={};
+var heroCarruselUltimoAvance=0;
+var heroCarruselWatchdog=null;
 function heroCarruselDesactivadoPorUsuario(){
 try{return localStorage.getItem(HERO_CARRUSEL_LS_KEY)==='1';}catch(e){return false;}
 }
@@ -9770,6 +9772,8 @@ requestAnimationFrame(function(){entrante.classList.add('on');});
 escribirNombreCarrusel(personaActual);
 guardarCacheCarruselHero(personaActual);
 heroCarruselActivo=true;
+heroCarruselUltimoAvance=Date.now();
+iniciarVigilanteCarruselHero();
 programarSiguienteHeroCarrusel();
 toast('Fotos actualizadas');
 }
@@ -9777,6 +9781,26 @@ function programarSiguienteHeroCarrusel(){
 clearTimeout(heroCarruselTimer);
 if(!heroCarruselActivo||document.hidden)return;
 heroCarruselTimer=setTimeout(avanzarCarruselHero,7500);
+}
+/* ===== MEJORA: vigilante del carrusel =====
+   El avance normal depende de una cadena de setTimeout (uno programa el
+   siguiente al terminar). En móvil, el sistema operativo o el navegador
+   pueden "congelar" la pestaña al cambiar de app, bloquear la pantalla o
+   restaurarla desde su caché de navegación (bfcache) de formas que no
+   siempre disparan un 'visibilitychange' limpio, dejando la cadena rota
+   para siempre: el carrusel se queda parado hasta que el usuario pulsa
+   "Renovar fotos" a mano. Este vigilante comprueba cada 5s, mientras la
+   app esté visible y el carrusel activo, cuánto tiempo ha pasado desde el
+   último cambio de foto; si se ha superado sobradamente el intervalo
+   normal (7.5s), fuerza un avance y así el carrusel se repara solo, sin
+   intervención del usuario. */
+function iniciarVigilanteCarruselHero(){
+if(heroCarruselWatchdog)return;
+heroCarruselWatchdog=setInterval(function(){
+if(!heroCarruselActivo||document.hidden)return;
+if(!heroCarruselUltimoAvance)return;
+if(Date.now()-heroCarruselUltimoAvance>=12000)avanzarCarruselHero();
+},5000);
 }
 function escribirNombreCarrusel(persona){
 clearTimeout(heroCarruselNombreTimer);
@@ -9825,6 +9849,7 @@ if(saliente)saliente.classList.remove('on');
 requestAnimationFrame(function(){entrante.classList.add('on');});
 escribirNombreCarrusel(personaActual);
 guardarCacheCarruselHero(personaActual);
+heroCarruselUltimoAvance=Date.now();
 programarSiguienteHeroCarrusel();
 }
 function mostrarCarruselHero(){
@@ -9848,12 +9873,16 @@ requestAnimationFrame(function(){a.classList.add('on');});
 escribirNombreCarrusel(personaActual);
 guardarCacheCarruselHero(personaActual);
 }
+heroCarruselUltimoAvance=Date.now();
+iniciarVigilanteCarruselHero();
 programarSiguienteHeroCarrusel();
 }
 function ocultarCarruselHero(){
 heroCarruselActivo=false;
 clearTimeout(heroCarruselTimer);
 clearTimeout(heroCarruselNombreTimer);
+clearInterval(heroCarruselWatchdog);
+heroCarruselWatchdog=null;
 var a=document.getElementById('heroCarouselA'),b=document.getElementById('heroCarouselB');
 if(a)a.classList.remove('on');
 if(b)b.classList.remove('on');
@@ -9898,6 +9927,9 @@ irAFicha(id);
 document.addEventListener('visibilitychange',function(){
 if(document.hidden)clearTimeout(heroCarruselTimer);
 else if(heroCarruselActivo)programarSiguienteHeroCarrusel();
+});
+window.addEventListener('pageshow',function(){
+if(heroCarruselActivo)programarSiguienteHeroCarrusel();
 });
 actualizarBotonCarruselHero();
 (function(){
