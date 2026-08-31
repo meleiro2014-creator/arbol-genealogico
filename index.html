@@ -9091,16 +9091,11 @@ fusionarFotosEnDatos(personas,fotosMap,fotosReserva);
 ocultarProgresoDrive();
 if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.')))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
-sAll(personas,{marcarANOCALCSucio:false}).then(function(){
+sAll(personas).then(function(){
 D=personas;bIdx(D);cid=null;editMode=false;
-actualizarProgresoDrive('Recalculando años estimados...');
-recalcularAnosEstimadosConProgreso(function(){
-sAll(D,{marcarANOCALCSucio:false}).then(function(){
 ocultarProgresoDrive();
 init();
-toast('Copia restaurada y años estimados recalculados: '+D.length+' personas');
-}).catch(function(err){ocultarProgresoDrive();toast('Copia restaurada, pero no se pudo cerrar el estado de ANOCALC: '+err.message,true);init();});
-});
+toast('Copia restaurada: '+D.length+' personas');
 }).catch(function(err){ocultarProgresoDrive();toast('No se pudo restaurar la copia: '+err.message,true);});
 }
 function subirArchivoDrive(nombre,contenidoTexto,mimeType,folderId,fileIdExistente){
@@ -9977,8 +9972,7 @@ var orphans=0;
 data.forEach(function(r){if(r.PADRE && !idsSet[r.PADRE])orphans++; if(r.MADRE && !idsSet[r.MADRE])orphans++;});
 D = data;
 bIdx(data);
-recalcularAnosEstimados(false);
-sAll(data,{marcarANOCALCSucio:false}).then(function(n){
+sAll(data).then(function(n){
 toast(n+' personas importadas correctamente');
 if(skipped) toast(skipped+' fila(s) omitida(s) por datos incompletos', true);
 if(dupCount) toast(dupCount+' ID(s) duplicado(s): se conservo el último registro', true);
@@ -10002,19 +9996,10 @@ restaurarSesionDriveLocal();
 function cargarInicial(data){
 D=data;bIdx(data);
 function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
-/* Tarea 4: cargar la configuración de medias manuales ANTES de cualquier
-   cálculo de ANOCALC, para que un recálculo inicial ya las respete. */
-cargarMediasManualesANOCALC().then(function(){
-var pendienteSinCalcular;
-try{pendienteSinCalcular=haySinCalcular();}catch(err){console.error('Error comprobando años pendientes:',err);continuar();return;}
-Promise.all([Promise.resolve(pendienteSinCalcular),anocalcPendiente()]).then(function(v){
-if(v[0]||v[1]){
-recalcularAnosEstimadosConProgreso(continuar);
-}else{
-continuar();
-}
-}).catch(function(err){console.error('Error preparando el recálculo de años estimados:',err);continuar();});
-}).catch(function(err){console.error('Error cargando configuración de medias ANOCALC:',err);continuar();});
+/* ANOCALC ya no se recalcula solo al arrancar: se deja la configuración de
+   medias manuales cargada (la necesita el botón manual de Herramientas),
+   pero el cálculo en sí solo se dispara pulsando ese botón. */
+cargarMediasManualesANOCALC().then(continuar).catch(function(err){console.error('Error cargando configuración de medias ANOCALC:',err);continuar();});
 }
 oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err2){console.error("Error al reintentar el arranque:",err2);toast('No se pudo cargar la base de datos: '+err2.message+'. Prueba a cerrar otras pestañas de la app y recarga.',true);});},500);});
 /* Punto 2 (simplificar acceso a Drive): en la primera interacción real del
