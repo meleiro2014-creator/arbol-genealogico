@@ -680,11 +680,6 @@ body{background:#fff}
 </div>
 </div>
 </div>
-<div class="inf-card" id="invParientesCard" style="display:none;margin-top:14px">
-<h3><i class="fa-solid fa-people-group"></i> Parientes cercanos (hasta 3.º grado)</h3>
-<p>Pulsa sobre un familiar para convertirlo en la persona activa y buscarle su foto más abajo. El icono indica si ya tiene foto guardada.</p>
-<div id="invParientesLista"></div>
-</div>
 <div class="inf-card" id="invFotoCard" style="display:none;margin-top:14px">
 <h3><i class="fa-solid fa-image"></i> Foto encontrada (persona activa)</h3>
 <p>Busca a la persona en Google Imágenes; cuando encuentres una foto, cópiala (clic derecho → Copiar imagen, o la herramienta Recortes) y pulsa «Pegar foto». Se guarda en Drive, en FOTO/REVISAR, para que se revise antes de asignarla como foto oficial.</p>
@@ -703,6 +698,11 @@ body{background:#fff}
 </div>
 </div>
 </div>
+</div>
+<div class="inf-card" id="invParientesCard" style="display:none;margin-top:14px">
+<h3><i class="fa-solid fa-people-group"></i> Parientes cercanos (hasta 3.º grado)</h3>
+<p>Pulsa sobre un familiar para convertirlo en la persona activa y buscarle su foto más arriba. El icono indica si ya tiene foto guardada.</p>
+<div id="invParientesLista"></div>
 </div>
 </div>
 </div>
@@ -3061,27 +3061,50 @@ pintarInvFotoActual();
 renderParientesInv();
 }
 /* ===== Parientes cercanos (hasta 3.º grado) de la persona activa, desde Investigación =====
-   Reutiliza el mismo cálculo de grado de parentesco que la pantalla "Relación entre dos
-   personas" (mapaAncestros + nombrarParentesco), de modo que el grado que se muestra aquí
-   coincide con el que vería el usuario si comparase a ambas personas allí: 1.º (padres/hijos),
-   2.º (hermanos, abuelos, nietos) y 3.º (tíos, sobrinos, bisabuelos, bisnietos). Los cónyuges
-   se añaden aparte, como allegados directos, aunque no sean parientes consanguíneos. */
-function gradoYEtiquetaParentesco(idA,idB){
-if(idA===idB)return null;
-var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
+   Usa el mismo mapaAncestros() que la pantalla "Relación entre dos personas" para hallar el
+   antepasado común y medir el grado de parentesco: 1.º (padres/hijos), 2.º (hermanos, abuelos,
+   nietos) y 3.º (tíos, sobrinos, bisabuelos, bisnietos). A diferencia de nombrarParentesco()
+   (pensada para un badge simétrico "A y B son..."), aquí necesitamos SIEMPRE el término
+   orientado a la persona de la fila (idOtro) respecto a la persona activa (idActivo): que
+   una hija aparezca como "Hija" y no como "Padre"/"Madre" (el papel de la persona activa).
+   Los cónyuges se añaden aparte, como allegados directos, aunque no sean parientes
+   consanguíneos. */
+function etiquetaParienteRespectoActivo(idActivo,idOtro){
+if(idActivo===idOtro)return null;
+var ancActivo=mapaAncestros(idActivo),ancOtro=mapaAncestros(idOtro);
 var mejor=null;
-Object.keys(ancA).forEach(function(anc){
-if(ancB[anc]!==undefined){
-var dA=ancA[anc],dB=ancB[anc],suma=dA+dB;
-if(!mejor||suma<mejor.suma)mejor={anc:anc,dA:dA,dB:dB,suma:suma};
+Object.keys(ancActivo).forEach(function(anc){
+if(ancOtro[anc]!==undefined){
+var dA=ancActivo[anc],dO=ancOtro[anc],suma=dA+dO;
+if(!mejor||suma<mejor.suma)mejor={anc:anc,dA:dA,dO:dO,suma:suma};
 }
 });
 if(!mejor)return null;
-var grado=(mejor.dA===0||mejor.dB===0)?Math.max(mejor.dA,mejor.dB):mejor.suma;
+var dA=mejor.dA,dO=mejor.dO;
+var grado=(dA===0||dO===0)?Math.max(dA,dO):(dA+dO);
 var cuenta=0;
-Object.keys(ancA).forEach(function(anc){if(ancA[anc]===mejor.dA&&ancB[anc]===mejor.dB)cuenta++;});
-var etiqueta=nombrarParentesco(mejor.dA,mejor.dB,cuenta,idA,idB);
-return{grado:grado,corto:etiqueta?etiqueta.corto:''};
+Object.keys(ancActivo).forEach(function(anc){if(ancActivo[anc]===dA&&ancOtro[anc]===dO)cuenta++;});
+var sexOtro=sexoLetra(PI[idOtro]);
+var etiqueta;
+if(dO===0){
+/* idOtro es el antepasado común: es ascendiente (padre/abuelo/bisabuelo...) de idActivo */
+etiqueta=capitalizar(terminoLineaDirecta(dA,true,sexOtro));
+}else if(dA===0){
+/* idActivo es el antepasado común: idOtro es descendiente (hijo/nieto/bisnieto...) suyo */
+etiqueta=capitalizar(terminoLineaDirecta(dO,false,sexOtro));
+}else if(dA===1&&dO===1){
+var completos=cuenta>=2;
+etiqueta=capitalizar((completos?'':'medio ')+formaSexo('hermano','hermana',sexOtro));
+}else{
+var mayor=Math.max(dA,dO);
+if(Math.min(dA,dO)===1){
+if(dO===1)etiqueta=capitalizar(terminoAvuncular(mayor,true,sexOtro));
+else etiqueta=capitalizar(terminoAvuncular(mayor,false,sexOtro));
+}else{
+etiqueta=capitalizar(terminoPrimo(Math.min(dA,dO)-1,sexOtro==='F'));
+}
+}
+return{grado:grado,etiqueta:etiqueta};
 }
 function parientesCercanos(id,maxGrado){
 maxGrado=maxGrado||3;
@@ -3090,9 +3113,9 @@ if(!p)return[];
 var out=[],vistos={};
 D.forEach(function(otro){
 if(!otro||otro.ID===id)return;
-var info=gradoYEtiquetaParentesco(id,otro.ID);
+var info=etiquetaParienteRespectoActivo(id,otro.ID);
 if(!info||info.grado<1||info.grado>maxGrado)return;
-out.push({id:otro.ID,grado:info.grado,etiqueta:info.corto});
+out.push({id:otro.ID,grado:info.grado,etiqueta:info.etiqueta});
 vistos[otro.ID]=true;
 });
 [p.M1,p.M2].forEach(function(mid){
@@ -7057,7 +7080,7 @@ if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
 var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
 return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year">${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
 }
-document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-gen-info" style="font-size:11px;color:var(--muted);margin-top:2px">${esc(etiquetaGeneracionesArbol(id))}</div><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
+document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
 var ancestors=[[id]];
 for(var gen=0;gen<treeDepth;gen++){
 var nextGen=[];
@@ -7367,41 +7390,6 @@ queue.push([anc,d+1]);
 }
 return dist;
 }
-/* Profundidad máxima de generaciones ascendientes (antepasados) y descendientes
-   (descendencia) de una persona, para mostrarlo de forma discreta en la
-   pantalla Árbol. Ambas usan BFS con distancia mínima registrada por persona,
-   lo que evita bucles (una vez fijada la distancia de alguien no se vuelve a
-   visitar con una distancia mayor o igual). */
-function profundidadAscendientesArbol(id,maxProf){
-var dist=mapaAncestros(id,maxProf||60);
-var max=0;
-Object.keys(dist).forEach(function(k){if(dist[k]>max)max=dist[k];});
-return max;
-}
-function profundidadDescendientesArbol(id,maxProf){
-maxProf=maxProf||60;
-var dist={};dist[id]=0;
-var queue=[[id,0]];
-var max=0;
-while(queue.length){
-var item=queue.shift(),pid=item[0],d=item[1];
-if(d>=maxProf)continue;
-(HD[pid]||[]).forEach(function(hid){
-if(dist[hid]===undefined||dist[hid]>d+1){
-dist[hid]=d+1;
-if(d+1>max)max=d+1;
-queue.push([hid,d+1]);
-}
-});
-}
-return max;
-}
-function etiquetaGeneracionesArbol(id){
-var asc=profundidadAscendientesArbol(id),desc=profundidadDescendientesArbol(id);
-var txtAsc=asc===0?'sin ascendientes registrados':(asc+(asc===1?' generación ascendiente':' generaciones ascendientes'));
-var txtDesc=desc===0?'sin descendientes registrados':(desc+(desc===1?' generación descendiente':' generaciones descendientes'));
-return capitalizar(txtAsc)+' · '+txtDesc;
-}
 function calcularParentesco(idA,idB){
 if(idA===idB)return{corto:'Misma persona',texto:'Es la misma persona.'};
 var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
@@ -7465,14 +7453,14 @@ if(p.M2&&PI[p.M2])vec.push({id:p.M2,tipo:'conyuge'});
 return vec;
 }
 function buscarCaminoParentesco(idA,idB,maxProf){
-maxProf=maxProf||45;
+maxProf=maxProf||25;
 if(idA===idB)return[];
 var visitado={};visitado[idA]=true;
 var queue=[{id:idA,camino:[]}];
 var visitas=0;
 while(queue.length){
 visitas++;
-if(visitas>60000)return null;
+if(visitas>30000)return null;
 var actual=queue.shift();
 if(actual.camino.length>=maxProf)continue;
 var vecinos=vecinosParentesco(actual.id);
@@ -7549,7 +7537,7 @@ if(!relIdA||!relIdB){toast('Selecciona ambas personas',true);return;}
 var cont=document.getElementById('relResultado');
 if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
 var parentesco=calcularParentesco(relIdA,relIdB);
-var camino=buscarCaminoParentesco(relIdA,relIdB,45);
+var camino=buscarCaminoParentesco(relIdA,relIdB,30);
 var h='<div class="cro-life"><h3>Parentesco</h3>';
 if(parentesco){
 h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
