@@ -680,6 +680,25 @@ body{background:#fff}
 </div>
 </div>
 </div>
+<div class="inf-card" id="invFotoCard" style="display:none;margin-top:14px">
+<h3><i class="fa-solid fa-image"></i> Foto encontrada (persona activa)</h3>
+<p>Busca a la persona en Google Imágenes; cuando encuentres una foto, cópiala (clic derecho → Copiar imagen, o la herramienta Recortes) y pulsa «Pegar foto». Se guarda en Drive, en FOTO/REVISAR, para que se revise antes de asignarla como foto oficial.</p>
+<div style="margin-bottom:14px"><button class="ef-btn ghost" onclick="buscarFotoGoogleImagenesInv()"><i class="fa-solid fa-magnifying-glass"></i> Buscar en Google Imágenes</button></div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+<div>
+<div class="ef-label" style="margin-bottom:6px">Foto actual</div>
+<div id="invFotoActualBox" class="ef-foto-drop" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center"></div>
+</div>
+<div>
+<div class="ef-label" style="margin-bottom:6px">Foto copiada</div>
+<div id="invFotoPegarBox" class="ef-foto-drop" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:var(--muted);padding:8px">Sin foto pegada</div>
+<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+<button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesInv()"><i class="fa-solid fa-paste"></i> Pegar foto</button>
+<button type="button" class="ef-btn save" id="invFotoGuardarBtn" style="display:none" onclick="guardarFotoRevisarInv()"><i class="fa-solid fa-check"></i> Guardar en Drive (a revisar)</button>
+</div>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div class="view" id="vGes">
@@ -728,7 +747,6 @@ body{background:#fff}
 <div id="rlRelB"></div>
 </div>
 </div>
-<div style="text-align:center;margin-top:14px"><button class="ef-btn" onclick="calcularYMostrarRelacion()"><i class="fa-solid fa-diagram-project"></i> Calcular parentesco</button></div>
 </div>
 <div id="relResultado" class="ficha" style="max-width:640px"></div>
 </div>
@@ -3025,6 +3043,101 @@ if(!sin||!con)return;
 var hay=!!(cid&&PI[cid]);
 sin.style.display=hay?'none':'block';
 con.style.display=hay?'block':'none';
+var fotoCard=document.getElementById('invFotoCard');
+if(fotoCard)fotoCard.style.display=hay?'block':'none';
+invFotoPegadaDataUrl=null;
+var pegBox=document.getElementById('invFotoPegarBox');
+if(pegBox)pegBox.innerHTML='Sin foto pegada';
+var btnG=document.getElementById('invFotoGuardarBtn');
+if(btnG)btnG.style.display='none';
+pintarInvFotoActual();
+}
+function pintarInvFotoActual(){
+var box=document.getElementById('invFotoActualBox');
+if(!box)return;
+var p=cid&&PI[cid]?PI[cid]:null;
+if(p&&p.FOTO)box.innerHTML='<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">';
+else box.innerHTML='<span style="color:var(--muted);font-size:10px;text-align:center">No hay foto</span>';
+}
+/* ===== Foto "a revisar" desde Investigación =====
+   Pensada para buscar en Google Imágenes y pegar (con un botón, sin Ctrl+V) una foto
+   encontrada por internet para la persona activa, sin tocar su ficha ni su foto oficial
+   (p.FOTO). Se sube a Drive en FOTO/REVISAR/<ID>.jpg, como cola de fotos pendientes de
+   que un administrador las revise y, si procede, las asigne como foto oficial desde la
+   ficha (Editar → Foto). */
+var invFotoPegadaDataUrl=null;
+function buscarFotoGoogleImagenesInv(){
+if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
+var nombre=fn(PI[cid]).trim();
+var url='https://www.google.com/search?tbm=isch&q='+encodeURIComponent(nombre);
+var ventana=window.open(url,'_blank');
+if(!ventana)toast('El navegador pudo haber bloqueado la pestaña nueva; ábrela manualmente en Google Imágenes',true);
+}
+async function pegarFotoDesdePortapapelesInv(){
+if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
+if(!navigator.clipboard||!navigator.clipboard.read){toast('Este navegador no permite pegar imágenes con un botón. Prueba desde Chrome o Edge en ordenador.',true);return;}
+try{
+var items=await navigator.clipboard.read();
+var blob=null;
+for(var i=0;i<items.length&&!blob;i++){
+var tipo=items[i].types.find(function(t){return t.indexOf('image/')===0;});
+if(tipo)blob=await items[i].getType(tipo);
+}
+if(!blob){toast('No se ha encontrado ninguna imagen en el portapapeles. Copia una imagen (clic derecho → Copiar imagen) e inténtalo de nuevo.',true);return;}
+toast('Procesando imagen...');
+resizeImageToDataURL(blob,900,0.85).then(function(dataUrl){
+invFotoPegadaDataUrl=dataUrl;
+var box=document.getElementById('invFotoPegarBox');
+if(box)box.innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+var btn=document.getElementById('invFotoGuardarBtn');
+if(btn)btn.style.display='inline-flex';
+toast('Foto pegada. Pulsa «Guardar en Drive» para conservarla.');
+}).catch(function(e){toast('Error al procesar la imagen: '+e.message,true);});
+}catch(err){
+if(err&&err.name==='NotAllowedError')toast('El navegador ha bloqueado el acceso al portapapeles. Vuelve a pulsar «Pegar foto» y concede el permiso.',true);
+else toast('No se pudo leer el portapapeles: '+err.message,true);
+}
+}
+async function obtenerOCrearSubcarpetaDrive(nombre,parentId){
+if(!parentId)return null;
+var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length)return d.files[0].id;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+nombre);
+var dc=await rc.json();
+return dc.id;
+}
+async function guardarFotoRevisarInv(){
+if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
+if(!invFotoPegadaDataUrl){toast('Pega antes una imagen con el botón «Pegar foto»',true);return;}
+if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive desde Herramientas',true);return;}
+var btn=document.getElementById('invFotoGuardarBtn');
+var idPersona=cid,dataUrl=invFotoPegadaDataUrl;
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';}
+try{
+var folderFoto=await obtenerCarpetaFotoId(true);
+if(!folderFoto)throw new Error('No se pudo acceder a la carpeta FOTO de Drive');
+var folderRevisar=await obtenerOCrearSubcarpetaDrive('REVISAR',folderFoto);
+var nombre=String(idPersona)+'.jpg';
+var existente=await buscarArchivoFotoDrivePorId(nombre,folderRevisar);
+var blob=dataURLABlob(dataUrl);
+var fileId=existente?existente.id:await crearArchivoDriveVacio(nombre,'image/jpeg',folderRevisar);
+var resp=await subirArchivoDrive(nombre,blob,'image/jpeg',folderRevisar,fileId);
+if(!resp.ok)throw new Error('Drive respondió '+resp.status);
+toast('Foto guardada en Drive (FOTO/REVISAR/'+nombre+'), pendiente de revisión');
+invFotoPegadaDataUrl=null;
+var pegBox=document.getElementById('invFotoPegarBox');
+if(pegBox)pegBox.innerHTML='Sin foto pegada';
+if(btn)btn.style.display='none';
+}catch(err){
+toast('No se pudo guardar en Drive: '+err.message,true);
+}finally{
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Guardar en Drive (a revisar)';}
+}
 }
 function construirPromptInvestigacion(p){
 var prompt='Actúa como un genealogista profesional e historiador. Tengo los siguientes datos de un antepasado y necesito que busques en internet registros históricos, padrones municipales, hemerotecas o árboles genealógicos públicos que coincidan exactamente.\n';
@@ -8312,7 +8425,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Documentos y fotografias de cada persona',soloAdmin:false,html:'<p>Cada persona puede tener asociados, en Google Drive, tanto una fotografia como cualquier numero de documentos (partidas, certificados, correspondencia, fotografias historicas...). La seccion Documentos de la ficha permite gestionarlos sin salir de la aplicacion.</p><ul><li><strong>Subir</strong>: arrastra los archivos sobre la zona de subida, o pulsa «Elegir archivos»; se puede anadir una categoria libre (con sugerencias) para agruparlos.</li><li><strong>Buscar</strong>: en cuanto una persona acumula mas de 8 documentos aparece un buscador para filtrarlos por nombre o categoria.</li><li><strong>Renombrar</strong> y <strong>Eliminar</strong>: disponibles en cada documento, sin necesidad de entrar en Drive.</li><li><strong>Abrir carpeta en Drive</strong>: acceso directo a la carpeta de Drive de esa persona.</li></ul><p>Gestionar documentos requiere tener la cuenta de Google conectada, pero esta disponible para cualquier colaborador, no solo para el administrador.</p><p>La fotografia de perfil se gestiona desde el formulario de edicion de la ficha: al guardarla, se guarda siempre en el dispositivo y, si Google Drive esta disponible en ese momento, tambien se sincroniza en segundo plano con la carpeta FOTO, sin bloquear el guardado si Drive falla.</p>'},
 {titulo:'Importacion masiva de fotografias',soloAdmin:false,html:'<p>Cuando hay muchas fotografias que asociar de golpe, es mas rapido usar la importacion masiva que subirlas una a una desde cada ficha. Hay dos vias, ambas accesibles desde Herramientas:</p><ul><li><strong>Desde una carpeta del ordenador</strong>: no requiere conexion con Google. Elige una carpeta local; cada archivo de imagen debe llamarse exactamente igual que el ID de la persona (por ejemplo «1234.jpg» para la persona con ID 1234).</li><li><strong>Desde Google Drive</strong>: requiere identidad de Google conectada. Busca la carpeta FOTO dentro de la carpeta raiz configurada y asigna cada imagen siguiendo el mismo criterio del nombre exacto.</li></ul><p>En ambos casos la asociacion es <strong>siempre por coincidencia exacta</strong> del nombre de archivo (sin extension) con el ID: nunca se hacen coincidencias aproximadas, para evitar asignar una foto a la persona equivocada. Si una persona ya tenia foto, la nueva la sustituye.</p><p>Al terminar, se muestra un resumen con archivos encontrados, imagenes reconocidas, fotografias asociadas, archivos sin persona coincidente y errores, todo explicado en lenguaje sencillo.</p><div class="manual-warn">No se puede iniciar una nueva importacion mientras otra esta en curso; espera a que termine antes de lanzar la siguiente.</div>'},
 {titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p>'},
-{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». Elige a la Persona A y a la Persona B con los buscadores correspondientes y pulsa «Calcular parentesco».</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p>'},
+{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». Elige a la Persona A y a la Persona B con los buscadores correspondientes; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p>'},
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
