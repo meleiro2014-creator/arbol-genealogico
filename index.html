@@ -4773,7 +4773,44 @@ function efQuitarEtiqueta(i){
 efEtiquetasEdit.splice(i,1);
 efRenderEtiquetas();
 }
+/* ===== Lectura de imágenes: robustecida tras detectar fotografías válidas marcadas
+   como "error de lectura" en importaciones masivas grandes (p.ej. 90060.jpg, un JPEG
+   normal y pequeño que no debería fallar). Antes se leía SIEMPRE con <img>+FileReader;
+   en lotes de miles de fotografías, algún archivo puntual podía fallar por un motivo
+   transitorio (memoria, orden de decodificación) sin que el archivo estuviera realmente
+   dañado. Ahora se intenta primero con createImageBitmap (más eficiente y admite algunos
+   casos que <img> no decodifica bien) y, si falla, se reintenta automáticamente con el
+   método clásico antes de dar la imagen por ilegible; solo si ambos fallan se informa
+   del error real (concatenado) en vez de un mensaje genérico, para poder diagnosticarlo
+   si se repitiera. */
 function resizeImageToDataURL(file,maxDim,quality){
+if(window.createImageBitmap){
+return createImageBitmap(file).then(function(bitmap){
+var dataUrl=dibujarBitmapRedimensionado(bitmap,maxDim,quality);
+if(bitmap.close)bitmap.close();
+return dataUrl;
+}).catch(function(errBitmap){
+return resizeImageToDataURLClasico(file,maxDim,quality).catch(function(errClasico){
+throw new Error('createImageBitmap: '+(errBitmap&&errBitmap.message||errBitmap)+' · <img>: '+(errClasico&&errClasico.message||errClasico));
+});
+});
+}
+return resizeImageToDataURLClasico(file,maxDim,quality);
+}
+function dibujarBitmapRedimensionado(bitmap,maxDim,quality){
+var w=bitmap.width,h=bitmap.height;
+if(w>maxDim||h>maxDim){
+if(w>=h){h=Math.round(h*maxDim/w);w=maxDim;}
+else{w=Math.round(w*maxDim/h);h=maxDim;}
+}
+var canvas=document.createElement('canvas');
+canvas.width=w;canvas.height=h;
+canvas.getContext('2d').drawImage(bitmap,0,0,w,h);
+var dataUrl=canvas.toDataURL('image/jpeg',quality);
+canvas.width=0;canvas.height=0;
+return dataUrl;
+}
+function resizeImageToDataURLClasico(file,maxDim,quality){
 return new Promise(function(resolve,reject){
 var reader=new FileReader();
 reader.onerror=function(){reject(new Error('No se pudo leer el archivo'));};
@@ -4789,12 +4826,36 @@ else{w=Math.round(w*maxDim/h);h=maxDim;}
 var canvas=document.createElement('canvas');
 canvas.width=w;canvas.height=h;
 canvas.getContext('2d').drawImage(img,0,0,w,h);
-resolve(canvas.toDataURL('image/jpeg',quality));
+var dataUrl=canvas.toDataURL('image/jpeg',quality);
+canvas.width=0;canvas.height=0;
+img.src='';
+resolve(dataUrl);
 };
 img.src=reader.result;
 };
 reader.readAsDataURL(file);
 });
+}
+/* ===== Reintento con espera para la importación masiva =====
+   Detectado con fotografías pegadas en Investigación y guardadas en Drive/REVISAR: al
+   descargar esa carpeta e importarla enseguida con "Importar fotografías desde tu
+   ordenador", algún archivo puntual puede seguir sincronizándose en ese instante (p.ej.
+   Google Drive de escritorio con "archivos bajo demanda") y el navegador lo lee vacío o
+   incompleto la primera vez, aunque el archivo en sí sea un JPEG perfectamente válido.
+   Por eso, antes de dar una foto por ilegible en la importación masiva, se espera un
+   momento y se reintenta una vez más. */
+function esperarMs(ms){return new Promise(function(res){setTimeout(res,ms);});}
+async function leerImagenImportadaConReintento(fuente,maxDim,quality){
+try{
+return await resizeImageToDataURL(fuente,maxDim,quality);
+}catch(err1){
+await esperarMs(300);
+try{
+return await resizeImageToDataURL(fuente,maxDim,quality);
+}catch(err2){
+throw new Error((err2&&err2.message)||(err1&&err1.message)||'fallo de lectura');
+}
+}
 }
 /* ===== IMPORTACIÓN MASIVA DE FOTOGRAFÍAS (local y Google Drive): CORRECCIÓN =====
 Ver informe "Corrección y mejora — Importación de fotografías". Puntos clave de esta
@@ -5081,12 +5142,12 @@ res.sinPersona.push({nombre:file.name,motivo:impFotosCategoriaTexto('sin_persona
 setTimeout(procesarSiguiente,0);
 return;
 }
-resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
+leerImagenImportadaConReintento(file,600,0.85).then(function(dataUrl){
 persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
 res.asociadas++;
-}).catch(function(){
+}).catch(function(err){
 var cat=esExtensionImportadaExperimental(file.name)?'formato_no_compatible':'lectura';
-res.errores.push({nombre:file.name,motivo:impFotosCategoriaTexto(cat)});
+res.errores.push({nombre:file.name,motivo:impFotosCategoriaTexto(cat)+(err&&err.message?' ('+err.message+')':'')});
 }).then(function(){
 setTimeout(procesarSiguiente,0);
 });
@@ -5166,12 +5227,12 @@ res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto('descarga')});
 continue;
 }
 try{
-var dataUrl=await resizeImageToDataURL(blob,600,0.85);
+var dataUrl=await leerImagenImportadaConReintento(blob,600,0.85);
 persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
 res.asociadas++;
 }catch(eProceso){
 var cat=esExtensionImportadaExperimental(f.name)?'formato_no_compatible':'lectura';
-res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto(cat)});
+res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto(cat)+(eProceso&&eProceso.message?' ('+eProceso.message+')':'')});
 }
 }
 if(res.asociadas){
