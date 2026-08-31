@@ -5083,16 +5083,33 @@ console.warn('No se pudo eliminar la foto de la persona '+id+' en Drive:',err.me
 }
 function solicitarImportarFotosLocal(){
 /* La lectura de una carpeta del propio ordenador NO requiere ninguna sesión de
-   Google (punto 2 del informe de corrección): solo la importación desde Drive
-   necesita identidad/; conexión con Google. */
+   Google: solo la importación desde Drive necesita identidad/conexión con
+   Google. Pero, a diferencia de la importación desde Drive (que cualquiera
+   puede lanzar), importar desde una carpeta local queda restringido al
+   administrador: es la única forma de garantizar que solo una persona decide
+   qué fotos entran en el árbol compartido desde fuera de Drive. */
+if(!esAdministrador()){toast('Importar fotos desde una carpeta local es exclusivo del administrador',true);return;}
 if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 document.getElementById('fiFotos').click();
 }
 function importarFotosCarpeta(fileList){
 if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
-var files=Array.prototype.slice.call(fileList||[]);
-if(!files.length){toast('No se ha seleccionado ninguna carpeta o archivo',true);return;}
+var seleccionados=Array.prototype.slice.call(fileList||[]);
+if(!seleccionados.length){toast('No se ha seleccionado ninguna carpeta o archivo',true);return;}
+/* Solo se importan los archivos que están directamente en la raíz de la
+   carpeta elegida; los que cuelgan de una subcarpeta se ignoran a propósito,
+   para no mezclar por error fotos de otra colección guardada dentro. El
+   navegador informa la ruta relativa en webkitRelativePath como
+   "CarpetaElegida/archivo.ext" (raíz, 2 tramos) o
+   "CarpetaElegida/subcarpeta/archivo.ext" (subcarpeta, 3+ tramos). Si el
+   navegador no informa esa ruta, no se puede filtrar y se deja pasar. */
+var files=seleccionados.filter(function(f){
+var rel=f.webkitRelativePath||'';
+if(!rel)return true;
+return rel.split('/').length===2;
+});
+if(!files.length){toast('No se han encontrado archivos en la raíz de la carpeta seleccionada (las fotos dentro de subcarpetas no se importan)',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
 importFotosEnCurso=true;
 fijarBotonesImportFotos(true);
@@ -8951,9 +8968,18 @@ if(p.FOTO)fotos[p.ID]=p.FOTO;
 }
 return{datos:datos,fotos:fotos};
 }
-function fusionarFotosEnDatos(personas,fotosMap){
+function fusionarFotosEnDatos(personas,fotosMap,fotosReserva){
 fotosMap=fotosMap||{};
-for(var i=0;i<personas.length;i++){personas[i].FOTO=fotosMap[personas[i].ID]||'';}
+fotosReserva=fotosReserva||{};
+for(var i=0;i<personas.length;i++){
+var id=personas[i].ID;
+/* Si la foto viene en el archivo de fotos de la copia, esa es la que manda
+   (es la fuente de verdad de la restauración). Si no viene (porque el
+   archivo de fotos no existe para esa persona, o porque directamente no se
+   ha pedido el archivo de fotos, p.ej. al elegir "solo datos"), se usa la
+   foto de reserva (la que ya había en este dispositivo) en vez de borrarla. */
+personas[i].FOTO=(fotosMap[id]!==undefined?fotosMap[id]:fotosReserva[id])||'';
+}
 return personas;
 }
 function descargarJSONComoArchivo(obj,nombreArchivo){
@@ -8993,7 +9019,15 @@ if(textoFotos){
 try{var copiaFotos=JSON.parse(textoFotos);if(copiaFotos&&copiaFotos.fotos&&typeof copiaFotos.fotos==='object')fotosMap=copiaFotos.fotos;}
 catch(errFotos){console.warn('No se pudo leer el archivo de fotos de la copia (se restaura solo con datos, sin fotos):',errFotos.message);}
 }
-fusionarFotosEnDatos(personas,fotosMap);
+/* Si no se ha pedido/descargado el archivo de fotos (restauración "solo
+   datos"), no hay que borrar las fotos que ya existían en este dispositivo:
+   se guardan aquí como reserva, por ID, ANTES de sustituir D, para que
+   fusionarFotosEnDatos las conserve en vez de dejarlas en blanco. */
+var fotosReserva={};
+if(!textoFotos){
+for(var jFoto=0;jFoto<D.length;jFoto++){if(D[jFoto]&&D[jFoto].FOTO)fotosReserva[D[jFoto].ID]=D[jFoto].FOTO;}
+}
+fusionarFotosEnDatos(personas,fotosMap,fotosReserva);
 ocultarProgresoDrive();
 if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.')))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
@@ -10438,11 +10472,11 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
 <div class="herr-subhead">Fotos</div>
-<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div>
+<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button></div>
 <!-- ===== MEJORA: aclaración de alcance para colaboradores/amigos — antes no
      quedaba claro por qué esta opción está disponible para cualquiera ni a
      quién afecta. ===== -->
-<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Puedes usarlo para subir fotos de <strong>cualquier persona del árbol</strong> (no solo de tu propia rama), siempre que el nombre del archivo coincida exactamente con su ID. Si ya existe una foto, se sustituye.</div>
+<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Puedes usarlo para subir fotos de <strong>cualquier persona del árbol</strong> (no solo de tu propia rama), siempre que el nombre del archivo coincida exactamente con su ID. Si ya existe una foto, se sustituye. Solo se leen los archivos que están directamente dentro de la carpeta FOTO (no los de subcarpetas).</div>
 </div></div>
 <div class="herr-subhead">Mantenimiento</div>
 <button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
@@ -10457,6 +10491,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
+<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas)</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <button class="herr-item" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
