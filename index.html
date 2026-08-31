@@ -7141,7 +7141,7 @@ if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
 var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
 return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year">${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
 }
-document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
+document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-gen-info" style="font-size:11px;color:var(--muted);margin-top:2px">${esc(etiquetaGeneracionesArbol(id))}</div><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
 var ancestors=[[id]];
 for(var gen=0;gen<treeDepth;gen++){
 var nextGen=[];
@@ -7451,6 +7451,41 @@ queue.push([anc,d+1]);
 }
 return dist;
 }
+/* Profundidad máxima de generaciones ascendientes (antepasados) y descendientes
+   (descendencia) de una persona, para mostrarlo de forma discreta en la
+   pantalla Árbol. Ambas usan BFS con distancia mínima registrada por persona,
+   lo que evita bucles (una vez fijada la distancia de alguien no se vuelve a
+   visitar con una distancia mayor o igual). */
+function profundidadAscendientesArbol(id,maxProf){
+var dist=mapaAncestros(id,maxProf||60);
+var max=0;
+Object.keys(dist).forEach(function(k){if(dist[k]>max)max=dist[k];});
+return max;
+}
+function profundidadDescendientesArbol(id,maxProf){
+maxProf=maxProf||60;
+var dist={};dist[id]=0;
+var queue=[[id,0]];
+var max=0;
+while(queue.length){
+var item=queue.shift(),pid=item[0],d=item[1];
+if(d>=maxProf)continue;
+(HD[pid]||[]).forEach(function(hid){
+if(dist[hid]===undefined||dist[hid]>d+1){
+dist[hid]=d+1;
+if(d+1>max)max=d+1;
+queue.push([hid,d+1]);
+}
+});
+}
+return max;
+}
+function etiquetaGeneracionesArbol(id){
+var asc=profundidadAscendientesArbol(id),desc=profundidadDescendientesArbol(id);
+var txtAsc=asc===0?'sin ascendientes registrados':(asc+(asc===1?' generación ascendiente':' generaciones ascendientes'));
+var txtDesc=desc===0?'sin descendientes registrados':(desc+(desc===1?' generación descendiente':' generaciones descendientes'));
+return capitalizar(txtAsc)+' · '+txtDesc;
+}
 function calcularParentesco(idA,idB){
 if(idA===idB)return{corto:'Misma persona',texto:'Es la misma persona.'};
 var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
@@ -7514,14 +7549,14 @@ if(p.M2&&PI[p.M2])vec.push({id:p.M2,tipo:'conyuge'});
 return vec;
 }
 function buscarCaminoParentesco(idA,idB,maxProf){
-maxProf=maxProf||25;
+maxProf=maxProf||45;
 if(idA===idB)return[];
 var visitado={};visitado[idA]=true;
 var queue=[{id:idA,camino:[]}];
 var visitas=0;
 while(queue.length){
 visitas++;
-if(visitas>30000)return null;
+if(visitas>60000)return null;
 var actual=queue.shift();
 if(actual.camino.length>=maxProf)continue;
 var vecinos=vecinosParentesco(actual.id);
@@ -7598,7 +7633,7 @@ if(!relIdA||!relIdB){toast('Selecciona ambas personas',true);return;}
 var cont=document.getElementById('relResultado');
 if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
 var parentesco=calcularParentesco(relIdA,relIdB);
-var camino=buscarCaminoParentesco(relIdA,relIdB,30);
+var camino=buscarCaminoParentesco(relIdA,relIdB,45);
 var h='<div class="cro-life"><h3>Parentesco</h3>';
 if(parentesco){
 h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
