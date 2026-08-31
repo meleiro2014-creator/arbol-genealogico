@@ -697,6 +697,11 @@ body{background:#fff}
 <button type="button" class="ef-btn save" id="invFotoGuardarBtn" style="display:none" onclick="guardarFotoRevisarInv()"><i class="fa-solid fa-check"></i> Guardar en Drive (a revisar)</button>
 </div>
 </div>
+<div>
+<div class="ef-label" style="margin-bottom:6px">En REVISAR (Drive)</div>
+<div id="invFotoRevisarBox" class="ef-foto-drop" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:var(--muted);padding:8px">—</div>
+<div style="font-size:10px;color:var(--muted);margin-top:8px;max-width:130px;line-height:1.4">Lo que ya hay guardado en FOTO/REVISAR para esta persona, por si la copiaste en otra sesión</div>
+</div>
 </div>
 </div>
 <div class="inf-card" id="invParientesCard" style="display:none;margin-top:14px">
@@ -3058,6 +3063,7 @@ if(pegBox)pegBox.innerHTML='Sin foto pegada';
 var btnG=document.getElementById('invFotoGuardarBtn');
 if(btnG)btnG.style.display='none';
 pintarInvFotoActual();
+pintarInvFotoRevisar();
 renderParientesInv();
 }
 /* ===== Parientes cercanos (hasta 3.º grado) de la persona activa, desde Investigación =====
@@ -3164,6 +3170,42 @@ else box.innerHTML='<span style="color:var(--muted);font-size:10px;text-align:ce
    que un administrador las revise y, si procede, las asigne como foto oficial desde la
    ficha (Editar → Foto). */
 var invFotoPegadaDataUrl=null;
+/* ===== Cuadro "En REVISAR (Drive)" =====
+   Muestra lo que YA hay guardado en FOTO/REVISAR/<ID>.jpg para la persona
+   activa, sin necesidad de recordar si se copió en una sesión anterior.
+   invFotoRevisarToken evita que una respuesta de Drive que llega tarde
+   (tras cambiar de persona) pinte el cuadro equivocado. */
+var invFotoRevisarObjectUrl=null;
+var invFotoRevisarToken=0;
+async function pintarInvFotoRevisar(){
+var box=document.getElementById('invFotoRevisarBox');
+if(!box)return;
+var miToken=++invFotoRevisarToken;
+var idPersona=cid;
+if(invFotoRevisarObjectUrl){URL.revokeObjectURL(invFotoRevisarObjectUrl);invFotoRevisarObjectUrl=null;}
+if(!idPersona||!PI[idPersona]){box.innerHTML='—';return;}
+if(!driveRootFolderId||!tokenDriveValido()){box.innerHTML='<span style="color:var(--muted);font-size:10px">Conecta Drive para comprobarlo</span>';return;}
+box.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:var(--muted)"></i>';
+try{
+var folderFoto=await obtenerCarpetaFotoId(false);
+var folderRevisar=folderFoto?await buscarSubcarpetaDriveSinCrear('REVISAR',folderFoto):null;
+var archivo=folderRevisar?await buscarArchivoFotoDrivePorId(String(idPersona)+'.jpg',folderRevisar):null;
+if(miToken!==invFotoRevisarToken)return;
+if(!archivo){box.innerHTML='<span style="color:var(--muted);font-size:10px">Sin foto en REVISAR</span>';return;}
+var rImg=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(rImg.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rImg.ok)throw new Error('Drive respondió '+rImg.status);
+var blob=await rImg.blob();
+if(miToken!==invFotoRevisarToken)return;
+var url=URL.createObjectURL(blob);
+invFotoRevisarObjectUrl=url;
+box.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:contain">';
+}catch(err){
+if(miToken!==invFotoRevisarToken)return;
+box.innerHTML='<span style="color:var(--muted);font-size:10px">No se pudo comprobar</span>';
+console.warn('No se pudo comprobar la foto en REVISAR de Drive:',err.message);
+}
+}
 function buscarFotoGoogleImagenesInv(){
 if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
 var nombre=fn(PI[cid]).trim();
@@ -3195,6 +3237,14 @@ toast('Foto pegada. Pulsa «Guardar en Drive» para conservarla.');
 if(err&&err.name==='NotAllowedError')toast('El navegador ha bloqueado el acceso al portapapeles. Vuelve a pulsar «Pegar foto» y concede el permiso.',true);
 else toast('No se pudo leer el portapapeles: '+err.message,true);
 }
+}
+async function buscarSubcarpetaDriveSinCrear(nombre,parentId){
+if(!parentId)return null;
+var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+return(d.files&&d.files.length)?d.files[0].id:null;
 }
 async function obtenerOCrearSubcarpetaDrive(nombre,parentId){
 if(!parentId)return null;
@@ -3231,6 +3281,16 @@ invFotoPegadaDataUrl=null;
 var pegBox=document.getElementById('invFotoPegarBox');
 if(pegBox)pegBox.innerHTML='Sin foto pegada';
 if(btn)btn.style.display='none';
+/* Refleja al momento lo que se acaba de guardar en el cuadro "En REVISAR",
+   sin esperar a una nueva consulta a Drive; solo si seguimos en la misma
+   persona (por si mientras se guardaba se cambió de persona activa). */
+if(cid===idPersona){
+var revBox=document.getElementById('invFotoRevisarBox');
+if(revBox){
+if(invFotoRevisarObjectUrl){URL.revokeObjectURL(invFotoRevisarObjectUrl);invFotoRevisarObjectUrl=null;}
+revBox.innerHTML='<img src="'+escAttr(dataUrl)+'" style="width:100%;height:100%;object-fit:contain">';
+}
+}
 }catch(err){
 toast('No se pudo guardar en Drive: '+err.message,true);
 }finally{
