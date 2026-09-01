@@ -7710,7 +7710,7 @@ if(!relIdA||!relIdB){toast('Selecciona ambas personas',true);return;}
 var cont=document.getElementById('relResultado');
 if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
 var parentesco=calcularParentesco(relIdA,relIdB);
-var camino=buscarCaminoParentesco(relIdA,relIdB,45);
+var camino=buscarCaminoParentesco(relIdA,relIdB,80);
 var h='<div class="cro-life"><h3>Parentesco</h3>';
 if(parentesco){
 h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
