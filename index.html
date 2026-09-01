@@ -930,6 +930,27 @@ return true;
 }
 function borrarSesionDriveLocal(){try{localStorage.removeItem(DRIVE_SESSION_KEY);}catch(e){}}
 var huboSesionDriveActiva=false,_ultimoAvisoProactivoTs=0;
+/* ===== Modo manual de Drive (a petición del usuario): "desconecta y no
+   reconectes sola hasta que yo lo pida". Mientras esté activo, ni el intento
+   silencioso al primer gesto ni el mantenimiento periódico (cada 4 min)
+   intentan reconectar ni avisan con toasts; el punto/pastilla queda en rojo
+   hasta que el usuario lo toca explícitamente. Se guarda en localStorage para
+   que sobreviva a recargas de la página. */
+var DRIVE_MODO_MANUAL_KEY='libroAncestros_driveModoManual_v1';
+var driveModoManual=false;
+try{driveModoManual=localStorage.getItem(DRIVE_MODO_MANUAL_KEY)==='1';}catch(e){}
+function activarModoManualDrive(){
+driveModoManual=true;
+try{localStorage.setItem(DRIVE_MODO_MANUAL_KEY,'1');}catch(e){}
+driveAccessToken=null;driveTokenExpira=0;
+borrarSesionDriveLocal();
+actualizarDriveStatusPill();
+toast('Desconectado de Google Drive. No se reconectará sola: pulsa el punto cuando quieras volver a conectar.');
+}
+function desactivarModoManualDrive(){
+driveModoManual=false;
+try{localStorage.removeItem(DRIVE_MODO_MANUAL_KEY);}catch(e){}
+}
 var ADMIN_EMAIL='meleiro2014@gmail.com';
 /* ===== USUARIOS (modelo unificado: email + tipo + ficha vinculada) =====
    Un único archivo en Drive, usuarios.json, sustituye a los dos antiguos
@@ -1807,11 +1828,19 @@ elegirCarpetaDocumentos().then(function(){registrarSincronizacionDrive();actuali
 return;
 }
 if(!tokenDriveValido()){
+/* Si estaba en modo manual, al tocar el punto el usuario está pidiendo
+   explícitamente reconectar: se desactiva el modo manual y se conecta. */
+desactivarModoManualDrive();
 mostrarConectandoDrivePill();
 conectarGoogleDrive().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();actualizarFechaArbolOficial();toast('Conectado a Google Drive');}).catch(function(err){actualizarDriveStatusPill();toast('No se pudo conectar con Google Drive: '+err.message,true);});
 return;
 }
-toast('Ya estás conectado a Google Drive');
+/* Ya conectado: tocar el punto ofrece la opción de desconectar y quedarse en
+   modo manual (no reconectar sola) hasta que el usuario lo pida de nuevo. */
+if(confirm('Ya estás conectado a Google Drive.\n\n¿Quieres desconectar y que no se reconecte sola? Podrás volver a conectar cuando quieras tocando el punto otra vez.')){
+activarModoManualDrive();
+return;
+}
 actualizarDriveStatusPill();
 }
 function actualizarBackupWarnPill(){
@@ -1865,6 +1894,7 @@ _avisoSesionDriveTs=Date.now();
 toast('Tu sesión de Google necesita confirmarse otra vez. Toca la pastilla de Google Drive cuando puedas — tus datos están a salvo.',true);
 }
 function intentarConexionSilenciosaDrive(){
+if(driveModoManual)return;/* el usuario pidió expresamente no reconectar sola */
 if(!driveRootFolderId||tokenDriveValido()){
   if(tokenDriveValido()&&!googleIdentidad){
     obtenerIdentidadGoogle().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){});
@@ -9975,6 +10005,7 @@ function primerGesto(){intentarConexionSilenciosaDrive();}
    caducado) y, si es así, se intenta renovar en silencio, sin pedir nada al
    usuario. Así la conexión se mantiene sola mientras la app siga abierta. */
 setInterval(function(){
+if(driveModoManual)return;/* el usuario pidió expresamente no reconectar sola: ni renovar ni avisar */
 if(!driveRootFolderId)return;
 /* Principio "conectar solo si hace falta": si en esta sesión todavía no ha
    habido ninguna conexión real con Drive (huboSesionDriveActiva sigue a
@@ -10386,7 +10417,7 @@ tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes'
 tx.onerror=function(){toast('No se pudo cargar el registro de cambios desde Drive',true);};
 }).catch(function(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);});
 }
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else if(!driveRootFolderId){txt.textContent='Sin conectar con Google Drive — pulsa para configurar';}else{txt.textContent='Confirma tu sesión de Google — toca aquí';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':'Confirma tu sesión de Google — toca aquí');dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}actualizarVisibilidadNavAdmin();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else if(!driveRootFolderId){txt.textContent='Sin conectar con Google Drive — pulsa para configurar';}else if(driveModoManual){txt.textContent='Desconectado (manual) — toca para conectar';}else{txt.textContent='Confirma tu sesión de Google — toca aquí';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}actualizarVisibilidadNavAdmin();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
 conectada como colaboradores). Si alguien ya estaba en esa vista y deja de ser admin
