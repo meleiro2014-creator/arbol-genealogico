@@ -682,7 +682,7 @@ body{background:#fff}
 </div>
 <div class="inf-card" id="invFotoCard" style="display:none;margin-top:14px">
 <h3><i class="fa-solid fa-image"></i> Foto encontrada (persona activa)</h3>
-<p>Busca a la persona en Google Imágenes; cuando encuentres una foto, cópiala (clic derecho → Copiar imagen, o la herramienta Recortes) y pulsa «Pegar foto». Se guarda en Drive, en FOTO/REVISAR, para que se revise antes de asignarla como foto oficial.</p>
+<p>Busca a la persona en Google Imágenes; cuando encuentres una foto, cópiala (clic derecho → Copiar imagen, o la herramienta Recortes) y pulsa «Pegar foto». Al guardarla, pasa a ser la foto oficial de la persona (se guarda en el dispositivo y, si hay conexión con Drive, también en FOTO).</p>
 <div style="margin-bottom:14px"><button class="ef-btn ghost" onclick="buscarFotoGoogleImagenesInv()"><i class="fa-solid fa-magnifying-glass"></i> Buscar en Google Imágenes</button></div>
 <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
 <div>
@@ -694,13 +694,8 @@ body{background:#fff}
 <div id="invFotoPegarBox" class="ef-foto-drop" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:var(--muted);padding:8px">Sin foto pegada</div>
 <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
 <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesInv()"><i class="fa-solid fa-paste"></i> Pegar foto</button>
-<button type="button" class="ef-btn save" id="invFotoGuardarBtn" style="display:none" onclick="guardarFotoRevisarInv()"><i class="fa-solid fa-check"></i> Guardar en Drive (a revisar)</button>
+<button type="button" class="ef-btn save" id="invFotoGuardarBtn" style="display:none" onclick="guardarFotoOficialInv()"><i class="fa-solid fa-check"></i> Guardar como foto oficial</button>
 </div>
-</div>
-<div>
-<div class="ef-label" style="margin-bottom:6px">En REVISAR (Drive)</div>
-<div id="invFotoRevisarBox" class="ef-foto-drop" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px;color:var(--muted);padding:8px">—</div>
-<div style="font-size:10px;color:var(--muted);margin-top:8px;max-width:130px;line-height:1.4">Lo que ya hay guardado en FOTO/REVISAR para esta persona, por si la copiaste en otra sesión</div>
 </div>
 </div>
 </div>
@@ -929,6 +924,7 @@ if(!raw)return false;
 var s=JSON.parse(raw);
 if(!s||!s.token||!s.expira||Date.now()>=s.expira-30000){localStorage.removeItem(DRIVE_SESSION_KEY);return false;}
 driveAccessToken=s.token;driveTokenExpira=s.expira;googleIdentidad=s.identidad||null;
+huboSesionDriveActiva=true;/* había una sesión real guardada: el mantenimiento periódico sí debe cuidarla */
 return true;
 }catch(e){return false;}
 }
@@ -3063,7 +3059,6 @@ if(pegBox)pegBox.innerHTML='Sin foto pegada';
 var btnG=document.getElementById('invFotoGuardarBtn');
 if(btnG)btnG.style.display='none';
 pintarInvFotoActual();
-pintarInvFotoRevisar();
 renderParientesInv();
 }
 /* ===== Parientes cercanos (hasta 3.º grado) de la persona activa, desde Investigación =====
@@ -3163,49 +3158,18 @@ var p=cid&&PI[cid]?PI[cid]:null;
 if(p&&p.FOTO)box.innerHTML='<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">';
 else box.innerHTML='<span style="color:var(--muted);font-size:10px;text-align:center">No hay foto</span>';
 }
-/* ===== Foto "a revisar" desde Investigación =====
+/* ===== Foto encontrada desde Investigación =====
    Pensada para buscar en Google Imágenes y pegar (con un botón, sin Ctrl+V) una foto
-   encontrada por internet para la persona activa, sin tocar su ficha ni su foto oficial
-   (p.FOTO). Se sube a Drive en FOTO/REVISAR/<ID>.jpg, como cola de fotos pendientes de
-   que un administrador las revise y, si procede, las asigne como foto oficial desde la
-   ficha (Editar → Foto). */
+   encontrada por internet para la persona activa. A diferencia de versiones anteriores,
+   ya NO pasa por una cola "FOTO/REVISAR" pendiente de que un administrador la revise:
+   al pulsar "Guardar como foto oficial" pasa a ser directamente p.FOTO de la persona
+   (igual que si se hubiera puesto desde Ficha → Editar → Foto), se guarda en el
+   dispositivo al instante y, si hay conexión con Drive en ese momento, también se
+   sube directamente a FOTO/<ID>.jpg (sin subcarpeta intermedia). Si no hay conexión
+   con Drive en ese instante, la foto queda guardada igualmente en el dispositivo
+   (nunca se fuerza una conexión solo para esto) y se sincronizará con Drive la
+   próxima vez que la persona se edite o la app esté conectada. */
 var invFotoPegadaDataUrl=null;
-/* ===== Cuadro "En REVISAR (Drive)" =====
-   Muestra lo que YA hay guardado en FOTO/REVISAR/<ID>.jpg para la persona
-   activa, sin necesidad de recordar si se copió en una sesión anterior.
-   invFotoRevisarToken evita que una respuesta de Drive que llega tarde
-   (tras cambiar de persona) pinte el cuadro equivocado. */
-var invFotoRevisarObjectUrl=null;
-var invFotoRevisarToken=0;
-async function pintarInvFotoRevisar(){
-var box=document.getElementById('invFotoRevisarBox');
-if(!box)return;
-var miToken=++invFotoRevisarToken;
-var idPersona=cid;
-if(invFotoRevisarObjectUrl){URL.revokeObjectURL(invFotoRevisarObjectUrl);invFotoRevisarObjectUrl=null;}
-if(!idPersona||!PI[idPersona]){box.innerHTML='—';return;}
-if(!driveRootFolderId||!tokenDriveValido()){box.innerHTML='<span style="color:var(--muted);font-size:10px">Conecta Drive para comprobarlo</span>';return;}
-box.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="color:var(--muted)"></i>';
-try{
-var folderFoto=await obtenerCarpetaFotoId(false);
-var folderRevisar=folderFoto?await buscarSubcarpetaDriveSinCrear('REVISAR',folderFoto):null;
-var archivo=folderRevisar?await buscarArchivoFotoDrivePorId(String(idPersona)+'.jpg',folderRevisar):null;
-if(miToken!==invFotoRevisarToken)return;
-if(!archivo){box.innerHTML='<span style="color:var(--muted);font-size:10px">Sin foto en REVISAR</span>';return;}
-var rImg=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rImg.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-if(!rImg.ok)throw new Error('Drive respondió '+rImg.status);
-var blob=await rImg.blob();
-if(miToken!==invFotoRevisarToken)return;
-var url=URL.createObjectURL(blob);
-invFotoRevisarObjectUrl=url;
-box.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:contain">';
-}catch(err){
-if(miToken!==invFotoRevisarToken)return;
-box.innerHTML='<span style="color:var(--muted);font-size:10px">No se pudo comprobar</span>';
-console.warn('No se pudo comprobar la foto en REVISAR de Drive:',err.message);
-}
-}
 function buscarFotoGoogleImagenesInv(){
 if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
 var nombre=fn(PI[cid]).trim();
@@ -3238,63 +3202,44 @@ if(err&&err.name==='NotAllowedError')toast('El navegador ha bloqueado el acceso 
 else toast('No se pudo leer el portapapeles: '+err.message,true);
 }
 }
-async function buscarSubcarpetaDriveSinCrear(nombre,parentId){
-if(!parentId)return null;
-var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-var d=await r.json();
-return(d.files&&d.files.length)?d.files[0].id:null;
-}
-async function obtenerOCrearSubcarpetaDrive(nombre,parentId){
-if(!parentId)return null;
-var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-var d=await r.json();
-if(d.files&&d.files.length)return d.files[0].id;
-var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[parentId],mimeType:'application/vnd.google-apps.folder'})});
-if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+nombre);
-var dc=await rc.json();
-return dc.id;
-}
-async function guardarFotoRevisarInv(){
+async function guardarFotoOficialInv(){
 if(!cid||!PI[cid]){toast('Selecciona primero una persona',true);return;}
 if(!invFotoPegadaDataUrl){toast('Pega antes una imagen con el botón «Pegar foto»',true);return;}
-if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive desde Herramientas',true);return;}
 var btn=document.getElementById('invFotoGuardarBtn');
 var idPersona=cid,dataUrl=invFotoPegadaDataUrl;
 if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';}
 try{
-var folderFoto=await obtenerCarpetaFotoId(true);
-if(!folderFoto)throw new Error('No se pudo acceder a la carpeta FOTO de Drive');
-var folderRevisar=await obtenerOCrearSubcarpetaDrive('REVISAR',folderFoto);
-var nombre=String(idPersona)+'.jpg';
-var existente=await buscarArchivoFotoDrivePorId(nombre,folderRevisar);
-var blob=dataURLABlob(dataUrl);
-var fileId=existente?existente.id:await crearArchivoDriveVacio(nombre,'image/jpeg',folderRevisar);
-var resp=await subirArchivoDrive(nombre,blob,'image/jpeg',folderRevisar,fileId);
-if(!resp.ok)throw new Error('Drive respondió '+resp.status);
-toast('Foto guardada en Drive (FOTO/REVISAR/'+nombre+'), pendiente de revisión');
+var p=PI[idPersona];
+if(!p)throw new Error('La persona activa ya no existe');
+/* Guardado local SIEMPRE primero e incondicional: nunca depende de tener
+   conexión con Drive en este instante (principio de "conectar solo si
+   hace falta"). p.FOTO pasa a ser la foto oficial de la persona, igual
+   que si se hubiera puesto desde Ficha → Editar → Foto. */
+p.FOTO=dataUrl;
+bIdx(D);
+await sAll(D);
 invFotoPegadaDataUrl=null;
 var pegBox=document.getElementById('invFotoPegarBox');
 if(pegBox)pegBox.innerHTML='Sin foto pegada';
 if(btn)btn.style.display='none';
-/* Refleja al momento lo que se acaba de guardar en el cuadro "En REVISAR",
-   sin esperar a una nueva consulta a Drive; solo si seguimos en la misma
-   persona (por si mientras se guardaba se cambió de persona activa). */
-if(cid===idPersona){
-var revBox=document.getElementById('invFotoRevisarBox');
-if(revBox){
-if(invFotoRevisarObjectUrl){URL.revokeObjectURL(invFotoRevisarObjectUrl);invFotoRevisarObjectUrl=null;}
-revBox.innerHTML='<img src="'+escAttr(dataUrl)+'" style="width:100%;height:100%;object-fit:contain">';
-}
+pintarInvFotoActual();
+if(cid===idPersona)renderParientesInv();
+/* La subida a Drive es solo un intento oportunista: si ahora mismo hay
+   conexión válida, se sube directamente a FOTO/<ID>.jpg (sin carpeta
+   REVISAR intermedia); si no la hay, no se fuerza ninguna pantalla de
+   conexión — la foto ya está a salvo en el dispositivo y se sincronizará
+   sola la próxima vez que haya conexión (p.ej. al volver a editar la
+   ficha de esta persona). */
+if(driveRootFolderId&&tokenDriveValido()){
+subirFotoPersonaADrive(idPersona,dataUrl);
+toast('Foto guardada como foto oficial de '+fn(p)+' (también sincronizada con Drive)');
+}else{
+toast('Foto guardada como foto oficial de '+fn(p)+' en este dispositivo. Se sincronizará con Drive cuando haya conexión.');
 }
 }catch(err){
-toast('No se pudo guardar en Drive: '+err.message,true);
+toast('No se pudo guardar la foto: '+err.message,true);
 }finally{
-if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Guardar en Drive (a revisar)';}
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check"></i> Guardar como foto oficial';}
 }
 }
 function construirPromptInvestigacion(p){
@@ -6273,8 +6218,20 @@ return true;
 /* Descarga y parsea el archivo de años calculados desde la carpeta Datos. Se llama
 cada vez que se abre (o se refresca) el Gestor de datos: nunca se reutiliza en memoria de
 una apertura a otra, para que el Gestor refleje siempre el último recálculo confirmado. */
-async function cargarAniosCalculadosDrive(){
-if(!tokenDriveValido())await conectarGoogleDrive();
+async function cargarAniosCalculadosDrive(forzar){
+if(!tokenDriveValido()){
+/* Principio "conectar solo si hace falta": abrir el Gestor de datos NO debe
+   forzar la pantalla de elegir cuenta. Se intenta solo una reconexión
+   silenciosa (sin picker); si no hay sesión/consentimiento previos, se
+   avisa sin bloquear el resto de la pantalla. Solo cuando el propio usuario
+   pulsa "Reintentar" o "Recargar de Drive" (forzar=true) se abre el picker
+   completo, porque ahí sí es una decisión explícita suya. */
+if(driveRootFolderId)await conectarGoogleDrive(true).catch(function(){});
+if(!tokenDriveValido()){
+if(forzar)await conectarGoogleDrive();
+else throw new Error('Sin conexión con Google Drive ahora mismo. No hace falta conectar solo para ver el Gestor de datos: pulsa "Reintentar" si quieres conectarte también para ver las comprobaciones de años calculados.');
+}
+}
 var archivo=await buscarArchivoAniosCalculadosDrive();
 if(!archivo)throw new Error('Todavía no existe ningún año calculado guardado en Drive. Pulsa "Recalcular año calculado (ANOCALC)" en Herramientas al menos una vez.');
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+archivo.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
@@ -7043,13 +7000,13 @@ res.innerHTML=
 '<span class="ges-pill"><i class="fa-solid fa-list"></i> '+total+' elemento'+(total===1?'':'s')+' pendiente'+(total===1?'':'s')+'</span>'+
 '<span class="ges-pill">Actualizado '+new Date().toLocaleTimeString('es-ES')+'</span>'+
 (GES_ANIOS_SNAPSHOT_FECHA?'<span class="ges-pill" title="Fecha del último \'Recalcular año calculado (ANOCALC)\' en Herramientas"><i class="fa-solid fa-calculator"></i> Años calculados el '+esc(new Date(GES_ANIOS_SNAPSHOT_FECHA).toLocaleString('es-ES'))+'</span>':'')+
-'<button class="ef-btn ghost" style="padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Recargar de Drive</button>';
+'<button class="ef-btn ghost" style="padding:4px 12px;font-size:11px" onclick="rGes(true)"><i class="fa-solid fa-rotate"></i> Recargar de Drive</button>';
 }
 }
 /* Aviso NO bloqueante: si falló la descarga del snapshot de años calculados, se avisa aquí
 arriba, pero las categorías que no dependen de él (duplicados, lugares, completitud, huecos
 de ID) se siguen mostrando debajo con normalidad. */
-var avisoSnapshot=GES_SNAPSHOT_ERROR?('<div class="ges-ok" style="border-color:#c0392b;margin-bottom:10px"><i class="fa-solid fa-triangle-exclamation" style="font-size:20px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(GES_SNAPSHOT_ERROR)+'<br>Las comprobaciones que dependen del año calculado (inconsistencias de edad, personas sin año estimable, mayores de 100 años) están pausadas hasta reconectar; el resto de comprobaciones de abajo (duplicados, lugares, completitud, huecos de ID) siguen funcionando con normalidad.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes()"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>'):'';
+var avisoSnapshot=GES_SNAPSHOT_ERROR?('<div class="ges-ok" style="border-color:#c0392b;margin-bottom:10px"><i class="fa-solid fa-triangle-exclamation" style="font-size:20px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(GES_SNAPSHOT_ERROR)+'<br>Las comprobaciones que dependen del año calculado (inconsistencias de edad, personas sin año estimable, mayores de 100 años) están pausadas hasta reconectar; el resto de comprobaciones de abajo (duplicados, lugares, completitud, huecos de ID) siguen funcionando con normalidad.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes(true)"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>'):'';
 if(!cats.length){
 /* §3: si todas las categorias estan a 0, un unico mensaje de exito (salvo que haya un aviso de Drive que mostrar) */
 cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>Todo limpio: no queda ningún problema pendiente en el árbol.</div></div>';
@@ -7076,12 +7033,12 @@ sigue devolviendo NACA, nunca inventa nada), pero el resto de categorías del Ge
 duplicados, lugares no homogéneos, completitud, huecos de ID— NO dependen de este archivo y se
 siguen calculando igual: un fallo de Drive ya no bloquea toda la pantalla. */
 var GES_SNAPSHOT_ERROR=null;
-async function rGes(){
+async function rGes(forzar){
 var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
 if(res)res.innerHTML='';
 if(cont)cont.innerHTML='<div class="ges-ok"><i class="fa-solid fa-spinner fa-spin" style="font-size:22px"></i><div>Cargando el archivo de años calculados desde la carpeta Datos en Drive...</div></div>';
 try{
-var snap=await cargarAniosCalculadosDrive();
+var snap=await cargarAniosCalculadosDrive(forzar);
 GES_ANIOS_SNAPSHOT=snap.anios;
 GES_ANIOS_SNAPSHOT_FECHA=snap.fecha;
 GES_SNAPSHOT_ERROR=null;
@@ -10019,6 +9976,12 @@ function primerGesto(){intentarConexionSilenciosaDrive();}
    usuario. Así la conexión se mantiene sola mientras la app siga abierta. */
 setInterval(function(){
 if(!driveRootFolderId)return;
+/* Principio "conectar solo si hace falta": si en esta sesión todavía no ha
+   habido ninguna conexión real con Drive (huboSesionDriveActiva sigue a
+   false), no tiene sentido intentar renovar nada cada 4 minutos en segundo
+   plano — no hay nada que renovar. Solo se activa este mantenimiento
+   periódico una vez que la app se ha conectado de verdad al menos una vez. */
+if(!huboSesionDriveActiva)return;
 if(tokenDriveValido()){huboSesionDriveActiva=true;guardarSesionDriveLocal();return;}
 conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();}).catch(function(){
 /* ===== MEJORA: si hubo una sesión activa y la renovación silenciosa falla,
