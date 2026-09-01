@@ -796,6 +796,12 @@ body{background:#fff}
 <div class="print-area" id="printArea"></div>
 <script>
 var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
+/* Se pone a true en cuanto la base de datos LOCAL (IndexedDB, sin internet)
+   termina de cargarse en memoria al abrir la app. Mientras es false, doSrch()
+   no debe decir "Sin resultados" -- todavía no hay nada cargado con lo que
+   buscar, así que se avisa de que se está cargando en vez de dar a entender
+   que la búsqueda ha fallado. */
+var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
 var APP_VERSION = '2026.08.30.1';
 var APP_CHANGELOG = [
@@ -4377,6 +4383,17 @@ q=(q||'').toLowerCase().trim();
 var activos=busFiltrosActivos();
 var cEl=document.getElementById('busFiltrosCount');
 if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textContent='';return;}
+if(!datosLocalesListos){
+/* La base de datos local (guardada en el propio navegador, sin internet)
+   todavía se está cargando en memoria -- esto tarda solo un instante, pero
+   si el usuario busca justo al abrir la app puede llegar antes. Se avisa
+   claramente de que es cuestión de cargar, no que la búsqueda haya
+   fallado; en cuanto termine de cargar, init() vuelve a lanzar esta misma
+   búsqueda con lo que haya escrito. */
+document.getElementById('rl').innerHTML='<p style="text-align:center;color:var(--muted);padding:20px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';
+if(cEl)cEl.textContent='';
+return;
+}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 if(q){
@@ -4440,6 +4457,7 @@ q=(q||'').toLowerCase().trim();
 var cont=document.getElementById('quickSearchResults');
 if(!cont)return;
 if(!q){cont.innerHTML='';return;}
+if(!datosLocalesListos){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';return;}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
@@ -4706,7 +4724,10 @@ if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-siz
 document.getElementById('fco').innerHTML=h;
 cid=id;
 }
-function activarEdicion(id){cid=id;editMode=true;rFic(id);}
+function activarEdicion(id){
+if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder editar (toca el punto de Google Drive arriba) — así se evita escribir cambios que luego no se puedan guardar.',true);return;}
+cid=id;editMode=true;rFic(id);
+}
 function cancelarEdicion(id){editMode=false;rFic(id);}
 function linkFieldHtml(p,campo,labelTxt,sexoNuevo){
 var linkedId=p[campo];
@@ -6250,17 +6271,15 @@ cada vez que se abre (o se refresca) el Gestor de datos: nunca se reutiliza en m
 una apertura a otra, para que el Gestor refleje siempre el último recálculo confirmado. */
 async function cargarAniosCalculadosDrive(forzar){
 if(!tokenDriveValido()){
-/* Principio "conectar solo si hace falta": abrir el Gestor de datos NO debe
-   forzar la pantalla de elegir cuenta. Se intenta solo una reconexión
-   silenciosa (sin picker); si no hay sesión/consentimiento previos, se
-   avisa sin bloquear el resto de la pantalla. Solo cuando el propio usuario
-   pulsa "Reintentar" o "Recargar de Drive" (forzar=true) se abre el picker
-   completo, porque ahí sí es una decisión explícita suya. */
-if(driveRootFolderId)await conectarGoogleDrive(true).catch(function(){});
-if(!tokenDriveValido()){
+/* Abrir el Gestor de datos NUNCA debe intentar conectar solo con Drive, ni
+   siquiera en silencio: ese intento en segundo plano era lo que hacía que la
+   pantalla se quedara "colgada" esperando una respuesta de red. Si no hay
+   conexión, se avisa al instante (sin ningún intento de red) y el resto de
+   la pantalla, que es 100% local, se ve con normalidad igualmente. Solo
+   cuando el propio usuario pulsa "Reintentar" (forzar=true) se conecta de
+   verdad, porque ahí sí es una decisión explícita suya. */
 if(forzar)await conectarGoogleDrive();
 else throw new Error('Sin conexión con Google Drive ahora mismo. No hace falta conectar solo para ver el Gestor de datos: pulsa "Reintentar" si quieres conectarte también para ver las comprobaciones de años calculados.');
-}
 }
 var archivo=await buscarArchivoAniosCalculadosDrive();
 if(!archivo)throw new Error('Todavía no existe ningún año calculado guardado en Drive. Pulsa "Recalcular año calculado (ANOCALC)" en Herramientas al menos una vez.');
@@ -9967,7 +9986,7 @@ if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el 
 init();
 });
 }
-function init(){rStats(); doSrch(document.getElementById('si').value); if(cid) rTree(cid); comprobarInsignaNovedades(); mostrarCarruselHero();}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(busquedaRapidaEstaAbierta())doSrchRapida(document.getElementById('quickSearchInput').value); if(cid) rTree(cid); comprobarInsignaNovedades(); mostrarCarruselHero();}
 document.addEventListener('DOMContentLoaded',function(){
 /* Pinta de inmediato, con lo que quedó en caché local de la sesión anterior,
    una cara y un nombre en el carrusel: así se ve algo desde el primer
@@ -9981,7 +10000,7 @@ mostrarCacheCarruselHeroInicial();
    todavía dentro de su ventana de validez. ===== */
 restaurarSesionDriveLocal();
 function cargarInicial(data){
-D=data;bIdx(data);
+D=data;bIdx(data);datosLocalesListos=true;
 function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
 /* ANOCALC ya no se recalcula solo al arrancar: se deja la configuración de
    medias manuales cargada (la necesita el botón manual de Herramientas),
