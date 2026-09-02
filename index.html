@@ -189,6 +189,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .drive-status-info{cursor:default}
 .drive-status-info:hover{border-color:var(--border)}
 .drive-status .dot{width:9px;height:9px;border-radius:50%;background:#c0392b;flex-shrink:0}
+.drive-status.ok{background:rgba(90,138,60,.12);border-color:var(--green);color:#3d6428}
 .drive-status.ok .dot{background:var(--green)}
 .drive-status .ds-sub{color:var(--muted);font-weight:400}
 .drive-status.conectando{border-color:var(--accent);color:var(--accent);cursor:default;animation:dsPulso 1.1s ease-in-out infinite}
@@ -538,7 +539,7 @@ body{background:#fff}
 <div style="text-align:center">
 <div class="drive-status-row">
 <div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div>
-<button type="button" class="drive-status-mini" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Actualizar datos: carga la última copia oficial guardada en Google Drive" aria-label="Actualizar datos: carga la última copia oficial guardada en Google Drive"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
+<button type="button" class="drive-status" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive" aria-label="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive"><i class="fa-solid fa-tree" aria-hidden="true"></i><span>Restaurar árbol oficial</span></button>
 </div>
 <div id="backupWarnPill"></div>
 <div id="arbolOficialFechaTxt" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
@@ -1956,7 +1957,16 @@ error_callback:function(err){reject(new Error(err&&err.message?err.message:'Aute
    token y el error_callback rechaza la promesa (se ignora en el intento
    automático; solo se pide 'consent' explícito cuando el usuario interactúa
    a propósito con Drive, vía conectarGoogleDrive() sin argumento). */
-try{googleTokenClient.requestAccessToken({prompt:(silencioso||driveAccessToken)?'':'consent'});}catch(err){reject(err);}
+/* CORREGIDO: antes se comprobaba solo si driveAccessToken tenía algún valor
+   (verdadero incluso con un token ya caducado, que nunca se pone a null salvo
+   al desconectar manualmente), así que una reconexión explícita con el token
+   simplemente caducado intentaba el modo silencioso en vez de pedir el
+   consentimiento directamente. Si el navegador ya no tenía la sesión de Google
+   vigente, esa petición silenciosa podía tardar bastante en resolverse (o
+   fallar) antes de mostrar nada, dejando la pastilla en "Conectando..." mucho
+   más tiempo del necesario. Ahora se comprueba con tokenDriveValido(), que sí
+   tiene en cuenta la caducidad real. */
+try{googleTokenClient.requestAccessToken({prompt:(silencioso||tokenDriveValido())?'':'consent'});}catch(err){reject(err);}
 });
 }
 function tokenDriveValido(){return !!(driveAccessToken&&driveTokenExpira&&Date.now()<driveTokenExpira-30000);}
@@ -10103,7 +10113,16 @@ restaurarSesionDriveLocal();
 restaurarIdentidadRecordada();
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();
+/* MEJORA: además de reutilizar un token todavía válido (restaurarSesionDriveLocal,
+   más arriba), si el token ya caducó pero se conoce la carpeta raíz y el usuario
+   no pidió expresamente quedarse desconectado (driveModoManual), se intenta UNA
+   reconexión silenciosa (sin ventana, sin tocar nada) aprovechando que el
+   navegador puede seguir teniendo la sesión/consentimiento de Google vigentes.
+   Antes esto nunca se llamaba y la app arrancaba siempre desconectada salvo que
+   el token de ~58 min todavía no hubiera caducado desde la última vez. */
+intentarConexionSilenciosaDrive();
+});}
 /* ANOCALC ya no se recalcula solo al arrancar: se deja la configuración de
    medias manuales cargada (la necesita el botón manual de Herramientas),
    pero el cálculo en sí solo se dispara pulsando ese botón. */
@@ -10562,10 +10581,13 @@ var btnInv=document.querySelector('#mn button[data-view="inv"]');
 var btnCam=document.querySelector('#mn button[data-view="cam"]');
 if(btnInv)btnInv.style.display=conectado?'':'none';
 if(btnCam)btnCam.style.display=conectado?'':'none';
-if(!conectado){
-if(document.getElementById('vInv')&&document.getElementById('vInv').classList.contains('active'))sv('bus');
-if(document.getElementById('vCam')&&document.getElementById('vCam').classList.contains('active'))sv('bus');
-}
+/* CORREGIDO: antes, al desconectarse (o simplemente al caducar el token en
+   segundo plano) estando en Investigación o en Registro de cambios, esto
+   sacaba a la persona a la fuerza a la pantalla Buscar sin haberlo pedido.
+   Ambas pantallas ya saben mostrar su propio aviso de "conecta para ver esto"
+   (Registro de cambios, por ejemplo, ya muestra ese aviso sin conexión y
+   sigue enseñando la última lista guardada), así que ya no hace falta
+   redirigir: si la persona estaba leyendo algo ahí, se queda donde estaba. */
 if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibilidadHerramientasDrive();
 if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial();
 }
