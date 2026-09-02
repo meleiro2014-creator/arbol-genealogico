@@ -1141,7 +1141,10 @@ return tipoDeEmail(googleIdentidad.email);
    últimos 30 días), y por tanto no se puede decidir qué le corresponde ver.
    Se usa para distinguir esta situación de un "no hay resultados" real. */
 function necesitaConectarParaVer(){
-return !esAdministrador()&&!tipoUsuarioActual();
+/* Ver el árbol ya no exige conexión (ver puedeVerPersona/VISTA_ABIERTA_SIN_LOGIN
+   más abajo) -- se deja esta función devolviendo siempre false para que los
+   mensajes de "conecta para ver" ya no aparezcan en ningún sitio. */
+return false;
 }
 function miFichaId(){
 if(!googleIdentidad||!googleIdentidad.email)return null;
@@ -1493,6 +1496,18 @@ return set;
 }
 function puedeVerPersona(id){
 if(id==null||id==='')return false;
+/* ===== DECISIÓN EXPLÍCITA DEL ADMINISTRADOR (confirmada tras avisar de la
+   consecuencia): ver el árbol ya NO exige conectar con Google. Cualquiera con
+   el enlace de la app puede ver cualquier ficha, sin necesidad de login.
+   Esto no toca la protección de EDITAR (eso lo sigue exigiendo
+   exigirIdentidadGoogle en cada acción de guardar/subir/gestionar, que sí pide
+   conectar con una cuenta autorizada) ni el panel de administración
+   (esAdministrador() sigue exigiendo identidad real ahí). Para volver a
+   restringir también la vista a solo familiares autorizados, cambiar esta
+   constante a false y se restaura el comportamiento anterior (líneas más
+   abajo, sin tocarlas). */
+var VISTA_ABIERTA_SIN_LOGIN=true;
+if(VISTA_ABIERTA_SIN_LOGIN)return true;
 if(esAdministrador())return true;
 var tipo=tipoUsuarioActual();
 if(!tipo)return false;
