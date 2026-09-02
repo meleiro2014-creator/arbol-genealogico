@@ -1923,7 +1923,25 @@ googleTokenClient=google.accounts.oauth2.initTokenClient({
 client_id:GOOGLE_CLIENT_ID,
 scope:DRIVE_SCOPE,
 callback:async function(resp){
-if(resp&&resp.access_token){driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);await obtenerIdentidadGoogle();guardarSesionDriveLocal();huboSesionDriveActiva=true;avisarSiCuentaNoEsAdmin();await cargarConfigRaizDrive();sincronizarManualHTMLADrive();resolve(driveAccessToken);}
+if(resp&&resp.access_token){
+driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);
+guardarSesionDriveLocal();huboSesionDriveActiva=true;
+/* Antes se esperaba aquí, con await, a la identidad de Google y a la
+   configuración común de Drive antes de dar la conexión por buena: esa
+   cadena de llamadas de red adicionales es lo que hacía que "Conectando..."
+   tardase mucho más de lo necesario. Ahora se resuelve la conexión en
+   cuanto se tiene el token (ya se puede usar Drive), y el resto de datos
+   (identidad, configuración compartida, sincronización del HTML) se
+   completa en segundo plano sin bloquear al usuario. */
+resolve(driveAccessToken);
+(async function(){
+await obtenerIdentidadGoogle();
+guardarSesionDriveLocal();
+avisarSiCuentaNoEsAdmin();
+await cargarConfigRaizDrive();
+sincronizarManualHTMLADrive();
+})();
+}
 else reject(new Error('No se recibio el token de acceso'));
 },
 error_callback:function(err){reject(new Error(err&&err.message?err.message:'Autenticación cancelada'));}
@@ -3039,6 +3057,17 @@ mostrarVersionEnHerramientas();
 document.getElementById('modalHerramientas').style.display='flex';
 refrescarGrupoAdminHerramientas();
 mostrarEstadoCopiaLocalDriveEnHerramientas();
+actualizarVisibilidadHerramientasDrive();
+}
+function actualizarVisibilidadHerramientasDrive(){
+var conectado=tokenDriveValido();
+document.querySelectorAll('.herr-req-drive').forEach(function(el){
+if(el.id==='herrBtnOlvidarCopiaLocal'){
+if(!conectado)el.style.display='none';
+return;
+}
+el.style.display=conectado?'':'none';
+});
 }
 function refrescarGrupoAdminHerramientas(){
 var adminGroup=document.getElementById('herrAdminGroup');
@@ -4725,7 +4754,7 @@ var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button><button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button><button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button></div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div></div>';
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
@@ -4737,7 +4766,7 @@ h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span cl
 h+=htmlAvisosFicha(id);
 h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
 if(esAnioEstimado(p)){
-h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div class="fr"><span class="fl">Motivo</span><span class="fv" style="font-weight:400;font-size:11px;color:var(--muted)">'+esc(p.ANOCALC_MOTIVO||'')+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
+h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
 }
 var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
 var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
@@ -9761,7 +9790,7 @@ async function mostrarEstadoCopiaLocalDriveEnHerramientas() {
   if (!el) return;
   try {
     var estado = await obtenerEstadoCopiaLocalDrive();
-    if (btnOlvidar) btnOlvidar.style.display = estado.configurada ? '' : 'none';
+    if (btnOlvidar) btnOlvidar.style.display = (estado.configurada && tokenDriveValido()) ? '' : 'none';
     if (!estado.configurada) {
       el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada. Toca para configurarla.';
       return;
@@ -10523,6 +10552,16 @@ if(!btnGes)return;
 var esAdmin=esAdministrador();
 btnGes.style.display=esAdmin?'':'none';
 if(!esAdmin&&document.getElementById('vGes')&&document.getElementById('vGes').classList.contains('active'))sv('bus');
+var conectado=tokenDriveValido();
+var btnInv=document.querySelector('#mn button[data-view="inv"]');
+var btnCam=document.querySelector('#mn button[data-view="cam"]');
+if(btnInv)btnInv.style.display=conectado?'':'none';
+if(btnCam)btnCam.style.display=conectado?'':'none';
+if(!conectado){
+if(document.getElementById('vInv')&&document.getElementById('vInv').classList.contains('active'))sv('bus');
+if(document.getElementById('vCam')&&document.getElementById('vCam').classList.contains('active'))sv('bus');
+}
+if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibilidadHerramientasDrive();
 }
 function mostrarCambios(modo){if(!db||!db.objectStoreNames.contains(CAMBIOS_STORE))return;var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es la última guardada en este dispositivo, puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';mostrarCambios('pendientes');sincronizarCambiosDrive(false,true);}
@@ -10606,7 +10645,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
 <div class="herr-subhead">Fotos</div>
-<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button></div>
+<div class="herr-item herr-req-drive" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button></div>
 <!-- ===== MEJORA: aclaración de alcance para colaboradores/amigos — antes no
      quedaba claro por qué esta opción está disponible para cualquiera ni a
      quién afecta. ===== -->
@@ -10617,7 +10656,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Acceso</div>
-<button class="herr-item" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
@@ -10626,16 +10665,16 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
 <div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas)</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
-<button class="herr-item" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
-<button class="herr-item" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
+<button class="herr-item herr-req-drive" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
 <div class="herr-subhead">Copia oficial en Drive (solo tú subes esta copia)</div>
-<button class="herr-item" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
+<button class="herr-item herr-req-drive" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
-<button class="herr-item" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <div class="herr-subhead">Exportación</div>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
 </div>
