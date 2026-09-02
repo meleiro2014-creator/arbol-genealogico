@@ -1847,7 +1847,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();if(mostrarProgreso)actualizarProgresoDrive('Subiendo tus cambios pendientes...','camSyncProgresoWrap');await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){if(mostrarProgreso)actualizarProgresoDrive('Descargando cambios de otros colaboradores...','camSyncProgresoWrap');var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -3399,6 +3399,7 @@ if(!p)throw new Error('La persona activa ya no existe');
    hace falta"). p.FOTO pasa a ser la foto oficial de la persona, igual
    que si se hubiera puesto desde Ficha → Editar → Foto. */
 p.FOTO=dataUrl;
+p.FOTO_FECHA=new Date().toISOString();
 bIdx(D);
 await sAll(D);
 invFotoPegadaDataUrl=null;
@@ -5376,6 +5377,7 @@ return;
 }
 leerImagenImportadaConReintento(file,600,0.85).then(function(dataUrl){
 persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
+persona.FOTO_FECHA=new Date().toISOString();
 res.asociadas++;
 }).catch(function(err){
 var cat=esExtensionImportadaExperimental(file.name)?'formato_no_compatible':'lectura';
@@ -5461,6 +5463,7 @@ continue;
 try{
 var dataUrl=await leerImagenImportadaConReintento(blob,600,0.85);
 persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
+persona.FOTO_FECHA=new Date().toISOString();
 res.asociadas++;
 }catch(eProceso){
 var cat=esExtensionImportadaExperimental(f.name)?'formato_no_compatible':'lectura';
@@ -5573,6 +5576,7 @@ if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){
 p.ETIQUETAS=efEtiquetasEdit.join('|');
 if(fotoPendiente!==undefined){
 p.FOTO=fotoPendiente;
+p.FOTO_FECHA=new Date().toISOString();
 var fotoParaDrive=fotoPendiente,idParaDrive=id;
 fotoPendiente=undefined;
 if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
@@ -5643,7 +5647,7 @@ try{
 var newId=await elegirIdNueva();
 if(!newId)return;
 var antesCambioCrear=mapaPersonas(D);
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);
 var actual=PI[id];
 if(actual){
@@ -5803,7 +5807,7 @@ var newId=await elegirIdNueva();
 if(!newId){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 var duenio=PI[idDuenio];
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
 D.push(nuevo);
 bIdx(D);
 await anadirAmigoEntre(idDuenio,newId);
@@ -5854,7 +5858,7 @@ var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -9187,25 +9191,56 @@ var datos=[],fotos={};
 for(var i=0;i<personas.length;i++){
 var p=personas[i];
 var copia={};
-for(var k in p){if(k!=='FOTO')copia[k]=p[k];}
+for(var k in p){if(k!=='FOTO'&&k!=='FOTO_FECHA')copia[k]=p[k];}
 datos.push(copia);
-if(p.FOTO)fotos[p.ID]=p.FOTO;
+/* Cada foto lleva su propio modifiedTime (FOTO_FECHA, puesto por la app en
+   cuanto se añade/cambia/quita una foto, en cualquiera de sus vías: pegar
+   foto, formulario de ficha, importación masiva desde Drive o carpeta
+   local). Esto es lo que permite, al restaurar, distinguir fotos nuevas o
+   editadas de las que no han cambiado desde la última copia. */
+if(p.FOTO)fotos[p.ID]={foto:p.FOTO,modifiedTime:p.FOTO_FECHA||''};
 }
 return{datos:datos,fotos:fotos};
 }
-function fusionarFotosEnDatos(personas,fotosMap,fotosReserva){
+function fusionarFotosEnDatos(personas,fotosMap,fotosReserva,fotosReservaFecha){
 fotosMap=fotosMap||{};
 fotosReserva=fotosReserva||{};
+fotosReservaFecha=fotosReservaFecha||{};
+var nuevasOEditadas=0,conservadasLocales=0;
 for(var i=0;i<personas.length;i++){
 var id=personas[i].ID;
-/* Si la foto viene en el archivo de fotos de la copia, esa es la que manda
-   (es la fuente de verdad de la restauración). Si no viene (porque el
-   archivo de fotos no existe para esa persona, o porque directamente no se
-   ha pedido el archivo de fotos, p.ej. al elegir "solo datos"), se usa la
-   foto de reserva (la que ya había en este dispositivo) en vez de borrarla. */
-personas[i].FOTO=(fotosMap[id]!==undefined?fotosMap[id]:fotosReserva[id])||'';
+var entrada=fotosMap[id];
+if(entrada!==undefined){
+/* Compatibilidad con copias antiguas, donde el valor era directamente el
+   dataURL en vez de {foto, modifiedTime}. */
+var esObjeto=entrada&&typeof entrada==='object';
+var fotoRemota=esObjeto?entrada.foto:entrada;
+var fechaRemota=esObjeto?(entrada.modifiedTime||''):'';
+var fechaLocal=fotosReservaFecha[id]||'';
+/* Si este dispositivo ya tiene una foto con fecha más reciente que la de
+   la copia (se cambió aquí después de la última subida a Drive), se
+   conserva la local en vez de sustituirla por una versión más antigua. En
+   cualquier otro caso, incluidas las copias antiguas sin fecha, manda la
+   copia (es la fuente de verdad de la restauración). */
+if(fechaLocal&&fechaRemota&&fechaLocal>fechaRemota&&fotosReserva[id]!==undefined){
+personas[i].FOTO=fotosReserva[id]||'';
+personas[i].FOTO_FECHA=fechaLocal;
+conservadasLocales++;
+}else{
+personas[i].FOTO=fotoRemota||'';
+personas[i].FOTO_FECHA=fechaRemota;
+nuevasOEditadas++;
 }
-return personas;
+}else{
+/* No viene en el archivo de fotos de la copia: puede ser porque esa
+   persona no tiene foto en Drive, o porque no se ha pedido el archivo de
+   fotos (restauración "solo datos"). En ambos casos se conserva lo que ya
+   había en este dispositivo en vez de borrarlo. */
+personas[i].FOTO=fotosReserva[id]||'';
+personas[i].FOTO_FECHA=fotosReservaFecha[id]||'';
+}
+}
+return{personas:personas,nuevasOEditadas:nuevasOEditadas,conservadasLocales:conservadasLocales};
 }
 function descargarJSONComoArchivo(obj,nombreArchivo){
 var blob=new Blob([JSON.stringify(obj)],{type:'application/json;charset=utf-8'});
@@ -9244,17 +9279,20 @@ if(textoFotos){
 try{var copiaFotos=JSON.parse(textoFotos);if(copiaFotos&&copiaFotos.fotos&&typeof copiaFotos.fotos==='object')fotosMap=copiaFotos.fotos;}
 catch(errFotos){console.warn('No se pudo leer el archivo de fotos de la copia (se restaura solo con datos, sin fotos):',errFotos.message);}
 }
-/* Si no se ha pedido/descargado el archivo de fotos (restauración "solo
-   datos"), no hay que borrar las fotos que ya existían en este dispositivo:
-   se guardan aquí como reserva, por ID, ANTES de sustituir D, para que
-   fusionarFotosEnDatos las conserve en vez de dejarlas en blanco. */
-var fotosReserva={};
-if(!textoFotos){
-for(var jFoto=0;jFoto<D.length;jFoto++){if(D[jFoto]&&D[jFoto].FOTO)fotosReserva[D[jFoto].ID]=D[jFoto].FOTO;}
+/* Las fotos y su fecha que ya había en este dispositivo se guardan aquí como
+   reserva, por ID, ANTES de sustituir D. Sirven para dos cosas: no borrar
+   fotos que ya había cuando la restauración es "solo datos" o cuando una
+   persona no tiene foto en la copia, y —gracias a FOTO_FECHA— para que
+   fusionarFotosEnDatos pueda conservar una foto local si es más reciente
+   que la de la copia, en vez de sobrescribirla siempre con la de Drive. */
+var fotosReserva={},fotosReservaFecha={};
+for(var jFoto=0;jFoto<D.length;jFoto++){
+if(D[jFoto]&&D[jFoto].FOTO){fotosReserva[D[jFoto].ID]=D[jFoto].FOTO;fotosReservaFecha[D[jFoto].ID]=D[jFoto].FOTO_FECHA||'';}
 }
-fusionarFotosEnDatos(personas,fotosMap,fotosReserva);
+var resultadoFusion=fusionarFotosEnDatos(personas,fotosMap,fotosReserva,fotosReservaFecha);
 ocultarProgresoDrive();
-if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.')))return;
+var avisoFotos=textoFotos?(' ('+resultadoFusion.nuevasOEditadas+' fotos nuevas o editadas'+(resultadoFusion.conservadasLocales?', '+resultadoFusion.conservadasLocales+' conservadas de este dispositivo por ser más recientes':'')+')'):'';
+if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.'+avisoFotos)))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
 sAll(personas).then(function(){
 D=personas;bIdx(D);cid=null;editMode=false;
@@ -10048,7 +10086,7 @@ if(_cancelada())return;
    por consola, sin bloquear la restauración de los datos por un problema
    que solo afecta a las fotos. */
 var textoFotos=null;
-var incluirFotos=await confirmarApp('Restaurar también las fotos desde Drive puede tardar bastante. Puedes restaurar solo los datos ahora (rápido) y traer las fotos más tarde con «Importar fotos».',{titulo:'¿Restaurar también las fotos?',textoAceptar:'Con fotos',textoCancelar:'Solo datos (rápido)'});
+var incluirFotos=await confirmarApp('Restaurar también las fotos desde Drive puede tardar bastante en descargarse. Una vez descargadas, la app aplica solo las que son nuevas o se han editado desde la última copia (las que no han cambiado no se tocan). Puedes restaurar solo los datos ahora (rápido) y traer las fotos más tarde con «Importar fotos».',{titulo:'¿Restaurar también las fotos?',textoAceptar:'Con fotos',textoCancelar:'Solo datos (rápido)'});
 if(_cancelada())return;
 if(incluirFotos){
 try{
