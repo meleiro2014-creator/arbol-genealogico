@@ -918,6 +918,7 @@ function guardarSesionDriveLocal(){
 try{
 if(driveAccessToken&&driveTokenExpira){
 localStorage.setItem(DRIVE_SESSION_KEY,JSON.stringify({token:driveAccessToken,expira:driveTokenExpira,identidad:googleIdentidad}));
+guardarIdentidadRecordada();
 }else{
 localStorage.removeItem(DRIVE_SESSION_KEY);
 }
@@ -934,8 +935,37 @@ huboSesionDriveActiva=true;/* había una sesión real guardada: el mantenimiento
 return true;
 }catch(e){return false;}
 }
-function borrarSesionDriveLocal(){try{localStorage.removeItem(DRIVE_SESSION_KEY);}catch(e){}}
+function borrarSesionDriveLocal(){try{localStorage.removeItem(DRIVE_SESSION_KEY);}catch(e){}borrarIdentidadRecordada();}
 var huboSesionDriveActiva=false,_ultimoAvisoProactivoTs=0;
+/* ===== MEJORA: "quién soy" recordado, separado del token de acceso a Drive =====
+   El token de acceso de Google caduca a la hora (~58 min) y, al no haber
+   refresh_token en este tipo de conexión, renovarlo casi siempre exige volver
+   a pasar por la pantalla de Google. Eso NO debería impedir ver los datos que
+   ya están guardados en este dispositivo: para poder mostrarlos (o filtrarlos
+   según quién eres) solo hace falta saber "quién eres", no tener el token vivo
+   en ese instante. Por eso se guarda la identidad (email/nombre) por separado,
+   con una validez mucho más larga (30 días), y se restaura al abrir la app
+   aunque el token ya haya caducado. Reconectar con Google solo hace falta
+   para: la primera vez, pasados esos 30 días, o para leer/guardar algo nuevo
+   en Drive (subir foto, guardar ficha, etc.), que sí necesita un token válido. */
+var IDENTIDAD_RECORDADA_KEY='libroAncestros_identidadRecordada_v1';
+var IDENTIDAD_RECORDADA_DIAS=30;
+function guardarIdentidadRecordada(){
+if(!googleIdentidad||!googleIdentidad.email)return;
+try{localStorage.setItem(IDENTIDAD_RECORDADA_KEY,JSON.stringify({identidad:googleIdentidad,guardadoEn:Date.now()}));}catch(e){}
+}
+function borrarIdentidadRecordada(){try{localStorage.removeItem(IDENTIDAD_RECORDADA_KEY);}catch(e){}}
+function restaurarIdentidadRecordada(){
+try{
+var raw=localStorage.getItem(IDENTIDAD_RECORDADA_KEY);
+if(!raw)return false;
+var s=JSON.parse(raw);
+if(!s||!s.identidad||!s.identidad.email||!s.guardadoEn)return false;
+if(Date.now()-s.guardadoEn>IDENTIDAD_RECORDADA_DIAS*24*60*60*1000){localStorage.removeItem(IDENTIDAD_RECORDADA_KEY);return false;}
+if(!googleIdentidad)googleIdentidad=s.identidad; /* si ya hay una identidad fresca (token válido), esa manda */
+return true;
+}catch(e){return false;}
+}
 /* ===== Modo manual de Drive (a petición del usuario): "desconecta y no
    reconectes sola hasta que yo lo pida". Mientras esté activo, ni el intento
    silencioso al primer gesto ni el mantenimiento periódico (cada 4 min)
@@ -1106,6 +1136,12 @@ return null;
 function tipoUsuarioActual(){
 if(!googleIdentidad||!googleIdentidad.email)return null;
 return tipoDeEmail(googleIdentidad.email);
+}
+/* true si todavía no sabemos quién es (ni identidad fresca ni recordada de los
+   últimos 30 días), y por tanto no se puede decidir qué le corresponde ver.
+   Se usa para distinguir esta situación de un "no hay resultados" real. */
+function necesitaConectarParaVer(){
+return !esAdministrador()&&!tipoUsuarioActual();
 }
 function miFichaId(){
 if(!googleIdentidad||!googleIdentidad.email)return null;
@@ -4394,6 +4430,16 @@ document.getElementById('rl').innerHTML='<p style="text-align:center;color:var(-
 if(cEl)cEl.textContent='';
 return;
 }
+if(necesitaConectarParaVer()){
+/* No confundir "no hay nadie que coincida" con "no sabemos quién eres
+   todavía": si no hay ninguna identidad de Google (ni fresca ni recordada),
+   puedeVerPersona() devolvería false para todo el mundo y parecería que la
+   base de datos está vacía. Se avisa claramente y se ofrece conectar aquí
+   mismo, en vez de forzarlo solo. */
+document.getElementById('rl').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px"><p style="margin-bottom:10px">Conecta tu cuenta de Google para ver el árbol familiar.</p><button type="button" class="ef-btn save" onclick="accionDriveStatusPill()"><i class="fa-brands fa-google"></i> Conectar con Google</button></div>';
+if(cEl)cEl.textContent='';
+return;
+}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 if(q){
@@ -4458,6 +4504,7 @@ var cont=document.getElementById('quickSearchResults');
 if(!cont)return;
 if(!q){cont.innerHTML='';return;}
 if(!datosLocalesListos){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';return;}
+if(necesitaConectarParaVer()){cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:14px"><p style="margin-bottom:8px;font-size:12px">Conecta tu cuenta de Google para ver el árbol familiar.</p><button type="button" class="ef-btn save" onclick="accionDriveStatusPill()"><i class="fa-brands fa-google"></i> Conectar con Google</button></div>';return;}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
@@ -4504,7 +4551,7 @@ function selP(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',
    (a diferencia de selP, que lleva al Árbol). Se usa para los enlaces a
    Padre/Madre/Cónyuge/Abuelos/Hermanos/Hijos dentro de la ficha, y también
    desde el botón "Abrir ficha" del árbol. */
-function irAFicha(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
+function irAFicha(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editMode=false;sv('fic');}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
@@ -4653,7 +4700,7 @@ var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
 }
 function irFicha(){editMode=false;sv('fic');}
-function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
+function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editMode=false;sv('fic');}
 function rFic(id){
 if(editMode) rFicEdit(id); else rFicView(id);
 actualizarBarraActiva();
@@ -9999,6 +10046,12 @@ mostrarCacheCarruselHeroInicial();
    desconecta de Drive" al recargar la página o reabrir la app con la sesión
    todavía dentro de su ventana de validez. ===== */
 restaurarSesionDriveLocal();
+/* ===== MEJORA: además del token (que caduca en ~1h), recupera "quién eres"
+   de la caché larga (30 días) aunque el token ya no sea válido, para poder
+   ver y buscar en los datos locales sin pedir conexión. Si en algún momento
+   hace falta hablar de verdad con Drive (guardar, subir...), ahí sí se pedirá
+   conectar, con el token nuevo confirmando que sigues siendo tú. ===== */
+restaurarIdentidadRecordada();
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
 function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();});}
@@ -10008,15 +10061,23 @@ function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizar
 cargarMediasManualesANOCALC().then(continuar).catch(function(err){console.error('Error cargando configuración de medias ANOCALC:',err);continuar();});
 }
 oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){console.error("Error al iniciar:", err);toast('Cargando base de datos...',true);setTimeout(function(){oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err2){console.error("Error al reintentar el arranque:",err2);toast('No se pudo cargar la base de datos: '+err2.message+'. Prueba a cerrar otras pestañas de la app y recarga.',true);});},500);});
-/* Punto 2 (simplificar acceso a Drive): en la primera interacción real del
-   usuario con la página (clic, tecla o toque) se intenta reconectar con Drive
-   en silencio, sin pedir consentimiento. Si el navegador conserva la sesión de
-   Google y el permiso ya concedido, la app queda "Conectada a Google Drive"
-   sola, sin que el usuario vea ninguna de las 3 pantallas. */
-(function(){
-function primerGesto(){intentarConexionSilenciosaDrive();}
-['click','keydown','touchstart'].forEach(function(ev){document.addEventListener(ev,primerGesto,{once:true,passive:true});});
-})();
+/* ===== MEJORA: ya NO se intenta reconectar con Google en el primer clic/tecla/
+   toque en cualquier parte de la página. Aunque se pedía en modo "silencioso"
+   (sin pantalla de consentimiento), Google sigue abriendo una ventana/pestaña
+   real para completarlo, así que el usuario lo notaba como "me pide conectar"
+   justo al tocar cualquier cosa (p.ej. una foto), sin haberlo pedido él.
+   Ahora la conexión con Google SOLO se intenta en estos casos:
+   1) Al abrir la app, de forma totalmente pasiva: si hay un token guardado
+      que todavía es válido (restaurarSesionDriveLocal, más abajo), se usa sin
+      mostrar nada. Si el token ya caducó, no se hace nada más aquí.
+   2) Si el usuario toca explícitamente el punto/pastilla de estado de Google
+      Drive (accionDriveStatusPill) o un botón "Conectar"/"Reintentar".
+   3) Si el usuario realiza una acción que de verdad necesita Drive (guardar
+      una ficha, subir una foto/documento, hacer una copia...), justo en ese
+      momento y no antes.
+   Ver también restaurarIdentidadRecordada(): quién eres se recuerda 30 días
+   para poder ver y buscar en los datos ya guardados en el dispositivo sin
+   necesidad de que el token de Drive esté vivo. */
 /* Renovación periódica: el token de acceso de Google caduca a los ~58 min por
    diseño de Google (no es algo que dependa de esta app). En vez de esperar a
    que alguien note la desconexión y toque la pastilla, cada 4 minutos se
