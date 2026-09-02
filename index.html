@@ -188,6 +188,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .drive-status:hover{border-color:var(--accent)}
 .drive-status-info{cursor:default}
 .drive-status-info:hover{border-color:var(--border)}
+.drive-status-info.ok{background:transparent;border-color:transparent;padding-left:2px}
 .drive-status .dot{width:9px;height:9px;border-radius:50%;background:#c0392b;flex-shrink:0}
 .drive-status.ok{background:rgba(90,138,60,.12);border-color:var(--green);color:#3d6428}
 .drive-status.ok .dot{background:var(--green)}
@@ -551,7 +552,7 @@ body{background:#fff}
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados" aria-label="Filtros avanzados de búsqueda" aria-expanded="false" aria-controls="busFiltrosPanel"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+<button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
@@ -1889,19 +1890,24 @@ return;
 }
 if(!tokenDriveValido()){
 /* Si estaba en modo manual, al tocar el punto el usuario está pidiendo
-   explícitamente reconectar: se desactiva el modo manual y se conecta. */
+   explícitamente reconectar: se desactiva el modo manual y se conecta.
+   Primero se intenta en modo silencioso (sin pantalla de consentimiento):
+   si el navegador todavía tiene la sesión/consentimiento de Google vigentes,
+   el token llega mucho más rápido que forzando siempre la pantalla de
+   consentimiento; solo si el intento silencioso falla se pide consentimiento
+   explícito. */
 desactivarModoManualDrive();
 mostrarConectandoDrivePill();
-conectarGoogleDrive().then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();actualizarFechaArbolOficial();toast('Conectado a Google Drive');}).catch(function(err){actualizarDriveStatusPill();toast('No se pudo conectar con Google Drive: '+err.message,true);});
+conectarGoogleDrive(true).catch(function(){return conectarGoogleDrive();}).then(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();actualizarFechaArbolOficial();toast('Conectado a Google Drive');}).catch(function(err){actualizarDriveStatusPill();toast('No se pudo conectar con Google Drive: '+err.message,true);});
 return;
 }
-/* Ya conectado: tocar el punto ofrece la opción de desconectar y quedarse en
-   modo manual (no reconectar sola) hasta que el usuario lo pida de nuevo. */
-if(confirm('Ya estás conectado a Google Drive.\n\n¿Quieres desconectar y que no se reconecte sola? Podrás volver a conectar cuando quieras tocando el punto otra vez.')){
+/* Ya conectado: tocar el punto (ahora verde) desconecta directamente y deja
+   la app en modo manual (no se reconectará sola) hasta que el usuario vuelva
+   a tocarlo. Al desconectar, se lleva a la persona a la pantalla Buscar para
+   que se actualicen de inmediato las pantallas y botones que dependen de
+   estar conectado. */
 activarModoManualDrive();
-return;
-}
-actualizarDriveStatusPill();
+sv('bus');
 }
 function actualizarBackupWarnPill(){
 var cont=document.getElementById('backupWarnPill');
@@ -10100,28 +10106,33 @@ document.addEventListener('DOMContentLoaded',function(){
    o de Drive) todavía se están cargando. En cuanto lleguen los datos
    reales, mostrarCarruselHero() sigue el relevo con normalidad. */
 mostrarCacheCarruselHeroInicial();
-/* ===== MEJORA: recupera la sesión de Drive guardada (si sigue siendo válida)
-   antes de decidir si hace falta pedir conexión de nuevo. Evita el "se
-   desconecta de Drive" al recargar la página o reabrir la app con la sesión
-   todavía dentro de su ventana de validez. ===== */
-restaurarSesionDriveLocal();
-/* ===== MEJORA: además del token (que caduca en ~1h), recupera "quién eres"
-   de la caché larga (30 días) aunque el token ya no sea válido, para poder
-   ver y buscar en los datos locales sin pedir conexión. Si en algún momento
-   hace falta hablar de verdad con Drive (guardar, subir...), ahí sí se pedirá
-   conectar, con el token nuevo confirmando que sigues siendo tú. ===== */
-restaurarIdentidadRecordada();
+/* ===== A PETICIÓN DEL USUARIO: la app debe arrancar SIEMPRE desconectada de
+   Google Drive, sin excepción, y quien decide cuándo conectarse o
+   desconectarse es siempre la persona, tocando el punto de estado. Por eso
+   ya NO se restaura aquí ninguna sesión de Drive guardada de una vez
+   anterior (antes esto podía dejar la app "ya conectada" al abrirla, o
+   disparar sin avisar una petición de identificación con Google nada más
+   abrir). Cualquier sesión que hubiera quedado guardada se borra también
+   aquí, por si acaso, para que no quede ningún resto que pueda reutilizarse
+   más tarde sin que el usuario lo haya pedido explícitamente. */
+borrarSesionDriveLocal();
+desactivarModoManualDrive(); /* arranque limpio: ni conectado ni "modo manual" heredado de antes */
+/* Y, simétricamente, al cerrar o salir de la app (cerrar la pestaña, recargar,
+   pasar la app a segundo plano de forma duradera en el móvil...) se borra
+   también cualquier sesión de Drive que se hubiera llegado a abrir durante
+   este uso, para que la próxima vez que se abra la app vuelva a estar
+   desconectada, tal y como pide el usuario. pagehide es más fiable que
+   beforeunload en móviles (se dispara también al minimizar/cerrar la app). */
+['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSesionDriveLocal();});});
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);sincronizarCambiosDrive(false);ejecutarCopiaLocalSiToca();sincronizarManualHTMLADrive();
-/* MEJORA: además de reutilizar un token todavía válido (restaurarSesionDriveLocal,
-   más arriba), si el token ya caducó pero se conoce la carpeta raíz y el usuario
-   no pidió expresamente quedarse desconectado (driveModoManual), se intenta UNA
-   reconexión silenciosa (sin ventana, sin tocar nada) aprovechando que el
-   navegador puede seguir teniendo la sesión/consentimiento de Google vigentes.
-   Antes esto nunca se llamaba y la app arrancaba siempre desconectada salvo que
-   el token de ~58 min todavía no hubiera caducado desde la última vez. */
-intentarConexionSilenciosaDrive();
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);ejecutarCopiaLocalSiToca();
+/* A PETICIÓN DEL USUARIO: la app arranca siempre desconectada de Google
+   Drive y ya NO intenta conectarse sola (ni en silencio) al abrirse; la
+   conexión solo se produce cuando la persona toca explícitamente el punto
+   de estado. Por eso ya no se llama aquí a intentarConexionSilenciosaDrive(),
+   ni se sincronizan cambios/HTML con Drive al arrancar (eso exige estar
+   conectado, y aquí nunca lo está). */
 });}
 /* ANOCALC ya no se recalcula solo al arrancar: se deja la configuración de
    medias manuales cargada (la necesita el botón manual de Herramientas),
@@ -10565,7 +10576,7 @@ tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes'
 tx.onerror=function(){toast('No se pudo cargar el registro de cambios desde Drive',true);};
 }).catch(function(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);});
 }
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa el botón rojo.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}actualizarVisibilidadNavAdmin();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa el botón rojo.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
 conectada como colaboradores). Si alguien ya estaba en esa vista y deja de ser admin
