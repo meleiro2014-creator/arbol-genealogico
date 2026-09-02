@@ -547,7 +547,7 @@ body{background:#fff}
 <div class="quick-search-backdrop" id="quickSearchOverlay" role="dialog" aria-modal="true" aria-label="Buscar una persona" onclick="if(event.target===this)cerrarBusquedaRapida()">
 <div class="quick-search-panel">
 <div class="quick-search-head">
-<div class="search-box" style="margin:0;flex:1"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="quickSearchInput" class="sr-only">Buscar personas por nombre, apellido o lugar</label><input type="text" id="quickSearchInput" placeholder="Nombre, apellido, lugar..." autocomplete="off"></div>
+<div class="search-box" style="margin:0;flex:1"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="quickSearchInput" class="sr-only">Buscar personas por nombre, apellido o lugar</label><input type="text" id="quickSearchInput" placeholder="Nombre, apellido, lugar, ID..." autocomplete="off"></div>
 <button type="button" class="nav-hist-btn" onclick="cerrarBusquedaRapida()" title="Cerrar" aria-label="Cerrar búsqueda"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
 </div>
 <div id="quickSearchResults" class="quick-search-results"></div>
@@ -574,7 +574,7 @@ body{background:#fff}
 </div>
 </div>
 <div class="search-row">
-<div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar u observaciones..." autocomplete="off"></div>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar, ID u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados" aria-label="Filtros avanzados de búsqueda" aria-expanded="false" aria-controls="busFiltrosPanel"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
@@ -1628,6 +1628,37 @@ var btnA=document.getElementById('modalConfirmAppAceptar'),btnC=document.getElem
 if(btnA)btnA.onclick=function(){resolverConfirmarApp(true);};
 if(btnC)btnC.onclick=function(){resolverConfirmarApp(false);};
 if(modal)modal.addEventListener('keydown',function(e){if(e.key==='Escape')resolverConfirmarApp(false);});
+});
+})();
+/* ===== Elegir modo de importación de fotos: "todas" o "solo las que han
+   cambiado" =====
+   Se usa tanto para la importación desde Drive como desde una carpeta local
+   (ver importarFotosDesdeDrive / solicitarImportarFotosLocal). Devuelve una
+   promesa que resuelve a 'todas', 'cambiadas' o null (cancelado). */
+var modoImportFotosResolver=null;
+function elegirModoImportFotos(origenTexto){
+return new Promise(function(resolve){
+var modal=document.getElementById('modalModoImportFotos');
+if(!modal){resolve('todas');return;}
+document.getElementById('modalModoImportFotosTexto').textContent='Vas a importar fotografías '+origenTexto+'.';
+modoImportFotosResolver=resolve;
+modal.style.display='flex';
+var btnTodas=document.getElementById('modalModoImportFotosTodas');
+if(btnTodas)btnTodas.focus();
+});
+}
+function resolverModoImportFotos(valor){
+var modal=document.getElementById('modalModoImportFotos');
+if(modal)modal.style.display='none';
+if(modoImportFotosResolver){var r=modoImportFotosResolver;modoImportFotosResolver=null;r(valor);}
+}
+(function(){
+document.addEventListener('DOMContentLoaded',function(){
+var btnCancelar=document.getElementById('modalModoImportFotosCancelar'),btnCambiadas=document.getElementById('modalModoImportFotosCambiadas'),btnTodas=document.getElementById('modalModoImportFotosTodas'),modal=document.getElementById('modalModoImportFotos');
+if(btnCancelar)btnCancelar.onclick=function(){resolverModoImportFotos(null);};
+if(btnCambiadas)btnCambiadas.onclick=function(){resolverModoImportFotos('cambiadas');};
+if(btnTodas)btnTodas.onclick=function(){resolverModoImportFotos('todas');};
+if(modal)modal.addEventListener('keydown',function(e){if(e.key==='Escape')resolverModoImportFotos(null);});
 });
 })();
 function botonCargando(btn,activo,textoCarga){
@@ -4556,7 +4587,10 @@ var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 if(q){
 var an=String(pdAnioTexto(p)||'').toLowerCase();
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
+/* Se incluye el ID de la persona en el texto de búsqueda para permitir
+   "búsqueda inversa": escribiendo el ID exacto (o parte de él) aparece la
+   persona correspondiente con su nombre. */
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
 if(!coincideBusqueda(texto,q))return false;
 }
 if(busFiltros.lugar){
@@ -4620,7 +4654,9 @@ if(necesitaConectarParaVer()){cont.innerHTML='<div style="text-align:center;colo
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
+/* Igual que en doSrch: el ID entra en el texto buscable para la búsqueda inversa
+   (ID → nombre) también desde esta búsqueda rápida flotante. */
+var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
 return coincideBusqueda(texto,q);
 });
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
@@ -5115,8 +5151,8 @@ var b=document.getElementById(id);
 if(b)b.disabled=!!activo;
 });
 }
-function crearResultadoImportFotos(origen){
-return{origen:origen,encontrados:0,reconocidas:0,asociadas:0,sinPersona:[],errores:[]};
+function crearResultadoImportFotos(origen,modo){
+return{origen:origen,modo:modo||'todas',encontrados:0,reconocidas:0,asociadas:0,sinCambios:0,sinPersona:[],errores:[]};
 }
 function abrirModalImportFotos(titulo){
 document.getElementById('impFotosTitulo').textContent=titulo;
@@ -5175,9 +5211,11 @@ var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">
 h+='<span class="ges-pill">Archivos encontrados: '+res.encontrados+'</span>';
 h+='<span class="ges-pill">Imágenes reconocidas: '+res.reconocidas+'</span>';
 h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Asociadas a una persona: '+res.asociadas+'</span>';
+if(res.modo==='cambiadas')h+='<span class="ges-pill">Sin cambios (omitidas): '+res.sinCambios+'</span>';
 h+='<span class="ges-pill">Sin persona coincidente: '+res.sinPersona.length+'</span>';
 h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: '+res.errores.length+'</span>';
 h+='</div>';
+if(res.modo==='cambiadas')h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">Modo "solo las que han cambiado": se han omitido los archivos cuya fecha de modificación no es más reciente que la de la foto ya guardada de esa persona.</p>';
 if(res.asociadas)h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">Si alguna de estas personas ya tenía una fotografía, se ha sustituido por la nueva.</p>';
 h+=renderDetalleImportFotos('Archivos sin persona coincidente (no se adivinan coincidencias aproximadas, por seguridad)',res.sinPersona);
 h+=renderDetalleImportFotos('Fotografías con errores',res.errores);
@@ -5297,7 +5335,21 @@ if(r.status===401){driveAccessToken=null;return;}
 console.warn('No se pudo eliminar la foto de la persona '+id+' en Drive:',err.message);
 }
 }
-function solicitarImportarFotosLocal(){
+/* ===== Detección de "solo las que han cambiado" =====
+   Compara la fecha de modificación del archivo de origen (fechaModMs, en
+   milisegundos: file.lastModified en carpeta local, o Date.parse(modifiedTime)
+   en Drive) con la fecha guardada de la última foto de esa persona
+   (persona.FOTO_FECHA). Si la persona todavía no tiene foto, o no hay fecha
+   fiable del archivo de origen, nunca se omite (se importa por seguridad). */
+function fotoDebeOmitirsePorNoCambiar(persona,fechaModMs){
+if(!persona||!persona.FOTO||!persona.FOTO_FECHA)return false;
+if(!fechaModMs||isNaN(fechaModMs))return false;
+var fechaGuardada=Date.parse(persona.FOTO_FECHA);
+if(isNaN(fechaGuardada))return false;
+return fechaModMs<=fechaGuardada;
+}
+var importFotosModoSeleccionado='todas';
+async function solicitarImportarFotosLocal(){
 /* La lectura de una carpeta del propio ordenador NO requiere ninguna sesión de
    Google: solo la importación desde Drive necesita identidad/conexión con
    Google. Pero, a diferencia de la importación desde Drive (que cualquiera
@@ -5307,6 +5359,9 @@ function solicitarImportarFotosLocal(){
 if(!esAdministrador()){toast('Importar fotos desde una carpeta local es exclusivo del administrador',true);return;}
 if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
+var modo=await elegirModoImportFotos('desde una carpeta de este ordenador');
+if(!modo)return;
+importFotosModoSeleccionado=modo;
 document.getElementById('fiFotos').click();
 }
 function importarFotosCarpeta(fileList){
@@ -5327,10 +5382,11 @@ return rel.split('/').length===2;
 });
 if(!files.length){toast('No se han encontrado archivos en la raíz de la carpeta seleccionada (las fotos dentro de subcarpetas no se importan)',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
+var modoLocal=importFotosModoSeleccionado||'todas';
 importFotosEnCurso=true;
 fijarBotonesImportFotos(true);
-abrirModalImportFotos('Importando fotografías desde tu ordenador');
-var res=crearResultadoImportFotos('local');
+abrirModalImportFotos('Importando fotografías desde tu ordenador'+(modoLocal==='cambiadas'?' (solo las que han cambiado)':''));
+var res=crearResultadoImportFotos('local',modoLocal);
 res.encontrados=files.length;
 /* Detección robusta: por tipo MIME si está disponible y, si no, por extensión
    del nombre de archivo. Nunca se considera vacía la carpeta solo porque
@@ -5375,6 +5431,11 @@ res.sinPersona.push({nombre:file.name,motivo:impFotosCategoriaTexto('sin_persona
 setTimeout(procesarSiguiente,0);
 return;
 }
+if(modoLocal==='cambiadas'&&fotoDebeOmitirsePorNoCambiar(persona,file.lastModified)){
+res.sinCambios++;
+setTimeout(procesarSiguiente,0);
+return;
+}
 leerImagenImportadaConReintento(file,600,0.85).then(function(dataUrl){
 persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
 persona.FOTO_FECHA=new Date().toISOString();
@@ -5409,11 +5470,13 @@ if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
+var modoDrive=await elegirModoImportFotos('desde Google Drive');
+if(!modoDrive)return;
 importFotosEnCurso=true;
 fijarBotonesImportFotos(true);
-abrirModalImportFotos('Importando fotografías desde Google Drive');
+abrirModalImportFotos('Importando fotografías desde Google Drive'+(modoDrive==='cambiadas'?' (solo las que han cambiado)':''));
 actualizarProgresoImportFotos(0,1,'Buscando la carpeta FOTO en Drive');
-var res=crearResultadoImportFotos('drive');
+var res=crearResultadoImportFotos('drive',modoDrive);
 var sesionCaducadaDurante=false;
 try{
 var qCarpeta="'"+driveRootFolderId+"' in parents and name='FOTO' and mimeType='application/vnd.google-apps.folder' and trashed=false";
@@ -5424,7 +5487,7 @@ if(!dC.files||!dC.files.length)throw new Error('No existe una carpeta llamada "F
 var folderId=dC.files[0].id;
 actualizarProgresoImportFotos(0,1,'Listando archivos de la carpeta FOTO');
 var todos;
-try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');}
+try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType,modifiedTime');}
 catch(e){throw new Error(e.message==='sesion_caducada'?'Tu conexión con Google Drive ha caducado. Vuelve a intentarlo.':('No se pudo listar la carpeta FOTO de Drive: '+e.message));}
 res.encontrados=todos.length;
 /* Detección robusta: por mimeType si está disponible y, si no, por extensión
@@ -5444,6 +5507,10 @@ var base=nombreSinExtensionImportado(f.name);
 var persona=PI[base];
 if(!persona){
 res.sinPersona.push({nombre:f.name,motivo:impFotosCategoriaTexto('sin_persona')});
+continue;
+}
+if(modoDrive==='cambiadas'&&fotoDebeOmitirsePorNoCambiar(persona,f.modifiedTime?Date.parse(f.modifiedTime):NaN)){
+res.sinCambios++;
 continue;
 }
 if(sesionCaducadaDurante){
@@ -10757,6 +10824,18 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 </div>
 </div>
+<div id="modalModoImportFotos" role="alertdialog" aria-modal="true" aria-labelledby="modalModoImportFotosTitulo" aria-describedby="modalModoImportFotosTexto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:280;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.25);">
+<h2 id="modalModoImportFotosTitulo" style="font-family:'Cinzel',serif;font-size:17px;margin:0 0 10px">¿Qué fotografías quieres importar?</h2>
+<p id="modalModoImportFotosTexto" style="font-size:13px;color:var(--text);line-height:1.5;margin:0 0 8px"></p>
+<p style="font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 18px">"Solo las que han cambiado" compara la fecha de modificación de cada archivo con la fecha de la última foto guardada de esa persona, y se salta el archivo si no es más reciente. Si una persona todavía no tiene foto, su archivo se importa siempre.</p>
+<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+<button type="button" class="btn" id="modalModoImportFotosCancelar" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Cancelar</button>
+<button type="button" class="btn" id="modalModoImportFotosCambiadas" style="background:var(--bg);color:var(--text);border:2px solid var(--accent);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Solo las que han cambiado</button>
+<button type="button" class="btn" id="modalModoImportFotosTodas" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Todas</button>
+</div>
+</div>
+</div>
 <div id="modalConyuge" role="dialog" aria-modal="true" aria-labelledby="modalRelacionTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:220;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 id="modalRelacionTitulo" style="font-family:'Cinzel',serif;font-size:17px">Elegir persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarSelectorRelacion()">×</button></div>
@@ -10798,7 +10877,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 </div>
 <div class="herr-subhead">Fotos</div>
-<div class="herr-item herr-req-drive" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button></div>
+<div class="herr-item herr-req-drive" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-images"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde Drive</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo. Puedes elegir importar todas o solo las que han cambiado</div><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="ef-btn ghost" id="herrBtnImportarDrive" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();importarFotosDesdeDrive()"><i class="fa-brands fa-google-drive"></i> Desde Drive</button></div>
 <!-- ===== MEJORA: aclaración de alcance para colaboradores/amigos — antes no
      quedaba claro por qué esta opción está disponible para cualquiera ni a
      quién afecta. ===== -->
@@ -10817,7 +10896,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
-<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas)</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
+<div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas). Puedes elegir importar todas o solo las que han cambiado</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <button class="herr-item herr-req-drive" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
