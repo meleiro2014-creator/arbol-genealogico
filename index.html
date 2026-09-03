@@ -1815,6 +1815,7 @@ tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};
 function leerEstadoANOCALC(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res({datosVersion:0,calculoVersion:0});return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('anocalcEstado');r.onsuccess=function(){var e=r.result||{};res({datosVersion:Number(e.datosVersion)||0,calculoVersion:Number(e.calculoVersion)||0});};r.onerror=function(){res({datosVersion:0,calculoVersion:0});};});}
 function anocalcPendiente(){return leerEstadoANOCALC().then(function(e){return e.datosVersion!==e.calculoVersion;});}
 /* ===== REGISTRO DE CAMBIOS MULTIUSUARIO ===== */
+var CAMPOS_CONYUGE=['M1','M2','M3','M4','M5','M6'];
 var CAMBIOS_STORE='cambios';
 var CAMBIOS_ESTADO='pendiente';
 var CAMBIOS_HISTORIAL='historial';
@@ -1822,8 +1823,8 @@ var CAMBIOS_SYNC_FILENAME='cambios-arbol.json';
 var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion'];
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
-DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas'
+DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',M3:'Cónyuge 3',M4:'Cónyuge 4',M5:'Cónyuge 5',M6:'Cónyuge 6',
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -1878,7 +1879,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{var locales=await listarCambios(),remoto=await descargarCambiosDrive(),porId={};(remoto.cambios||[]).forEach(function(c){porId[c.id]=c;});locales.forEach(function(c){if(!porId[c.id]||String(c.actualizadoEn||c.fecha)>String(porId[c.id].actualizadoEn||porId[c.id].fecha))porId[c.id]=c;});var unidos=Object.keys(porId).map(function(k){return porId[k];});var existente=await obtenerArchivoCambiosDrive();if(mostrarProgreso)actualizarProgresoDrive('Subiendo tus cambios pendientes...','camSyncProgresoWrap');await subirCambiosDriveDatos(unidos,existente);var nuevos=unidos.filter(function(c){return !locales.some(function(l){return l.id===c.id;});});if(nuevos.length){if(mostrarProgreso)actualizarProgresoDrive('Descargando cambios de otros colaboradores...','camSyncProgresoWrap');var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);nuevos.forEach(function(c){st.put(c);});await new Promise(function(res,rej){tx.oncomplete=res;tx.onerror=function(){rej(tx.error);};});}var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -3333,7 +3334,7 @@ if(!info||info.grado<1||info.grado>maxGrado)return;
 out.push({id:otro.ID,grado:info.grado,etiqueta:info.etiqueta});
 vistos[otro.ID]=true;
 });
-[p.M1,p.M2].forEach(function(mid){
+[p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].forEach(function(mid){
 if(mid&&PI[mid]&&!vistos[mid]){
 var sx=sexoLetra(PI[mid]);
 out.push({id:mid,grado:1,etiqueta:sx==='M'?'Esposo':(sx==='F'?'Esposa':'Cónyuge')});
@@ -3683,7 +3684,7 @@ var vistoConyuge={},vistoHermano={};
 D.forEach(function(p){
 var yp=getYearReal(p);
 if(yp===null)return;
-[p.M1,p.M2].forEach(function(mid){
+[p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].forEach(function(mid){
 if(!mid||!PI[mid])return;
 var key=[p.ID,mid].sort().join('|');
 if(vistoConyuge[key])return;
@@ -3753,14 +3754,12 @@ if(!h)return;
 if(h.PADRE===id)out.push({id:hid,tipo:'hijo',delta:stats.padre.media,coste:stats.padre.desv});
 else if(h.MADRE===id)out.push({id:hid,tipo:'hijo',delta:stats.madre.media,coste:stats.madre.desv});
 });
-if(p.M1&&PI[p.M1]){
-var fechaM1=extraerAnioTexto(p.MF1)!==null;
-out.push({id:p.M1,tipo:'conyuge',delta:0,coste:fechaM1?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA});
+[['M1','MF1'],['M2','MF2'],['M3','MF3'],['M4','MF4'],['M5','MF5'],['M6','MF6']].forEach(function(par){
+if(p[par[0]]&&PI[p[par[0]]]){
+var fechaM=extraerAnioTexto(p[par[1]])!==null;
+out.push({id:p[par[0]],tipo:'conyuge',delta:0,coste:fechaM?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA});
 }
-if(p.M2&&PI[p.M2]){
-var fechaM2=extraerAnioTexto(p.MF2)!==null;
-out.push({id:p.M2,tipo:'conyuge',delta:0,coste:fechaM2?stats.conyuge.desv:stats.conyuge.desv*ANOCALC_FACTOR_CONYUGE_SIN_FECHA});
-}
+});
 /* CORRECCIÓN v2: en v1 esta línea no comprobaba p.PADRE&&p.MADRE antes de llamar a
    gHerm(id). gHerm agrupa por la clave interna (PADRE||'')+'|'+(MADRE||''); si dos o
    más personas del árbol no tienen NINGÚN progenitor registrado, esa clave es la misma
@@ -3909,13 +3908,13 @@ var yHijo=valorNodo[hid];
 if(h.PADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxPadre,yHijo-ANOCALC_LIMITES.edadMinPadre);
 else if(h.MADRE===id)acota(yHijo-ANOCALC_LIMITES.edadMaxMadre,yHijo-ANOCALC_LIMITES.edadMinMadre);
 });
-[p.M1,p.M2].forEach(function(cid){
+[p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].forEach(function(cid){
 if(cid&&visitado[cid]&&valorNodo[cid]!==undefined&&!contaminado(cid)){
 var yC=valorNodo[cid];
 acota(yC-ANOCALC_LIMITES.difEdadConyugesPlausible,yC+ANOCALC_LIMITES.difEdadConyugesPlausible);
 }
 });
-[['M1','MF1'],['M2','MF2']].forEach(function(par){
+[['M1','MF1'],['M2','MF2'],['M3','MF3'],['M4','MF4'],['M5','MF5'],['M6','MF6']].forEach(function(par){
 var anioMat=extraerAnioTexto(p[par[1]]);
 if(anioMat!==null)acota(null,anioMat-ANOCALC_LIMITES.edadMinConyuge);
 });
@@ -4027,7 +4026,7 @@ sumaValor+=peso*valorNodo[vecinoId];
 fuentes++;
 detalle.push({tipo:etiqueta+(contam?' (dato contaminado, peso reducido)':''),id:vecinoId,peso:peso});
 };
-[['M1','MF1'],['M2','MF2']].forEach(function(par){
+[['M1','MF1'],['M2','MF2'],['M3','MF3'],['M4','MF4'],['M5','MF5'],['M6','MF6']].forEach(function(par){
 var cid=p[par[0]];
 if(!cid)return;
 var fechaConocida=extraerAnioTexto(p[par[1]])!==null;
@@ -4044,7 +4043,7 @@ gMediosHermanos(id).forEach(function(h){considerar(h.ID,0,stats.hermanos.desv/Ma
    blanda propia ("nació hacia boda − edad típica de casarse"), con una
    desviación amplia porque la edad al casarse varía mucho más que la
    diferencia padre-hijo. No depende de que el cónyuge tenga año propio. */
-[['MF1'],['MF2']].forEach(function(par){
+[['MF1'],['MF2'],['MF3'],['MF4'],['MF5'],['MF6']].forEach(function(par){
 var anioMat=extraerAnioTexto(p[par[0]]);
 if(anioMat===null)return;
 var peso=1/(ANOCALC_BODA_DESV*ANOCALC_BODA_DESV);
@@ -4127,6 +4126,10 @@ D.forEach(function(p){
 if(dist[p.ID]!==undefined)return;
 var anioMat=extraerAnioTexto(p.MF1);
 if(anioMat===null)anioMat=extraerAnioTexto(p.MF2);
+if(anioMat===null)anioMat=extraerAnioTexto(p.MF3);
+if(anioMat===null)anioMat=extraerAnioTexto(p.MF4);
+if(anioMat===null)anioMat=extraerAnioTexto(p.MF5);
+if(anioMat===null)anioMat=extraerAnioTexto(p.MF6);
 if(anioMat===null)return;
 encolar(p.ID,ANOCALC_BODA_DESV,0,'__BODA__',null,Math.round(anioMat-ANOCALC_EDAD_TIPICA_BODA));
 });
@@ -4194,6 +4197,10 @@ if(!nodo)return'';
 if(info.pred==='__BODA__'){
 var anioMat=extraerAnioTexto(nodo.MF1);
 if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF2);
+if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF3);
+if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF4);
+if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF5);
+if(anioMat===null)anioMat=extraerAnioTexto(nodo.MF6);
 var baseBoda='Calculado automáticamente el '+fecha+': no se ha encontrado ningún familiar con año conocido (ni real ni estimado) conectado a '+fn(nodo).trim()+', así que se ha estimado únicamente a partir de la fecha de boda conocida ('+anioMat+'), asumiendo una edad típica de casarse de '+ANOCALC_EDAD_TIPICA_BODA+' años. Es la estimación menos fiable que ofrece este motor: revísala con especial cautela.';
 if(info.recorte)baseBoda+=' El resultado directo de esa edad típica (\u2248'+info.recorte.desde+') se ha ajustado a \u2248'+info.recorte.hasta+' para no violar las edades mínimas/máximas frente a un familiar cercano que ya tenía año fijado.';
 if(info.contaminado)baseBoda+=' Aviso: esta persona tiene datos familiares reales que se contradicen entre sí (revisa el Gestor de datos); esta estimación puede no ser fiable.';
@@ -4875,13 +4882,17 @@ h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calcul
 }
 var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
 var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
-var c1obj=p.M1&&PI[p.M1]?PI[p.M1]:null;
-var c2obj=p.M2&&PI[p.M2]?PI[p.M2]:null;
 var pl=padreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.PADRE)+'\')">'+esc(fn(padreObj))+'</a>'+etiquetaAnioRelacion(padreObj):'<span style="color:var(--muted)">Desconocido</span>';
 var ml=madreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.MADRE)+'\')">'+esc(fn(madreObj))+'</a>'+etiquetaAnioRelacion(madreObj):'<span style="color:var(--muted)">Desconocida</span>';
-var m1l=c1obj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.M1)+'\')">'+esc(fn(c1obj))+'</a>'+etiquetaAnioRelacion(c1obj):'Ninguno';
-var m2l=c2obj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.M2)+'\')">'+esc(fn(c2obj))+'</a>'+etiquetaAnioRelacion(c2obj):'Ninguno';
-h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div><div class="fr"><span class="fl">Cónyuge 1</span><span class="fv">'+m1l+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</span></div><div class="fr"><span class="fl">Cónyuge 2</span><span class="fv">'+m2l+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</span></div></div>';
+var conyugesHtml='';
+[1,2,3,4,5,6].forEach(function(n){
+var campoM='M'+n,campoML='ML'+n,campoMF='MF'+n;
+var cObj=p[campoM]&&PI[p[campoM]]?PI[p[campoM]]:null;
+if(!cObj)return;
+var cl='<a class="fl2" onclick="irAFicha(\''+safeId(p[campoM])+'\')">'+esc(fn(cObj))+'</a>'+etiquetaAnioRelacion(cObj);
+conyugesHtml+='<div class="fr"><span class="fl">Cónyuge '+n+'</span><span class="fv">'+cl+(p[campoML]?' · '+esc(p[campoML]):'')+(p[campoMF]?' · '+esc(fFechaMatrimonio(p[campoMF])):'')+'</span></div>';
+});
+h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml+'</div>';
 /* Abuelos (nuevo, v2.3): mismo patron padre.PADRE/madre.MADRE que ya usa la Cronologia
    ("Comparativa familiar ampliada"), aqui como bloque propio de la ficha, con año real o
    CALCULADO (ANOCALC) junto a cada uno via etiquetaAnioRelacion. */
@@ -4929,7 +4940,7 @@ function linkFieldHtml(p,campo,labelTxt,sexoNuevo){
 var linkedId=p[campo];
 var linked=linkedId?PI[linkedId]:null;
 var nameHtml=linked?esc(fn(linked)):'Sin vincular';
-var esConyuge=campo==='M1'||campo==='M2';
+var esConyuge=campo==='M1'||campo==='M2'||campo==='M3'||campo==='M4'||campo==='M5'||campo==='M6';
 var lblTxt=esc(labelTxt);
 var acciones='<button type="button" class="ef-nbtn" title="Editar vinculado" aria-label="Editar '+lblTxt+' vinculado/a"'+(linked?'':' disabled')+' onclick="editarVinculado(\''+safeId(p.ID)+'\',\''+campo+'\')">E</button>';
 acciones+='<button type="button" class="ef-nbtn" title="Elegir persona existente" aria-label="Elegir persona existente para '+lblTxt+'" onclick="abrirSelectorRelacion(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
@@ -4980,10 +4991,10 @@ h+='<div class="fs"><h3>Etiquetas</h3><div id="efEtiquetasChips"></div><div clas
 h+='<div class="fs"><h3>Familia</h3>';
 h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
 h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
-h+=linkFieldHtml(p,'M1','Cónyuge 1',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
-h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 1</span><input class="ef-input" id="ef-ml1" value="'+escAttr(p.ML1)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 1</span><input class="ef-input" id="ef-mf1" value="'+escAttr(fFechaMatrimonio(p.MF1))+'" placeholder="dd/mm/aaaa"></div></div>';
-h+=linkFieldHtml(p,'M2','Cónyuge 2',p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
-h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio 2</span><input class="ef-input" id="ef-ml2" value="'+escAttr(p.ML2)+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio 2</span><input class="ef-input" id="ef-mf2" value="'+escAttr(fFechaMatrimonio(p.MF2))+'" placeholder="dd/mm/aaaa"></div></div>';
+[1,2,3,4,5,6].forEach(function(n){
+h+=linkFieldHtml(p,'M'+n,'Cónyuge '+n,p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio '+n+'</span><input class="ef-input" id="ef-ml'+n+'" value="'+escAttr(p['ML'+n])+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio '+n+'</span><input class="ef-input" id="ef-mf'+n+'" value="'+escAttr(fFechaMatrimonio(p['MF'+n]))+'" placeholder="dd/mm/aaaa"></div></div>';
+});
 h+='</div>';
 var descendientes=ordenarIdsPorEdad(HD[id]||[]);
 h+='<div class="fs"><h3>Descendientes ('+descendientes.length+')</h3>';
@@ -4991,8 +5002,10 @@ if(descendientes.length){
 descendientes.forEach(function(hid){var hp=PI[hid];if(hp)h+='<div class="fr" style="align-items:center;margin-bottom:8px"><span class="fv" style="flex:1">'+esc(fn(hp))+'</span><button type="button" class="ef-btn ghost" style="padding:4px 8px" onclick="editarDescendiente(\''+safeId(hid)+'\')">Editar</button></div>';});
 }else h+='<p style="font-size:11px;color:var(--muted);margin-bottom:8px">No hay descendientes registrados.</p>';
 h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\',this)"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
-if(p.M1&&PI[p.M1])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M1)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M1]))+'</button>';
-if(p.M2&&PI[p.M2])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(p.M2)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[p.M2]))+'</button>';
+[1,2,3,4,5,6].forEach(function(n){
+var mid=p['M'+n];
+if(mid&&PI[mid])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(mid)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[mid]))+'</button>';
+});
 h+='</div></div>';
 h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
 document.getElementById('fco').innerHTML=h;
@@ -5568,12 +5581,14 @@ function sincronizarMatrimonioConyuge(persona,campo){
 var conyugeId=persona[campo];
 if(!conyugeId||!PI[conyugeId])return;
 var conyuge=PI[conyugeId];
-var lugar=campo==='M1'?persona.ML1:persona.ML2;
-var fecha=campo==='M1'?persona.MF1:persona.MF2;
-var campoReciproco=(conyuge.M1===persona.ID)?'M1':((conyuge.M2===persona.ID)?'M2':null);
+var n=campo.slice(1);
+var lugar=persona['ML'+n];
+var fecha=persona['MF'+n];
+var campoReciproco=null;
+['M1','M2','M3','M4','M5','M6'].some(function(c){if(conyuge[c]===persona.ID){campoReciproco=c;return true;}return false;});
 if(!campoReciproco)return;
-if(campoReciproco==='M1'){conyuge.ML1=lugar;conyuge.MF1=fecha;}
-else{conyuge.ML2=lugar;conyuge.MF2=fecha;}
+var nr=campoReciproco.slice(1);
+conyuge['ML'+nr]=lugar;conyuge['MF'+nr]=fecha;
 }
 /* ===== Propagación del primer apellido a los descendientes =====
 Sigue la convención española de apellidos: el APELLIDO1 de una persona pasa a
@@ -5633,10 +5648,12 @@ p.LUGARDEF=leerCampo('ef-lugardef');
 } else {
 p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
 }
-p.ML1=leerCampo('ef-ml1');p.MF1=leerCampo('ef-mf1');
-p.ML2=leerCampo('ef-ml2');p.MF2=leerCampo('ef-mf2');
-sincronizarMatrimonioConyuge(p,'M1');
-sincronizarMatrimonioConyuge(p,'M2');
+[1,2,3,4,5,6].forEach(function(n){
+p['ML'+n]=leerCampo('ef-ml'+n);p['MF'+n]=leerCampo('ef-mf'+n);
+});
+[1,2,3,4,5,6].forEach(function(n){
+sincronizarMatrimonioConyuge(p,'M'+n);
+});
 p.OBSERVACIONES=leerCampo('ef-obs');
 var etqPendiente=leerCampo('efEtiquetaInput');
 if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
@@ -5671,7 +5688,7 @@ var antesCambioEliminar=mapaPersonas(D);
 if(!(await confirmarApp('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular.')))return;
 var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
 var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
-['PADRE','MADRE','M1','M2'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
+['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
 /* Quitar también de listas de amigos simétricas */
 if(copia.AMIGOS!=null){
 var listaAm=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);
@@ -5691,8 +5708,7 @@ var stats=calcularEstadisticasArbol(),base=null,delta=0,tipo='',esHijo=false;
 function anio(q){return q?getYear(q):null;}
 if(p.PADRE&&PI[p.PADRE]&&anio(PI[p.PADRE])!==null){base=anio(PI[p.PADRE]);delta=stats.padre.media;tipo='hijo';esHijo=true;}
 if(base===null&&p.MADRE&&PI[p.MADRE]&&anio(PI[p.MADRE])!==null){base=anio(PI[p.MADRE]);delta=stats.madre.media;tipo='hija';esHijo=true;}
-if(base===null&&p.M1&&PI[p.M1]&&anio(PI[p.M1])!==null){base=anio(PI[p.M1]);delta=0;tipo='cónyuge';}
-if(base===null&&p.M2&&PI[p.M2]&&anio(PI[p.M2])!==null){base=anio(PI[p.M2]);delta=0;tipo='cónyuge';}
+CAMPOS_CONYUGE.forEach(function(c){if(base===null&&p[c]&&PI[p[c]]&&anio(PI[p[c]])!==null){base=anio(PI[p[c]]);delta=0;tipo='cónyuge';}});
 if(base===null)return false;
 var valor=Math.round(base+delta);
 /* Mismos límites duros que en calcularAnosEstimados, aplicados aquí contra el único
@@ -5714,12 +5730,12 @@ try{
 var newId=await elegirIdNueva();
 if(!newId)return;
 var antesCambioCrear=mapaPersonas(D);
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);
 var actual=PI[id];
 if(actual){
 actual[campo]=newId;
-if(campo==='M1'||campo==='M2'){
+if(campo==='M1'||campo==='M2'||campo==='M3'||campo==='M4'||campo==='M5'||campo==='M6'){
 nuevo.M1=actual.ID;
 /* Si la persona ya tiene hijos (con este u otro cónyuge), se deduce el
    apellido del cónyuge nuevo a partir de un hijo existente que ya tenga
@@ -5760,7 +5776,7 @@ editMode=true;
 rFic(linkedId);
 }
 var selectorRelacion=null;
-var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2',AMIGOS:'amigo'};
+var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge 2',M3:'cónyuge 3',M4:'cónyuge 4',M5:'cónyuge 5',M6:'cónyuge 6',AMIGOS:'amigo'};
 /* ===== FIX: evita perder texto sin guardar del formulario de edición cuando
    una acción intermedia (vincular/quitar relación) reconstruye el formulario
    con rFic() antes de que el usuario pulse "Guardar". ===== */
@@ -5811,7 +5827,7 @@ if(!selectorRelacion)return;
 var q=document.getElementById('buscarConyuge').value.toLowerCase().trim(),actual=PI[selectorRelacion.id],campo=selectorRelacion.campo,lista=document.getElementById('listaConyuges');
 if(!actual){lista.innerHTML='<p style="font-size:12px;color:var(--muted);padding:10px 0">Persona no encontrada.</p>';return;}
 var excluir={};excluir[actual.ID]=true;
-if(campo==='M1'||campo==='M2'){if(actual.M1)excluir[actual.M1]=true;if(actual.M2)excluir[actual.M2]=true;}
+if(CAMPOS_CONYUGE.indexOf(campo)>=0){CAMPOS_CONYUGE.forEach(function(c){if(actual[c])excluir[actual[c]]=true;});}
 if(campo==='AMIGOS'){amigosIdsDe(actual).forEach(function(aid){excluir[aid]=true;});}
 var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||coincideBusqueda(fn(p),q)||String(p.ID).indexOf(q)>=0);}).slice(0,80);
 var html='';
@@ -5849,12 +5865,13 @@ var camposPreviosA=capturarCamposEdicionSiProcede(actual.ID);
 bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 return;
 }
-if(campo==='M1'||campo==='M2'){
-var yaReciproco=otro.M1===actual.ID||otro.M2===actual.ID;
-var campoReciproco=yaReciproco?null:(!otro.M1?'M1':(!otro.M2?'M2':''));
-if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene dos cónyuges registrados',true);finOperacionFicha(btn);return;}
+if(CAMPOS_CONYUGE.indexOf(campo)>=0){
+var yaReciproco=CAMPOS_CONYUGE.some(function(c){return otro[c]===actual.ID;});
+var campoReciproco=null;
+if(!yaReciproco)CAMPOS_CONYUGE.some(function(c){if(!otro[c]){campoReciproco=c;return true;}return false;});
+if(!yaReciproco&&!campoReciproco){toast('Esta persona ya tiene el número máximo de cónyuges registrados',true);finOperacionFicha(btn);return;}
 var anterior=actual[campo];
-if(anterior&&PI[anterior]){if(PI[anterior].M1===actual.ID)PI[anterior].M1='';if(PI[anterior].M2===actual.ID)PI[anterior].M2='';}
+if(anterior&&PI[anterior]){CAMPOS_CONYUGE.forEach(function(c){if(PI[anterior][c]===actual.ID)PI[anterior][c]='';});}
 actual[campo]=otro.ID;
 if(campoReciproco)otro[campoReciproco]=actual.ID;
 }else{
@@ -5874,7 +5891,7 @@ var newId=await elegirIdNueva();
 if(!newId){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 var duenio=PI[idDuenio];
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
 D.push(nuevo);
 bIdx(D);
 await anadirAmigoEntre(idDuenio,newId);
@@ -5893,7 +5910,7 @@ var actual=PI[id],otroId=actual?actual[campo]:'';
 if(!actual||!otroId){finOperacionFicha(btn);return;}
 if(!(await confirmarApp('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha.'))){finOperacionFicha(btn);return;}
 var otro=PI[otroId];actual[campo]='';
-if(otro){if(otro.M1===id)otro.M1='';if(otro.M2===id)otro.M2='';}
+if(otro){CAMPOS_CONYUGE.forEach(function(c){if(otro[c]===id)otro[c]='';});}
 var camposPrevios=capturarCamposEdicionSiProcede(id);
 bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
@@ -5925,7 +5942,7 @@ var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -5952,11 +5969,11 @@ se pulsó "Recalcular", nunca un valor calculado u obtenido en este mismo moment
 obtenerAnio=obtenerAnio||getYear;
 var problemas=[];
 D.forEach(function(p){
-['M1','M2'].forEach(function(campo){
+CAMPOS_CONYUGE.forEach(function(campo){
 var otroId=p[campo];
 if(otroId&&PI[otroId]){
 var otro=PI[otroId];
-if(otro.M1!==p.ID&&otro.M2!==p.ID){
+if(!CAMPOS_CONYUGE.some(function(c){return otro[c]===p.ID;})){
 problemas.push({
 icono:'fa-heart-crack',
 etiqueta:'Cónyuge sin vínculo recíproco',
@@ -6000,7 +6017,7 @@ problemas.push({icono:'fa-user-slash',etiqueta:'Posible inconsistencia: persona 
 if(p.PADRE&&p.MADRE&&p.PADRE===p.MADRE){
 problemas.push({icono:'fa-people-pulling',etiqueta:'Posible inconsistencia: mismo padre y madre',mensaje:esc(fn(p))+' tiene a '+esc(fn(PI[p.PADRE]))+' registrado a la vez como padre y como madre.',verId:p.ID});
 }
-['M1','M2'].forEach(function(campo){if(p[campo]&&p[campo]===p.ID){problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: cónyuge de sí mismo/a',mensaje:esc(fn(p))+' figura como su propio/a cónyuge ('+campo+').',verId:p.ID});}});
+CAMPOS_CONYUGE.forEach(function(campo){if(p[campo]&&p[campo]===p.ID){problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: cónyuge de sí mismo/a',mensaje:esc(fn(p))+' figura como su propio/a cónyuge ('+campo+').',verId:p.ID});}});
 var yHijo=obtenerAnio(p);
 var yDefPropia=getDeathYear(p);
 /* NUEVA comprobación (v2.2), real vs real, no depende de ningún año estimado: una
@@ -6015,7 +6032,7 @@ var yPropiaReal=getYearReal(p);
 if(yPropiaReal!==null&&yDefPropia!==null){
 var edadAlMorir=yDefPropia-yPropiaReal;
 if(edadAlMorir>=0&&edadAlMorir<EDAD_MIN_PROGENITOR){
-var hijosProp=(HD[p.ID]||[]).length,tieneConyuge=!!(p.M1||p.M2),detalleFam=[];
+var hijosProp=(HD[p.ID]||[]).length,tieneConyuge=CAMPOS_CONYUGE.some(function(c){return !!p[c];}),detalleFam=[];
 if(hijosProp>0)detalleFam.push(hijosProp+' hijo(s) registrado(s)');
 if(tieneConyuge)detalleFam.push('cónyuge registrado');
 if(detalleFam.length)problemas.push({
@@ -6091,7 +6108,7 @@ calculado:esAnioNoConfirmado(p)
 });
 }
 var matrimonios=[];
-[['M1','MF1'],['M2','MF2']].forEach(function(par){
+[['M1','MF1'],['M2','MF2'],['M3','MF3'],['M4','MF4'],['M5','MF5'],['M6','MF6']].forEach(function(par){
 var conyugeId=p[par[0]],anioMat=extraerAnioTexto(p[par[1]]);
 if(anioMat!==null)matrimonios.push({campo:par[0],conyugeId:conyugeId,anio:anioMat});
 });
@@ -6114,8 +6131,10 @@ if(yHijo!==null&&(m.anio-yHijo)<EDAD_MIN_CONYUGE){
 problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio a edad muy temprana',mensaje:esc(fn(p))+' se habría casado en '+m.anio+' con apenas '+(m.anio-yHijo)+' año(s) (nacido/a en '+yHijo+').'+notaAnioNoConfirmado(p),verId:p.ID,calculado:esAnioNoConfirmado(p)});
 }
 });
-if(matrimonios.length===2&&matrimonios[1].anio<matrimonios[0].anio){
-problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: segundo matrimonio anterior al primero',mensaje:esc(fn(p))+' tiene el segundo matrimonio fechado en '+matrimonios[1].anio+', antes que el primero ('+matrimonios[0].anio+').',verId:p.ID,calculado:false/*MF1/MF2 son texto real, nunca ANOCALC*/});
+for(var mi=1;mi<matrimonios.length;mi++){
+if(matrimonios[mi].anio<matrimonios[mi-1].anio){
+problemas.push({icono:'fa-ring',etiqueta:'Posible inconsistencia: matrimonio posterior anterior al previo',mensaje:esc(fn(p))+' tiene el matrimonio '+matrimonios[mi].campo+' fechado en '+matrimonios[mi].anio+', antes que el matrimonio '+matrimonios[mi-1].campo+' ('+matrimonios[mi-1].anio+').',verId:p.ID,calculado:false/*MF1..MF6 son texto real, nunca ANOCALC*/});
+}
 }
 if(isAl(p)&&yHijo!==null&&!p.ANOCALC_CONTAMINADO){
 var edadActual=new Date().getFullYear()-yHijo;
@@ -6151,9 +6170,10 @@ function aplicarFixConyugeReciproco(id,campo){
 var p=PI[id];if(!p)return false;
 var otroId=p[campo],otro=PI[otroId];
 if(!otro)return false;
-if(!otro.M1)otro.M1=id;
-else if(!otro.M2)otro.M2=id;
-else{toast(fn(otro)+' ya tiene dos cónyuges registrados; revisalo manualmente',true);return false;}
+var slotLibre=null;
+CAMPOS_CONYUGE.some(function(c){if(!otro[c]){slotLibre=c;return true;}return false;});
+if(slotLibre)otro[slotLibre]=id;
+else{toast(fn(otro)+' ya tiene el número máximo de cónyuges registrados; revisalo manualmente',true);return false;}
 return true;
 }
 function aplicarFixGenero(id,sexoCorrecto){
@@ -6238,7 +6258,7 @@ tipo:'id_duplicado',verId:id,
 mensaje:'El ID <b>'+esc(id)+'</b> aparece en '+lista.length+' registros distintos: '+lista.map(function(p){return '<b>'+esc(fn(p)||'(sin nombre)')+'</b>';}).join(', ')+'. Es la señal más clara de una sincronización cruzada con Drive (dos guardados casi a la vez): uno de los dos registros puede estar pisando los datos del otro. «Ver ficha» solo puede abrir uno de los dos; localiza al otro por nombre en el buscador.'
 });
 });
-var camposRef=[['PADRE','padre'],['MADRE','madre'],['M1','cónyuge (primer matrimonio)'],['M2','cónyuge (segundo matrimonio)']];
+var camposRef=[['PADRE','padre'],['MADRE','madre'],['M1','cónyuge (matrimonio 1)'],['M2','cónyuge (matrimonio 2)'],['M3','cónyuge (matrimonio 3)'],['M4','cónyuge (matrimonio 4)'],['M5','cónyuge (matrimonio 5)'],['M6','cónyuge (matrimonio 6)']];
 D.forEach(function(p){
 camposRef.forEach(function(par){
 var campo=par[0],etiqueta=par[1],ref=p[campo];
@@ -6389,7 +6409,7 @@ if(!(await exigirIdentidadGoogle()))return false;
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE)return false;
 if(idMantener===idEliminar)return false;
-var camposRellenar=['APROX','MotivoAprox','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','FALLECIDO','FOTO'];
+var camposRellenar=['APROX','MotivoAprox','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','ML3','MF3','ML4','MF4','ML5','MF5','ML6','MF6','FALLECIDO','FOTO'];
 camposRellenar.forEach(function(c){
 var vaM=pM[c],vaE=pE[c];
 var vacioM=(vaM===''||vaM===null||vaM===undefined);
@@ -6404,14 +6424,12 @@ if(pE.OBSERVACIONES&&pE.OBSERVACIONES.trim()&&pE.OBSERVACIONES.trim()!==(pM.OBSE
 pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n---\n':'')+pE.OBSERVACIONES;
 }
 pM.OBSERVACIONES=(pM.OBSERVACIONES?pM.OBSERVACIONES+'\n':'')+'[Fusionado con el registro ID '+idEliminar+' el '+new Date().toISOString().slice(0,10)+']';
-if(pM.M1===idEliminar)pM.M1='';
-if(pM.M2===idEliminar)pM.M2='';
+CAMPOS_CONYUGE.forEach(function(c){if(pM[c]===idEliminar)pM[c]='';});
 D.forEach(function(x){
 if(x.ID===idEliminar)return;
 if(x.PADRE===idEliminar)x.PADRE=idMantener;
 if(x.MADRE===idEliminar)x.MADRE=idMantener;
-if(x.M1===idEliminar)x.M1=idMantener;
-if(x.M2===idEliminar)x.M2=idMantener;
+CAMPOS_CONYUGE.forEach(function(c){if(x[c]===idEliminar)x[c]=idMantener;});
 });
 D=D.filter(function(x){return x.ID!==idEliminar;});
 bIdx(D);
@@ -7474,8 +7492,7 @@ if(hijos.length){
 hijos.forEach(function(hid){
 var hijoP=PI[hid];
 h+=makeCard(hijoP,"");
-if(hijoP.M1&&PI[hijoP.M1])h+=makeCard(PI[hijoP.M1],"spouse",true);
-if(hijoP.M2&&PI[hijoP.M2])h+=makeCard(PI[hijoP.M2],"spouse",true);
+CAMPOS_CONYUGE.forEach(function(c){if(hijoP[c]&&PI[hijoP[c]])h+=makeCard(PI[hijoP[c]],"spouse",true);});
 var nietos=ordenarIdsPorEdad(HD[hid]||[]);
 if(nietos.length){
 h+=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-left:8px;border-left:1.5px solid var(--border)">`;
@@ -7493,8 +7510,7 @@ for(var g=0;g<=treeDepth;g++){
 h+=`<div class="pedigree-col${g===0?' central-column':''}" data-gen="${g}">`;
 if(g===0){
 h+=makeCard(p,"root");
-if(p.M1&&PI[p.M1])h+=makeCard(PI[p.M1],"spouse");
-if(p.M2&&PI[p.M2])h+=makeCard(PI[p.M2],"spouse");
+CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])h+=makeCard(PI[p[c]],"spouse");});
 }else{
 ancestors[g].forEach(function(pid){h+=makeCard(pid?PI[pid]:null,"");});
 }
@@ -7586,7 +7602,7 @@ if(yNac!==null){
 var etiquetaAnio=fNac?(' ('+fNac+')'):(esAnioEstimado(p)?' (año estimado automáticamente)':'');
 eventos.push({anio:yNac,txt:'Nacimiento'+etiquetaAnio+(p.LUGARNAC?' en '+p.LUGARNAC:'')});
 }
-[['M1','MF1'],['M2','MF2']].forEach(function(par){
+[['M1','MF1'],['M2','MF2'],['M3','MF3'],['M4','MF4'],['M5','MF5'],['M6','MF6']].forEach(function(par){
 var conyugeId=p[par[0]],fecha=p[par[1]];
 var anio=extraerAnioTexto(fecha);
 if(anio!==null){
@@ -7631,8 +7647,7 @@ if(p.PADRE&&PI[p.PADRE])add(PI[p.PADRE],'Padre');
 if(p.MADRE&&PI[p.MADRE])add(PI[p.MADRE],'Madre');
 gHerm(p.ID).forEach(function(h){add(h,'Hermano/a');});
 add(p,'');
-if(p.M1&&PI[p.M1])add(PI[p.M1],'Cónyuge');
-if(p.M2&&PI[p.M2])add(PI[p.M2],'Cónyuge');
+CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])add(PI[p[c]],'Cónyuge');});
 (HD[p.ID]||[]).forEach(function(hid){add(PI[hid],'Hijo/a');});
 if(ampliada){
 var padre=p.PADRE?PI[p.PADRE]:null,madre=p.MADRE?PI[p.MADRE]:null;
@@ -7857,8 +7872,7 @@ if(p.PADRE&&PI[p.PADRE])vec.push({id:p.PADRE,tipo:'padre'});
 if(p.MADRE&&PI[p.MADRE])vec.push({id:p.MADRE,tipo:'madre'});
 (HD[id]||[]).forEach(function(hid){vec.push({id:hid,tipo:'hijo'});});
 gHerm(id).forEach(function(h){vec.push({id:h.ID,tipo:'hermano'});});
-if(p.M1&&PI[p.M1])vec.push({id:p.M1,tipo:'conyuge'});
-if(p.M2&&PI[p.M2])vec.push({id:p.M2,tipo:'conyuge'});
+CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])vec.push({id:p[c],tipo:'conyuge'});});
 return vec;
 }
 function buscarCaminoParentesco(idA,idB,maxProf){
@@ -8009,7 +8023,7 @@ function buildArbolDescendenteGrafico(id,visitados,gen){
 if(!id||visitados[id]||gen>PD_MAX_GEN)return'';
 visitados[id]=true;
 var p=PI[id];if(!p)return'';
-var conyuges=[p.M1,p.M2].filter(function(x){return x&&PI[x];});
+var conyuges=[p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].filter(function(x){return x&&PI[x];});
 var hijos=ordenarIdsPorEdad(HD[id]||[]);
 var h='<li>'+pdCoupleHTML(p,conyuges);
 if(hijos.length&&gen<PD_MAX_GEN){
@@ -8531,7 +8545,8 @@ svg+=ascNodeSVGV2(arbolPadre,true);
 svg+=ascNodeSVGV2(arbolMadre,false);
 svg+='<line x1="'+(ASC_PAGE_W/2).toFixed(2)+'" y1="'+ASC2_ROOT_Y.toFixed(2)+'" x2="'+(ASC_PAGE_W/2).toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
 svg+='<line x1="'+(g0Padre.x+g0Padre.w).toFixed(2)+'" y1="'+gen2Y.toFixed(2)+'" x2="'+g0Madre.x.toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
-var conyuge=(p.M1&&PI[p.M1])?PI[p.M1]:((p.M2&&PI[p.M2])?PI[p.M2]:null);
+var conyugeId=null;CAMPOS_CONYUGE.some(function(c){if(p[c]&&PI[p[c]]){conyugeId=p[c];return true;}return false;});
+var conyuge=conyugeId?PI[conyugeId]:null;
 svg+=ascSpouseBoxSVG(conyuge);
 svg+=ascBoxSVGV2(ASC2_ROOT_X,ASC2_ROOT_Y-ASC2_ROOT_H/2,ASC2_ROOT_W,ASC2_ROOT_H,p,-1,false);
 var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
@@ -8594,8 +8609,7 @@ Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
 html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+'</div>';
 porGeneracion[g].forEach(function(item){
 var pp=item.p;
-var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
-var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
+var conyugesTxt=CAMPOS_CONYUGE.map(function(c){return pp[c]&&PI[pp[c]]?fn(PI[pp[c]]):'';}).filter(Boolean);
 var relTxt='';
 if(item.sosa>1){
 var hijoDe=sosaMap[Math.floor(item.sosa/2)];
@@ -8605,8 +8619,7 @@ html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+(relTxt?' <s
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(pp))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
 html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
 if(motivoAnioInforme(pp))html+='<div class="pn-row">Motivo del año estimado: '+esc(motivoAnioInforme(pp))+'</div>';
-if(m1)html+='<div class="pn-row">Cónyuge: '+esc(m1)+'</div>';
-if(m2)html+='<div class="pn-row">Cónyuge: '+esc(m2)+'</div>';
+conyugesTxt.forEach(function(m){html+='<div class="pn-row">Cónyuge: '+esc(m)+'</div>';});
 if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
 html+='</div>';
 });
@@ -8636,8 +8649,7 @@ var hijos=ordenarIdsPorEdad(HD[id]||[]);
 hijos.forEach(function(hid){recopilarDescendientesInforme(hid,gen+1,maxGen,visitados,porGeneracion);});
 }
 function htmlPrintPersona(pp){
-var m1=pp.M1&&PI[pp.M1]?fn(PI[pp.M1]):'';
-var m2=pp.M2&&PI[pp.M2]?fn(PI[pp.M2]):'';
+var conyugesTxt=CAMPOS_CONYUGE.map(function(c){return pp[c]&&PI[pp[c]]?fn(PI[pp[c]]):'';}).filter(Boolean);
 var padre=pp.PADRE&&PI[pp.PADRE]?fn(PI[pp.PADRE]):'';
 var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
 var html='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+'</div>';
@@ -8645,8 +8657,7 @@ html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(pp))+(pp.LUG
 html+='<div class="pn-row">Defunción: '+esc(isAl(pp)?'Vivo':(fechaCorta(pp,'DEF')||'Desconocida'))+(pp.LUGARDEF?' — '+esc(pp.LUGARDEF):'')+'</div>';
 if(motivoAnioInforme(pp))html+='<div class="pn-row">Motivo del año estimado: '+esc(motivoAnioInforme(pp))+'</div>';
 if(padre||madre)html+='<div class="pn-row">Padres: '+esc(padre||'?')+' / '+esc(madre||'?')+'</div>';
-if(m1)html+='<div class="pn-row">Cónyuge: '+esc(m1)+'</div>';
-if(m2)html+='<div class="pn-row">Cónyuge: '+esc(m2)+'</div>';
+conyugesTxt.forEach(function(m){html+='<div class="pn-row">Cónyuge: '+esc(m)+'</div>';});
 if(pp.OBSERVACIONES)html+='<div class="pn-row">Observaciones: '+esc(pp.OBSERVACIONES)+'</div>';
 html+='</div>';
 return html;
@@ -8708,8 +8719,7 @@ html+='</div>';
 html+='<div class="print-person" style="border-bottom:0">';
 html+='<div class="pn-name" style="font-size:14px">Familia</div>';
 html+='<div class="pn-row">Padre: '+esc(padre)+'</div><div class="pn-row">Madre: '+esc(madre)+'</div>';
-if(p.M1&&PI[p.M1])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M1]))+(p.ML1?' · '+esc(p.ML1):'')+(p.MF1?' · '+esc(fFechaMatrimonio(p.MF1)):'')+'</div>';
-if(p.M2&&PI[p.M2])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M2]))+(p.ML2?' · '+esc(p.ML2):'')+(p.MF2?' · '+esc(fFechaMatrimonio(p.MF2)):'')+'</div>';
+CAMPOS_CONYUGE.forEach(function(n){var c=p[n];if(c&&PI[c])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[c]))+(p['ML'+n.slice(1)]?' · '+esc(p['ML'+n.slice(1)]):'')+(p['MF'+n.slice(1)]?' · '+esc(fFechaMatrimonio(p['MF'+n.slice(1)])):'')+'</div>';});
 if(her.length)html+='<div class="pn-row">Hermanos ('+her.length+'): '+esc(her.map(function(x){return fn(x);}).join(', '))+'</div>';
 if(hij.length)html+='<div class="pn-row">Hijos ('+hij.length+'): '+esc(hij.map(function(x){return fn(PI[x]);}).join(', '))+'</div>';
 html+='</div>';
@@ -8739,8 +8749,7 @@ var html='<div class="print-report"><h1>Informe de la rama de '+esc(fn(p))+'</h1
 html+='<div class="print-person"><div class="pn-name">Cabeza de rama: '+esc(fn(p))+'</div>';
 html+='<div class="pn-row">Hijo/a de '+esc(padre)+' y '+esc(madre)+'</div>';
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(p))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
-if(p.M1&&PI[p.M1])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M1]))+'</div>';
-if(p.M2&&PI[p.M2])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p.M2]))+'</div>';
+CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p[c]]))+'</div>';});
 html+='</div>';
 var huboDescendientes=false;
 Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
@@ -9132,7 +9141,7 @@ else if(pA.SEXO==='Hombre'&&pB.SEXO==='Mujer'){husb=idA;wife=idB;determinado=tru
 if(!determinado)gedFamiliasSexoIndeterminado++;
 fom[k]={h:husb,w:wife,n:Object.keys(fom).length};
 }
-D.forEach(function(p){if(p.M1)registrarFamiliaConyugal(p.ID,p.M1);if(p.M2)registrarFamiliaConyugal(p.ID,p.M2);});
+D.forEach(function(p){CAMPOS_CONYUGE.forEach(function(c){if(p[c])registrarFamiliaConyugal(p.ID,p[c]);});});
 var fmS={};Object.keys(fom).forEach(function(k){var f=fom[k],fn2='@F'+f.n+'@';if(!fmS[f.h])fmS[f.h]=[];if(!fmS[f.w])fmS[f.w]=[];fmS[f.h].push(fn2);fmS[f.w].push(fn2);f._fNum=fn2;});
 D.forEach(function(p){
 var al=isAl(p);
@@ -10724,7 +10733,7 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    Debe mantenerse sincronizada con la versión más reciente de APP_CHANGELOG (arriba
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
-function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return true;/* la persona ya existe (p.ej. se creó directamente como administrador): el registro pendiente ya está aplicado en la práctica, así que se da por conforme en vez de quedar bloqueado para siempre */var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
+function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return true;/* la persona ya existe (p.ej. se creó directamente como administrador): el registro pendiente ya está aplicado en la práctica, así que se da por conforme en vez de quedar bloqueado para siempre */var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
 function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio aplicado y conforme en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};};}
 function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE),r=st.get(id);r.onsuccess=function(){var c=r.result;if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;st.put(c);tx.oncomplete=function(){actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Cambio rechazado (no se aplico al arbol)');};};}
 function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}listarCambios().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});var tx=db.transaction(CAMBIOS_STORE,'readwrite'),st=tx.objectStore(CAMBIOS_STORE);pend.forEach(function(c){st.put(c);});tx.oncomplete=function(){sAll(D).then(async function(){rStats();actualizarContadorCambios();mostrarCambios('pendientes');sincronizarCambiosDrive(false);toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+' en tu copia local.');await ofrecerPublicarArbolOficial();}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});};});}
