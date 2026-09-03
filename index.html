@@ -831,8 +831,25 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.08.30.1';
+var APP_VERSION = '2026.09.03.4';
 var APP_CHANGELOG = [
+  { version:'2026.09.03.4', fecha:'2026-09-03', cambios:[
+    'Manual de usuario actualizado: las secciones de Cronologia, Relacion entre dos personas, Informes y Documentos indican ahora que su buscador y su contenido respetan el limite de perfil (Administrador/Colaborador/Amigo); la seccion «Los tres perfiles» enumera explicitamente las pantallas cubiertas, y se anade un aviso en «Posters ascendentes A3» sobre la excepcion todavia pendiente de auditar en esos posteres.'
+  ]},
+  { version:'2026.09.03.3', fecha:'2026-09-03', cambios:[
+    'Auditoria de acceso: la restriccion por perfil (Administrador/Colaborador/Amigo) se extiende ahora tambien a Informes (buscador y los PDF de ascendientes, descendientes, individual, rama y arbol descendente grafico), Cronologia (buscador, comparativa familiar y linea de vida), Relacion entre dos personas (buscador y camino genealogico) y Documentos (buscador de persona): una persona viva fuera de tu alcance ya no aparece por su nombre en ninguna de estas pantallas ni en los documentos descargables.',
+    'Los informes de mantenimiento que recorren toda la base sin filtrar por persona (datos faltantes, inconsistencias, duplicados) pasan a ser exclusivos del administrador, igual que "Guardar copia" y el CSV para Access.',
+    'Nota tecnica pendiente: los posteres ascendentes A3 (SVG) todavia no se han auditado con el mismo detalle; se revisaran en una proxima actualizacion.',
+    'En la ficha, cuando una persona solo tiene un conyuge registrado, la etiqueta pasa a decir simplemente "Conyuge" en vez de "Conyuge 1".'
+  ]},
+  { version:'2026.09.03.2', fecha:'2026-09-03', cambios:[
+    'La vista del arbol vuelve a estar restringida por perfil, para proteger a las personas vivas: las personas fallecidas siguen siendo visibles para cualquiera (con o sin conexion a Google), pero una persona viva solo es visible para el administrador, para un colaborador dentro del arbol principal o de sus propias ramas vinculadas, o para el «Amigo» dueno de esa rama concreta. Fuera de ese alcance, una persona viva aparece oculta ("Persona no visible") en Buscar, en la Ficha (padres, madre, conyuges, abuelos, hermanos, hijos) y en el Arbol grafico (incluyendo nietos).',
+    'Nota tecnica pendiente: de momento esta restriccion cubre Buscar, la Ficha y el Arbol grafico, que son las pantallas de uso mas habitual. Parentesco (relacion entre dos personas), Cronologia y los Informes/PDF imprimibles todavia no aplican este filtro y pueden mostrar el nombre de personas vivas fuera de alcance; se hardened en una proxima actualizacion.'
+  ]},
+  { version:'2026.09.03.1', fecha:'2026-09-03', cambios:[
+    'Guia de primer acceso ampliada con una nueva seccion «¿Estan a salvo mis datos? Antes de empezar», que explica con honestidad que pasa realmente con los datos (contrasena de Google, almacenamiento en Drive, quien puede editar y quien puede consultar) para quitar miedo a quien se conecta por primera vez.',
+    'Guia de primer acceso ampliada con una nueva seccion que explica los tres perfiles de la aplicacion (Administrador, Colaborador y Amigo) y que puede hacer cada uno.'
+  ]},
   { version:'2026.08.30.1', fecha:'2026-08-30', cambios:[
     'Corregida la lupa "Cambiar persona activa" del cabecero: en Relación entre dos personas, Cronología, Informes y Documentos, elegir a alguien con esa lupa actualizaba solo la selección interna de esa pantalla (o, en Relación entre dos personas, rellenaba la Persona B en vez de la Persona A cuando esta ya estaba elegida) pero no la persona activa mostrada en la barra del cabecero. Ahora, en todas esas pantallas, la lupa actualiza también la persona activa del cabecero (y en Relación entre dos personas siempre la Persona A), sin salir de la pantalla en la que se estaba.'
   ]},
@@ -964,6 +981,13 @@ return true;
 }catch(e){return false;}
 }
 function borrarSesionDriveLocal(){try{localStorage.removeItem(DRIVE_SESSION_KEY);}catch(e){}borrarIdentidadRecordada();}
+/* Como borrarSesionDriveLocal(), pero SOLO quita el token de acceso vivo:
+   conserva la identidad recordada y el perfil (usuariosCache) guardados en
+   este dispositivo, para que la vista filtrada por perfil siga funcionando
+   sin conexión. Se usa al arrancar la app y al cerrarla/perder el foco
+   (donde antes se llamaba, por error, a borrarSesionDriveLocal() completo,
+   lo que borraba también quién eres cada vez que se abría la app). */
+function borrarSoloTokenDrive(){try{localStorage.removeItem(DRIVE_SESSION_KEY);}catch(e){}}
 var huboSesionDriveActiva=false,_ultimoAvisoProactivoTs=0;
 /* ===== MEJORA: "quién soy" recordado, separado del token de acceso a Drive =====
    El token de acceso de Google caduca a la hora (~58 min) y, al no haber
@@ -1007,7 +1031,10 @@ function activarModoManualDrive(){
 driveModoManual=true;
 try{localStorage.setItem(DRIVE_MODO_MANUAL_KEY,'1');}catch(e){}
 driveAccessToken=null;driveTokenExpira=0;
-borrarSesionDriveLocal();
+/* Solo se quita el token vivo: desconectar a mano no significa "olvídame",
+   así que la identidad y el perfil recordados siguen disponibles para ver
+   el árbol sin conexión con el alcance que corresponda. */
+borrarSoloTokenDrive();
 actualizarDriveStatusPill();
 toast('Desconectado de Google Drive. No se reconectará sola: pulsa el punto cuando quieras volver a conectar.');
 }
@@ -1044,6 +1071,34 @@ var USUARIOS_AUTORIZADOS_ARCHIVO_LEGADO='usuarios-autorizados.json';
 var VINCULO_FICHAS_ARCHIVO_LEGADO='vinculo-fichas.json';
 var USUARIOS_AUTORIZADOS_DEFECTO=['meleiro2014@gmail.com','belzuneguipilar@gmail.com','jcmeleiro@gmail.com','jeduardomoreda@gmail.com'];
 var usuariosCache=null; /* array de {email,tipo,fichaId} o null si aún no se ha cargado */
+/* ===== MEJORA: perfil (tipo+fichaId) recordado en el dispositivo, para poder
+   aplicar el filtro por perfil (Administrador/Colaborador/Amigo) SIN
+   conexión, igual que ya se hacía con la identidad (email). Antes,
+   usuariosCache solo vivía en memoria durante la sesión: al abrir la app de
+   nuevo (que arranca siempre desconectada) quedaba en null hasta la próxima
+   conexión, así que un colaborador o un amigo sin conexión veía lo mismo que
+   "sin conexión a Google" (solo fallecidos), aunque su identidad sí estuviera
+   recordada. Ahora se guarda también una copia de la lista de usuarios en
+   este dispositivo (misma caducidad de 30 días que la identidad), y se
+   actualiza cada vez que se lee usuarios.json de Drive con éxito (es decir,
+   cada vez que alguien se conecta desde este aparato). */
+var USUARIOS_CACHE_KEY='libroAncestros_usuariosCache_v1';
+var USUARIOS_CACHE_DIAS=30;
+function guardarUsuariosCacheLocal(){
+if(!usuariosCache)return;
+try{localStorage.setItem(USUARIOS_CACHE_KEY,JSON.stringify({usuarios:usuariosCache,guardadoEn:Date.now()}));}catch(e){}
+}
+function restaurarUsuariosCacheLocal(){
+try{
+var raw=localStorage.getItem(USUARIOS_CACHE_KEY);
+if(!raw)return false;
+var s=JSON.parse(raw);
+if(!s||!Array.isArray(s.usuarios)||!s.guardadoEn)return false;
+if(Date.now()-s.guardadoEn>USUARIOS_CACHE_DIAS*24*60*60*1000){localStorage.removeItem(USUARIOS_CACHE_KEY);return false;}
+if(!usuariosCache)usuariosCache=s.usuarios; /* si ya hay una lista fresca (recién leída de Drive), esa manda */
+return true;
+}catch(e){return false;}
+}
 async function obtenerArchivoEnDrivePorNombre(nombre,folderId){
 folderId=folderId||driveRootFolderId;
 if(!folderId)return null;
@@ -1105,15 +1160,22 @@ usuariosCache=x.usuarios.map(function(u){
 return {email:String(u.email||'').trim().toLowerCase(),tipo:normalizarTipoUsuario(u.tipo),fichaId:(u.fichaId!=null&&String(u.fichaId).trim()!=='')?String(u.fichaId).trim():null};
 }).filter(function(u){return !!u.email;});
 invalidarCachePersonasVisibles();
+guardarUsuariosCacheLocal(); /* leído de Drive con éxito: se actualiza la copia recordada en este aparato */
 return usuariosCache;
 }
 }
 var migrada=await migrarUsuariosDesdeFormatoAntiguo();
 usuariosCache=migrada;
 invalidarCachePersonasVisibles();
+guardarUsuariosCacheLocal();
 try{await guardarUsuarios(usuariosCache);}catch(eGuardar){/* si falla el guardado, se sigue usando en memoria y se reintenta luego */}
 return usuariosCache;
 }catch(err){
+/* No se pudo leer usuarios.json de Drive (sin conexión, sin permiso todavía,
+   etc.): antes de recurrir a la lista por defecto (que no conserva tipo ni
+   fichaId reales), se intenta primero la última copia buena que se guardó en
+   este dispositivo la última vez que sí hubo conexión. */
+if(restaurarUsuariosCacheLocal())return usuariosCache;
 usuariosCache=USUARIOS_AUTORIZADOS_DEFECTO.map(function(email){return {email:email,tipo:(email===ADMIN_EMAIL.toLowerCase())?'administrador':'colaborador',fichaId:null};});
 invalidarCachePersonasVisibles();
 return usuariosCache;
@@ -1130,6 +1192,7 @@ var r=await subirArchivoDrive(USUARIOS_ARCHIVO,contenido,'application/json',carp
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 usuariosCache=limpia;
 invalidarCachePersonasVisibles();
+guardarUsuariosCacheLocal();
 }
 function usuarioPorEmail(email){
 if(!email||!usuariosCache)return null;
@@ -1169,10 +1232,14 @@ return tipoDeEmail(googleIdentidad.email);
    últimos 30 días), y por tanto no se puede decidir qué le corresponde ver.
    Se usa para distinguir esta situación de un "no hay resultados" real. */
 function necesitaConectarParaVer(){
-/* Ver el árbol ya no exige conexión (ver puedeVerPersona/VISTA_ABIERTA_SIN_LOGIN
-   más abajo) -- se deja esta función devolviendo siempre false para que los
-   mensajes de "conecta para ver" ya no aparezcan en ningún sitio. */
-return false;
+/* Desde que la vista vuelve a estar restringida por perfil (ver
+   puedeVerPersona más abajo), a alguien sin identidad de Google conectada
+   todavía no se le puede decir con certeza "no tienes acceso": puede que,
+   al conectar, resulte ser administrador, colaborador o el amigo dueño de
+   esa rama. Por eso se sugiere conectar en vez de dar un "no" definitivo.
+   Si ya está conectado y aun así no puede ver la ficha, el mensaje correcto
+   es "no tienes acceso" (ver los sitios donde se usa esta función). */
+return !(googleIdentidad&&googleIdentidad.email);
 }
 function miFichaId(){
 if(!googleIdentidad||!googleIdentidad.email)return null;
@@ -1522,33 +1589,40 @@ if(n!=null)set[n]=true;
 });
 return set;
 }
+/* true si la persona consta como fallecida en su ficha (isAl() = "está viva"). */
+function personaEsFallecida(id){
+var p=PI[id];
+return !!p&&!isAl(p);
+}
 function puedeVerPersona(id){
 if(id==null||id==='')return false;
-/* ===== DECISIÓN EXPLÍCITA DEL ADMINISTRADOR (confirmada tras avisar de la
-   consecuencia): ver el árbol ya NO exige conectar con Google. Cualquiera con
-   el enlace de la app puede ver cualquier ficha, sin necesidad de login.
+/* ===== DECISIÓN DEL ADMINISTRADOR (revisada): la vista vuelve a estar
+   restringida por perfil, para proteger los datos de las personas vivas.
+   Las personas fallecidas siguen siendo visibles para cualquiera, con o sin
+   conexión a Google, porque es el contenido genealógico/histórico del árbol
+   y no plantea el mismo riesgo de privacidad. Las personas vivas solo son
+   visibles para quien tenga alcance sobre ellas según su perfil (ver más
+   abajo); fuera de ese alcance, una persona viva queda oculta salvo que
+   quien mira esté conectado con una cuenta que sí tenga alcance sobre ella.
    Esto no toca la protección de EDITAR (eso lo sigue exigiendo
-   exigirIdentidadGoogle en cada acción de guardar/subir/gestionar, que sí pide
-   conectar con una cuenta autorizada) ni el panel de administración
-   (esAdministrador() sigue exigiendo identidad real ahí). Para volver a
-   restringir también la vista a solo familiares autorizados, cambiar esta
-   constante a false y se restaura el comportamiento anterior (líneas más
-   abajo, sin tocarlas). */
-var VISTA_ABIERTA_SIN_LOGIN=true;
-if(VISTA_ABIERTA_SIN_LOGIN)return true;
+   exigirIdentidadGoogle en cada acción de guardar/subir/gestionar) ni el
+   panel de administración (esAdministrador() sigue exigiendo identidad real
+   ahí). Para volver a la vista totalmente abierta (todo visible sin login),
+   basta con que esta función devuelva siempre true. */
 if(esAdministrador())return true;
 var tipo=tipoUsuarioActual();
-if(!tipo)return false;
-var mid=miFichaId();
+var mid=tipo?miFichaId():null;
 if(tipo==='amigo'){
-if(!mid)return false;
+if(mid){
 var setPropio=personasVisiblesAmigo(mid);
-return !!setPropio[String(id)];
+if(setPropio[String(id)])return true; // su rama completa: viva y fallecida
+}
+return personaEsFallecida(id);
 }
 if(tipo==='colaborador'){
 var c=calcularComponentesConexos();
 var comp=c.indice[String(id)];
-if(comp==null)return false;
+if(comp!=null){
 if(comp===c.principal)return true; // árbol principal: visible para cualquier colaborador
 if(mid){
 var compMid=c.indice[String(mid)];
@@ -1556,9 +1630,24 @@ if(compMid!=null&&compMid===comp)return true; // su propia componente, aunque no
 var propios=componentesPropiosDeColaborador(mid);
 if(propios[comp])return true; // rama de amigos que él mismo trajo
 }
-return false; // rama de amigos traída por otro colaborador: oculta
 }
-return false;
+return personaEsFallecida(id); // fuera de su alcance: solo si ya falleció
+}
+return personaEsFallecida(id); // sin conexión a Google: solo personas fallecidas
+}
+/* Nombre de un familiar enlazado (padre, madre, cónyuge, hermano, hijo,
+   abuelo...), listo para insertar en cualquier ficha o vista de la app: si
+   quien mira SÍ puede ver a esa persona, es un enlace clicable normal con su
+   nombre (y el HTML extra que se pase, p.ej. el año); si NO puede, se
+   sustituye por un texto neutro sin nombre, foto, fechas ni enlace, para que
+   una ficha visible (por ejemplo, la de un antepasado fallecido) no "filtre"
+   en su interior a familiares vivos fuera del alcance de quien la consulta. */
+function nombreFamiliarEnlazable(personaObj,onclickAttr,extraHtml,claseEnlace){
+if(!personaObj)return '';
+if(!puedeVerPersona(personaObj.ID)){
+return '<span style="color:var(--muted);font-style:italic" title="No tienes acceso a esta ficha">Persona no visible</span>';
+}
+return '<a class="'+(claseEnlace||'fl2')+'" onclick="'+onclickAttr+'">'+esc(fn(personaObj))+'</a>'+(extraHtml||'');
 }
 function usuarioActualParaCambios(){
 if(!googleIdentidad||!googleIdentidad.email){throw new Error('No hay identidad Google para registrar el cambio');}
@@ -2227,6 +2316,7 @@ if(!cont)return;
 q=(q||'').trim().toLowerCase();
 if(q.length<2){cont.innerHTML='';return;}
 var coincidencias=D.filter(function(p){
+if(!puedeVerPersona(p.ID))return false;
 var texto=fn(p)+' '+(p.OBSERVACIONES||'');
 return coincideBusqueda(texto,q);
 }).slice(0,10);
@@ -2240,6 +2330,7 @@ return '<div class="ri" onclick="docExplorerSeleccionarPersona(\''+safeId(p.ID)+
 function docExplorerSeleccionarPersona(id){
 var p=PI&&PI[id];
 if(!p){toast('Esa persona ya no existe en esta base de datos',true);return;}
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 DOC_EXPLORER_PERSONA={id:id,nombre:fn(p)};
 DOC_EXPLORER_ARCHIVOS=[];
 var input=document.getElementById('docExplorerBuscarPersona');if(input)input.value='';
@@ -4588,16 +4679,11 @@ document.getElementById('rl').innerHTML='<p style="text-align:center;color:var(-
 if(cEl)cEl.textContent='';
 return;
 }
-if(necesitaConectarParaVer()){
-/* No confundir "no hay nadie que coincida" con "no sabemos quién eres
-   todavía": si no hay ninguna identidad de Google (ni fresca ni recordada),
-   puedeVerPersona() devolvería false para todo el mundo y parecería que la
-   base de datos está vacía. Se avisa claramente y se ofrece conectar aquí
-   mismo, en vez de forzarlo solo. */
-document.getElementById('rl').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px"><p style="margin-bottom:10px">Conecta tu cuenta de Google para ver el árbol familiar.</p><button type="button" class="ef-btn save" onclick="accionDriveStatusPill()"><i class="fa-brands fa-google"></i> Conectar con Google</button></div>';
-if(cEl)cEl.textContent='';
-return;
-}
+/* Sin conexión a Google se sigue pudiendo buscar: puedeVerPersona() deja
+   pasar a las personas fallecidas para cualquiera, y oculta a las vivas
+   hasta que quien busca conecte una cuenta con alcance sobre ellas (ver
+   comentario de puedeVerPersona más arriba). Por eso ya no se bloquea toda
+   la búsqueda solo por no haber identidad de Google. */
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 if(q){
@@ -4665,7 +4751,6 @@ var cont=document.getElementById('quickSearchResults');
 if(!cont)return;
 if(!q){cont.innerHTML='';return;}
 if(!datosLocalesListos){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';return;}
-if(necesitaConectarParaVer()){cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:14px"><p style="margin-bottom:8px;font-size:12px">Conecta tu cuenta de Google para ver el árbol familiar.</p><button type="button" class="ef-btn save" onclick="accionDriveStatusPill()"><i class="fa-brands fa-google"></i> Conectar con Google</button></div>';return;}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 var an=String(pdAnioTexto(p)||'').toLowerCase();
@@ -4890,15 +4975,18 @@ h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calcul
 }
 var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
 var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
-var pl=padreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.PADRE)+'\')">'+esc(fn(padreObj))+'</a>'+etiquetaAnioRelacion(padreObj):'<span style="color:var(--muted)">Desconocido</span>';
-var ml=madreObj?'<a class="fl2" onclick="irAFicha(\''+safeId(p.MADRE)+'\')">'+esc(fn(madreObj))+'</a>'+etiquetaAnioRelacion(madreObj):'<span style="color:var(--muted)">Desconocida</span>';
+var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
+var ml=madreObj?nombreFamiliarEnlazable(madreObj,'irAFicha(\''+safeId(p.MADRE)+'\')',etiquetaAnioRelacion(madreObj)):'<span style="color:var(--muted)">Desconocida</span>';
 var conyugesHtml='';
+var conyugesLlenos=[1,2,3,4,5,6].filter(function(n){return p['M'+n]&&PI[p['M'+n]];});
 [1,2,3,4,5,6].forEach(function(n){
 var campoM='M'+n,campoML='ML'+n,campoMF='MF'+n;
 var cObj=p[campoM]&&PI[p[campoM]]?PI[p[campoM]]:null;
 if(!cObj)return;
-var cl='<a class="fl2" onclick="irAFicha(\''+safeId(p[campoM])+'\')">'+esc(fn(cObj))+'</a>'+etiquetaAnioRelacion(cObj);
-conyugesHtml+='<div class="fr"><span class="fl">Cónyuge '+n+'</span><span class="fv">'+cl+(p[campoML]?' · '+esc(p[campoML]):'')+(p[campoMF]?' · '+esc(fFechaMatrimonio(p[campoMF])):'')+'</span></div>';
+var cl=nombreFamiliarEnlazable(cObj,'irAFicha(\''+safeId(p[campoM])+'\')',etiquetaAnioRelacion(cObj));
+var ocultoConyuge=!puedeVerPersona(cObj.ID);
+var etiquetaConyuge=conyugesLlenos.length>1?('Cónyuge '+n):'Cónyuge';
+conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+(!ocultoConyuge&&p[campoML]?' · '+esc(p[campoML]):'')+(!ocultoConyuge&&p[campoMF]?' · '+esc(fFechaMatrimonio(p[campoMF])):'')+'</span></div>';
 });
 h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml+'</div>';
 /* Abuelos (nuevo, v2.3): mismo patron padre.PADRE/madre.MADRE que ya usa la Cronologia
@@ -4914,21 +5002,21 @@ if(madreObj.PADRE&&PI[madreObj.PADRE])abuelos.push(['Abuelo materno',PI[madreObj
 if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj.MADRE]]);
 }
 if(abuelos.length){
-var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv"><a class="fl2" onclick="irAFicha(\''+safeId(par[1].ID)+'\')">'+esc(fn(par[1]))+'</a>'+etiquetaAnioRelacion(par[1])+'</span></div>';}).join('');
+var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join('');
 h+='<div class="fs"><h3>Abuelos</h3>'+ah+'</div>';
 }
 var her=gHerm(id);
 if(her.length){
 her=ordenarPersonasPorEdad(her);
 var hh='';
-her.forEach(function(x){if(x.ID!==id)hh+='<li><a onclick="irAFicha(\''+safeId(x.ID)+'\')">'+esc(fn(x))+'</a>'+etiquetaAnioRelacion(x)+'</li>';});
+her.forEach(function(x){if(x.ID!==id)hh+='<li>'+nombreFamiliarEnlazable(x,'irAFicha(\''+safeId(x.ID)+'\')',etiquetaAnioRelacion(x),'')+'</li>';});
 h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
 }
 var hij=ordenarIdsPorEdad(HD[id]||[]);
 h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
 if(hij.length){
 var hi='';
-hij.forEach(function(x){hi+='<li><a onclick="irAFicha(\''+safeId(x)+'\')">'+esc(fn(PI[x]))+'</a>'+etiquetaAnioRelacion(PI[x])+'</li>';});
+hij.forEach(function(x){hi+='<li>'+nombreFamiliarEnlazable(PI[x],'irAFicha(\''+safeId(x)+'\')',etiquetaAnioRelacion(PI[x]),'')+'</li>';});
 h+='<ul class="ul">'+hi+'</ul>';
 } else {
 h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
@@ -7465,6 +7553,13 @@ function year(pp){return pdAnioTexto(pp);}
 function defYear(pp){return(!isAl(pp)&&pp.DEFA)?String(pp.DEFA):"";}
 function makeCard(pp,extraClass,sinLineaFamilia){
 if(!pp){return `<div class="pedigree-card placeholder"><div class="pc-name">?</div></div>`;}
+if(!puedeVerPersona(pp.ID)){
+/* Persona fuera del alcance de quien mira (viva y ajena a su rama): se
+   muestra una tarjeta neutra, sin nombre, foto, años ni lugar, y sin
+   enlace a su ficha -- para que el árbol de una persona visible no filtre
+   en su interior a familiares vivos que no le corresponde ver. */
+return `<div class="pedigree-card ${extraClass||""}" data-id="${esc(pp.ID)}" style="opacity:.6"><div class="pc-text"><div class="pc-name" style="font-style:italic;color:var(--muted)">Persona no visible</div></div></div>`;
+}
 var y=year(pp),dy=defYear(pp);
 var yearsTxt=y?(dy?(y+' \u2013 '+dy):y):(dy?('? \u2013 '+dy):'');
 var placeTxt=pp.LUGARNAC?String(pp.LUGARNAC):'';
@@ -7505,6 +7600,10 @@ var nietos=ordenarIdsPorEdad(HD[hid]||[]);
 if(nietos.length){
 h+=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;padding-left:8px;border-left:1.5px solid var(--border)">`;
 nietos.forEach(function(nid){
+if(!puedeVerPersona(nid)){
+h+=`<div class="tree-gchild" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;font-style:italic;color:var(--muted)">Persona no visible</div>`;
+return;
+}
 h+=`<div class="tree-gchild${isAl(PI[nid])?' alive':''}" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;cursor:pointer" onclick="selP('${safeId(nid)}')">${esc(PI[nid].NOMBRE||'?')}${year(PI[nid])?' '+esc(year(PI[nid])):''}</div>`;
 });
 h+=`</div>`;
@@ -7553,7 +7652,7 @@ function doSrchInf(q){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlInf');
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
+var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
@@ -7561,6 +7660,7 @@ f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclic
 lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaInforme(id){
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 infId=id;
 var box=document.getElementById('infSelBox');
 box.textContent=fn(PI[id]);box.classList.remove('empty');
@@ -7584,7 +7684,7 @@ function doSrchCro(q){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlCro');
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
+var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
@@ -7592,6 +7692,7 @@ f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclic
 lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaCronologia(id){
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 croId=id;
 var box=document.getElementById('croSelBox');
 box.textContent=fn(PI[id]);box.classList.remove('empty');
@@ -7614,11 +7715,11 @@ eventos.push({anio:yNac,txt:'Nacimiento'+etiquetaAnio+(p.LUGARNAC?' en '+p.LUGAR
 var conyugeId=p[par[0]],fecha=p[par[1]];
 var anio=extraerAnioTexto(fecha);
 if(anio!==null){
-var conyuge=conyugeId&&PI[conyugeId]?fn(PI[conyugeId]):'';
+var conyuge=conyugeId&&PI[conyugeId]&&puedeVerPersona(conyugeId)?fn(PI[conyugeId]):'';
 eventos.push({anio:anio,txt:'Matrimonio'+(conyuge?' con '+conyuge:'')});
 }
 });
-var hijos=(HD[p.ID]||[]).map(function(x){return PI[x];}).filter(Boolean);
+var hijos=(HD[p.ID]||[]).map(function(x){return PI[x];}).filter(Boolean).filter(function(h){return puedeVerPersona(h.ID);});
 hijos.forEach(function(h){
 var yh=anioNacimientoPersona(h);
 if(yh!==null)eventos.push({anio:yh,txt:'Nacimiento de '+fn(h)+(esAnioEstimado(h)?' (año estimado automáticamente)':'')});
@@ -7650,7 +7751,7 @@ return h;
 }
 function construirFamiliaCronologia(p,ampliada){
 var vistos={},lista=[];
-function add(x,label){if(x&&!vistos[x.ID]){vistos[x.ID]=true;lista.push({p:x,label:label||''});}}
+function add(x,label){if(x&&!vistos[x.ID]&&puedeVerPersona(x.ID)){vistos[x.ID]=true;lista.push({p:x,label:label||''});}}
 if(p.PADRE&&PI[p.PADRE])add(PI[p.PADRE],'Padre');
 if(p.MADRE&&PI[p.MADRE])add(PI[p.MADRE],'Madre');
 gHerm(p.ID).forEach(function(h){add(h,'Hermano/a');});
@@ -7711,6 +7812,7 @@ var prefijo=esExtendida?(d.label+': '):'';
 h+='<div class="cro-row"><div class="cro-row-label" title="'+escAttr(prefijo+fn(d.p))+'" onclick="selPDesdeGantt(\''+safeId(d.p.ID)+'\')">'+esc(prefijo+fn(d.p))+(d.p.ID===p.ID?' ★':'')+'</div><div class="cro-track">';
 h+='<div class="cro-bar'+(d.vivo?' alive':'')+(d.warn?' warn':'')+(d.estimado?' estimado':'')+'" style="left:'+left.toFixed(2)+'%;width:'+width.toFixed(2)+'%" title="'+d.yNac+(d.estimado?' (año estimado automáticamente)':'')+(d.yFin!==null?' - '+d.yFin:' - presente')+'"></div>';
 (HD[d.p.ID]||[]).forEach(function(hid){
+if(!puedeVerPersona(hid))return;
 var hp=PI[hid],yh=anioNacimientoPersona(hp);
 if(yh!==null&&yh>=minA&&yh<=maxA)h+='<div class="cro-marker" style="left:'+pct(yh).toFixed(2)+'%" title="Nace '+escAttr(fn(hp))+' ('+yh+')"></div>';
 });
@@ -7949,7 +8051,7 @@ function doSrchRel(q,letra){
 q=(q||'').toLowerCase().trim();
 var lista=document.getElementById('rlRel'+letra);
 if(!q){lista.innerHTML='';return;}
-var f=D.filter(function(p){return coincideBusqueda(sn(p)+' '+fn(p),q);});
+var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+' '+fn(p),q);});
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
@@ -7957,6 +8059,7 @@ f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclic
 lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaRel(id,letra){
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 if(letra==='A')relIdA=id;else relIdB=id;
 actualizarCadenaRel(letra,PI[id]);
 document.getElementById('rlRel'+letra).innerHTML='';
@@ -7984,8 +8087,13 @@ h+='<p style="font-size:13px;color:var(--muted)">Es la misma persona.</p>';
 }else{
 h+='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]).trim())+'</div>';
 camino.forEach(function(paso){
+var vis=puedeVerPersona(paso.hasta);
 h+='<div class="rel-flecha"><i class="fa-solid fa-arrow-down"></i><span>'+esc(etiquetaPaso(paso))+'</span></div>';
+if(vis){
 h+='<div class="rel-nodo'+(paso.hasta===relIdB?' root':'')+'" onclick="selP(\''+safeId(paso.hasta)+'\')">'+esc(fn(PI[paso.hasta]).trim())+'</div>';
+}else{
+h+='<div class="rel-nodo" style="cursor:default;font-style:italic;color:var(--muted)" title="No tienes acceso a esta ficha">Persona no visible</div>';
+}
 });
 h+='</div>';
 }
@@ -8023,7 +8131,7 @@ return '<div class="pd-card'+(esposo?' spouse':'')+'">'+foto+'<div class="pd-nom
 }
 function pdCoupleHTML(p,conyugeIds,sosa){
 var h=pdCardHTML(p,false,sosa);
-(conyugeIds||[]).forEach(function(cid){if(PI[cid])h+=pdCardHTML(PI[cid],true);});
+(conyugeIds||[]).forEach(function(cid){if(PI[cid]&&puedeVerPersona(cid))h+=pdCardHTML(PI[cid],true);});
 return '<div class="pd-couple">'+h+'</div>';
 }
 var PD_MAX_GEN=6;
@@ -8031,6 +8139,7 @@ function buildArbolDescendenteGrafico(id,visitados,gen){
 if(!id||visitados[id]||gen>PD_MAX_GEN)return'';
 visitados[id]=true;
 var p=PI[id];if(!p)return'';
+if(!puedeVerPersona(id))return '<li><div class="pd-couple"><div class="pd-card"><div class="pd-initial">?</div><div class="pd-nombre" style="font-style:italic">Persona no visible</div></div></div></li>';
 var conyuges=[p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].filter(function(x){return x&&PI[x];});
 var hijos=ordenarIdsPorEdad(HD[id]||[]);
 var h='<li>'+pdCoupleHTML(p,conyuges);
@@ -8617,11 +8726,15 @@ Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
 html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+'</div>';
 porGeneracion[g].forEach(function(item){
 var pp=item.p;
+if(!puedeVerPersona(pp.ID)){
+html+='<div class="print-person"><div class="pn-name" style="font-style:italic;color:var(--muted)">Persona no visible</div></div>';
+return;
+}
 var conyugesTxt=CAMPOS_CONYUGE.map(function(c){return pp[c]&&PI[pp[c]]?fn(PI[pp[c]]):'';}).filter(Boolean);
 var relTxt='';
 if(item.sosa>1){
 var hijoDe=sosaMap[Math.floor(item.sosa/2)];
-if(hijoDe)relTxt=(item.sosa%2===0?'Padre de ':'Madre de ')+fn(hijoDe);
+if(hijoDe&&puedeVerPersona(hijoDe.ID))relTxt=(item.sosa%2===0?'Padre de ':'Madre de ')+fn(hijoDe);
 }
 html+='<div class="print-person"><div class="pn-name">'+esc(fn(pp))+(relTxt?' <span style="font-weight:400;color:var(--muted)">('+esc(relTxt)+')</span>':'')+'</div>';
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(pp))+(pp.LUGARNAC?' — '+esc(pp.LUGARNAC):'')+'</div>';
@@ -8657,6 +8770,9 @@ var hijos=ordenarIdsPorEdad(HD[id]||[]);
 hijos.forEach(function(hid){recopilarDescendientesInforme(hid,gen+1,maxGen,visitados,porGeneracion);});
 }
 function htmlPrintPersona(pp){
+if(!puedeVerPersona(pp.ID)){
+return '<div class="print-person"><div class="pn-name" style="font-style:italic;color:var(--muted)">Persona no visible</div></div>';
+}
 var conyugesTxt=CAMPOS_CONYUGE.map(function(c){return pp[c]&&PI[pp[c]]?fn(PI[pp[c]]):'';}).filter(Boolean);
 var padre=pp.PADRE&&PI[pp.PADRE]?fn(PI[pp.PADRE]):'';
 var madre=pp.MADRE&&PI[pp.MADRE]?fn(PI[pp.MADRE]):'';
@@ -8712,10 +8828,10 @@ function construirHTMLInformePersona(){
 if(!infId||!PI[infId])return null;
 var p=PI[infId];
 var al=isAl(p);
-var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
-var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'Desconocida';
-var her=gHerm(infId);
-var hij=ordenarIdsPorEdad(HD[infId]||[]);
+var padre=p.PADRE&&PI[p.PADRE]&&puedeVerPersona(p.PADRE)?fn(PI[p.PADRE]):'Desconocido';
+var madre=p.MADRE&&PI[p.MADRE]&&puedeVerPersona(p.MADRE)?fn(PI[p.MADRE]):'Desconocida';
+var her=gHerm(infId).filter(function(x){return puedeVerPersona(x.ID);});
+var hij=ordenarIdsPorEdad(HD[infId]||[]).filter(function(x){return puedeVerPersona(x);});
 var html='<div class="print-report"><h1>Informe de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
 html+='<div class="print-person" style="border-bottom:0">';
 html+='<div class="pn-name" style="font-size:14px">Datos personales</div>';
@@ -8727,7 +8843,7 @@ html+='</div>';
 html+='<div class="print-person" style="border-bottom:0">';
 html+='<div class="pn-name" style="font-size:14px">Familia</div>';
 html+='<div class="pn-row">Padre: '+esc(padre)+'</div><div class="pn-row">Madre: '+esc(madre)+'</div>';
-CAMPOS_CONYUGE.forEach(function(n){var c=p[n];if(c&&PI[c])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[c]))+(p['ML'+n.slice(1)]?' · '+esc(p['ML'+n.slice(1)]):'')+(p['MF'+n.slice(1)]?' · '+esc(fFechaMatrimonio(p['MF'+n.slice(1)])):'')+'</div>';});
+CAMPOS_CONYUGE.forEach(function(n){var c=p[n];if(c&&PI[c]&&puedeVerPersona(c))html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[c]))+(p['ML'+n.slice(1)]?' · '+esc(p['ML'+n.slice(1)]):'')+(p['MF'+n.slice(1)]?' · '+esc(fFechaMatrimonio(p['MF'+n.slice(1)])):'')+'</div>';});
 if(her.length)html+='<div class="pn-row">Hermanos ('+her.length+'): '+esc(her.map(function(x){return fn(x);}).join(', '))+'</div>';
 if(hij.length)html+='<div class="pn-row">Hijos ('+hij.length+'): '+esc(hij.map(function(x){return fn(PI[x]);}).join(', '))+'</div>';
 html+='</div>';
@@ -8749,15 +8865,15 @@ generarDescargarPDF(html,'ficha-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.cur
 function construirHTMLInformeRama(){
 if(!infId||!PI[infId])return null;
 var p=PI[infId];
-var padre=p.PADRE&&PI[p.PADRE]?fn(PI[p.PADRE]):'Desconocido';
-var madre=p.MADRE&&PI[p.MADRE]?fn(PI[p.MADRE]):'Desconocida';
+var padre=p.PADRE&&PI[p.PADRE]&&puedeVerPersona(p.PADRE)?fn(PI[p.PADRE]):'Desconocido';
+var madre=p.MADRE&&PI[p.MADRE]&&puedeVerPersona(p.MADRE)?fn(PI[p.MADRE]):'Desconocida';
 var porGeneracion={};
 recopilarDescendientesInforme(infId,0,PD_MAX_GEN,{},porGeneracion);
 var html='<div class="print-report"><h1>Informe de la rama de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
 html+='<div class="print-person"><div class="pn-name">Cabeza de rama: '+esc(fn(p))+'</div>';
 html+='<div class="pn-row">Hijo/a de '+esc(padre)+' y '+esc(madre)+'</div>';
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(p))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
-CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p[c]]))+'</div>';});
+CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]]&&puedeVerPersona(p[c]))html+='<div class="pn-row">Cónyuge: '+esc(fn(PI[p[c]]))+'</div>';});
 html+='</div>';
 var huboDescendientes=false;
 Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
@@ -8856,12 +8972,14 @@ html+='</div>';
 return html;
 }
 function descargarInformeDatosFaltantes(){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeDatosFaltantes();
 if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
 function descargarInformeDatosFaltantesPDF(ev){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeDatosFaltantes();
 if(html===null)return;
 generarDescargarPDF(html,'datos-faltantes',{boton:ev&&ev.currentTarget});
@@ -8878,12 +8996,14 @@ html+='</div>';
 return html;
 }
 function descargarInformeInconsistencias(){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeInconsistencias();
 if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
 function descargarInformeInconsistenciasPDF(ev){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeInconsistencias();
 if(html===null)return;
 generarDescargarPDF(html,'inconsistencias',{boton:ev&&ev.currentTarget});
@@ -8906,12 +9026,14 @@ html+='</div>';
 return html;
 }
 function descargarInformeDuplicados(){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeDuplicados();
 if(html===null)return;
 document.getElementById('printArea').innerHTML=html;
 setTimeout(function(){window.print();},80);
 }
 function descargarInformeDuplicadosPDF(ev){
+if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
 var html=construirHTMLInformeDuplicados();
 if(html===null)return;
 generarDescargarPDF(html,'duplicados',{boton:ev&&ev.currentTarget});
@@ -8939,19 +9061,19 @@ var MANUAL_EMBLEMA_SVG = '<svg width="140" height="140" viewBox="0 0 140 140" xm
 '<circle cx="70" cy="70" r="66" fill="none" stroke="#C4653A" stroke-width="0.6"/>'+
 '</svg>';
 var MANUAL_CONTENIDO=[
-{titulo:'Bienvenida y primeros pasos',soloAdmin:false,html:'<p>El Libro de los Ancestros es la aplicacion de genealogia de la familia: reune en un unico arbol los datos, fotografias, documentos y observaciones de mas de 15.000 personas. Funciona enteramente en el navegador, sin instalacion previa, y guarda los datos en el propio dispositivo, mientras usa Google Drive como almacen compartido de fotos, documentos, copias de seguridad y el registro de cambios entre colaboradores.</p><p>Para entrar basta con abrir la direccion web de la aplicacion. La primera vez que se carga en un dispositivo nuevo puede tardar unos segundos mientras descarga la base de datos y calcula los anos estimados pendientes; una barra de progreso bajo el buscador informa de este proceso.</p><p>Hay dos niveles de uso muy distintos:</p><ul><li><strong>Consultar</strong> (buscar personas, ver fichas, navegar el arbol, generar informes) no requiere ninguna cuenta: cualquiera con el enlace puede explorar el arbol libremente.</li><li><strong>Modificar</strong> (editar una ficha, crear una persona, fusionar duplicados, subir documentos...) exige tener conectada una cuenta de Google, para poder atribuir cada cambio a quien lo hizo.</li></ul><div class="manual-tip">Si solo vas a consultar el arbol, no hace falta que conectes tu cuenta de Google en ningun momento.</div><div class="manual-tip">Si es la primera vez que un familiar se conecta con Google Drive en un dispositivo nuevo, es mejor seguir la «Guia de primer acceso» (Herramientas → Ayuda), pensada paso a paso para ese momento concreto; este manual cubre el resto del uso habitual de la aplicacion.</div><p>La aplicacion puede instalarse como una app independiente en el ordenador o el movil (vease la seccion «Limpiar cache e instalar como aplicacion»), lo que permite abrirla con un icono propio, igual que cualquier otra aplicacion.</p>'},
+{titulo:'Bienvenida y primeros pasos',soloAdmin:false,html:'<p>El Libro de los Ancestros es la aplicacion de genealogia de la familia: reune en un unico arbol los datos, fotografias, documentos y observaciones de mas de 15.000 personas. Funciona enteramente en el navegador, sin instalacion previa, y guarda los datos en el propio dispositivo, mientras usa Google Drive como almacen compartido de fotos, documentos, copias de seguridad y el registro de cambios entre colaboradores.</p><p>Para entrar basta con abrir la direccion web de la aplicacion. La primera vez que se carga en un dispositivo nuevo puede tardar unos segundos mientras descarga la base de datos y calcula los anos estimados pendientes; una barra de progreso bajo el buscador informa de este proceso.</p><p>Hay dos niveles de uso muy distintos:</p><ul><li><strong>Consultar</strong> (buscar personas, ver fichas, navegar el arbol, generar informes): las personas fallecidas se pueden consultar sin conectar ninguna cuenta, ya que son el contenido historico del arbol. Las personas <strong>vivas</strong> solo son visibles para quien tiene alcance sobre ellas segun su perfil (el administrador ve todo; un colaborador ve el arbol principal y sus propias ramas vinculadas; un amigo ve su propia rama completa) — fuera de ese alcance, una persona viva aparece oculta.</li><li><strong>Modificar</strong> (editar una ficha, crear una persona, fusionar duplicados, subir documentos...) exige tener conectada una cuenta de Google, para poder atribuir cada cambio a quien lo hizo.</li></ul><div class="manual-tip">Si solo vas a consultar el arbol, no hace falta que conectes tu cuenta de Google en ningun momento.</div><div class="manual-tip">Si es la primera vez que un familiar se conecta con Google Drive en un dispositivo nuevo, es mejor seguir la «Guia de primer acceso» (Herramientas → Ayuda), pensada paso a paso para ese momento concreto; este manual cubre el resto del uso habitual de la aplicacion.</div><p>La aplicacion puede instalarse como una app independiente en el ordenador o el movil (vease la seccion «Limpiar cache e instalar como aplicacion»), lo que permite abrirla con un icono propio, igual que cualquier otra aplicacion.</p>'},
 {titulo:'Buscar una persona',soloAdmin:false,html:'<p>La pantalla Buscar es la puerta de entrada al arbol. Escribe en el cuadro de busqueda un nombre, uno o varios apellidos, un lugar de nacimiento o defuncion, o incluso un fragmento de las observaciones de la ficha: los resultados aparecen al instante, sin necesidad de pulsar ningun boton.</p><p>Cada resultado muestra un circulo de color (azul si la persona esta viva, marron oscuro si ha fallecido), su nombre completo y su ano de nacimiento; si ese ano es una estimacion automatica del motor ANOCALC, aparece en cursiva y con el simbolo ≈ delante.</p><p>El icono del embudo, junto al buscador, abre el panel de <strong>filtros avanzados</strong>, que se pueden combinar libremente con el texto de busqueda:</p><ul><li><strong>Lugar</strong>: filtra por lugar de nacimiento o de defuncion.</li><li><strong>Etiqueta</strong>: muestra solo las personas que llevan una etiqueta concreta.</li><li><strong>Ano desde / hasta</strong>: acota por rango de ano de nacimiento, real o estimado.</li><li><strong>Vivos / Fallecidos</strong>: permite mostrar solo un grupo o el otro.</li></ul><p>El contador junto a «Limpiar filtros» indica cuantas personas cumplen los criterios activos. Si la busqueda devuelve mas de 80 resultados, la aplicacion solo muestra los 80 primeros por orden alfabetico de apellidos; conviene afinar la busqueda o los filtros para localizar a la persona exacta.</p><p>Pulsando sobre cualquier persona de la lista se abre directamente su posicion en el arbol genealogico.</p>'},
 {titulo:'La ficha de una persona',soloAdmin:false,html:'<p>La ficha es la vista central de cada persona: reune todo lo que la aplicacion sabe de ella. Se abre pulsando sobre un resultado de busqueda, sobre cualquier casilla del arbol, o sobre el icono de identificacion de cada casilla.</p><p>La ficha se organiza en bloques:</p><ul><li><strong>Cabecera</strong>: fotografia (o inicial de su nombre si no tiene), nombre completo, ID interno, sexo, fecha de nacimiento y de defuncion.</li><li><strong>Datos</strong>: nombre, apellidos, nacimiento (con lugar) y defuncion (con lugar).</li><li><strong>Ano estimado automaticamente</strong>: solo aparece si la persona no tiene ningun ano propio; muestra el ano calculado (≈) y el boton «Ver calculo».</li><li><strong>Familia</strong>: padre, madre y hasta dos conyuges, con su fecha y lugar de matrimonio si constan.</li><li><strong>Hermanos</strong> e <strong>Hijos</strong>, ordenados por edad (los de ano desconocido, al final).</li><li><strong>Documentos</strong>: archivos guardados en Google Drive asociados a esta persona.</li><li><strong>Observaciones</strong>: notas libres.</li></ul><p>Si el motor de consistencia detecta algo raro en esta ficha (por ejemplo, una edad de progenitor imposible, o un matrimonio posterior a una defuncion), aparece un recuadro rojo «Posible error» en la parte superior, con un boton «Solucionar» cuando la correccion es segura y reversible, o «Revisar en el Gestor» para los casos que requieren juicio humano. La aplicacion nunca corrige nada por si sola: siempre presenta el hallazgo como una sugerencia.</p><div class="manual-tip">Desde la ficha puedes saltar directamente a la Cronologia de la persona o calcular su Parentesco con cualquier otra, con los botones de la barra superior.</div>'},
 {titulo:'El arbol genealogico interactivo',soloAdmin:false,html:'<p>La pantalla Arbol dibuja, alrededor de la persona seleccionada, hasta cuatro generaciones de antepasados (padres, abuelos, bisabuelos y tatarabuelos) a la derecha, y sus descendientes directos (hijos y nietos) a la izquierda.</p><p>Herramientas disponibles en la parte superior:</p><ul><li><strong>Zoom (− / +)</strong>: aleja o acerca la vista en pasos del 10%, entre el 60% y el 140%.</li><li><strong>Centrar</strong>: vuelve a situar en el centro de la pantalla a la persona principal.</li><li><strong>Ver 2/4 generaciones</strong>: alterna entre una vista compacta y la vista completa.</li></ul><p>Cada casilla del arbol muestra el nombre, el ano de nacimiento (o el ano estimado con ≈) y, si consta, el lugar de nacimiento. Las casillas de las personas vivas se pintan en azul. El icono de ficha en la esquina de cada casilla abre directamente su ficha completa sin cambiar de posicion en el arbol.</p><p>Los nietos se muestran como pequenas etiquetas bajo cada hijo, en lugar de casillas completas, para no saturar la vista; un clic sobre cualquiera de ellas navega el arbol hasta esa persona.</p><div class="manual-tip">Si una rama no tiene padre o madre registrados, la aplicacion muestra una casilla vacia con un signo de interrogacion en su lugar: es la senal de que ahi falta investigar.</div>'},
 {titulo:'Editar una ficha, paso a paso',soloAdmin:false,html:'<p>Para editar cualquier ficha, abrela y pulsa el boton <strong>Editar</strong> en la parte superior. Se convierte en un formulario con los mismos bloques que la vista de solo lectura, mas algunos controles adicionales.</p><ul><li><strong>Foto</strong>: «Subir foto» abre el selector de archivos de tu dispositivo; la imagen se redimensiona automaticamente antes de guardarse. «Quitar» elimina la foto actual.</li><li><strong>Datos personales</strong>: apellidos, nombre, sexo, fecha de nacimiento y de defuncion. Marca o desmarca la casilla «Fallecido» para revelar u ocultar los campos de defuncion.</li><li><strong>Etiquetas</strong>: anade o quita etiquetas libres.</li><li><strong>Familia</strong>: enlaces a padre, madre y hasta dos conyuges, con sus botones de vincular, crear o desvincular.</li><li><strong>Descendientes</strong>: lista de hijos ya registrados, con acceso rapido para editarlos, y botones para anadir un descendiente nuevo (con o sin pareja).</li><li><strong>Observaciones</strong>: un cuadro de texto libre para cualquier anotacion.</li></ul><p>Al pulsar <strong>Guardar</strong>, la aplicacion exige tener conectada una identidad de Google: si aun no lo esta, se abrira automaticamente la ventana de conexion de Google antes de completar el guardado. Sin esa identidad, ningun cambio se guarda: no existe un modo de edicion anonimo.</p><div class="manual-warn">Salir de una ficha en modo edicion sin pulsar Guardar descarta todos los cambios realizados en el formulario.</div><p>Al guardar, la aplicacion tambien aplica dos ayudas automaticas: si has cambiado la fecha o el lugar del matrimonio con un conyuge, refleja el mismo dato en la ficha reciproca de esa persona; y si has cambiado el primer apellido, te ofrece propagarlo a los descendientes que lo llevan heredado, siguiendo la convencion espanola de apellidos.</p>'},
 {titulo:'Vincular personas: padres y conyuges',soloAdmin:false,html:'<p>Junto a los campos Padre, Madre, Conyuge 1 y Conyuge 2 del formulario de edicion hay tres botones:</p><ul><li><strong>E (Editar)</strong>: abre la ficha de la persona ya vinculada, en modo edicion.</li><li><strong>Lupa (Elegir persona existente)</strong>: abre un buscador emergente para vincular a alguien que ya existe en la base de datos.</li><li><strong>N (Crear nuevo)</strong>: crea una persona nueva y la vincula automaticamente en ese campo.</li></ul><p>Los conyuges, y tambien el padre y la madre, tienen ademas un boton para <strong>quitar el vinculo</strong> (icono de eslabon roto), que separa a las dos personas sin borrar ninguna ficha: util para corregir un enlace equivocado.</p><p>Cuando creas una persona nueva vinculada, o un descendiente, la aplicacion te pide elegir su ID: en lugar de asignar directamente el siguiente numero libre, muestra primero los <strong>huecos</strong> que hayan quedado en la numeracion (por ejemplo, de fichas eliminadas en el pasado), ofreciendo el hueco mas bajo como opcion destacada.</p><div class="manual-tip">Al vincular un conyuge se comprueba automaticamente que el enlace sea reciproco en ambas fichas, para que nunca quede una relacion «a medias».</div>'},
 {titulo:'Etiquetas y notas personalizadas',soloAdmin:false,html:'<p>Cada persona puede llevar cualquier numero de <strong>etiquetas</strong> libres: palabras o frases cortas que ayudan a clasificar o localizar personas mas adelante (por ejemplo «Migrante», «Linea materna confirmada», «Pendiente de partida de bautismo»...).</p><p>Para anadir una etiqueta desde la edicion de una ficha, escribela en el campo correspondiente y pulsa «Anadir» o la tecla Intro; para quitarla, pulsa la × de su chip. Al escribir, la aplicacion sugiere etiquetas ya usadas en otras personas, para mantener la nomenclatura homogenea.</p><p>Las etiquetas de una ficha son visibles y pulsables desde la propia vista de la ficha: al pulsar una, la aplicacion abre la pantalla Buscar con el filtro de etiqueta ya aplicado, mostrando a todas las personas que la comparten.</p>'},
-{titulo:'Documentos y fotografias de cada persona',soloAdmin:false,html:'<p>Cada persona puede tener asociados, en Google Drive, tanto una fotografia como cualquier numero de documentos (partidas, certificados, correspondencia, fotografias historicas...). La seccion Documentos de la ficha permite gestionarlos sin salir de la aplicacion.</p><ul><li><strong>Subir</strong>: arrastra los archivos sobre la zona de subida, o pulsa «Elegir archivos»; se puede anadir una categoria libre (con sugerencias) para agruparlos.</li><li><strong>Buscar</strong>: en cuanto una persona acumula mas de 8 documentos aparece un buscador para filtrarlos por nombre o categoria.</li><li><strong>Renombrar</strong> y <strong>Eliminar</strong>: disponibles en cada documento, sin necesidad de entrar en Drive.</li><li><strong>Abrir carpeta en Drive</strong>: acceso directo a la carpeta de Drive de esa persona.</li></ul><p>Gestionar documentos requiere tener la cuenta de Google conectada, pero esta disponible para cualquier colaborador, no solo para el administrador.</p><p>La fotografia de perfil se gestiona desde el formulario de edicion de la ficha: al guardarla, se guarda siempre en el dispositivo y, si Google Drive esta disponible en ese momento, tambien se sincroniza en segundo plano con la carpeta FOTO, sin bloquear el guardado si Drive falla.</p>'},
+{titulo:'Documentos y fotografias de cada persona',soloAdmin:false,html:'<p>Cada persona puede tener asociados, en Google Drive, tanto una fotografia como cualquier numero de documentos (partidas, certificados, correspondencia, fotografias historicas...). La seccion Documentos de la ficha permite gestionarlos sin salir de la aplicacion.</p><ul><li><strong>Subir</strong>: arrastra los archivos sobre la zona de subida, o pulsa «Elegir archivos»; se puede anadir una categoria libre (con sugerencias) para agruparlos.</li><li><strong>Buscar</strong>: en cuanto una persona acumula mas de 8 documentos aparece un buscador para filtrarlos por nombre o categoria.</li><li><strong>Renombrar</strong> y <strong>Eliminar</strong>: disponibles en cada documento, sin necesidad de entrar en Drive.</li><li><strong>Abrir carpeta en Drive</strong>: acceso directo a la carpeta de Drive de esa persona.</li></ul><p>Gestionar documentos requiere tener la cuenta de Google conectada, pero esta disponible para cualquier colaborador, no solo para el administrador.</p><p>El buscador de personas de la pantalla Documentos tambien respeta el limite de perfil: no aparece en los resultados una persona viva fuera de tu alcance (vease «Los tres perfiles»).</p><p>La fotografia de perfil se gestiona desde el formulario de edicion de la ficha: al guardarla, se guarda siempre en el dispositivo y, si Google Drive esta disponible en ese momento, tambien se sincroniza en segundo plano con la carpeta FOTO, sin bloquear el guardado si Drive falla.</p>'},
 {titulo:'Importacion masiva de fotografias',soloAdmin:false,html:'<p>Cuando hay muchas fotografias que asociar de golpe, es mas rapido usar la importacion masiva que subirlas una a una desde cada ficha. Hay dos vias, ambas accesibles desde Herramientas:</p><ul><li><strong>Desde una carpeta del ordenador</strong>: no requiere conexion con Google. Elige una carpeta local; cada archivo de imagen debe llamarse exactamente igual que el ID de la persona (por ejemplo «1234.jpg» para la persona con ID 1234).</li><li><strong>Desde Google Drive</strong>: requiere identidad de Google conectada. Busca la carpeta FOTO dentro de la carpeta raiz configurada y asigna cada imagen siguiendo el mismo criterio del nombre exacto.</li></ul><p>En ambos casos la asociacion es <strong>siempre por coincidencia exacta</strong> del nombre de archivo (sin extension) con el ID: nunca se hacen coincidencias aproximadas, para evitar asignar una foto a la persona equivocada. Si una persona ya tenia foto, la nueva la sustituye.</p><p>Al terminar, se muestra un resumen con archivos encontrados, imagenes reconocidas, fotografias asociadas, archivos sin persona coincidente y errores, todo explicado en lenguaje sencillo.</p><div class="manual-warn">No se puede iniciar una nueva importacion mientras otra esta en curso; espera a que termine antes de lanzar la siguiente.</div>'},
-{titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p>'},
-{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». Elige a la Persona A y a la Persona B con los buscadores correspondientes; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p>'},
-{titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div>'},
-{titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p>'},
+{titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p><p>El buscador de esta pantalla, la comparativa familiar y la linea de vida respetan el mismo limite de perfil que el resto de la aplicacion: una persona viva fuera de tu alcance no aparece en la busqueda ni se menciona por su nombre en la comparativa (vease «Los tres perfiles»).</p>'},
+{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». Elige a la Persona A y a la Persona B con los buscadores correspondientes; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>Los dos buscadores (Persona A y Persona B) y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
+{titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
+{titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><div class="manual-warn">A diferencia del resto de la aplicacion, estos posteres todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Se corregira en una proxima actualizacion.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
 {titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes) o con un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real -con boton «Solucionar»-, y casos solo para revisar como un apellido distinto al del padre o al primer apellido de la madre, una posible errata (misma grafia con tildes o mayusculas distintas) o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
@@ -9047,6 +9169,7 @@ var GUIA_APP_URL='https://meleiro2014-creator.github.io/arbol-genealogico/';
 var GUIA_PRIVACIDAD_URL='https://meleiro2014-creator.github.io/arbol-genealogico/privacidad.html';
 var GUIA_CONTENIDO=[
 {titulo:'El enlace de la app',html:'<p>Este es el enlace de «El Libro de los Ancestros». Guardalo (o pide que te lo pasen por WhatsApp o correo) y abrelo desde el navegador del movil o del ordenador:</p><p style="text-align:center"><a href="'+GUIA_APP_URL+'">'+GUIA_APP_URL+'</a></p>'},
+{titulo:'¿Estan a salvo mis datos? Antes de empezar',html:'<p>Es normal sentir algo de reparo antes de conectar tu cuenta de Google a una aplicacion nueva. Antes de seguir, vale la pena explicar con claridad que pasa de verdad con tus datos:</p><ul><li><strong>Tu contrasena de Google nunca pasa por esta aplicacion.</strong> La pantalla para elegir tu cuenta (Paso 2, mas adelante) es la pagina oficial de Google, la misma que usas para entrar en Gmail o YouTube. La aplicacion nunca ve ni guarda tu contrasena.</li><li><strong>Los datos se guardan en el Google Drive de la familia</strong>, no en un servidor externo desconocido: las fichas, fotos, documentos y copias de seguridad viven en la misma carpeta compartida que ya usa el resto de la familia, con la seguridad de Google detras.</li><li><strong>Solo puede guardar cambios quien el administrador ha autorizado expresamente</strong>, con su correo de Google exacto. Si tu correo no esta en esa lista, la aplicacion te lo dice con claridad y no te deja modificar nada.</li><li><strong>Cada cambio que hagas queda firmado con tu identidad real de Google</strong> (nombre y correo), nunca con un nombre escrito a mano: nadie puede hacer un cambio en tu nombre, ni tu en el de otra persona.</li></ul><p>Sobre quien puede <em>consultar</em> el arbol: las personas ya fallecidas se pueden consultar sin conectar con Google, porque es el contenido historico y genealogico del arbol. Las personas <strong>vivas</strong> son harina de otro costal: solo las ve quien tiene alcance sobre ellas segun su perfil — el administrador, un colaborador dentro del arbol principal o de sus propias ramas, o el «Amigo» dueno de esa rama concreta (vease la seccion «Los tres perfiles»). Fuera de ese alcance, la ficha de una persona viva aparece oculta con el aviso «Persona no visible», y <strong>modificar cualquier dato exige siempre</strong> estar conectado con una cuenta que el administrador haya autorizado de antemano.</p><div class="manual-tip">Si conectas tu cuenta de Google y aun asi ves «Persona no visible» en alguien que crees que deberias poder ver, contacta con el administrador: puede que falte vincular tu ficha, o que esa persona este fuera de tu rama.</div>'},
 {titulo:'Paso 1 — Abrir el enlace',html:'<p>Al abrir el enlace, el arbol puede aparecer ya con datos (si ese navegador ya se uso antes en ese dispositivo) o vacio (si es la primera vez en ese dispositivo). En ambos casos, debajo del titulo hay una pastilla con el estado de la conexion a Google Drive.</p><p>Es normal que, la primera vez, esa pastilla diga «Confirma tu sesion de Google — toca aqui». No ha caducado nada de verdad: es el mismo mensaje que usa la app cuando todavia no te has conectado nunca. Hay que pulsar sobre la pastilla para continuar.</p>'},
 {titulo:'Paso 2 — Elegir la cuenta de Google',html:'<p>Se abre la ventana estandar de Google para iniciar sesion. Debe elegir (o escribir) la cuenta de Google exacta que el administrador dio de alta como autorizada — el mismo correo, letra por letra.</p>'},
 {titulo:'Paso 3 — El aviso «Google no ha verificado esta aplicacion» (no es un error)',html:'<p>Es muy probable que en este punto aparezca una pantalla con un triangulo rojo. No indica ningun problema real: Google muestra este aviso en cualquier aplicacion personal que no ha pasado por su proceso oficial de verificacion (un tramite largo, pensado para apps comerciales). Es exactamente lo que cabe esperar de esta app.</p><p>Para continuar, hay que pulsar en «Configuracion avanzada» (el enlace pequeno, no el boton azul) y luego en el enlace que aparece debajo, «Ir a meleiro2014-creator.github.io (no seguro)». La palabra «no seguro» tampoco es preocupante aqui: se refiere solo a que la app no esta verificada por Google, no a que la pagina en si tenga ningun fallo de seguridad.</p>'},
@@ -9054,6 +9177,7 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 5 — La app comprueba automaticamente si esa cuenta tiene acceso',html:'<p>En cuanto se concede el permiso, la app comprueba en segundo plano si ese correo esta en la lista de «Usuarios autorizados». Hay dos resultados posibles:</p><ul><li><strong>Si esta autorizado:</strong> la pastilla se pone en verde y pasa a decir «Conectado a Google Drive». Puede continuar al paso 6.</li><li><strong>Si no esta autorizado:</strong> aparece el aviso «La cuenta [correo] no esta autorizada para acceder a este arbol familiar. Contacta con el administrador si crees que deberias tener acceso», y la app cierra la sesion de Drive sola.</li></ul>'},
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>En la pantalla principal, justo debajo de «Conectado a Google Drive», pulsa «Restaurar árbol oficial».</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
 {titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
+{titulo:'Los tres perfiles: Administrador, Colaborador y Amigo',html:'<p>Cada persona autorizada para conectarse con Google tiene asignado uno de estos tres perfiles, que decide el administrador. Saber cual es el tuyo te dice que puedes ver y que puedes hacer dentro de la aplicacion:</p><ul><li><strong>Administrador</strong> — un unico correo fijo para todo el arbol. Ve y edita todo sin restriccion, decide quien tiene acceso y con que perfil, revisa y da la conformidad a los cambios de los demas, y es el unico que puede importar o exportar la base de datos completa, configurar la carpeta de Drive compartida o guardar una copia completa sin filtrar.</li><li><strong>Colaborador</strong> — el perfil habitual de la familia directa. Ve a todas las personas fallecidas del arbol, mas a todas las personas vivas del arbol principal de la familia y de las ramas de «Amigo» que el mismo haya vinculado a su propia ficha (las personas vivas de ramas traidas por otros colaboradores quedan ocultas). Puede editar fichas, crear personas nuevas, subir fotos y documentos, y vincular a su propia ficha a las personas de tipo «Amigo» que traiga. Sus cambios se aplican al momento y quedan firmados con su identidad real; ademas quedan anotados en el registro de cambios para que el administrador les de su conformidad, como constancia de que se han revisado.</li><li><strong>Amigo</strong> — el perfil pensado para alguien allegado a la familia que no es de la rama de sangre. Ve a todas las personas fallecidas del arbol, mas a todas las personas — vivas o fallecidas — de su propia rama completa (la familia conectada por parentesco de sangre o matrimonio a su propia ficha); el resto de personas vivas del arbol queda oculto. Puede editar fichas dentro de lo que ve, igual que un colaborador, y sus cambios tambien quedan firmados con su cuenta real, pero no gestiona el acceso de otros usuarios, no vincula nuevas personas de tipo «Amigo» a otras fichas, y no ve ninguna de las herramientas exclusivas del administrador.</li></ul><div class="manual-tip">Da igual el perfil que tengas: cualquier cambio que hagas siempre queda firmado con tu cuenta real de Google, nunca de forma anonima.</div><div class="manual-tip">Si conectas tu cuenta y una persona viva aparece como «Persona no visible» en una ficha, en el arbol o en una busqueda, es exactamente este limite de perfil funcionando como debe: esa persona esta fuera del alcance que te corresponde.</div><p>Este limite se aplica de forma consistente en toda la aplicacion: Buscar, la Ficha, el Arbol grafico, Cronologia, Relacion entre dos personas, Informes (incluidos los PDF descargables) y el buscador de Documentos.</p><div class="manual-warn">Excepcion pendiente de revisar: los posteres ascendentes A3 en SVG (vease «Posters ascendentes A3 para enmarcar») todavia no aplican este filtro persona por persona; evita generarlos si la rama ascendente incluye a alguien fuera de tu alcance.</div>'},
 {titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
 {titulo:'Copias de seguridad: Guardar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay dos funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Requiere identidad de Google conectada. Antes de descargar las fotos (lo que puede tardar bastante), la app pregunta si quieres incluirlas o restaurar solo los datos, mas rapido.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
@@ -9069,7 +9193,7 @@ function generarGuiaHTML(){
   h+='<div class="manual-cover-title">El Libro de<br>los Ancestros</div>';
   h+='<div class="manual-cover-sub">Guia: primer acceso para un familiar nuevo</div>';
   h+='<div class="manual-cover-diamond"></div>';
-  h+='<p class="manual-intro">Como abrir la app por primera vez, conectar con Google Drive, traer los datos familiares e instalarla en el movil.</p>';
+  h+='<p class="manual-intro">Como abrir la app por primera vez, que pasa realmente con tus datos, cual es tu perfil (Administrador, Colaborador o Amigo), como conectar con Google Drive, traer los datos familiares e instalarla en el movil.</p>';
   h+='<div class="manual-cover-footer">';
   h+='<div class="manual-cover-footer-label">Guia de primer acceso · version '+esc(APP_VERSION)+'</div>';
   h+='<p class="manual-cover-footer-text">Documento de uso interno del proyecto «El Libro de los Ancestros». Generado el '+esc(new Date().toLocaleDateString())+'.</p>';
@@ -10312,15 +10436,27 @@ mostrarCacheCarruselHeroInicial();
    abrir). Cualquier sesión que hubiera quedado guardada se borra también
    aquí, por si acaso, para que no quede ningún resto que pueda reutilizarse
    más tarde sin que el usuario lo haya pedido explícitamente. */
-borrarSesionDriveLocal();
+borrarSoloTokenDrive();
 desactivarModoManualDrive(); /* arranque limpio: ni conectado ni "modo manual" heredado de antes */
+/* ===== MEJORA: la app sigue arrancando siempre SIN un token de Drive vivo
+   (nadie queda "ya conectado" solo por reabrir la app), pero ahora SÍ se
+   restauran, si existen y no han caducado (30 días), la identidad y el
+   perfil (tipo + ficha vinculada) que se recordaban de la última conexión
+   en este dispositivo. Así, en cuanto haya datos locales cargados,
+   puedeVerPersona() puede aplicar el mismo alcance por perfil que si
+   estuviera conectado: un Amigo ve su rama, un Colaborador ve el árbol
+   principal y sus ramas vinculadas, un Administrador lo ve todo — todo ello
+   sin depender de tener el token de acceso vivo, que es lo único que de
+   verdad exige volver a pasar por Google. */
+restaurarIdentidadRecordada();
+restaurarUsuariosCacheLocal();
 /* Y, simétricamente, al cerrar o salir de la app (cerrar la pestaña, recargar,
-   pasar la app a segundo plano de forma duradera en el móvil...) se borra
-   también cualquier sesión de Drive que se hubiera llegado a abrir durante
-   este uso, para que la próxima vez que se abra la app vuelva a estar
-   desconectada, tal y como pide el usuario. pagehide es más fiable que
-   beforeunload en móviles (se dispara también al minimizar/cerrar la app). */
-['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSesionDriveLocal();});});
+   pasar la app a segundo plano de forma duradera en el móvil...) solo se
+   borra el token de acceso vivo, para que la próxima vez que se abra la app
+   vuelva a estar desconectada (tal y como pide el usuario), pero sin perder
+   quién eres ni tu perfil. pagehide es más fiable que beforeunload en
+   móviles (se dispara también al minimizar/cerrar la app). */
+['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSoloTokenDrive();});});
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
 function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);ejecutarCopiaLocalSiToca();
