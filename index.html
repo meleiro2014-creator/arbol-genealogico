@@ -103,6 +103,9 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .ra.foto{padding:0;overflow:hidden;background:var(--card)}
 .ra.foto.al{border:2px solid var(--alive)}.ra.foto.de{border:2px solid var(--dead)}
 .ra.foto img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.ra.mini{width:22px;height:22px;font-size:9px}
+.ra.mini.foto.al,.ra.mini.foto.de{border-width:1.5px}
+.fam-rel{display:inline-flex;align-items:center;gap:6px;vertical-align:middle}
 .rn{font-weight:700;font-size:13px;overflow-wrap:anywhere}.ry{font-size:11px;color:var(--muted)}
 .ficha{max-width:660px;margin:0 auto}
 .fh{display:flex;gap:16px;margin-bottom:18px;align-items:flex-start;flex-wrap:wrap}
@@ -1647,7 +1650,7 @@ if(!personaObj)return '';
 if(!puedeVerPersona(personaObj.ID)){
 return '<span style="color:var(--muted);font-style:italic" title="No tienes acceso a esta ficha">Persona no visible</span>';
 }
-return '<a class="'+(claseEnlace||'fl2')+'" onclick="'+onclickAttr+'">'+esc(fn(personaObj))+'</a>'+(extraHtml||'');
+return '<span class="fam-rel">'+avatarHTML(personaObj,true)+'<a class="'+(claseEnlace||'fl2')+'" onclick="'+onclickAttr+'">'+esc(fn(personaObj))+'</a>'+(extraHtml||'')+'</span>';
 }
 function usuarioActualParaCambios(){
 if(!googleIdentidad||!googleIdentidad.email){throw new Error('No hay identidad Google para registrar el cambio');}
@@ -3137,10 +3140,11 @@ return{texto:(String(p.NOMBRE||'')+' '+partes.join(' ')).trim(),apellidos:partes
 function fnEncadenado(p){return fnEncadenadoInfo(p).texto;}
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
-function avatarHTML(p){
+function avatarHTML(p,mini){
 var al=isAl(p);
-if(p.FOTO)return '<div class="ra foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy"></div>';
-return '<div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div>';
+var cls='ra'+(mini?' mini':'')+' ';
+if(p.FOTO)return '<div class="'+cls+'foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy"></div>';
+return '<div class="'+cls+(al?'al':'de')+'">'+ini(p)+'</div>';
 }
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
 separado por "|" (evita conflictos con comas en nombres de etiqueta). */
