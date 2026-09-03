@@ -2028,6 +2028,14 @@ resolve(driveAccessToken);
 await obtenerIdentidadGoogle();
 guardarSesionDriveLocal();
 avisarSiCuentaNoEsAdmin();
+/* CORREGIDO: la identidad (y por tanto si eres administrador) se
+   confirma aquí, en segundo plano, después de que la pantalla ya se
+   hubiera actualizado con el token de acceso. Sin este refresco, el
+   botón "Gestión" (y el resto de botones que dependen de ser
+   administrador) se quedaba oculto tras pulsar "Conectar" hasta que
+   se abría otra pantalla (p.ej. Cambios) que volvía a comprobarlo. */
+actualizarDriveStatusPill();
+if(typeof refrescarGrupoAdminHerramientas==='function')refrescarGrupoAdminHerramientas();
 await cargarConfigRaizDrive();
 sincronizarManualHTMLADrive();
 })();
