@@ -10370,13 +10370,35 @@ if(zipSeguridadCancelar)return;
 var pct=Math.max(0,Math.min(100,Math.round(metadata.percent||0)));
 onFase('Generando el archivo ZIP de '+prefijo+': '+pct+'%',pct);
 });
-onFase('Guardando el archivo ZIP de '+prefijo+' en el disco...',100);
 var nombre=zipSegNombreFechado(prefijo);
 var fileHandle=await destHandle.getFileHandle(nombre,{create:true});
 var writable=await fileHandle.createWritable();
+/* Escribir el blob en trozos (en vez de un único writable.write(blob) monolítico)
+   para poder informar de progreso real durante el guardado en disco. Con archivos
+   de varios GB, esa escritura puede tardar bastante y sin esto la barra se quedaba
+   clavada en el 100% (que solo reflejaba el fin de la COMPRESIÓN, no del GUARDADO)
+   dando la sensación de que la app se había quedado colgada sin copiar nada. */
+var totalBytes=blob.size;
+if(totalBytes===0){
+onFase('Guardando el archivo ZIP de '+prefijo+' en el disco...',100);
 await writable.write(blob);
+}else{
+var TROZO=32*1024*1024;
+var escritos=0;
+while(escritos<totalBytes){
+if(zipSeguridadCancelar){try{await writable.close();}catch(eClose){}try{await destHandle.removeEntry(nombre);}catch(eDel){}return null;}
+var fin=Math.min(escritos+TROZO,totalBytes);
+await writable.write(blob.slice(escritos,fin));
+escritos=fin;
+var pctGuardado=Math.round((escritos/totalBytes)*100);
+onFase('Guardando el archivo ZIP de '+prefijo+' en el disco: '+pctGuardado+'% ('+zipSegFormatoMB(escritos)+' de '+zipSegFormatoMB(totalBytes)+')',pctGuardado);
+}
+}
 await writable.close();
 return {nombre:nombre,archivos:contador.n,errores:contador.errores};
+}
+function zipSegFormatoMB(bytes){
+return (bytes/(1024*1024)).toFixed(1)+' MB';
 }
 /* ---------- Configuración (elige las 3 carpetas, una detrás de otra) ---------- */
 async function configurarZipSeguridad(){
