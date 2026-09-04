@@ -544,6 +544,7 @@ body{background:#fff}
 <div id="zipSegFondo" class="zipseg-fondo" style="display:none" role="status" aria-live="polite">
 <div class="zipseg-fondo-head"><i class="fa-solid fa-file-zipper"></i><span class="zipseg-fondo-titulo">Copia de seguridad en ZIP</span><button type="button" class="zipseg-fondo-x" id="zipSegFondoCerrarBtn" onclick="cerrarFondoZipSeguridad()" aria-label="Cerrar" style="display:none">×</button></div>
 <div class="zipseg-fondo-texto" id="zipSegFondoTexto">Preparando...</div>
+<div class="pb" id="zipSegFondoBarraWrap" style="display:none"><div class="pf" id="zipSegFondoBarra"></div></div>
 <div class="zipseg-fondo-resumen" id="zipSegFondoResumen" style="display:none"></div>
 <div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegFondoCancelarBtn" onclick="cancelarZipSeguridad()">Cancelar</button></div>
 </div>
@@ -10352,13 +10353,24 @@ return prefijo+'_'+fecha+'_'+hora+'.zip';
 async function zipSegComprimirYGuardar(dirOrigen,destHandle,prefijo,onFase){
 var contador={n:0,errores:[]};
 var zip=new JSZip();
-onFase('Preparando '+prefijo+'...');
+onFase('Preparando '+prefijo+'...',null);
 await zipSegAnadirCarpeta(dirOrigen,zip,contador,function(n){
-onFase('Comprimiendo '+prefijo+': '+n+' archivo(s) añadido(s)...');
+onFase('Comprimiendo '+prefijo+': '+n+' archivo(s) añadido(s)...',null);
 });
 if(zipSeguridadCancelar)return null;
-onFase('Generando el archivo ZIP de '+prefijo+'...');
-var blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+/* FOTO ya viene comprimida de fábrica (JPG/HEIC/etc.): comprimir otra vez con
+   DEFLATE apenas ahorra espacio y consume mucho tiempo de CPU, así que para
+   FOTO se usa STORE (empaquetar sin comprimir). DOCUMENTOS sí puede tener
+   texto/PDF donde DEFLATE aporta algo, así que mantiene compresión nivel 6. */
+var esFoto=(prefijo==='FOTO');
+var opcionesZip=esFoto?{type:'blob',compression:'STORE'}:{type:'blob',compression:'DEFLATE',compressionOptions:{level:6}};
+onFase('Generando el archivo ZIP de '+prefijo+': 0%',0);
+var blob=await zip.generateAsync(opcionesZip,function(metadata){
+if(zipSeguridadCancelar)return;
+var pct=Math.max(0,Math.min(100,Math.round(metadata.percent||0)));
+onFase('Generando el archivo ZIP de '+prefijo+': '+pct+'%',pct);
+});
+onFase('Guardando el archivo ZIP de '+prefijo+' en el disco...',100);
 var nombre=zipSegNombreFechado(prefijo);
 var fileHandle=await destHandle.getFileHandle(nombre,{create:true});
 var writable=await fileHandle.createWritable();
@@ -10454,9 +10466,9 @@ zipSeguridadCancelar=false;
 abrirFondoZipSeguridad();
 toast('Copia de seguridad en ZIP iniciada en segundo plano; puedes seguir navegando');
 try{
-var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t){actualizarTextoFondoZipSeguridad(t);});
+var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t,pct){actualizarTextoFondoZipSeguridad(t,pct);});
 if(zipSeguridadCancelar)throw {cancelado:true};
-var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t){actualizarTextoFondoZipSeguridad(t);});
+var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t,pct){actualizarTextoFondoZipSeguridad(t,pct);});
 if(zipSeguridadCancelar)throw {cancelado:true};
 var resumenGuardable={
 fecha:new Date().toISOString(),
@@ -10493,20 +10505,39 @@ function abrirFondoZipSeguridad(){
 var el=document.getElementById('zipSegFondo');
 if(!el)return;
 document.getElementById('zipSegFondoTexto').textContent='Preparando...';
+var barraWrap=document.getElementById('zipSegFondoBarraWrap');
+var barra=document.getElementById('zipSegFondoBarra');
+barraWrap.style.display='none';
+barra.classList.remove('indet');
+barra.style.width='0%';
 document.getElementById('zipSegFondoResumen').style.display='none';
 document.getElementById('zipSegFondoResumen').innerHTML='';
 document.getElementById('zipSegFondoCerrarBtn').style.display='none';
 document.getElementById('zipSegFondoCancelarBtn').style.display='inline-flex';
 el.style.display='block';
 }
-function actualizarTextoFondoZipSeguridad(t){
+/* pct: null/undefined durante las fases sin porcentaje conocido (preparar,
+   añadir archivos) → barra indeterminada; número 0-100 durante la fase de
+   generación real del ZIP, que es la que puede tardar largo rato. */
+function actualizarTextoFondoZipSeguridad(t,pct){
 var el=document.getElementById('zipSegFondoTexto');
 if(el)el.textContent=t;
+var barraWrap=document.getElementById('zipSegFondoBarraWrap');
+var barra=document.getElementById('zipSegFondoBarra');
+if(!barraWrap||!barra)return;
+barraWrap.style.display='block';
+if(pct===null||pct===undefined){
+barra.classList.add('indet');
+}else{
+barra.classList.remove('indet');
+barra.style.width=pct+'%';
+}
 }
 function mostrarResumenFondoZipSeguridad(r){
 document.getElementById('zipSegFondoCancelarBtn').style.display='none';
 document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
 document.getElementById('zipSegFondoTexto').textContent='Copia completada';
+document.getElementById('zipSegFondoBarraWrap').style.display='none';
 var cont=document.getElementById('zipSegFondoResumen');
 cont.style.display='block';
 var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
@@ -10520,6 +10551,7 @@ cont.innerHTML=h;
 function cerrarFondoZipSeguridadConError(){
 document.getElementById('zipSegFondoCancelarBtn').style.display='none';
 document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
+document.getElementById('zipSegFondoBarraWrap').style.display='none';
 }
 function cerrarFondoZipSeguridad(){
 if(zipSeguridadEnCurso)return;
