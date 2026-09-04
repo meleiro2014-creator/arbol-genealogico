@@ -18,6 +18,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 <style>
 :root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#7A6754;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--dead:#3D2C1E;--alive:#2C5F8A}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -848,8 +849,15 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.03.4';
+var APP_VERSION = '2026.09.04.2';
 var APP_CHANGELOG = [
+  { version:'2026.09.04.2', fecha:'2026-09-04', cambios:[
+    'Eliminada la funcion "Activar copia automatica local" (la copia cada 24h en el disco duro del navegador, con rotacion de 5 archivos): se ha retirado del menu de Herramientas por considerarse innecesaria, junto con el arranque automatico que la comprobaba cada vez que se abria la aplicacion. No afecta a la copia local de fotografias y documentos ni a la nueva copia de seguridad local en ZIP, que siguen disponibles.'
+  ]},
+  { version:'2026.09.04.1', fecha:'2026-09-04', cambios:[
+    'Nueva copia de seguridad local en ZIP (solo administrador, en Herramientas → Documentos y fotos): comprime las carpetas FOTO y DOCUMENTOS del disco duro (por ejemplo, tras usar la copia local de fotografias y documentos) en dos archivos ZIP fechados, guardados en una carpeta de destino elegida, totalmente local a local y sin pasar por Google Drive.',
+    'Nuevo registro de conexiones (solo administrador, en Herramientas → Acceso): anota el correo, el nombre y la fecha y hora en que cada colaborador conecta su cuenta de Google, en un archivo compartido de Drive consultable desde la propia aplicacion.'
+  ]},
   { version:'2026.09.03.4', fecha:'2026-09-03', cambios:[
     'Manual de usuario actualizado: las secciones de Cronologia, Relacion entre dos personas, Informes y Documentos indican ahora que su buscador y su contenido respetan el limite de perfil (Administrador/Colaborador/Amigo); la seccion «Los tres perfiles» enumera explicitamente las pantallas cubiertas, y se anade un aviso en «Posters ascendentes A3» sobre la excepcion todavia pendiente de auditar en esos posteres.'
   ]},
@@ -1286,6 +1294,7 @@ toast('La cuenta '+emailNormalizado+' no está autorizada para acceder a este á
 return null;
 }
 googleIdentidad={email:emailNormalizado,name:d.name||'',picture:d.picture||''};
+registrarConexion();
 return googleIdentidad;
 }catch(err){googleIdentidad=null;return null;}
 }
@@ -3275,6 +3284,7 @@ mostrarVersionEnHerramientas();
 document.getElementById('modalHerramientas').style.display='flex';
 refrescarGrupoAdminHerramientas();
 mostrarEstadoCopiaLocalDriveEnHerramientas();
+mostrarEstadoZipSeguridadEnHerramientas();
 actualizarVisibilidadHerramientasDrive();
 }
 function actualizarVisibilidadHerramientasDrive(){
@@ -7106,7 +7116,7 @@ sAll(D).then(function(){
 rStats();
 toast('Corrección aplicada');
 registrarCambiosDesdeSnapshots(antes,D,'vincular');
-rGes();
+rGesLigero();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 /* Accion masiva por categoria: aplica .aplicar una a una, re-detectando en cada paso,
@@ -7115,7 +7125,7 @@ async function gesAccionMasiva(catId){
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
-if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGes();return;}
+if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGesLigero();return;}
 if(cat.fuente==='anocalc'){gesCalcularAnosGes();return;}
 if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
 if(cat.fuente==='integridad_ref'){
@@ -7131,11 +7141,11 @@ sAll(D).then(function(){
 rStats();
 toast(aplicadasInt+' vínculo(s) corregido(s)');
 registrarCambiosDesdeSnapshots(antesInt,D,'vincular');
-rGes();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGes();});
+rGesLigero();
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGesLigero();});
 }else{
 toast('No se pudo aplicar ninguna corrección automáticamente',true);
-rGes();
+rGesLigero();
 }
 return;
 }
@@ -7167,11 +7177,11 @@ sAll(D).then(function(){
 rStats();
 toast(aplicadas+' corrección(es) aplicada(s)');
 registrarCambiosDesdeSnapshots(antes,D,'vincular');
-rGes();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGes();});
+rGesLigero();
+}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGesLigero();});
 }else{
 toast('No se pudo aplicar ninguna corrección automáticamente',true);
-rGes();
+rGesLigero();
 }
 }
 /* Fusion de duplicados desde el Gestor (mismo flujo que el antiguo modal, pareja a pareja) */
@@ -7182,7 +7192,7 @@ var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 var idMantener=inverso?it.bId:it.aId;
 var idEliminar=inverso?it.aId:it.bId;
 var pM=PI[idMantener],pE=PI[idEliminar];
-if(!pM||!pE){rGes();return;}
+if(!pM||!pE){rGesLigero();return;}
 if(!(await confirmarApp('Se fusionarán las dos fichas en una sola.\nSe conservará: '+fn(pM)+' (ID '+idMantener+')\nSe eliminará: '+fn(pE)+' (ID '+idEliminar+')\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer.')))return;
 var antesFusion=mapaPersonas(D);
 if(!(await fusionarPersonas(idMantener,idEliminar)))return;
@@ -7191,7 +7201,7 @@ rStats();
 if(cid===idEliminar)cid=idMantener;
 toast('Fichas fusionadas correctamente');
 registrarCambiosDesdeSnapshots(antesFusion,D,'fusionar');
-rGes();
+rGesLigero();
 }).catch(function(err){toast('No se pudo guardar la fusión: '+err.message,true);});
 }
 function gesIgnorarDup(catId,idx){
@@ -7199,7 +7209,7 @@ var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 DUP_IGNORADOS[it.aId+'|'+it.bId]=true;
 toast('Pareja marcada como no duplicada');
-rGes();
+rGesLigero();
 }
 /* Años estimados desde el Gestor: reutiliza el motor por fases con barra de progreso propia */
 async function gesCalcularAnosGes(){
@@ -7218,11 +7228,11 @@ onFase:fase,
 onDone:function(cambios){
 rStats();
 toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
-rGes();
+rGesLigero();
 },
 onError:function(err){
 toast('No se pudo guardar los años estimados: '+err.message,true);
-rGes();
+rGesLigero();
 }
 });
 }
@@ -7232,7 +7242,7 @@ if(!(await exigirIdentidadGoogle()))return;
 var grupos=gesDetectarLugares();
 var g=null;
 grupos.some(function(x){if(gesGrupoKey(x)===clave){g=x;return true;}return false;});
-if(!g){rGes();return;}
+if(!g){rGesLigero();return;}
 var forma=(g.nivel==='A')?g.canonica:((g.variantes[idxVariante]||{}).txt);
 if(!forma)return;
 var ids={};
@@ -7254,7 +7264,7 @@ sAll(D).then(function(){
 rStats();
 registrarCambiosDesdeSnapshots(antes,D,'editar');
 toast('Lugares unificados: '+nIds+' ficha(s) ahora usan "'+forma+'"');
-rGes();
+rGesLigero();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 /* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
@@ -7263,7 +7273,7 @@ unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vist
 async function gesUnificarTodosNivelA(){
 if(!(await exigirIdentidadGoogle()))return;
 var grupos=gesDetectarLugares().filter(function(g){return g.nivel==='A';});
-if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true);rGes();return;}
+if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true);rGesLigero();return;}
 var totalFichas=0;
 var preview=grupos.slice(0,12).map(function(g){
 var ids={};g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});
@@ -7288,7 +7298,7 @@ sAll(D).then(function(){
 rStats();
 registrarCambiosDesdeSnapshots(antes,D,'editar');
 toast('Lugares unificados: '+grupos.length+' grupo(s), '+Object.keys(fichasTocadas).length+' ficha(s) actualizada(s)');
-rGes();
+rGesLigero();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
 /* --- Pintado del panel --- */
@@ -7469,8 +7479,8 @@ h+=gesRenderCat(c);
 });
 cont.innerHTML=h;
 }
-/* §5: cada vez que se entra en la pantalla o se aplica una correccion se recalcula desde cero.
-Las categorias que llegan a 0 items simplemente dejan de pintarse.
+/* §5: cada vez que se entra en la pantalla se recalcula desde cero. Las categorias que llegan a
+0 items simplemente dejan de pintarse.
 El Gestor de datos nunca calcula el año estimado por su cuenta: antes de detectar nada,
 descarga siempre el archivo 'anos-calculados.json' de la carpeta Datos en Drive (ver
 cargarAniosCalculadosDrive). Si esa descarga falla, las comprobaciones que dependen del año
@@ -7495,8 +7505,28 @@ GES_SNAPSHOT_ERROR=err.message;
 }
 GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
+gesTrasRender();
+}
+/* Refresco ligero: se usa tras aplicar una correccion puntual ("Solucionar" en una linea,
+fusionar un duplicado, unificar un lugar, marcar fallecidos...), en vez de rGes(). rGes() siempre
+vuelve a mostrar "Cargando..." y a redescargar el snapshot de años desde Drive; ese vaciado
+momentaneo del panel (aunque dure una fraccion de segundo) es lo que hacia que la pantalla
+saltara arriba del todo, obligando a bajar de nuevo para arreglar la siguiente linea. Aqui no
+hace falta: el snapshot de años ya esta en memoria (se cargo al entrar en la pantalla), asi que
+basta con recalcular las categorias con los datos ya actualizados y volver a pintar sin pasar por
+el panel vacio, conservando ademas la posicion de scroll para poder seguir pulsando "Solucionar"
+linea a linea sin que la vista se mueva. */
+function rGesLigero(){
+var scrollAntes=window.scrollY;
+GES_CACHE=construirCategoriasMantenimiento();
+gesRender();
+window.scrollTo(0,scrollAntes);
+gesTrasRender();
+}
 /* Si el motor ANOCALC quedo pendiente (datos cambiados desde el ultimo calculo), se ofrece la
-categoria de recalculo aunque ya exista un calculo previo guardado. */
+categoria de recalculo aunque ya exista un calculo previo guardado. Compartido por rGes() y
+rGesLigero(). */
+function gesTrasRender(){
 try{
 anocalcPendiente().then(function(pend){
 if(!pend||!GES_CACHE)return;
@@ -9132,7 +9162,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
 {titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En la pantalla principal hay un botón para restaurar el árbol oficial; las funciones de copia avanzada siguen en Herramientas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar árbol oficial</strong> (cualquier usuario): está disponible directamente debajo de la conexión con Google Drive en la pantalla principal; descarga la última copia que exista en la carpeta compartida de Drive y la carga en la aplicación. Requiere identidad de Google conectada. Al restaurar, la app pregunta si también quieres traer las fotos: decir que no hace la restauración mucho más rápida, y las fotos se pueden importar después desde «Importar fotos».</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
-{titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Activar copia automatica local</strong>: guarda, cada 24 horas como maximo, un respaldo en el disco duro del ordenador desde el que se activo, con rotacion circular de 5 archivos. Es exclusiva de ese navegador y ese dispositivo, y se puede desactivar en cualquier momento sin borrar las copias ya hechas.</li><li><strong>Configurar y actualizar la copia local de fotografias y documentos</strong>: elige una carpeta del disco duro y copia alli, tal cual, todo el contenido actual de las carpetas FOTO y DOCUMENTOS de Drive (respetando su estructura de subcarpetas), como salvaguarda adicional independiente de Google. Es una copia de solo lectura hacia el disco: nunca sube nada de vuelta a Drive ni borra archivos locales por su cuenta.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
+{titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Configurar y actualizar la copia local de fotografias y documentos</strong>: elige una carpeta del disco duro y copia alli, tal cual, todo el contenido actual de las carpetas FOTO y DOCUMENTOS de Drive (respetando su estructura de subcarpetas), como salvaguarda adicional independiente de Google. Es una copia de solo lectura hacia el disco: nunca sube nada de vuelta a Drive ni borra archivos locales por su cuenta.</li><li><strong>Copia de seguridad local en ZIP</strong>: a diferencia de la anterior, esta es local a local, sin pasar por Drive. Se eligen tres carpetas del disco duro (por ejemplo, la carpeta FOTO y la carpeta DOCUMENTOS ya copiadas localmente, y una carpeta de destino como "SEGURIDAD GENEALOGIA"), y cada vez que se pulsa "Actualizar ahora" se generan dos archivos ZIP nuevos, con la fecha y la hora en el nombre, uno con el contenido de FOTO y otro con el de DOCUMENTOS, guardados en la carpeta de destino. No sustituye ni borra los ZIP anteriores.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
 {titulo:'Importar CSV desde Access',soloAdmin:true,html:'<p>La carga y actualizacion masiva de toda la base de datos se hace importando un archivo CSV, exclusivamente por el administrador, desde Herramientas → «Importar CSV».</p><p>El formato esperado tiene siempre <strong>28 columnas</strong>, sin fila de cabecera, separadas por punto y coma, en codificacion Windows-1252 (ANSI), tal y como las exporta el programa Access de referencia: las 26 columnas originales mas ANOCALC y ANOCALC_MOTIVO al final. La columna APROX (columna 2) se conserva por compatibilidad estructural, pero <strong>se ignora por completo</strong> al importar: no se incorpora a la base de datos.</p><p>Al terminar la importacion, la aplicacion informa de cuantas personas se cargaron, cuantas filas se omitieron por datos incompletos, si hubo identificadores duplicados (se conserva el ultimo registro con ese ID) y si quedo alguna referencia de padre o madre sin coincidencia dentro del propio archivo.</p>'},
 {titulo:'Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas, el administrador puede exportar toda la base de datos en dos formatos:</p><ul><li><strong>Exportar GEDCOM</strong>: genera un archivo .ged estandar, compatible con la mayoria de programas de genealogia externos, con individuos, familias, fechas y notas.</li><li><strong>Exportar CSV (Access)</strong>: genera un CSV con las mismas 28 columnas del formato de importacion (Windows-1252, separador «;», sin cabecera), listo para volver a cargarse en el programa Access de referencia tras actualizar su especificacion de importacion a 28 columnas.</li></ul><p>En la exportacion CSV, cualquier caracter que no tenga representacion exacta en la codificacion Windows-1252 se sustituye por un signo de interrogacion, y la aplicacion avisa si esto ha ocurrido.</p>'},
 {titulo:'Limpiar cache e instalar como aplicacion',soloAdmin:false,html:'<p><strong>Limpiar cache</strong> (en Herramientas, disponible para cualquier usuario con identidad de Google conectada) elimina todos los datos guardados en el navegador de este dispositivo. No borra ninguna copia que ya exista en Drive ni en el disco duro; sirve para partir de cero en un dispositivo y volver a cargar los datos importando un CSV o restaurando una copia.</p><div class="manual-warn">Esta accion no se puede deshacer. Asegurate de tener una copia reciente antes de usarla.</div><p>La aplicacion tambien puede <strong>instalarse como una app independiente</strong> en ordenadores y moviles compatibles (tecnologia PWA): si el navegador lo permite, aparece el boton «Instalar aplicacion» en Herramientas, que anade un icono propio para abrirla directamente, sin pasar por el navegador.</p>'},
@@ -9231,7 +9261,7 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>En la pantalla principal, justo debajo de «Conectado a Google Drive», pulsa «Restaurar árbol oficial».</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
 {titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
 {titulo:'Los tres perfiles: Administrador, Colaborador y Amigo',html:'<p>Cada persona autorizada para conectarse con Google tiene asignado uno de estos tres perfiles, que decide el administrador. Saber cual es el tuyo te dice que puedes ver y que puedes hacer dentro de la aplicacion:</p><ul><li><strong>Administrador</strong> — un unico correo fijo para todo el arbol. Ve y edita todo sin restriccion, decide quien tiene acceso y con que perfil, revisa y da la conformidad a los cambios de los demas, y es el unico que puede importar o exportar la base de datos completa, configurar la carpeta de Drive compartida o guardar una copia completa sin filtrar.</li><li><strong>Colaborador</strong> — el perfil habitual de la familia directa. Ve a todas las personas fallecidas del arbol, mas a todas las personas vivas del arbol principal de la familia y de las ramas de «Amigo» que el mismo haya vinculado a su propia ficha (las personas vivas de ramas traidas por otros colaboradores quedan ocultas). Puede editar fichas, crear personas nuevas, subir fotos y documentos, y vincular a su propia ficha a las personas de tipo «Amigo» que traiga. Sus cambios se aplican al momento y quedan firmados con su identidad real; ademas quedan anotados en el registro de cambios para que el administrador les de su conformidad, como constancia de que se han revisado.</li><li><strong>Amigo</strong> — el perfil pensado para alguien allegado a la familia que no es de la rama de sangre. Ve a todas las personas fallecidas del arbol, mas a todas las personas — vivas o fallecidas — de su propia rama completa (la familia conectada por parentesco de sangre o matrimonio a su propia ficha); el resto de personas vivas del arbol queda oculto. Puede editar fichas dentro de lo que ve, igual que un colaborador, y sus cambios tambien quedan firmados con su cuenta real, pero no gestiona el acceso de otros usuarios, no vincula nuevas personas de tipo «Amigo» a otras fichas, y no ve ninguna de las herramientas exclusivas del administrador.</li></ul><div class="manual-tip">Da igual el perfil que tengas: cualquier cambio que hagas siempre queda firmado con tu cuenta real de Google, nunca de forma anonima.</div><div class="manual-tip">Si conectas tu cuenta y una persona viva aparece como «Persona no visible» en una ficha, en el arbol o en una busqueda, es exactamente este limite de perfil funcionando como debe: esa persona esta fuera del alcance que te corresponde.</div><p>Este limite se aplica de forma consistente en toda la aplicacion: Buscar, la Ficha, el Arbol grafico, Cronologia, Relacion entre dos personas, Informes (incluidos los PDF descargables) y el buscador de Documentos.</p><div class="manual-warn">Excepcion pendiente de revisar: los posteres ascendentes A3 en SVG (vease «Posters ascendentes A3 para enmarcar») todavia no aplican este filtro persona por persona; evita generarlos si la rama ascendente incluye a alguien fuera de tu alcance.</div>'},
-{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
+{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve solo el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal.</li><li><strong>Fotos:</strong> Importar fotos (desde Drive o desde una carpeta local).</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, registro de conexiones de los colaboradores, guardar copia completa sin filtrar, importar CSV, configurar anos estimados, copia local de fotos y documentos, copia de seguridad local en ZIP, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
 {titulo:'Copias de seguridad: Guardar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay dos funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Requiere identidad de Google conectada. Antes de descargar las fotos (lo que puede tardar bastante), la app pregunta si quieres incluirlas o restaurar solo los datos, mas rapido.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
 {titulo:'Instalar la aplicacion (sobre todo en el movil)',html:'<p>La app funciona directamente desde el navegador, sin necesidad de instalarla, pero tambien se puede anadir como si fuera un programa independiente: con icono propio y abriendose a pantalla completa, sin la barra del navegador. Es especialmente recomendable en el movil.</p><p><strong>En un movil Android (Chrome):</strong></p><ul><li>Abre el enlace de la app y accede con tu cuenta de Google como en los pasos anteriores.</li><li>Toca el icono de la caja de herramientas y busca «Instalar aplicacion» (solo aparece si el navegador lo permite en ese momento).</li><li>Si no aparece esa opcion, toca el menu de tres puntos de Chrome, arriba a la derecha, y elige «Instalar aplicacion» o «Anadir a pantalla de inicio».</li></ul><p><strong>En un iPhone o iPad (Safari):</strong></p><ul><li>Abre el enlace de la app en Safari — en iPhone, la instalacion solo funciona desde Safari, no desde Chrome.</li><li>Toca el icono de compartir (el cuadrado con una flecha hacia arriba), en la parte inferior de la pantalla.</li><li>Baja hasta «Anadir a pantalla de inicio» y tocalo, luego confirma con «Anadir».</li></ul><p><strong>En un ordenador (Chrome o Edge):</strong> en la barra de direcciones suele aparecer un icono de instalacion; si no aparece, usa Herramientas → «Instalar aplicacion».</p><div class="manual-tip">Este paso es opcional: la app funciona igual de bien abierta desde el navegador. La ventaja de instalarla es tener un acceso mas rapido, sobre todo en el movil.</div>'},
@@ -9764,90 +9794,8 @@ if(!fotosOk)toast('Aviso: los datos se guardaron correctamente, pero no se pudie
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 finally{subiendoCopiaDrive=false;ocultarProgresoDrive('subirCopiaProgresoWrap');}
 }
-/* ===== COPIA LOCAL ROTATIVA (punto 16a) =====
-   Copia automática al disco duro local, solo para quien la active en su
-   navegador (Francisco, el administrador). Usa File System Access API
-   (Chrome/Edge/Opera escritorio). Rotación circular de 5 slots; intervalo
-   mínimo 24 horas entre copias. Independiente de Google Drive por completo.
-   NO es un sistema de copia en tiempo real: es una copia periódica al iniciar. */
-
-async function activarCopiaLocalAutomatica(){
-  if(typeof exigirIdentidadGoogle!=='function'){
-    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
-    return;
-  }
-  if(!await exigirIdentidadGoogle()) return;
-  if(typeof esAdministrador!=='function' || !esAdministrador()){
-    toast('Solo el administrador puede activar la copia automática local',true);
-    return;
-  }
-  if(!window.showDirectoryPicker){
-    toast('Tu navegador no permite elegir una carpeta del disco para esto (usa Chrome o Edge). Puedes seguir usando "Guardar copia" manualmente.',true);
-    return;
-  }
-  try{
-    var handle = await window.showDirectoryPicker();
-    await guardarValorCFG('copiaLocalDirHandle', handle);
-    await guardarValorCFG('copiaLocalSiguienteIndice', 1);
-    await guardarValorCFG('copiaLocalUltimaFecha', null);
-    toast('Copia automática local activada en este navegador (carpeta: ' + handle.name + ')');
-  }catch(err){
-    if(err.name !== 'AbortError') toast('No se pudo activar la copia local: ' + err.message, true);
-  }
-}
-
-async function desactivarCopiaLocalAutomatica(){
-  if(typeof exigirIdentidadGoogle!=='function'){
-    toast('La copia automática local requiere el módulo de identidad Google (punto 17).',true);
-    return;
-  }
-  if(!await exigirIdentidadGoogle()) return;
-  if(typeof esAdministrador!=='function' || !esAdministrador()){
-    toast('Solo el administrador puede desactivar la copia automática local',true);
-    return;
-  }
-  await guardarValorCFG('copiaLocalDirHandle', null);
-  await guardarValorCFG('copiaLocalSiguienteIndice', null);
-  await guardarValorCFG('copiaLocalUltimaFecha', null);
-  toast('Copia automática local desactivada');
-}
-
-async function ejecutarCopiaLocalSiToca(){
-  var handle = await leerValorCFG('copiaLocalDirHandle');
-  if(!handle) return;
-  try{
-    var permiso = await handle.queryPermission({ mode: 'readwrite' });
-    if(permiso !== 'granted'){
-      permiso = await handle.requestPermission({ mode: 'readwrite' });
-      if(permiso !== 'granted') return;
-    }
-    var ultima = await leerValorCFG('copiaLocalUltimaFecha');
-    if(ultima && (Date.now() - new Date(ultima).getTime()) < 24 * 3600 * 1000) return;
-    var indice = (await leerValorCFG('copiaLocalSiguienteIndice')) || 1;
-    indice = Math.max(1, Math.min(5, Number(indice) || 1));
-    var nombre = 'libro-ancestros-auto-' + indice + '.json';
-    var copia = {
-      formato: 'Libro de los Ancestros',
-      version: 1,
-      fecha: new Date().toISOString(),
-      personas: D
-    };
-    var fileHandle = await handle.getFileHandle(nombre, { create: true });
-    var writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(copia));
-    await writable.close();
-    await guardarValorCFG('copiaLocalUltimaFecha', new Date().toISOString());
-    await guardarValorCFG('copiaLocalSiguienteIndice', (indice % 5) + 1);
-    toast('Copia local automática guardada (' + nombre + ')');
-  }catch(err){
-    toast('Copia automática local no realizada: ' + err.message, true);
-    console.warn('Copia local automática omitida:', err.message);
-  }
-}
-
 /* ========== TAREA 6: COPIA LOCAL DE FOTOGRAFÍAS Y DOCUMENTOS ========== */
-/* ---------- Claves de configuración (CFG), namespaced para no chocar con
-   las de la copia local rotativa del JSON (copiaLocalDirHandle, etc.) ---------- */
+/* ---------- Claves de configuración (CFG) ---------- */
 var CFG_ESPEJO_HANDLE = 'copiaLocalDriveDirHandle';
 var CFG_ESPEJO_ULTIMA_FECHA = 'copiaLocalDriveUltimaFecha';
 var CFG_ESPEJO_ULTIMO_RESUMEN = 'copiaLocalDriveUltimoResumen';
@@ -10263,6 +10211,307 @@ async function actualizarCopiaLocalDriveUI() {
 }
 /* ========== FIN TAREA 6 ========== */
 
+/* ========== REGISTRO DE CONEXIONES (solo administrador) ==========
+   Cada vez que se confirma la identidad de Google en una pestaña/sesión
+   nueva del navegador, se anota el correo, el nombre y la fecha/hora en un
+   archivo compartido de Drive (conexiones.json, dentro de ARBOL_OFICIAL),
+   para que el administrador pueda ver quién se ha conectado y cuándo. No es
+   imprescindible para el funcionamiento de la app: si el guardado falla (sin
+   conexión, sin permiso todavía, etc.) se ignora en silencio, sin avisar al
+   colaborador ni bloquear su acceso. Solo el administrador puede leer este
+   registro, desde Herramientas → Acceso. */
+var CONEXIONES_ARCHIVO='conexiones.json';
+var CONEXIONES_MAX_REGISTROS=500;
+
+async function obtenerArchivoConexionesDrive(){
+var folderId=await obtenerCarpetaArbolOficialId(true);
+return await obtenerArchivoEnDrivePorNombre(CONEXIONES_ARCHIVO,folderId);
+}
+async function descargarConexionesDrive(){
+var f=await obtenerArchivoConexionesDrive();
+if(!f)return {conexiones:[]};
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)throw new Error('No se pudo descargar conexiones.json');
+var x=await r.json();
+return (x&&Array.isArray(x.conexiones))?x:{conexiones:[]};
+}
+/* Como mucho una anotación por pestaña/sesión y por correo, para no acumular
+   una entrada en cada reconexión silenciosa al tocar la pantalla (mismo
+   patrón de sessionStorage que avisarSiCuentaNoAdmin). */
+async function registrarConexion(){
+if(!googleIdentidad||!googleIdentidad.email)return;
+var email=googleIdentidad.email;
+try{
+if(sessionStorage.getItem('conexionRegistrada')===email)return;
+sessionStorage.setItem('conexionRegistrada',email);
+}catch(e){}
+if(!driveRootFolderId||!tokenDriveValido())return;
+try{
+var actual=await descargarConexionesDrive();
+var lista=Array.isArray(actual.conexiones)?actual.conexiones:[];
+lista.push({email:email,nombre:googleIdentidad.name||'',fecha:new Date().toISOString()});
+if(lista.length>CONEXIONES_MAX_REGISTROS)lista=lista.slice(lista.length-CONEXIONES_MAX_REGISTROS);
+var contenido=JSON.stringify({formato:'Libro de los Ancestros - conexiones',version:1,fecha:new Date().toISOString(),conexiones:lista});
+var folderId=await obtenerCarpetaArbolOficialId(true);
+var existente=await obtenerArchivoConexionesDrive();
+await subirArchivoDrive(CONEXIONES_ARCHIVO,contenido,'application/json',folderId,existente?existente.id:null);
+}catch(err){
+console.warn('No se pudo anotar el registro de conexiones:',err&&err.message);
+}
+}
+async function abrirRegistroConexiones(){
+if(!esAdministrador()){toast('Solo el administrador puede ver el registro de conexiones',true);return;}
+if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para ver el registro de conexiones',true);return;}
+document.getElementById('modalConexiones').style.display='flex';
+document.getElementById('listaConexiones').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
+try{
+var datos=await descargarConexionesDrive();
+pintarListaConexiones(datos.conexiones||[]);
+}catch(err){
+document.getElementById('listaConexiones').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No se pudo cargar el registro de conexiones: '+esc(err.message)+'</div>';
+}
+}
+function cerrarRegistroConexiones(){document.getElementById('modalConexiones').style.display='none';}
+function pintarListaConexiones(lista){
+var cont=document.getElementById('listaConexiones');
+if(!lista.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Todavía no hay ninguna conexión registrada.</div>';return;}
+var ordenada=lista.slice().sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});
+cont.innerHTML=ordenada.map(function(c){
+var quien=c.nombre?(esc(c.nombre)+' <span style="color:var(--muted)">('+esc(c.email||'')+')</span>'):esc(c.email||'—');
+var fechaTxt=c.fecha?new Date(c.fecha).toLocaleString('es-ES'):'—';
+return '<div class="cambio-card"><div class="cambio-head"><div>'+quien+'</div><div class="cambio-date">'+fechaTxt+'</div></div></div>';
+}).join('');
+}
+/* ========== FIN REGISTRO DE CONEXIONES ========== */
+
+/* ========== COPIA DE SEGURIDAD LOCAL EN ZIP (FOTO y DOCUMENTOS, solo administrador) ==========
+   A diferencia de la copia local de la TAREA 6 (que descarga FOTO/DOCUMENTOS
+   desde Google Drive), esta es una copia puramente LOCAL A LOCAL: comprime
+   dos carpetas que ya existen en el disco duro (por ejemplo, E:\Genealogia\FOTO
+   y E:\Genealogia\DOCUMENTOS) en sendos archivos ZIP fechados, guardados en
+   una tercera carpeta de destino (por ejemplo, E:\SEGURIDAD GENEALOGIA), sin
+   tocar Google Drive para nada. Requiere un navegador con File System Access
+   API (Chrome/Edge de escritorio) y la librería JSZip (cargada por CDN). */
+var CFG_ZIPSEG_FOTO_HANDLE='zipSegFotoDirHandle';
+var CFG_ZIPSEG_DOCS_HANDLE='zipSegDocsDirHandle';
+var CFG_ZIPSEG_DEST_HANDLE='zipSegDestDirHandle';
+var CFG_ZIPSEG_ULTIMA_FECHA='zipSegUltimaFecha';
+var CFG_ZIPSEG_ULTIMO_RESUMEN='zipSegUltimoResumen';
+var zipSeguridadEnCurso=false;
+var zipSeguridadCancelar=false;
+
+async function zipSegAsegurarPermiso(handle,modo){
+if(!handle)return false;
+try{
+var permiso=await handle.queryPermission({mode:modo});
+if(permiso!=='granted')permiso=await handle.requestPermission({mode:modo});
+return permiso==='granted';
+}catch(e){return false;}
+}
+/* Añade recursivamente el contenido de una carpeta local dentro de una
+   carpeta del ZIP en construcción. contador.n se incrementa según se añaden
+   archivos, para poder informar del progreso sin recorrer la carpeta dos veces. */
+async function zipSegAnadirCarpeta(dirHandle,carpetaZip,contador,onProgreso){
+for await (var entry of dirHandle.values()){
+if(zipSeguridadCancelar)return;
+if(entry.kind==='directory'){
+await zipSegAnadirCarpeta(entry,carpetaZip.folder(entry.name),contador,onProgreso);
+}else{
+try{
+var file=await entry.getFile();
+carpetaZip.file(entry.name,file);
+contador.n++;
+if(onProgreso)onProgreso(contador.n);
+}catch(eArchivo){
+contador.errores.push(entry.name);
+}
+}
+}
+}
+function zipSegNombreFechado(prefijo){
+var d=new Date();
+function dosDig(n){return String(n).padStart(2,'0');}
+var fecha=d.getFullYear()+'-'+dosDig(d.getMonth()+1)+'-'+dosDig(d.getDate());
+var hora=dosDig(d.getHours())+'h'+dosDig(d.getMinutes());
+return prefijo+'_'+fecha+'_'+hora+'.zip';
+}
+async function zipSegComprimirYGuardar(dirOrigen,destHandle,prefijo,onFase){
+var contador={n:0,errores:[]};
+var zip=new JSZip();
+onFase('Preparando '+prefijo+'...');
+await zipSegAnadirCarpeta(dirOrigen,zip,contador,function(n){
+onFase('Comprimiendo '+prefijo+': '+n+' archivo(s) añadido(s)...');
+});
+if(zipSeguridadCancelar)return null;
+onFase('Generando el archivo ZIP de '+prefijo+'...');
+var blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+var nombre=zipSegNombreFechado(prefijo);
+var fileHandle=await destHandle.getFileHandle(nombre,{create:true});
+var writable=await fileHandle.createWritable();
+await writable.write(blob);
+await writable.close();
+return {nombre:nombre,archivos:contador.n,errores:contador.errores};
+}
+/* ---------- Configuración (elige las 3 carpetas, una detrás de otra) ---------- */
+async function configurarZipSeguridad(){
+if(!(await exigirIdentidadGoogle()))return false;
+if(!esAdministrador()){toast('Solo el administrador puede configurar la copia de seguridad en ZIP',true);return false;}
+if(!window.showDirectoryPicker){toast('Tu navegador no permite elegir carpetas del disco para esto (usa Chrome o Edge en escritorio).',true);return false;}
+try{
+toast('Elige la carpeta FOTO de origen (por ejemplo E:\\Genealogia\\FOTO)');
+var hFoto=await window.showDirectoryPicker();
+if(!(await zipSegAsegurarPermiso(hFoto,'read'))){toast('No se concedió permiso de lectura sobre la carpeta FOTO',true);return false;}
+toast('Ahora elige la carpeta DOCUMENTOS de origen (por ejemplo E:\\Genealogia\\DOCUMENTOS)');
+var hDocs=await window.showDirectoryPicker();
+if(!(await zipSegAsegurarPermiso(hDocs,'read'))){toast('No se concedió permiso de lectura sobre la carpeta DOCUMENTOS',true);return false;}
+toast('Por último, elige la carpeta de destino donde se guardarán los ZIP (por ejemplo E:\\SEGURIDAD GENEALOGIA)');
+var hDest=await window.showDirectoryPicker({mode:'readwrite'});
+if(!(await zipSegAsegurarPermiso(hDest,'readwrite'))){toast('No se concedió permiso de escritura sobre la carpeta de destino',true);return false;}
+await guardarValorCFG(CFG_ZIPSEG_FOTO_HANDLE,hFoto);
+await guardarValorCFG(CFG_ZIPSEG_DOCS_HANDLE,hDocs);
+await guardarValorCFG(CFG_ZIPSEG_DEST_HANDLE,hDest);
+toast('Copia de seguridad en ZIP configurada: FOTO="'+hFoto.name+'", DOCUMENTOS="'+hDocs.name+'" → destino "'+hDest.name+'"');
+return true;
+}catch(err){
+if(err&&err.name!=='AbortError')toast('No se pudo configurar la copia de seguridad en ZIP: '+err.message,true);
+return false;
+}
+}
+async function olvidarZipSeguridad(){
+if(!(await exigirIdentidadGoogle()))return;
+if(!esAdministrador()){toast('Solo el administrador puede olvidar esta configuración',true);return;}
+await guardarValorCFG(CFG_ZIPSEG_FOTO_HANDLE,null);
+await guardarValorCFG(CFG_ZIPSEG_DOCS_HANDLE,null);
+await guardarValorCFG(CFG_ZIPSEG_DEST_HANDLE,null);
+toast('Se ha olvidado la configuración de la copia de seguridad en ZIP. Los archivos ZIP ya creados NO se han borrado.');
+mostrarHerramientas();
+}
+async function obtenerEstadoZipSeguridad(){
+var hFoto=await leerValorCFG(CFG_ZIPSEG_FOTO_HANDLE);
+var hDocs=await leerValorCFG(CFG_ZIPSEG_DOCS_HANDLE);
+var hDest=await leerValorCFG(CFG_ZIPSEG_DEST_HANDLE);
+var fecha=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA);
+var resumen=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN);
+return {configurada:!!(hFoto&&hDocs&&hDest),foto:hFoto,documentos:hDocs,destino:hDest,fecha:fecha,resumen:resumen};
+}
+async function mostrarEstadoZipSeguridadEnHerramientas(){
+var el=document.getElementById('herrZipSeguridadEstado');
+var btnOlvidar=document.getElementById('herrBtnOlvidarZipSeguridad');
+if(!el)return;
+try{
+var estado=await obtenerEstadoZipSeguridad();
+if(btnOlvidar)btnOlvidar.style.display=estado.configurada?'':'none';
+if(!estado.configurada){
+el.textContent='Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada. Toca para configurarla.';
+return;
+}
+var txt;
+if(estado.fecha){
+txt='Última copia realizada el '+new Date(estado.fecha).toLocaleString('es-ES');
+if(estado.resumen&&(estado.resumen.erroresFoto||estado.resumen.erroresDocumentos))txt+=' (con incidencias)';
+}else{
+txt='Carpetas configuradas · todavía no se ha ejecutado ninguna copia';
+}
+txt+=' · toca para actualizar ahora';
+el.textContent=txt;
+}catch(e){
+el.textContent='Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada. Toca para configurarla.';
+}
+}
+function accionZipSeguridadUI(){
+obtenerEstadoZipSeguridad().then(function(estado){
+if(estado.configurada)ejecutarZipSeguridadUI();
+else configurarZipSeguridad().then(function(){mostrarHerramientas();});
+}).catch(function(){configurarZipSeguridad().then(function(){mostrarHerramientas();});});
+}
+async function ejecutarZipSeguridadUI(){
+if(zipSeguridadEnCurso){toast('Ya hay una copia de seguridad en ZIP en curso; espera a que termine',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+if(!esAdministrador()){toast('Solo el administrador puede actualizar la copia de seguridad en ZIP',true);return;}
+if(typeof JSZip==='undefined'){toast('No se pudo cargar la librería de compresión ZIP. Comprueba tu conexión a internet e inténtalo de nuevo.',true);return;}
+var estado=await obtenerEstadoZipSeguridad();
+if(!estado.configurada){toast('Configura primero las 3 carpetas (FOTO, DOCUMENTOS y destino)',true);return;}
+if(!(await confirmarApp('Se comprimirán las carpetas FOTO y DOCUMENTOS configuradas en dos archivos ZIP fechados, guardados en la carpeta de destino. Puede tardar varios minutos si hay muchos archivos.')))return;
+var okFoto=await zipSegAsegurarPermiso(estado.foto,'read');
+var okDocs=await zipSegAsegurarPermiso(estado.documentos,'read');
+var okDest=await zipSegAsegurarPermiso(estado.destino,'readwrite');
+if(!okFoto||!okDocs||!okDest){toast('No se pudo obtener permiso sobre alguna de las carpetas configuradas. Vuelve a configurarlas.',true);return;}
+zipSeguridadEnCurso=true;
+zipSeguridadCancelar=false;
+abrirModalZipSeguridad();
+try{
+var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t){actualizarTextoModalZipSeguridad(t);});
+if(zipSeguridadCancelar)throw {cancelado:true};
+var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t){actualizarTextoModalZipSeguridad(t);});
+if(zipSeguridadCancelar)throw {cancelado:true};
+var resumenGuardable={
+fecha:new Date().toISOString(),
+zipFoto:resFoto.nombre,archivosFoto:resFoto.archivos,erroresFoto:resFoto.errores.length,
+zipDocumentos:resDocs.nombre,archivosDocumentos:resDocs.archivos,erroresDocumentos:resDocs.errores.length
+};
+await guardarValorCFG(CFG_ZIPSEG_ULTIMA_FECHA,resumenGuardable.fecha);
+await guardarValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN,resumenGuardable);
+mostrarResumenModalZipSeguridad(resumenGuardable);
+var totalErrores=resumenGuardable.erroresFoto+resumenGuardable.erroresDocumentos;
+if(totalErrores===0)toast('Copia de seguridad en ZIP completada: '+resFoto.nombre+' y '+resDocs.nombre);
+else toast('Copia de seguridad en ZIP completada con '+totalErrores+' error(es) de lectura',true);
+}catch(err){
+if(err&&err.cancelado){
+toast('Copia de seguridad en ZIP cancelada',true);
+cerrarModalZipSeguridadConError();
+}else{
+toast('No se pudo completar la copia de seguridad en ZIP: '+(err&&err.message?err.message:'error desconocido'),true);
+cerrarModalZipSeguridadConError();
+}
+}finally{
+zipSeguridadEnCurso=false;
+zipSeguridadCancelar=false;
+mostrarEstadoZipSeguridadEnHerramientas();
+}
+}
+function cancelarZipSeguridad(){
+if(!zipSeguridadEnCurso)return;
+zipSeguridadCancelar=true;
+toast('Cancelando... se detendrá tras terminar el archivo en curso');
+}
+function abrirModalZipSeguridad(){
+document.getElementById('zipSegProgresoTexto').textContent='Preparando...';
+document.getElementById('zipSegResumen').style.display='none';
+document.getElementById('zipSegResumen').innerHTML='';
+document.getElementById('zipSegProgresoWrap').style.display='block';
+document.getElementById('zipSegCerrarBtn').style.display='none';
+document.getElementById('zipSegCancelarBtn').style.display='inline-flex';
+document.getElementById('modalZipSeguridad').style.display='flex';
+}
+function actualizarTextoModalZipSeguridad(t){
+var el=document.getElementById('zipSegProgresoTexto');
+if(el)el.textContent=t;
+}
+function mostrarResumenModalZipSeguridad(r){
+document.getElementById('zipSegProgresoWrap').style.display='none';
+document.getElementById('zipSegCancelarBtn').style.display='none';
+document.getElementById('zipSegCerrarBtn').style.display='inline-flex';
+var cont=document.getElementById('zipSegResumen');
+cont.style.display='block';
+var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipFoto)+': '+r.archivosFoto+' archivo(s)</span>';
+if(r.erroresFoto)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en FOTO: '+r.erroresFoto+'</span>';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipDocumentos)+': '+r.archivosDocumentos+' archivo(s)</span>';
+if(r.erroresDocumentos)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en DOCUMENTOS: '+r.erroresDocumentos+'</span>';
+h+='</div>';
+cont.innerHTML=h;
+}
+function cerrarModalZipSeguridad(){
+if(zipSeguridadEnCurso){toast('Espera a que termine o pulsa Cancelar',true);return;}
+document.getElementById('modalZipSeguridad').style.display='none';
+}
+function cerrarModalZipSeguridadConError(){
+document.getElementById('zipSegProgresoWrap').style.display='none';
+document.getElementById('zipSegCancelarBtn').style.display='none';
+document.getElementById('zipSegCerrarBtn').style.display='inline-flex';
+}
+/* ========== FIN COPIA DE SEGURIDAD LOCAL EN ZIP ========== */
+
 async function restaurarArbolOficialPrincipal(){
 var btn=document.getElementById('restaurarArbolPrincipalBtn');
 if(btn&&btn.disabled)return;
@@ -10512,7 +10761,7 @@ restaurarUsuariosCacheLocal();
 ['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSoloTokenDrive();});});
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);ejecutarCopiaLocalSiToca();
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);
 /* A PETICIÓN DEL USUARIO: la app arranca siempre desconectada de Google
    Drive y ya NO intenta conectarse sola (ni en silencio) al abrirse; la
    conexión solo se produce cuando la persona toca explícitamente el punto
@@ -11095,6 +11344,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Acceso</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Correo, nombre y fecha/hora de cada vez que un colaborador conecta su cuenta de Google</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
@@ -11106,13 +11356,14 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <button class="herr-item herr-req-drive" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI()"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP</div><div class="herr-desc" id="herrZipSeguridadEstado">Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada</div></div></button>
+<button class="herr-item" id="herrBtnOlvidarZipSeguridad" style="display:none" onclick="cerrarHerramientas();olvidarZipSeguridad()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpetas del ZIP</div><div class="herr-desc">Deja de usar esas 3 carpetas. NO borra los archivos ZIP ya creados</div></div></button>
 <div class="herr-subhead">Copia oficial en Drive (solo tú subes esta copia)</div>
 <button class="herr-item herr-req-drive" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();activarCopiaLocalAutomatica()"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Activar copia automática local</div><div class="herr-desc">Cada 24h guarda un respaldo en tu disco duro (solo en este navegador, rotación de 5 copias)</div></div></button>
 <div class="herr-subhead">Exportación</div>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
 </div>
@@ -11210,7 +11461,9 @@ var MODAL_CLOSERS={
 'modalImportFotos':function(){if(typeof cerrarModalImportFotos==='function')cerrarModalImportFotos();},
 'modalConfigANOCALC':function(){if(typeof cerrarModalConfigANOCALC==='function')cerrarModalConfigANOCALC();},
 'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
-'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();}
+'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();},
+'modalZipSeguridad':function(){if(typeof cerrarModalZipSeguridad==='function')cerrarModalZipSeguridad();},
+'modalConexiones':function(){if(typeof cerrarRegistroConexiones==='function')cerrarRegistroConexiones();}
 };
 var lastFocused=null;
 function esVisible(m){return m&&getComputedStyle(m).display!=='none';}
@@ -11403,6 +11656,30 @@ window.addEventListener('appinstalled', function () {
 <div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="copiaLocalDriveCancelarBtn" onclick="cancelarCopiaLocalDrive()">Cancelar</button></div>
 </div>
 <div id="copiaLocalDriveResumen" style="display:none;overflow:auto"></div>
+</div>
+</div>
+<div id="modalZipSeguridad" role="dialog" aria-modal="true" aria-labelledby="zipSegTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="zipSegTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-file-zipper" aria-hidden="true" style="color:var(--accent)"></i> Copia de seguridad en ZIP</h2>
+<button class="ef-nbtn" id="zipSegCerrarBtn" aria-label="Cerrar" style="display:none" onclick="cerrarModalZipSeguridad()">×</button>
+</div>
+<div id="zipSegProgresoWrap" role="status" aria-live="polite">
+<div id="zipSegProgresoTexto" style="font-size:12px;color:var(--muted);margin-bottom:8px">Preparando...</div>
+<p style="font-size:11px;color:var(--muted);margin-top:10px">No cierres esta ventana ni recargues la página mientras se comprimen los archivos.</p>
+<div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="zipSegCancelarBtn" onclick="cancelarZipSeguridad()">Cancelar</button></div>
+</div>
+<div id="zipSegResumen" style="display:none;overflow:auto"></div>
+</div>
+</div>
+<div id="modalConexiones" role="dialog" aria-modal="true" aria-labelledby="modalConexionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="modalConexionesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-right-to-bracket" aria-hidden="true" style="color:var(--accent)"></i> Registro de conexiones</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarRegistroConexiones()">×</button>
+</div>
+<p style="font-size:11px;color:var(--muted);margin:0 0 10px">Correo, nombre y fecha/hora de cada vez que un colaborador ha conectado su cuenta de Google, de más reciente a más antigua (hasta las últimas 500 conexiones).</p>
+<div id="listaConexiones" style="overflow:auto;flex:1"></div>
 </div>
 </div>
 </body>
