@@ -249,6 +249,9 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .zipseg-fondo-texto{color:var(--muted);margin-bottom:8px}
 .zipseg-fondo-resumen{margin-bottom:8px}
 .zipseg-fondo-acciones{display:flex;justify-content:flex-end;gap:8px}
+.zipseg-fondo-fila+.zipseg-fondo-fila{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.zipseg-fondo-fila-head{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:4px}
+.zipseg-fondo-fila-head span{flex:1}
 .bus-filtros{max-width:460px;margin:10px auto 0;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 14px;text-align:left;display:none}
 .bus-filtros.abierto{display:block}
 .bus-filtros-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
@@ -542,11 +545,21 @@ body{background:#fff}
 <a href="#mainContent" class="skip-link">Saltar al contenido principal</a>
 <div class="toast-c" id="toastC" role="status" aria-live="polite" aria-atomic="false"></div>
 <div id="zipSegFondo" class="zipseg-fondo" style="display:none" role="status" aria-live="polite">
-<div class="zipseg-fondo-head"><i class="fa-solid fa-file-zipper"></i><span class="zipseg-fondo-titulo">Copia de seguridad en ZIP</span><button type="button" class="zipseg-fondo-x" id="zipSegFondoCerrarBtn" onclick="cerrarFondoZipSeguridad()" aria-label="Cerrar" style="display:none">×</button></div>
-<div class="zipseg-fondo-texto" id="zipSegFondoTexto">Preparando...</div>
-<div class="pb" id="zipSegFondoBarraWrap" style="display:none"><div class="pf" id="zipSegFondoBarra"></div></div>
-<div class="zipseg-fondo-resumen" id="zipSegFondoResumen" style="display:none"></div>
-<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegFondoCancelarBtn" onclick="cancelarZipSeguridad()">Cancelar</button></div>
+<div class="zipseg-fondo-head"><i class="fa-solid fa-file-zipper"></i><span class="zipseg-fondo-titulo">Copia de seguridad en ZIP</span></div>
+<div id="zipSegFilaFOTO" class="zipseg-fondo-fila" style="display:none">
+<div class="zipseg-fondo-fila-head"><span>FOTO</span><button type="button" class="zipseg-fondo-x" id="zipSegCerrarFOTO" onclick="cerrarFondoZipSeguridad('FOTO')" aria-label="Cerrar" style="display:none">×</button></div>
+<div class="zipseg-fondo-texto" id="zipSegTextoFOTO">Preparando...</div>
+<div class="pb" id="zipSegBarraWrapFOTO" style="display:none"><div class="pf" id="zipSegBarraFOTO"></div></div>
+<div class="zipseg-fondo-resumen" id="zipSegResumenFOTO" style="display:none"></div>
+<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegCancelarFOTO" onclick="cancelarZipSeguridad('FOTO')">Cancelar</button></div>
+</div>
+<div id="zipSegFilaDOCUMENTOS" class="zipseg-fondo-fila" style="display:none">
+<div class="zipseg-fondo-fila-head"><span>DOCUMENTOS</span><button type="button" class="zipseg-fondo-x" id="zipSegCerrarDOCUMENTOS" onclick="cerrarFondoZipSeguridad('DOCUMENTOS')" aria-label="Cerrar" style="display:none">×</button></div>
+<div class="zipseg-fondo-texto" id="zipSegTextoDOCUMENTOS">Preparando...</div>
+<div class="pb" id="zipSegBarraWrapDOCUMENTOS" style="display:none"><div class="pf" id="zipSegBarraDOCUMENTOS"></div></div>
+<div class="zipseg-fondo-resumen" id="zipSegResumenDOCUMENTOS" style="display:none"></div>
+<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegCancelarDOCUMENTOS" onclick="cancelarZipSeguridad('DOCUMENTOS')">Cancelar</button></div>
+</div>
 </div>
 <div id="progresoCrearPersonaWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
@@ -864,8 +877,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.04.2';
+var APP_VERSION = '2026.09.04.3';
 var APP_CHANGELOG = [
+  { version:'2026.09.04.3', fecha:'2026-09-04', cambios:[
+    'Copia de seguridad local en ZIP: ahora FOTO y DOCUMENTOS tienen cada una su propio boton en Herramientas, con su propio progreso, boton "Cancelar" y fecha de ultima copia, en vez de un unico boton que hacia las dos seguidas. Se puede lanzar solo una de las dos sin esperar a la otra.'
+  ]},
   { version:'2026.09.04.2', fecha:'2026-09-04', cambios:[
     'Eliminada la funcion "Activar copia automatica local" (la copia cada 24h en el disco duro del navegador, con rotacion de 5 archivos): se ha retirado del menu de Herramientas por considerarse innecesaria, junto con el arranque automatico que la comprobaba cada vez que se abria la aplicacion. No afecta a la copia local de fotografias y documentos ni a la nueva copia de seguridad local en ZIP, que siguen disponibles.'
   ]},
@@ -10310,10 +10326,16 @@ return '<div class="cambio-card"><div class="cambio-head"><div>'+quien+'</div><d
 var CFG_ZIPSEG_FOTO_HANDLE='zipSegFotoDirHandle';
 var CFG_ZIPSEG_DOCS_HANDLE='zipSegDocsDirHandle';
 var CFG_ZIPSEG_DEST_HANDLE='zipSegDestDirHandle';
-var CFG_ZIPSEG_ULTIMA_FECHA='zipSegUltimaFecha';
-var CFG_ZIPSEG_ULTIMO_RESUMEN='zipSegUltimoResumen';
-var zipSeguridadEnCurso=false;
-var zipSeguridadCancelar=false;
+/* Fecha y resumen de la última copia, guardados por separado para FOTO y
+   DOCUMENTOS ahora que cada una se ejecuta de forma independiente. */
+var CFG_ZIPSEG_ULTIMA_FECHA_FOTO='zipSegUltimaFechaFoto';
+var CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO='zipSegUltimoResumenFoto';
+var CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS='zipSegUltimaFechaDocumentos';
+var CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS='zipSegUltimoResumenDocumentos';
+/* Un estado de "en curso" y "cancelar" por tipo (FOTO / DOCUMENTOS), para que
+   cada copia se pueda lanzar, seguir y cancelar de forma independiente. */
+var zipSeguridadEnCurso={FOTO:false,DOCUMENTOS:false};
+var zipSeguridadCancelar={FOTO:false,DOCUMENTOS:false};
 
 async function zipSegAsegurarPermiso(handle,modo){
 if(!handle)return false;
@@ -10326,11 +10348,11 @@ return permiso==='granted';
 /* Añade recursivamente el contenido de una carpeta local dentro de una
    carpeta del ZIP en construcción. contador.n se incrementa según se añaden
    archivos, para poder informar del progreso sin recorrer la carpeta dos veces. */
-async function zipSegAnadirCarpeta(dirHandle,carpetaZip,contador,onProgreso){
+async function zipSegAnadirCarpeta(dirHandle,carpetaZip,contador,onProgreso,tipo){
 for await (var entry of dirHandle.values()){
-if(zipSeguridadCancelar)return;
+if(zipSeguridadCancelar[tipo])return;
 if(entry.kind==='directory'){
-await zipSegAnadirCarpeta(entry,carpetaZip.folder(entry.name),contador,onProgreso);
+await zipSegAnadirCarpeta(entry,carpetaZip.folder(entry.name),contador,onProgreso,tipo);
 }else{
 try{
 var file=await entry.getFile();
@@ -10350,49 +10372,57 @@ var fecha=d.getFullYear()+'-'+dosDig(d.getMonth()+1)+'-'+dosDig(d.getDate());
 var hora=dosDig(d.getHours())+'h'+dosDig(d.getMinutes());
 return prefijo+'_'+fecha+'_'+hora+'.zip';
 }
-async function zipSegComprimirYGuardar(dirOrigen,destHandle,prefijo,onFase){
+async function zipSegComprimirYGuardar(dirOrigen,destHandle,tipo,onFase){
 var contador={n:0,errores:[]};
 var zip=new JSZip();
-onFase('Preparando '+prefijo+'...',null);
+onFase('Preparando '+tipo+'...',null);
 await zipSegAnadirCarpeta(dirOrigen,zip,contador,function(n){
-onFase('Comprimiendo '+prefijo+': '+n+' archivo(s) añadido(s)...',null);
-});
-if(zipSeguridadCancelar)return null;
+onFase('Comprimiendo '+tipo+': '+n+' archivo(s) añadido(s)...',null);
+},tipo);
+if(zipSeguridadCancelar[tipo])return null;
 /* FOTO ya viene comprimida de fábrica (JPG/HEIC/etc.): comprimir otra vez con
    DEFLATE apenas ahorra espacio y consume mucho tiempo de CPU, así que para
    FOTO se usa STORE (empaquetar sin comprimir). DOCUMENTOS sí puede tener
    texto/PDF donde DEFLATE aporta algo, así que mantiene compresión nivel 6. */
-var esFoto=(prefijo==='FOTO');
-var opcionesZip=esFoto?{type:'blob',compression:'STORE'}:{type:'blob',compression:'DEFLATE',compressionOptions:{level:6}};
-onFase('Generando el archivo ZIP de '+prefijo+': 0%',0);
-var blob=await zip.generateAsync(opcionesZip,function(metadata){
-if(zipSeguridadCancelar)return;
-var pct=Math.max(0,Math.min(100,Math.round(metadata.percent||0)));
-onFase('Generando el archivo ZIP de '+prefijo+': '+pct+'%',pct);
-});
-var nombre=zipSegNombreFechado(prefijo);
+var esFoto=(tipo==='FOTO');
+var opcionesZip=esFoto?{type:'uint8array',compression:'STORE'}:{type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}};
+var nombre=zipSegNombreFechado(tipo);
 var fileHandle=await destHandle.getFileHandle(nombre,{create:true});
 var writable=await fileHandle.createWritable();
-/* Escribir el blob en trozos (en vez de un único writable.write(blob) monolítico)
-   para poder informar de progreso real durante el guardado en disco. Con archivos
-   de varios GB, esa escritura puede tardar bastante y sin esto la barra se quedaba
-   clavada en el 100% (que solo reflejaba el fin de la COMPRESIÓN, no del GUARDADO)
-   dando la sensación de que la app se había quedado colgada sin copiar nada. */
-var totalBytes=blob.size;
-if(totalBytes===0){
-onFase('Guardando el archivo ZIP de '+prefijo+' en el disco...',100);
-await writable.write(blob);
-}else{
-var TROZO=32*1024*1024;
-var escritos=0;
-while(escritos<totalBytes){
-if(zipSeguridadCancelar){try{await writable.close();}catch(eClose){}try{await destHandle.removeEntry(nombre);}catch(eDel){}return null;}
-var fin=Math.min(escritos+TROZO,totalBytes);
-await writable.write(blob.slice(escritos,fin));
-escritos=fin;
-var pctGuardado=Math.round((escritos/totalBytes)*100);
-onFase('Guardando el archivo ZIP de '+prefijo+' en el disco: '+pctGuardado+'% ('+zipSegFormatoMB(escritos)+' de '+zipSegFormatoMB(totalBytes)+')',pctGuardado);
-}
+/* En vez de zip.generateAsync (que monta el ZIP entero como un único blob en
+   memoria y solo despues se escribe en disco), se usa el flujo interno de
+   JSZip (generateInternalStream) para ir escribiendo cada trozo comprimido
+   directamente en el archivo de destino según se va generando. Con carpetas
+   de varios GB (mas de 1000 fotos restauradas, por ejemplo), montar todo el
+   ZIP en memoria antes de escribir un solo byte podia tardar muchisimo o
+   colgar la pestaña, dejando el aviso clavado en "100%" sin que la carpeta
+   de destino recibiera nada. Ahora la escritura en disco avanza en paralelo
+   con la compresión, trozo a trozo (NO se acumulan los trozos en un array en
+   memoria: eso consumiría tanta RAM como generar el ZIP entero de golpe). */
+var bytesEscritos=0;
+try{
+await new Promise(function(resolve,reject){
+var streamHelper=zip.generateInternalStream(opcionesZip);
+streamHelper.on('data',function(data,metadata){
+streamHelper.pause();
+var chunk=(data instanceof Uint8Array)?data:new Uint8Array(data);
+writable.write(chunk).then(function(){
+bytesEscritos+=chunk.byteLength;
+if(zipSeguridadCancelar[tipo]){reject(new Error('CANCELADO'));return;}
+var pct=Math.max(0,Math.min(100,Math.round(metadata.percent||0)));
+onFase('Generando y guardando el ZIP de '+tipo+': '+pct+'% ('+zipSegFormatoMB(bytesEscritos)+')',pct);
+streamHelper.resume();
+}).catch(reject);
+})
+.on('error',reject)
+.on('end',resolve)
+.resume();
+});
+}catch(eStream){
+try{await writable.close();}catch(eClose){}
+try{await destHandle.removeEntry(nombre);}catch(eDel){}
+if(eStream&&eStream.message==='CANCELADO')return null;
+throw eStream;
 }
 await writable.close();
 return {nombre:nombre,archivos:contador.n,errores:contador.errores};
@@ -10438,114 +10468,122 @@ async function obtenerEstadoZipSeguridad(){
 var hFoto=await leerValorCFG(CFG_ZIPSEG_FOTO_HANDLE);
 var hDocs=await leerValorCFG(CFG_ZIPSEG_DOCS_HANDLE);
 var hDest=await leerValorCFG(CFG_ZIPSEG_DEST_HANDLE);
-var fecha=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA);
-var resumen=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN);
-return {configurada:!!(hFoto&&hDocs&&hDest),foto:hFoto,documentos:hDocs,destino:hDest,fecha:fecha,resumen:resumen};
+var fechaFoto=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA_FOTO);
+var resumenFoto=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO);
+var fechaDocs=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS);
+var resumenDocs=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS);
+return {configurada:!!(hFoto&&hDocs&&hDest),foto:hFoto,documentos:hDocs,destino:hDest,
+fechaFoto:fechaFoto,resumenFoto:resumenFoto,fechaDocumentos:fechaDocs,resumenDocumentos:resumenDocs};
 }
-async function mostrarEstadoZipSeguridadEnHerramientas(){
-var el=document.getElementById('herrZipSeguridadEstado');
-var btnOlvidar=document.getElementById('herrBtnOlvidarZipSeguridad');
-if(!el)return;
-try{
-var estado=await obtenerEstadoZipSeguridad();
-if(btnOlvidar)btnOlvidar.style.display=estado.configurada?'':'none';
-if(!estado.configurada){
-el.textContent='Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada. Toca para configurarla.';
-return;
-}
+function zipSegTextoEstadoTipo(configurada,fecha,resumen){
+if(!configurada)return'aún no configurada. Toca para configurarla.';
 var txt;
-if(estado.fecha){
-txt='Última copia realizada el '+new Date(estado.fecha).toLocaleString('es-ES');
-if(estado.resumen&&(estado.resumen.erroresFoto||estado.resumen.erroresDocumentos))txt+=' (con incidencias)';
+if(fecha){
+txt='Última copia realizada el '+new Date(fecha).toLocaleString('es-ES');
+if(resumen&&resumen.errores)txt+=' (con incidencias)';
 }else{
 txt='Carpetas configuradas · todavía no se ha ejecutado ninguna copia';
 }
-txt+=' · toca para actualizar ahora';
-el.textContent=txt;
+return txt+' · toca para actualizar ahora';
+}
+async function mostrarEstadoZipSeguridadEnHerramientas(){
+var elFoto=document.getElementById('herrZipSeguridadEstadoFOTO');
+var elDocs=document.getElementById('herrZipSeguridadEstadoDOCUMENTOS');
+var btnOlvidar=document.getElementById('herrBtnOlvidarZipSeguridad');
+if(!elFoto||!elDocs)return;
+try{
+var estado=await obtenerEstadoZipSeguridad();
+if(btnOlvidar)btnOlvidar.style.display=estado.configurada?'':'none';
+elFoto.textContent='Copia de seguridad local en ZIP de FOTO: '+zipSegTextoEstadoTipo(estado.configurada,estado.fechaFoto,estado.resumenFoto);
+elDocs.textContent='Copia de seguridad local en ZIP de DOCUMENTOS: '+zipSegTextoEstadoTipo(estado.configurada,estado.fechaDocumentos,estado.resumenDocumentos);
 }catch(e){
-el.textContent='Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada. Toca para configurarla.';
+elFoto.textContent='Copia de seguridad local en ZIP de FOTO: aún no configurada. Toca para configurarla.';
+elDocs.textContent='Copia de seguridad local en ZIP de DOCUMENTOS: aún no configurada. Toca para configurarla.';
 }
 }
-function accionZipSeguridadUI(){
+/* tipo: 'FOTO' o 'DOCUMENTOS'. Cada botón de Herramientas lanza solo su
+   propia copia, sin tocar la otra. Si las 3 carpetas aún no están
+   configuradas, primero se pide configurarlas (las 3 juntas, como antes) y
+   después se lanza automáticamente la copia que el usuario pidió. */
+function accionZipSeguridadUI(tipo){
 obtenerEstadoZipSeguridad().then(function(estado){
-if(estado.configurada)ejecutarZipSeguridadUI();
-else configurarZipSeguridad().then(function(){mostrarHerramientas();});
-}).catch(function(){configurarZipSeguridad().then(function(){mostrarHerramientas();});});
+if(estado.configurada)ejecutarZipSeguridadUI(tipo);
+else configurarZipSeguridad().then(function(ok){if(ok)ejecutarZipSeguridadUI(tipo);mostrarHerramientas();});
+}).catch(function(){configurarZipSeguridad().then(function(ok){if(ok)ejecutarZipSeguridadUI(tipo);mostrarHerramientas();});});
 }
-async function ejecutarZipSeguridadUI(){
-if(zipSeguridadEnCurso){toast('Ya hay una copia de seguridad en ZIP en curso; espera a que termine',true);return;}
+async function ejecutarZipSeguridadUI(tipo){
+if(zipSeguridadEnCurso[tipo]){toast('Ya hay una copia de seguridad en ZIP de '+tipo+' en curso; espera a que termine',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 if(!esAdministrador()){toast('Solo el administrador puede actualizar la copia de seguridad en ZIP',true);return;}
 if(typeof JSZip==='undefined'){toast('No se pudo cargar la librería de compresión ZIP. Comprueba tu conexión a internet e inténtalo de nuevo.',true);return;}
 var estado=await obtenerEstadoZipSeguridad();
 if(!estado.configurada){toast('Configura primero las 3 carpetas (FOTO, DOCUMENTOS y destino)',true);return;}
-var okFoto=await zipSegAsegurarPermiso(estado.foto,'read');
-var okDocs=await zipSegAsegurarPermiso(estado.documentos,'read');
+var dirOrigen=(tipo==='FOTO')?estado.foto:estado.documentos;
+var okOrigen=await zipSegAsegurarPermiso(dirOrigen,'read');
 var okDest=await zipSegAsegurarPermiso(estado.destino,'readwrite');
-if(!okFoto||!okDocs||!okDest){toast('No se pudo obtener permiso sobre alguna de las carpetas configuradas. Vuelve a configurarlas.',true);return;}
-zipSeguridadEnCurso=true;
-zipSeguridadCancelar=false;
-abrirFondoZipSeguridad();
-toast('Copia de seguridad en ZIP iniciada en segundo plano; puedes seguir navegando');
+if(!okOrigen||!okDest){toast('No se pudo obtener permiso sobre alguna de las carpetas configuradas. Vuelve a configurarlas.',true);return;}
+zipSeguridadEnCurso[tipo]=true;
+zipSeguridadCancelar[tipo]=false;
+abrirFondoZipSeguridad(tipo);
+toast('Copia de seguridad en ZIP de '+tipo+' iniciada en segundo plano; puedes seguir navegando');
 try{
-var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t,pct){actualizarTextoFondoZipSeguridad(t,pct);});
-if(zipSeguridadCancelar)throw {cancelado:true};
-var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t,pct){actualizarTextoFondoZipSeguridad(t,pct);});
-if(zipSeguridadCancelar)throw {cancelado:true};
-var resumenGuardable={
-fecha:new Date().toISOString(),
-zipFoto:resFoto.nombre,archivosFoto:resFoto.archivos,erroresFoto:resFoto.errores.length,
-zipDocumentos:resDocs.nombre,archivosDocumentos:resDocs.archivos,erroresDocumentos:resDocs.errores.length
-};
-await guardarValorCFG(CFG_ZIPSEG_ULTIMA_FECHA,resumenGuardable.fecha);
-await guardarValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN,resumenGuardable);
-mostrarResumenFondoZipSeguridad(resumenGuardable);
-var totalErrores=resumenGuardable.erroresFoto+resumenGuardable.erroresDocumentos;
-if(totalErrores===0)toast('Copia de seguridad en ZIP completada: '+resFoto.nombre+' y '+resDocs.nombre);
-else toast('Copia de seguridad en ZIP completada con '+totalErrores+' error(es) de lectura',true);
+var res=await zipSegComprimirYGuardar(dirOrigen,estado.destino,tipo,function(t,pct){actualizarTextoFondoZipSeguridad(tipo,t,pct);});
+if(zipSeguridadCancelar[tipo])throw {cancelado:true};
+var resumenGuardable={fecha:new Date().toISOString(),zip:res.nombre,archivos:res.archivos,errores:res.errores.length};
+var claveFecha=(tipo==='FOTO')?CFG_ZIPSEG_ULTIMA_FECHA_FOTO:CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS;
+var claveResumen=(tipo==='FOTO')?CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO:CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS;
+await guardarValorCFG(claveFecha,resumenGuardable.fecha);
+await guardarValorCFG(claveResumen,resumenGuardable);
+mostrarResumenFondoZipSeguridad(tipo,resumenGuardable);
+if(resumenGuardable.errores===0)toast('Copia de seguridad en ZIP de '+tipo+' completada: '+res.nombre);
+else toast('Copia de seguridad en ZIP de '+tipo+' completada con '+resumenGuardable.errores+' error(es) de lectura',true);
 }catch(err){
 if(err&&err.cancelado){
-toast('Copia de seguridad en ZIP cancelada',true);
-cerrarFondoZipSeguridadConError();
+toast('Copia de seguridad en ZIP de '+tipo+' cancelada',true);
+cerrarFondoZipSeguridadConError(tipo);
 }else{
-toast('No se pudo completar la copia de seguridad en ZIP: '+(err&&err.message?err.message:'error desconocido'),true);
-cerrarFondoZipSeguridadConError();
+toast('No se pudo completar la copia de seguridad en ZIP de '+tipo+': '+(err&&err.message?err.message:'error desconocido'),true);
+cerrarFondoZipSeguridadConError(tipo);
 }
 }finally{
-zipSeguridadEnCurso=false;
-zipSeguridadCancelar=false;
+zipSeguridadEnCurso[tipo]=false;
+zipSeguridadCancelar[tipo]=false;
 mostrarEstadoZipSeguridadEnHerramientas();
 }
 }
-function cancelarZipSeguridad(){
-if(!zipSeguridadEnCurso)return;
-zipSeguridadCancelar=true;
-toast('Cancelando... se detendrá tras terminar el archivo en curso');
+function cancelarZipSeguridad(tipo){
+if(!tipo||!zipSeguridadEnCurso[tipo])return;
+zipSeguridadCancelar[tipo]=true;
+toast('Cancelando la copia de '+tipo+'... se detendrá tras terminar el archivo en curso');
 }
-/* ---- Panel flotante NO bloqueante (permite seguir navegando por la app) ---- */
-function abrirFondoZipSeguridad(){
+/* ---- Panel flotante NO bloqueante (permite seguir navegando por la app) ----
+   FOTO y DOCUMENTOS tienen cada una su propia fila dentro del mismo panel,
+   así que pueden ejecutarse y cancelarse una independientemente de la otra. */
+function abrirFondoZipSeguridad(tipo){
 var el=document.getElementById('zipSegFondo');
-if(!el)return;
-document.getElementById('zipSegFondoTexto').textContent='Preparando...';
-var barraWrap=document.getElementById('zipSegFondoBarraWrap');
-var barra=document.getElementById('zipSegFondoBarra');
+var fila=document.getElementById('zipSegFila'+tipo);
+if(!el||!fila)return;
+document.getElementById('zipSegTexto'+tipo).textContent='Preparando...';
+var barraWrap=document.getElementById('zipSegBarraWrap'+tipo);
+var barra=document.getElementById('zipSegBarra'+tipo);
 barraWrap.style.display='none';
 barra.classList.remove('indet');
 barra.style.width='0%';
-document.getElementById('zipSegFondoResumen').style.display='none';
-document.getElementById('zipSegFondoResumen').innerHTML='';
-document.getElementById('zipSegFondoCerrarBtn').style.display='none';
-document.getElementById('zipSegFondoCancelarBtn').style.display='inline-flex';
+document.getElementById('zipSegResumen'+tipo).style.display='none';
+document.getElementById('zipSegResumen'+tipo).innerHTML='';
+document.getElementById('zipSegCerrar'+tipo).style.display='none';
+document.getElementById('zipSegCancelar'+tipo).style.display='inline-flex';
+fila.style.display='block';
 el.style.display='block';
 }
 /* pct: null/undefined durante las fases sin porcentaje conocido (preparar,
    añadir archivos) → barra indeterminada; número 0-100 durante la fase de
    generación real del ZIP, que es la que puede tardar largo rato. */
-function actualizarTextoFondoZipSeguridad(t,pct){
-var el=document.getElementById('zipSegFondoTexto');
+function actualizarTextoFondoZipSeguridad(tipo,t,pct){
+var el=document.getElementById('zipSegTexto'+tipo);
 if(el)el.textContent=t;
-var barraWrap=document.getElementById('zipSegFondoBarraWrap');
-var barra=document.getElementById('zipSegFondoBarra');
+var barraWrap=document.getElementById('zipSegBarraWrap'+tipo);
+var barra=document.getElementById('zipSegBarra'+tipo);
 if(!barraWrap||!barra)return;
 barraWrap.style.display='block';
 if(pct===null||pct===undefined){
@@ -10555,31 +10593,40 @@ barra.classList.remove('indet');
 barra.style.width=pct+'%';
 }
 }
-function mostrarResumenFondoZipSeguridad(r){
-document.getElementById('zipSegFondoCancelarBtn').style.display='none';
-document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
-document.getElementById('zipSegFondoTexto').textContent='Copia completada';
-document.getElementById('zipSegFondoBarraWrap').style.display='none';
-var cont=document.getElementById('zipSegFondoResumen');
+function mostrarResumenFondoZipSeguridad(tipo,r){
+document.getElementById('zipSegCancelar'+tipo).style.display='none';
+document.getElementById('zipSegCerrar'+tipo).style.display='inline-flex';
+document.getElementById('zipSegTexto'+tipo).textContent='Copia completada';
+document.getElementById('zipSegBarraWrap'+tipo).style.display='none';
+var cont=document.getElementById('zipSegResumen'+tipo);
 cont.style.display='block';
 var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
-h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipFoto)+': '+r.archivosFoto+' archivo(s)</span>';
-if(r.erroresFoto)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en FOTO: '+r.erroresFoto+'</span>';
-h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipDocumentos)+': '+r.archivosDocumentos+' archivo(s)</span>';
-if(r.erroresDocumentos)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en DOCUMENTOS: '+r.erroresDocumentos+'</span>';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zip)+': '+r.archivos+' archivo(s)</span>';
+if(r.errores)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: '+r.errores+'</span>';
 h+='</div>';
 cont.innerHTML=h;
 }
-function cerrarFondoZipSeguridadConError(){
-document.getElementById('zipSegFondoCancelarBtn').style.display='none';
-document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
-document.getElementById('zipSegFondoBarraWrap').style.display='none';
+function cerrarFondoZipSeguridadConError(tipo){
+document.getElementById('zipSegCancelar'+tipo).style.display='none';
+document.getElementById('zipSegCerrar'+tipo).style.display='inline-flex';
+document.getElementById('zipSegBarraWrap'+tipo).style.display='none';
 }
-function cerrarFondoZipSeguridad(){
-if(zipSeguridadEnCurso)return;
+function cerrarFondoZipSeguridad(tipo){
+if(zipSeguridadEnCurso[tipo])return;
+var fila=document.getElementById('zipSegFila'+tipo);
+if(fila)fila.style.display='none';
+if(!zipSeguridadEnCurso.FOTO&&!zipSeguridadEnCurso.DOCUMENTOS){
+var filaFoto=document.getElementById('zipSegFilaFOTO');
+var filaDocs=document.getElementById('zipSegFilaDOCUMENTOS');
+var fotoOculta=!filaFoto||filaFoto.style.display==='none';
+var docsOculta=!filaDocs||filaDocs.style.display==='none';
+if(fotoOculta&&docsOculta){
 var el=document.getElementById('zipSegFondo');
 if(el)el.style.display='none';
 }
+}
+}
+
 function abrirModalZipSeguridad(){
 document.getElementById('zipSegProgresoTexto').textContent='Preparando...';
 document.getElementById('zipSegResumen').style.display='none';
@@ -11462,8 +11509,9 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <button class="herr-item herr-req-drive" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI()"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP</div><div class="herr-desc" id="herrZipSeguridadEstado">Copia de seguridad local en ZIP de FOTO y DOCUMENTOS: aún no configurada</div></div></button>
-<button class="herr-item" id="herrBtnOlvidarZipSeguridad" style="display:none" onclick="cerrarHerramientas();olvidarZipSeguridad()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpetas del ZIP</div><div class="herr-desc">Deja de usar esas 3 carpetas. NO borra los archivos ZIP ya creados</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('FOTO')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: FOTO</div><div class="herr-desc" id="herrZipSeguridadEstadoFOTO">Copia de seguridad local en ZIP de FOTO: aún no configurada</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('DOCUMENTOS')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: DOCUMENTOS</div><div class="herr-desc" id="herrZipSeguridadEstadoDOCUMENTOS">Copia de seguridad local en ZIP de DOCUMENTOS: aún no configurada</div></div></button>
+<button class="herr-item" id="herrBtnOlvidarZipSeguridad" style="display:none" onclick="cerrarHerramientas();olvidarZipSeguridad()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpetas del ZIP</div><div class="herr-desc">Deja de usar esas 3 carpetas (FOTO, DOCUMENTOS y destino). NO borra los archivos ZIP ya creados</div></div></button>
 <div class="herr-subhead">Copia oficial en Drive (solo tú subes esta copia)</div>
 <button class="herr-item herr-req-drive" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
