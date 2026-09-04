@@ -241,6 +241,14 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .progreso-drive-cancelar{flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .progreso-drive-cancelar:hover{border-color:#c0392b;color:#c0392b;background:rgba(192,57,43,.08)}
 .backup-warn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;border-radius:999px;border:1.5px solid #e0a95c;background:rgba(224,169,92,.12);font-size:11px;font-weight:700;color:#8a5a1a}
+.zipseg-fondo{position:fixed;right:12px;bottom:12px;z-index:9998;width:290px;max-width:calc(100vw - 24px);background:var(--card);border:2px solid var(--accent);border-radius:14px;padding:12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.18);font-size:12px;color:var(--text);pointer-events:auto}
+.zipseg-fondo-head{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px}
+.zipseg-fondo-titulo{flex:1}
+.zipseg-fondo-x{background:none;border:0;font-size:16px;line-height:1;cursor:pointer;color:var(--muted);padding:0}
+.zipseg-fondo-x:hover{color:var(--text)}
+.zipseg-fondo-texto{color:var(--muted);margin-bottom:8px}
+.zipseg-fondo-resumen{margin-bottom:8px}
+.zipseg-fondo-acciones{display:flex;justify-content:flex-end;gap:8px}
 .bus-filtros{max-width:460px;margin:10px auto 0;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 14px;text-align:left;display:none}
 .bus-filtros.abierto{display:block}
 .bus-filtros-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
@@ -533,6 +541,12 @@ body{background:#fff}
 <body>
 <a href="#mainContent" class="skip-link">Saltar al contenido principal</a>
 <div class="toast-c" id="toastC" role="status" aria-live="polite" aria-atomic="false"></div>
+<div id="zipSegFondo" class="zipseg-fondo" style="display:none" role="status" aria-live="polite">
+<div class="zipseg-fondo-head"><i class="fa-solid fa-file-zipper"></i><span class="zipseg-fondo-titulo">Copia de seguridad en ZIP</span><button type="button" class="zipseg-fondo-x" id="zipSegFondoCerrarBtn" onclick="cerrarFondoZipSeguridad()" aria-label="Cerrar" style="display:none">×</button></div>
+<div class="zipseg-fondo-texto" id="zipSegFondoTexto">Preparando...</div>
+<div class="zipseg-fondo-resumen" id="zipSegFondoResumen" style="display:none"></div>
+<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegFondoCancelarBtn" onclick="cancelarZipSeguridad()">Cancelar</button></div>
+</div>
 <div id="progresoCrearPersonaWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
@@ -10431,18 +10445,18 @@ if(!esAdministrador()){toast('Solo el administrador puede actualizar la copia de
 if(typeof JSZip==='undefined'){toast('No se pudo cargar la librería de compresión ZIP. Comprueba tu conexión a internet e inténtalo de nuevo.',true);return;}
 var estado=await obtenerEstadoZipSeguridad();
 if(!estado.configurada){toast('Configura primero las 3 carpetas (FOTO, DOCUMENTOS y destino)',true);return;}
-if(!(await confirmarApp('Se comprimirán las carpetas FOTO y DOCUMENTOS configuradas en dos archivos ZIP fechados, guardados en la carpeta de destino. Puede tardar varios minutos si hay muchos archivos.')))return;
 var okFoto=await zipSegAsegurarPermiso(estado.foto,'read');
 var okDocs=await zipSegAsegurarPermiso(estado.documentos,'read');
 var okDest=await zipSegAsegurarPermiso(estado.destino,'readwrite');
 if(!okFoto||!okDocs||!okDest){toast('No se pudo obtener permiso sobre alguna de las carpetas configuradas. Vuelve a configurarlas.',true);return;}
 zipSeguridadEnCurso=true;
 zipSeguridadCancelar=false;
-abrirModalZipSeguridad();
+abrirFondoZipSeguridad();
+toast('Copia de seguridad en ZIP iniciada en segundo plano; puedes seguir navegando');
 try{
-var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t){actualizarTextoModalZipSeguridad(t);});
+var resFoto=await zipSegComprimirYGuardar(estado.foto,estado.destino,'FOTO',function(t){actualizarTextoFondoZipSeguridad(t);});
 if(zipSeguridadCancelar)throw {cancelado:true};
-var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t){actualizarTextoModalZipSeguridad(t);});
+var resDocs=await zipSegComprimirYGuardar(estado.documentos,estado.destino,'DOCUMENTOS',function(t){actualizarTextoFondoZipSeguridad(t);});
 if(zipSeguridadCancelar)throw {cancelado:true};
 var resumenGuardable={
 fecha:new Date().toISOString(),
@@ -10451,17 +10465,17 @@ zipDocumentos:resDocs.nombre,archivosDocumentos:resDocs.archivos,erroresDocument
 };
 await guardarValorCFG(CFG_ZIPSEG_ULTIMA_FECHA,resumenGuardable.fecha);
 await guardarValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN,resumenGuardable);
-mostrarResumenModalZipSeguridad(resumenGuardable);
+mostrarResumenFondoZipSeguridad(resumenGuardable);
 var totalErrores=resumenGuardable.erroresFoto+resumenGuardable.erroresDocumentos;
 if(totalErrores===0)toast('Copia de seguridad en ZIP completada: '+resFoto.nombre+' y '+resDocs.nombre);
 else toast('Copia de seguridad en ZIP completada con '+totalErrores+' error(es) de lectura',true);
 }catch(err){
 if(err&&err.cancelado){
 toast('Copia de seguridad en ZIP cancelada',true);
-cerrarModalZipSeguridadConError();
+cerrarFondoZipSeguridadConError();
 }else{
 toast('No se pudo completar la copia de seguridad en ZIP: '+(err&&err.message?err.message:'error desconocido'),true);
-cerrarModalZipSeguridadConError();
+cerrarFondoZipSeguridadConError();
 }
 }finally{
 zipSeguridadEnCurso=false;
@@ -10473,6 +10487,44 @@ function cancelarZipSeguridad(){
 if(!zipSeguridadEnCurso)return;
 zipSeguridadCancelar=true;
 toast('Cancelando... se detendrá tras terminar el archivo en curso');
+}
+/* ---- Panel flotante NO bloqueante (permite seguir navegando por la app) ---- */
+function abrirFondoZipSeguridad(){
+var el=document.getElementById('zipSegFondo');
+if(!el)return;
+document.getElementById('zipSegFondoTexto').textContent='Preparando...';
+document.getElementById('zipSegFondoResumen').style.display='none';
+document.getElementById('zipSegFondoResumen').innerHTML='';
+document.getElementById('zipSegFondoCerrarBtn').style.display='none';
+document.getElementById('zipSegFondoCancelarBtn').style.display='inline-flex';
+el.style.display='block';
+}
+function actualizarTextoFondoZipSeguridad(t){
+var el=document.getElementById('zipSegFondoTexto');
+if(el)el.textContent=t;
+}
+function mostrarResumenFondoZipSeguridad(r){
+document.getElementById('zipSegFondoCancelarBtn').style.display='none';
+document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
+document.getElementById('zipSegFondoTexto').textContent='Copia completada';
+var cont=document.getElementById('zipSegFondoResumen');
+cont.style.display='block';
+var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipFoto)+': '+r.archivosFoto+' archivo(s)</span>';
+if(r.erroresFoto)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en FOTO: '+r.erroresFoto+'</span>';
+h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipDocumentos)+': '+r.archivosDocumentos+' archivo(s)</span>';
+if(r.erroresDocumentos)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en DOCUMENTOS: '+r.erroresDocumentos+'</span>';
+h+='</div>';
+cont.innerHTML=h;
+}
+function cerrarFondoZipSeguridadConError(){
+document.getElementById('zipSegFondoCancelarBtn').style.display='none';
+document.getElementById('zipSegFondoCerrarBtn').style.display='inline-flex';
+}
+function cerrarFondoZipSeguridad(){
+if(zipSeguridadEnCurso)return;
+var el=document.getElementById('zipSegFondo');
+if(el)el.style.display='none';
 }
 function abrirModalZipSeguridad(){
 document.getElementById('zipSegProgresoTexto').textContent='Preparando...';
