@@ -1491,6 +1491,25 @@ await revocarAccesoDriveDeEmail(email); /* mejor esfuerzo: si falla, el correo y
 }
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
+/* Para usuarios que ya estaban en la lista ANTES de que compartir la
+   carpeta de Drive se hiciera automático (ver comentario en
+   anadirUsuarioAutorizadoUI): esto vuelve a compartir con cada uno de
+   ellos sin borrarlos ni tocar su tipo o ficha vinculada, así no hace
+   falta quitarlos y volver a añadirlos (lo que sí perdería esos datos). */
+async function reforzarAccesosDriveUI(){
+var lista=(usuariosCache||[]).filter(function(u){return u.email!==ADMIN_EMAIL.toLowerCase();});
+if(!lista.length){toast('No hay nadie en la lista aparte del administrador');return;}
+if(!(await confirmarApp('¿Volver a compartir la carpeta de Drive con los '+lista.length+' correos de la lista? El administrador ya tiene acceso, no hace falta incluirlo.')))return;
+toast('Reforzando accesos de Drive, un momento...');
+var ok=[],fallo=[];
+for(var i=0;i<lista.length;i++){
+try{await compartirCarpetaRaizConEmail(lista[i].email);ok.push(lista[i].email);}
+catch(e){fallo.push(lista[i].email+' ('+e.message+')');}
+}
+var msg='Accesos reforzados: '+ok.length+' de '+lista.length+'.';
+if(fallo.length)msg+=' Fallaron: '+fallo.join(', ')+'. Compártelos a mano desde drive.google.com.';
+toast(msg,!!fallo.length);
+}
 /* ===== Compartir/revocar el acceso de Drive con un correo =====
    Complemento necesario a la lista de usuarios.json (ver comentario dentro
    de anadirUsuarioAutorizadoUI): sin esto, añadir a alguien aquí no le daba
@@ -11997,6 +12016,8 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo estas cuentas de Google pueden entrar en el árbol (no hace falta que sean @gmail.com, vale cualquier cuenta de Google). Para cada una, elige su tipo y, si corresponde, la ficha del árbol vinculada a esa persona: <strong>Administrador</strong> ve y edita todo; <strong>Colaborador</strong> ve el árbol principal completo, más las ramas de Amigos que él mismo vincule; <strong>Amigo</strong> ve únicamente su propio árbol.</p>
 <div id="listaUsuariosAutorizados" style="overflow:auto;flex:1;margin-bottom:12px"></div>
 <button class="ef-btn save" onclick="anadirUsuarioAutorizadoUI()"><i class="fa-solid fa-user-plus"></i> Añadir persona</button>
+<button class="ef-btn ghost" style="margin-top:8px" onclick="reforzarAccesosDriveUI()"><i class="fa-solid fa-rotate"></i> Reforzar accesos de Drive de todos</button>
+<p style="font-size:11px;color:var(--muted);margin:4px 0 0">Usa esto si alguien de la lista fue añadido antes de que esto se hiciera automático y no consigue conectarse ("cuenta no autorizada"): vuelve a compartir la carpeta de Drive con cada correo de la lista, sin borrar ni tocar su tipo o ficha vinculada.</p>
 <div id="vinculoSelectorPersona" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
 <div id="vinculoSelectorTitulo" style="font-size:13px;font-weight:700;margin-bottom:8px">Elegir ficha</div>
 <label for="buscarVinculoPersona" class="sr-only">Buscar persona por nombre o ID</label>
