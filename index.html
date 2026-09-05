@@ -1762,7 +1762,8 @@ return true;
    Esta es la única función que debe usarse en toda la aplicación para
    decidir si una persona puede mostrarse/buscarse/abrirse. */
 var __cacheComponentes=null; /* {clave,indice,tamanos,principal} o null */
-function invalidarCachePersonasVisibles(){__cacheComponentes=null;}
+var __cachePersonasVisiblesAmigo=null;
+function invalidarCachePersonasVisibles(){__cacheComponentes=null;__cachePersonasVisiblesAmigo=null;}
 function calcularComponentesConexos(){
 var clave=(D&&D.length?D.length+'|'+D[D.length-1].ID:'0');
 if(__cacheComponentes&&__cacheComponentes.clave===clave)return __cacheComponentes;
@@ -1813,9 +1814,26 @@ cola.push(v.id);
 return resultado;
 }
 function personasVisiblesAmigo(fichaId){
+/* ===== CORREGIDO: bloqueo de búsqueda para usuarios tipo "amigo" =====
+   puedeVerPersona() llama a esta función una vez por cada persona del
+   árbol en cada búsqueda (doSrch recorre TODO D y comprueba
+   puedeVerPersona(p.ID) persona a persona). Antes, cada una de esas
+   llamadas repetía desde cero el recorrido en anchura de
+   parientesDeAmigo(fichaId) sobre todo el árbol de parentesco: con un
+   árbol de decenas de miles de personas, eso significa rehacer ese
+   recorrido decenas de miles de veces por cada letra escrita en el
+   buscador, lo que bloquea el navegador (parece que la app se ha
+   quedado colgada). Se aplica ahora el mismo tipo de caché que ya usa
+   calcularComponentesConexos(): el recorrido solo se hace una vez por
+   ficha y se reutiliza mientras no cambien los datos cargados (D) ni la
+   ficha consultada; invalidarCachePersonasVisibles() ya se llama en los
+   mismos sitios que invalidaban la caché de componentes conexos. */
 var set={};
 if(!fichaId||!PI[fichaId])return set;
+var clave=(D&&D.length?D.length+'|'+D[D.length-1].ID:'0')+'|'+fichaId;
+if(__cachePersonasVisiblesAmigo&&__cachePersonasVisiblesAmigo.clave===clave)return __cachePersonasVisiblesAmigo.set;
 parientesDeAmigo(fichaId).forEach(function(pid){set[String(pid)]=true;});
+__cachePersonasVisiblesAmigo={clave:clave,set:set};
 return set;
 }
 /* Componentes que un colaborador "trae" a la familia a través de su propio
