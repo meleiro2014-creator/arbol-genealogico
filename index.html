@@ -1791,26 +1791,58 @@ __cacheComponentes={clave:clave,indice:indice,tamanos:tamanos,principal:tamanos.
 return __cacheComponentes;
 }
 function parientesDeAmigo(idAmigo){
-/* Recorrido en anchura únicamente por relaciones familiares
-   (vecinosParentesco: padre, madre, hijos, hermanos, cónyuges), nunca
-   por AMIGOS, para no propagar la amistad. Evita bucles/duplicados.
-   Equivale a la componente conexa (por parentesco) que contiene a idAmigo. */
+/* ===== CORREGIDO: la rama de un "amigo" ya no atraviesa el cónyuge =====
+   La versión anterior hacía un recorrido en anchura sin límite por
+   vecinosParentesco (padre, madre, hijos, hermanos Y cónyuges). En un
+   árbol con muchas generaciones de matrimonios entre familias distintas,
+   esa cadena de "cónyuge del cónyuge del cónyuge..." acababa fusionando
+   prácticamente todo el árbol en una sola pieza, así que un amigo veía
+   personas vivas de ramas sin ninguna relación real con él.
+   Ahora se calcula en dos pasos que nunca se mezclan:
+   1) SUBIR: desde idAmigo, solo por PADRE/MADRE (sin límite de
+      generaciones) -> todos sus ascendientes de sangre.
+   2) BAJAR: desde idAmigo y cada uno de esos ascendientes, solo por
+      hijos (HD), sin volver a subir por PADRE/MADRE ni pasar nunca por
+      cónyuge -> aparecen hermanos, tíos, primos, sobrinos... (la sangre
+      real de la rama).
+   Al final se añaden los cónyuges (CAMPOS_CONYUGE) de cada persona de
+   esa sangre, pero como hoja: se ven ellos, pero no se expande su
+   propia familia de origen (ni se sube ni se baja desde un cónyuge). */
 if(!PI[idAmigo])return [];
-var visitado={};visitado[idAmigo]=true;
-var cola=[idAmigo],resultado=[idAmigo],visitas=0;
-while(cola.length){
+var sangre={};sangre[idAmigo]=true;
+var visitas=0;
+/* 1) Subir por PADRE/MADRE */
+var colaAsc=[idAmigo];
+while(colaAsc.length){
 visitas++;
-if(visitas>50000)break; /* salvaguarda anti-bucle en árboles muy grandes */
-var actual=cola.shift();
-var vecinos=(typeof vecinosParentesco==='function')?vecinosParentesco(actual):[];
-for(var i=0;i<vecinos.length;i++){
-var v=vecinos[i];
-if(visitado[v.id])continue;
-visitado[v.id]=true;
-resultado.push(v.id);
-cola.push(v.id);
+if(visitas>50000)break;
+var actual=PI[colaAsc.shift()];
+if(!actual)continue;
+[actual.PADRE,actual.MADRE].forEach(function(pid){
+if(pid&&PI[pid]&&!sangre[pid]){sangre[pid]=true;colaAsc.push(pid);}
+});
 }
+/* 2) Bajar solo por hijos, desde idAmigo y cada ascendiente hallado */
+var raicesDescenso=Object.keys(sangre);
+var colaDesc=raicesDescenso.slice();
+while(colaDesc.length){
+visitas++;
+if(visitas>50000)break;
+var actualId=colaDesc.shift();
+(HD[actualId]||[]).forEach(function(hid){
+if(!sangre[hid]){sangre[hid]=true;colaDesc.push(hid);}
+});
 }
+/* 3) Añadir cónyuges de toda la sangre, como hoja (sin expandir) */
+var resultado=Object.keys(sangre);
+resultado.slice().forEach(function(pid){
+var p=PI[pid];
+if(!p)return;
+CAMPOS_CONYUGE.forEach(function(c){
+var cid2=p[c];
+if(cid2&&PI[cid2]&&!sangre[cid2]){sangre[cid2]=true;resultado.push(cid2);}
+});
+});
 return resultado;
 }
 function personasVisiblesAmigo(fichaId){
@@ -1881,15 +1913,27 @@ if(setPropio[String(id)])return true; // su rama completa: viva y fallecida
 return personaEsFallecida(id);
 }
 if(tipo==='colaborador'){
+/* ===== CORREGIDO: un colaborador ya no ve "todo el árbol principal" =====
+   Antes, cualquier persona viva que cayera en la misma componente conexa
+   gigante que el resto del árbol (comp===c.principal) era visible para
+   CUALQUIER colaborador. Como el árbol está diseñado para que casi todo
+   el mundo acabe en un único bloque conectado por matrimonios, eso
+   equivalía en la práctica a "ver a casi todas las personas vivas del
+   árbol", tuvieran o no relación real con el colaborador. Ahora el
+   colaborador ve, entre personas vivas: 1) su propia rama de sangre
+   (mismo cálculo restringido que un "amigo": sube por padres, baja por
+   hijos, cónyuges solo como hoja, sin atravesar cónyuges de fuera); y
+   2) la rama completa de cada "amigo" que él mismo tenga vinculado en su
+   ficha (componentesPropiosDeColaborador). Fuera de eso, una persona
+   viva solo es visible si ya falleció (regla general de abajo). */
+if(mid){
+var miRama=personasVisiblesAmigo(mid);
+if(miRama[String(id)])return true; // su propia rama de sangre
 var c=calcularComponentesConexos();
 var comp=c.indice[String(id)];
 if(comp!=null){
-if(comp===c.principal)return true; // árbol principal: visible para cualquier colaborador
-if(mid){
-var compMid=c.indice[String(mid)];
-if(compMid!=null&&compMid===comp)return true; // su propia componente, aunque no sea la principal
 var propios=componentesPropiosDeColaborador(mid);
-if(propios[comp])return true; // rama de amigos que él mismo trajo
+if(propios[comp])return true; // rama completa de un amigo que él mismo vinculó
 }
 }
 return personaEsFallecida(id); // fuera de su alcance: solo si ya falleció
