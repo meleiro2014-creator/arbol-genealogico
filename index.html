@@ -1455,14 +1455,104 @@ if(email===ADMIN_EMAIL.toLowerCase()){toast('Esa cuenta ya es la del administrad
 if(usuarioPorEmail(email)){toast('Ese correo ya estaba en la lista');pintarListaUsuariosAutorizados();return;}
 var lista=(usuariosCache||[]).slice();
 lista.push({email:email,tipo:'colaborador',fichaId:null});
-try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Añadido como colaborador: '+email+'. Ya puede entrar en la app con esa cuenta de Google.');}
+try{
+await guardarUsuarios(lista);
+pintarListaUsuariosAutorizados();
+/* Añadir el correo a esta lista NO le da por sí solo acceso a nada: la
+   app necesita leer usuarios.json (y el resto de archivos del árbol) de
+   dentro de la carpeta de Google Drive raíz, y esa carpeta solo la puede
+   ver quien tenga permiso de Drive sobre ella. Antes esto quedaba en
+   manos del administrador (compartir la carpeta a mano desde
+   drive.google.com), y si se olvidaba, la persona recién añadida se
+   conectaba, la app no podía leer usuarios.json (ni nada) por falta de
+   permiso, y cargarUsuarios() caía en la lista de 4 correos por defecto
+   de hace tiempo, así que salía "cuenta no autorizada" aunque el
+   administrador la hubiera añadido aquí. Ahora se comparte automáticamente
+   con el mismo esquema de permisos que ya tienen los demás colaboradores
+   en "Genealogia": lector en la carpeta raíz, y editor aparte en DATOS,
+   FOTO y DOCUMENTOS (ver compartirCarpetaRaizConEmail más abajo). */
+try{
+await compartirCarpetaRaizConEmail(email);
+toast('Añadido como colaborador: '+email+'. Se le ha dado acceso a la carpeta de Google Drive del árbol: ya puede entrar en la app con esa cuenta de Google.');
+}catch(errShare){
+toast('Se añadió a '+email+' a la lista, pero no se pudo compartir automáticamente la carpeta de Drive ('+errShare.message+'). Compártela a mano con esa cuenta desde drive.google.com (lector en GENEALOGIA, editor en DATOS/FOTO/DOCUMENTOS) o no podrá conectarse.',true);
+}
+}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
 }
 async function quitarUsuarioAutorizadoUI(email){
 if(!(await confirmarApp('¿Quitar el acceso a '+email+'?')))return;
 var lista=(usuariosCache||[]).filter(function(u){return u.email!==email;});
-try{await guardarUsuarios(lista);pintarListaUsuariosAutorizados();toast('Acceso retirado a '+email);}
+try{
+await guardarUsuarios(lista);
+pintarListaUsuariosAutorizados();
+toast('Acceso retirado a '+email);
+await revocarAccesoDriveDeEmail(email); /* mejor esfuerzo: si falla, el correo ya está fuera de la lista, que es lo importante */
+}
 catch(err){toast('No se pudo guardar en Drive: '+err.message,true);}
+}
+/* ===== Compartir/revocar el acceso de Drive con un correo =====
+   Complemento necesario a la lista de usuarios.json (ver comentario dentro
+   de anadirUsuarioAutorizadoUI): sin esto, añadir a alguien aquí no le daba
+   ningún acceso real a los archivos de Drive. Replica exactamente el
+   esquema de permisos que ya usa el administrador a mano en la carpeta
+   compartida "Genealogia": la carpeta raíz (GENEALOGIA) y, dentro de ella,
+   ARBOL_OFICIAL (donde vive usuarios.json) se quedan en lector; DATOS,
+   FOTO y DOCUMENTOS necesitan permiso de editor aparte, porque en Drive el
+   permiso de una carpeta no siempre basta para las subcarpetas si estas ya
+   tienen su propio permiso explícito (que es el caso aquí). ARBOL_OFICIAL
+   no se comparte aparte porque hereda el lector de la raíz, igual que ya
+   pasa con las cuentas existentes. */
+async function compartirPermisoDrive(fileId,email,role,notificar){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'/permissions?sendNotificationEmail='+(notificar?'true':'false')+'&fields=id',{
+method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},
+body:JSON.stringify({role:role,type:'user',emailAddress:email})
+});
+if(r.status===401){driveAccessToken=null;throw new Error('sesión de Drive caducada, vuelve a conectar y repite');}
+if(!r.ok){var msg='';try{msg=(await r.json()).error.message;}catch(e){}throw new Error('Drive respondió '+r.status+(msg?': '+msg:''));}
+return true;
+}
+async function compartirCarpetaRaizConEmail(email){
+if(!driveRootFolderId)throw new Error('no hay carpeta raíz de Drive configurada');
+await compartirPermisoDrive(driveRootFolderId,email,'reader',true); /* GENEALOGIA: lector, un único aviso por correo */
+var carpetaDatos=await obtenerCarpetaDatosId(true);
+var carpetaFoto=await obtenerCarpetaFotoId(true);
+var carpetaDocs=await obtenerCarpetaDocumentosId(true);
+var subcarpetas=[{id:carpetaDatos,nombre:'DATOS'},{id:carpetaFoto,nombre:'FOTO'},{id:carpetaDocs,nombre:'DOCUMENTOS'}];
+var errores=[];
+for(var i=0;i<subcarpetas.length;i++){
+if(!subcarpetas[i].id){errores.push(subcarpetas[i].nombre+' (no encontrada)');continue;}
+try{await compartirPermisoDrive(subcarpetas[i].id,email,'writer',false);}
+catch(e){errores.push(subcarpetas[i].nombre+': '+e.message);}
+}
+if(errores.length)throw new Error('carpeta raíz compartida (lector), pero falló al dar editor en: '+errores.join('; '));
+return true;
+}
+async function buscarPermisoDrivePorEmail(fileId,email){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'/permissions?fields=permissions(id,emailAddress)',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return null;
+var d=await r.json();
+var e=String(email).trim().toLowerCase();
+var match=(d.permissions||[]).filter(function(p){return p.emailAddress&&String(p.emailAddress).trim().toLowerCase()===e;})[0];
+return match?match.id:null;
+}
+async function revocarPermisoDrive(fileId,email){
+try{
+var permId=await buscarPermisoDrivePorEmail(fileId,email);
+if(!permId)return false;
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'/permissions/'+permId,{method:'DELETE',headers:{Authorization:'Bearer '+driveAccessToken}});
+return r.ok;
+}catch(e){return false;}
+}
+async function revocarAccesoDriveDeEmail(email){
+if(!driveRootFolderId)return false;
+var carpetaDatos=await obtenerCarpetaDatosId(false).catch(function(){return null;});
+var carpetaFoto=await obtenerCarpetaFotoId(false).catch(function(){return null;});
+var carpetaDocs=await obtenerCarpetaDocumentosId(false).catch(function(){return null;});
+var ids=[driveRootFolderId,carpetaDatos,carpetaFoto,carpetaDocs].filter(function(x){return !!x;});
+var algunoOk=false;
+for(var i=0;i<ids.length;i++){if(await revocarPermisoDrive(ids[i],email))algunoOk=true;}
+return algunoOk;
 }
 async function cambiarTipoUsuarioUI(email,tipo){
 var lista=(usuariosCache||[]).slice();
@@ -8295,6 +8385,76 @@ var corto=capitalizar(base)+(removido?(' (removido '+removido+(removido===1?' ge
 var texto=nomA+' y '+nomB+' son '+base+(removido?(', con '+removido+(removido===1?' generación':' generaciones')+' de diferencia entre sus ramas'):'')+'.';
 return{corto:corto,texto:texto};
 }
+/* ===== Parentesco ORIENTADO (qué es idDestino respecto de idOrigen) =====
+   calcularParentesco()/nombrarParentesco() de arriba están pensados para la
+   pantalla "Relación entre dos personas": un badge genérico que siempre usa
+   el término del lado ascendiente/mayor (p.ej. "Tío abuelo", "Padre"),
+   explicando ambas direcciones en el texto largo. Eso es correcto ahí, pero
+   es un bug si se usa tal cual para etiquetar "qué es esta persona con
+   respecto a mí" (como en Eventos familiares): un sobrino nieto aparecía
+   como "Tío abuelo" (se mostraba siempre el lado tío, aunque el familiar del
+   evento fuera el lado sobrino), y una sobrina podía aparecer como "Tío"
+   (género del lado tío, no el de la propia persona). Estas funciones nuevas
+   sí devuelven el término correcto y con el género de idDestino. */
+function calcularParentescoPoliticoDesde(idOrigen,idDestino){
+var D=PI[idDestino];if(!PI[idOrigen]||!D)return null;
+var sexD=sexoLetra(D);
+if(esConyugeDirecto(idOrigen,idDestino))return{corto:'Cónyuge'};
+var i,conyugesO=conyugesDe(idOrigen);
+for(i=0;i<conyugesO.length;i++){if(padresDe(conyugesO[i]).indexOf(idDestino)!==-1)return{corto:capitalizar(formaSexo('suegro','suegra',sexD))};}
+var hijosO=HD[idOrigen]||[];
+for(i=0;i<hijosO.length;i++){if(conyugesDe(hijosO[i]).indexOf(idDestino)!==-1)return{corto:capitalizar(formaSexo('yerno','nuera',sexD))};}
+var hermO=gHerm(idOrigen).map(function(h){return h.ID;});
+for(i=0;i<hermO.length;i++){if(conyugesDe(hermO[i]).indexOf(idDestino)!==-1)return{corto:capitalizar(formaSexo('cuñado','cuñada',sexD))};}
+var hermD=gHerm(idDestino).map(function(h){return h.ID;});
+for(i=0;i<conyugesO.length;i++){if(hermD.indexOf(conyugesO[i])!==-1)return{corto:capitalizar(formaSexo('cuñado','cuñada',sexD))};}
+return null;
+}
+function terminoPrimoOrientado(grado,sexD){
+if(grado===1)return formaSexo('primo hermano','prima hermana',sexD);
+var ORD=['','primero','segundo','tercero','cuarto','quinto','sexto','séptimo','octavo','noveno','décimo'];
+var ORD_F=['','primera','segunda','tercera','cuarta','quinta','sexta','séptima','octava','novena','décima'];
+if(grado<ORD.length)return formaSexo('primo','prima',sexD)+' '+(sexD==='F'?ORD_F[grado]:ORD[grado]);
+return formaSexo('primo','prima',sexD)+' '+grado+'º';
+}
+function nombrarParentescoDesde(dO,dD,cuentaComun,idOrigen,idDestino){
+var D=PI[idDestino];
+var sexD=sexoLetra(D);
+if(dO===0&&dD===0)return{corto:'Misma persona'};
+if(dO===0||dD===0){
+if(dO===0)return{corto:capitalizar(terminoLineaDirecta(dD,false,sexD))};
+return{corto:capitalizar(terminoLineaDirecta(dO,true,sexD))};
+}
+var menor=Math.min(dO,dD),mayor=Math.max(dO,dD);
+if(menor===1&&mayor===1){
+var completos=cuentaComun>=2;
+return{corto:capitalizar(formaSexo(completos?'hermano':'medio hermano',completos?'hermana':'media hermana',sexD))};
+}
+if(menor===1&&mayor>=2){
+if(dD===1)return{corto:capitalizar(terminoAvuncular(mayor,true,sexD))};
+return{corto:capitalizar(terminoAvuncular(mayor,false,sexD))};
+}
+var grado=menor-1,removido=mayor-menor;
+var corto=capitalizar(terminoPrimoOrientado(grado,sexD))+(removido?(' (removido '+removido+(removido===1?' generación)':' generaciones)')):'');
+return{corto:corto};
+}
+function calcularParentescoDesde(idOrigen,idDestino){
+if(idOrigen===idDestino)return{corto:'Misma persona'};
+var pol=calcularParentescoPoliticoDesde(idOrigen,idDestino);
+if(pol)return pol;
+var ancO=mapaAncestros(idOrigen),ancD=mapaAncestros(idDestino);
+var mejor=null;
+Object.keys(ancO).forEach(function(anc){
+if(ancD[anc]!==undefined){
+var dO=ancO[anc],dD=ancD[anc],suma=dO+dD;
+if(!mejor||suma<mejor.suma)mejor={anc:anc,dO:dO,dD:dD,suma:suma};
+}
+});
+if(!mejor)return null;
+var cuenta=0;
+Object.keys(ancO).forEach(function(anc){if(ancO[anc]===mejor.dO&&ancD[anc]===mejor.dD)cuenta++;});
+return nombrarParentescoDesde(mejor.dO,mejor.dD,cuenta,idOrigen,idDestino);
+}
 function vecinosParentesco(id){
 var p=PI[id];
 if(!p)return[];
@@ -11601,7 +11761,7 @@ var vistosBoda={};
 Object.keys(cercanos).forEach(function(id){
 var p=PI[id];
 if(!p||!puedeVerPersona(id))return;
-var rel=calcularParentesco(idCentral,id);
+var rel=calcularParentescoDesde(idCentral,id);
 var relTxt=rel?rel.corto:'';
 if(isAl(p)){
 var fNac=proximaFechaDesde(p.NACD,p.NACM,hoy,EVENTOS_FAM_DIAS);
@@ -11631,7 +11791,7 @@ if(!fBoda)return;
 var nAnios=fBoda.getFullYear()-fm.anio;
 if(nAnios<=0)return;
 var conyuge=PI[conyugeId];
-var relConyuge=cercanos[conyugeId]!==undefined?calcularParentesco(idCentral,conyugeId):null;
+var relConyuge=cercanos[conyugeId]!==undefined?calcularParentescoDesde(idCentral,conyugeId):null;
 var relTxtBoda=(cercanos[conyugeId]!==undefined&&cercanos[conyugeId]<cercanos[id])?(relConyuge?relConyuge.corto:relTxt):relTxt;
 var lugar=p['ML'+n];
 eventos.push({fecha:fBoda,persona:p,relacion:relTxtBoda,tipo:'boda',texto:nAnios+'º aniversario de boda de '+fn(p)+' y '+fn(conyuge)+(lugar?' ('+lugar+')':'')});
