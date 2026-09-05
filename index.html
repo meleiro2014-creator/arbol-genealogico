@@ -73,6 +73,11 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .hero-carousel-toggle{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;cursor:pointer;opacity:.75;transition:all .2s}
 .hero-carousel-toggle:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
 .hero-carousel-toggle.off{color:var(--accent);border-color:var(--accent);opacity:.9}
+.hero-icon-row{display:flex;justify-content:center;gap:10px;margin:10px 0 0}
+.pantalla-bus-pills{display:flex;justify-content:center;gap:8px;margin:12px 0 0;flex-wrap:wrap}
+.pbus-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.pbus-pill:hover{border-color:var(--accent);color:var(--accent)}
+.pbus-pill.pbus-activa{background:var(--accent);border-color:var(--accent);color:#fff}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
 .search-box{max-width:460px;margin:14px auto 0;position:relative}
@@ -619,7 +624,6 @@ body{background:#fff}
 <div style="text-align:center">
 <div class="drive-status-row">
 <div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div>
-<button type="button" class="drive-status" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive" aria-label="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive"><i class="fa-solid fa-tree" aria-hidden="true"></i><span>Restaurar árbol oficial</span></button>
 </div>
 <div id="backupWarnPill"></div>
 <div id="arbolOficialFechaTxt" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
@@ -631,11 +635,21 @@ body{background:#fff}
 </div>
 </div>
 </div>
+<div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
+<div class="stats" id="sb"></div>
+<div class="hero-icon-row" id="herramientasIconRow">
+<button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
+<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
+<button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+</div>
+<div class="pantalla-bus-pills" id="pantallaBusPills">
+<button type="button" class="pbus-pill" id="pbusPillCarrusel" onclick="seleccionarPantallaBusqueda('carrusel')" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Carrusel</button>
+<button type="button" class="pbus-pill" id="pbusPillResultados" onclick="seleccionarPantallaBusqueda('resultados')" aria-pressed="false"><i class="fa-solid fa-list" aria-hidden="true"></i> Resultados</button>
+<button type="button" class="pbus-pill" id="pbusPillEventos" onclick="seleccionarPantallaBusqueda('eventos')" aria-pressed="false"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> Eventos</button>
+</div>
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar, ID u observaciones..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados" aria-label="Filtros avanzados de búsqueda" aria-expanded="false" aria-controls="busFiltrosPanel"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
 <div class="bus-filtros-row">
@@ -659,15 +673,13 @@ body{background:#fff}
 <div id="cargaInicialTexto" style="font-size:12px;color:var(--muted);margin-bottom:6px"></div>
 <div class="pb" style="margin:0"><div class="pf" id="cargaInicialBarra"></div></div>
 </div>
-<div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
-<div class="stats" id="sb"></div>
-<button class="hero-carousel-toggle" id="heroCarouselToggle" onclick="alternarCarruselHero()" aria-label="Mostrar u ocultar las fotografías de familia que aparecen aquí"><i class="fa-solid fa-image" aria-hidden="true"></i> <span id="heroCarouselToggleText">Ocultar fotografías</span></button>
-<button class="hero-carousel-toggle" onclick="cargarOtrasPersonasCarruselHero()" aria-label="Renovar las fotos que se muestran"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> <span>Renovar fotos</span></button>
-<div class="hero-carousel" id="heroCarousel"><div class="hero-carousel-img" id="heroCarouselA" onclick="clicFotoCarruselHero('heroCarouselA')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselA');}" role="button" tabindex="0" aria-label="Ver ficha de esta persona"></div><div class="hero-carousel-img" id="heroCarouselB" onclick="clicFotoCarruselHero('heroCarouselB')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselB');}" role="button" tabindex="0" aria-label="Ver ficha de esta persona"></div></div>
+<div id="pantallaBusCarrusel">
+<div class="hero-carousel" id="heroCarousel"><div class="hero-carousel-img" id="heroCarouselA" onclick="clicFotoCarruselHero('heroCarouselA')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselA');}" role="button" tabindex="0" aria-label="Renovar la foto que se muestra"></div><div class="hero-carousel-img" id="heroCarouselB" onclick="clicFotoCarruselHero('heroCarouselB')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();clicFotoCarruselHero('heroCarouselB');}" role="button" tabindex="0" aria-label="Renovar la foto que se muestra"></div></div>
 <div class="hero-carousel-name" id="heroCarouselName" aria-hidden="true"><span id="heroCarouselNameText"></span><span class="crsl-caret">|</span></div>
 <div class="hero-carousel-padres" id="heroCarouselPadres" aria-hidden="true"></div>
 <div class="hero-carousel-year" id="heroCarouselYear" aria-hidden="true"></div>
-<button type="button" class="hero-carousel-toggle" id="eventosFamiliaresToggle" onclick="alternarEventosFamiliares()" aria-haspopup="true" aria-expanded="false" aria-controls="eventosFamiliaresPanel" aria-label="Ver los próximos cumpleaños y aniversarios de tu familia más cercana"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> <span id="eventosFamiliaresToggleText">Eventos familiares</span></button>
+<button class="hero-carousel-toggle" id="heroCarouselToggle" onclick="alternarCarruselHero()" aria-label="Mostrar u ocultar las fotografías de familia que aparecen aquí"><i class="fa-solid fa-image" aria-hidden="true"></i> <span id="heroCarouselToggleText">Ocultar fotografías</span></button>
+</div>
 <div class="hero-carousel-hidden" id="eventosFamiliaresPanel" style="max-width:460px;margin:12px auto 0;text-align:left">
 <div id="eventosFamiliaresLista"></div>
 </div>
@@ -2258,11 +2270,11 @@ function intentarConexionSilenciosaDrive(){
 if(driveModoManual)return;/* el usuario pidió expresamente no reconectar sola */
 if(!driveRootFolderId||tokenDriveValido()){
   if(tokenDriveValido()&&!googleIdentidad){
-    obtenerIdentidadGoogle().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){});
+    obtenerIdentidadGoogle().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');if(pantallaBusquedaActiva==='eventos')renderEventosFamiliares();}).catch(function(){});
   }
   return;
 }
-conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');}).catch(function(){
+conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();refrescarGrupoAdminHerramientas();doSrch(document.getElementById('si')?document.getElementById('si').value:'');if(pantallaBusquedaActiva==='eventos')renderEventosFamiliares();}).catch(function(){
 /* Silencioso a propósito: si no había sesión/consentimiento previos de Google,
    no se muestra ningún aviso; el usuario verá las pantallas normales de acceso
    solo cuando use explícitamente una función de Drive. */
@@ -4759,8 +4771,18 @@ function doSrch(q){
 q=(q||'').toLowerCase().trim();
 var activos=busFiltrosActivos();
 var hayConsulta=!!q||!!activos;
-if(hayConsulta&&!busquedaZonaSuperiorOculta){busquedaZonaSuperiorOculta=true;ocultarZonaSuperiorBusqueda();}
-else if(!hayConsulta&&busquedaZonaSuperiorOculta){busquedaZonaSuperiorOculta=false;restaurarZonaSuperiorBusqueda();}
+/* Al escribir algo se salta automáticamente a la galleta "Resultados"
+   (guardando qué pantalla había antes); al borrar la búsqueda se vuelve a
+   esa pantalla anterior (por defecto, el carrusel). */
+if(hayConsulta&&pantallaBusquedaActiva!=='resultados'){
+if(pantallaBusquedaPrevia===null)pantallaBusquedaPrevia=pantallaBusquedaActiva;
+pantallaBusquedaActiva='resultados';
+aplicarPantallaBusqueda();
+}else if(!hayConsulta&&pantallaBusquedaPrevia!==null&&pantallaBusquedaActiva==='resultados'){
+pantallaBusquedaActiva=pantallaBusquedaPrevia;
+pantallaBusquedaPrevia=null;
+aplicarPantallaBusqueda();
+}
 var cEl=document.getElementById('busFiltrosCount');
 if(!q&&!activos){document.getElementById('rl').innerHTML='';if(cEl)cEl.textContent='';return;}
 if(!datosLocalesListos){
@@ -10922,7 +10944,7 @@ if(orphans) toast(orphans+' referencia(s) de padre/madre sin coincidencia en el 
 init();
 });
 }
-function init(){rStats(); doSrch(document.getElementById('si').value); if(busquedaRapidaEstaAbierta())doSrchRapida(document.getElementById('quickSearchInput').value); if(cid) rTree(cid); comprobarInsignaNovedades(); mostrarCarruselHero();}
+function init(){rStats(); doSrch(document.getElementById('si').value); if(busquedaRapidaEstaAbierta())doSrchRapida(document.getElementById('quickSearchInput').value); if(cid) rTree(cid); comprobarInsignaNovedades(); aplicarPantallaBusqueda();}
 document.addEventListener('DOMContentLoaded',function(){
 /* Pinta de inmediato, con lo que quedó en caché local de la sesión anterior,
    una cara y un nombre en el carrusel: así se ve algo desde el primer
@@ -11297,10 +11319,58 @@ mostrarCarruselHero();
 actualizarBotonCarruselHero();
 }
 function clicFotoCarruselHero(elId){
-var el=document.getElementById(elId);
-var id=el&&el.dataset.personId;
-if(!id)return;
-irAFicha(id);
+/* Tocar una foto del carrusel ya no lleva a la ficha de esa persona: solo
+   adelanta el carrusel a la siguiente foto (igual que "Renovar fotos"),
+   porque en la práctica se tocaba sin querer al pasar el dedo y molestaba
+   acabar en una ficha no buscada. */
+avanzarCarruselHero();
+}
+/* ===== Selector de pantalla en Buscar: Carrusel / Resultados / Eventos =====
+   Antes el carrusel y los eventos familiares compartían un único hueco que
+   se alternaba con un botón cada uno, y los resultados de búsqueda ocupaban
+   siempre su propio espacio debajo. Ahora son tres "pantallas" explícitas
+   con una galleta cada una (roja=activa, gris=inactiva) y solo se ve una a
+   la vez. Por defecto se muestra el carrusel. */
+var pantallaBusquedaActiva='carrusel';
+var pantallaBusquedaPrevia=null;
+function actualizarPantallaBusPills(){
+var mapa={carrusel:'pbusPillCarrusel',resultados:'pbusPillResultados',eventos:'pbusPillEventos'};
+Object.keys(mapa).forEach(function(modo){
+var btn=document.getElementById(mapa[modo]);
+if(!btn)return;
+var activa=(modo===pantallaBusquedaActiva);
+btn.classList.toggle('pbus-activa',activa);
+btn.setAttribute('aria-pressed',activa?'true':'false');
+});
+}
+function seleccionarPantallaBusqueda(modo){
+if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos')return;
+pantallaBusquedaActiva=modo;
+pantallaBusquedaPrevia=modo;
+aplicarPantallaBusqueda();
+}
+function aplicarPantallaBusqueda(){
+var contCarrusel=document.getElementById('pantallaBusCarrusel');
+var contEventos=document.getElementById('eventosFamiliaresPanel');
+var contResultados=document.getElementById('rl');
+if(pantallaBusquedaActiva==='carrusel'){
+if(contCarrusel)contCarrusel.classList.remove('hero-carousel-hidden');
+if(contEventos)contEventos.classList.add('hero-carousel-hidden');
+if(contResultados)contResultados.classList.add('hero-carousel-hidden');
+if(!heroCarruselDesactivadoPorUsuario())mostrarCarruselHero();
+}else if(pantallaBusquedaActiva==='eventos'){
+if(contCarrusel)contCarrusel.classList.add('hero-carousel-hidden');
+ocultarCarruselHero();
+if(contEventos)contEventos.classList.remove('hero-carousel-hidden');
+if(contResultados)contResultados.classList.add('hero-carousel-hidden');
+renderEventosFamiliares();
+}else{
+if(contCarrusel)contCarrusel.classList.add('hero-carousel-hidden');
+ocultarCarruselHero();
+if(contEventos)contEventos.classList.add('hero-carousel-hidden');
+if(contResultados)contResultados.classList.remove('hero-carousel-hidden');
+}
+actualizarPantallaBusPills();
 }
 /* ===== Eventos familiares =====
    Próximos cumpleaños y aniversarios de fallecimiento de los familiares más
@@ -11308,16 +11378,17 @@ irAFicha(id);
    - vecinosParentesco()/BFS ya usado por buscarCaminoParentesco, para medir
      "cercanía" en nº de saltos (padre/madre/hijo/hermano/cónyuge=1 salto).
    - calcularParentesco() para la etiqueta ("Madre", "Nieto de su hermano"...).
-   EVENTOS_FAM_MAX_PASOS=6 cubre desde el núcleo familiar hasta primos
-   hermanos y varias generaciones de sus descendientes (ajustable si hace
-   falta más o menos alcance).
+   EVENTOS_FAM_MAX_PASOS (ver más abajo) marca hasta dónde llega ese
+   alcance (ajustable si hace falta más o menos).
    NOTA: los aniversarios de boda no se calculan todavía porque MF1..MF6 se
    guardan como texto libre (solo se puede extraer el año, no el día/mes);
    se podrían añadir si en el futuro se guardan con día y mes exactos. */
-var EVENTOS_FAM_MAX_PASOS=6;
+/* EVENTOS_FAM_MAX_PASOS=4: núcleo familiar hasta "hijos de primos" (yo→
+   padre=1→abuelo=2→tío=3→primo... un hijo de un primo queda a 4 saltos,
+   usando vecinosParentesco() donde padre/madre/hijo/hermano/cónyuge cuentan
+   como 1 salto cada uno). */
+var EVENTOS_FAM_MAX_PASOS=4;
 var EVENTOS_FAM_DIAS=90;
-var eventosFamiliaresAbierto=false;
-var busquedaZonaSuperiorOculta=false;
 function personasCercanas(idCentral,maxPasos){
 var dist={};dist[idCentral]=0;
 var queue=[idCentral];
@@ -11418,10 +11489,18 @@ var EVENTOS_FAM_MESES=['enero','febrero','marzo','abril','mayo','junio','julio',
 function renderEventosFamiliares(){
 var cont=document.getElementById('eventosFamiliaresLista');
 if(!cont)return;
-var idCentral=cid&&PI[cid]?cid:null;
-if(!idCentral){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Selecciona antes una persona activa (por ejemplo, tú mismo) para ver los eventos de tu familia más cercana.</p>';return;}
+/* El centro de los eventos ya no es la persona que se esté viendo en ese
+   momento (cid), sino la ficha vinculada a quien ha iniciado sesión (o a la
+   identidad recordada de los últimos 30 días en este dispositivo): así los
+   eventos son siempre "los de mi familia", se navegue por donde se navegue. */
+var idCentral=miFichaId();
+if(!idCentral||!PI[idCentral]){
+var msg=necesitaConectarParaVer()?'Conéctate con tu cuenta de Google para ver los cumpleaños y aniversarios de tu familia más cercana.':'Tu cuenta todavía no está vinculada a ninguna ficha del árbol. Pide a un administrador que vincule tu ficha para ver aquí tus eventos familiares.';
+cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">'+esc(msg)+'</p>';
+return;
+}
 var eventos=calcularEventosFamiliares(idCentral);
-if(!eventos.length){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">No hay cumpleaños ni aniversarios de '+fn(PI[idCentral])+' en los próximos '+EVENTOS_FAM_DIAS+' días.</p>';return;}
+if(!eventos.length){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">No hay cumpleaños ni aniversarios de tu familia más cercana en los próximos '+EVENTOS_FAM_DIAS+' días.</p>';return;}
 var EVF_SEM=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
 var EVF_ICONOS={cumple:'fa-cake-candles',defuncion:'fa-leaf',boda:'fa-heart'};
 var h='',claveMesAnterior=null;
@@ -11439,42 +11518,6 @@ h+='<div class="evf-fila" onclick="irAFicha(\''+safeId(ev.persona.ID)+'\')">'+
 '</div>';
 });
 cont.innerHTML=h;
-}
-function actualizarBotonEventosFamiliares(){
-var btn=document.getElementById('eventosFamiliaresToggle');
-if(!btn)return;
-btn.setAttribute('aria-expanded',eventosFamiliaresAbierto?'true':'false');
-var txt=document.getElementById('eventosFamiliaresToggleText');
-if(txt)txt.textContent=eventosFamiliaresAbierto?'Ver fotografías':'Eventos familiares';
-}
-function alternarEventosFamiliares(){
-eventosFamiliaresAbierto=!eventosFamiliaresAbierto;
-var panel=document.getElementById('eventosFamiliaresPanel');
-if(eventosFamiliaresAbierto){
-ocultarCarruselHero();
-renderEventosFamiliares();
-if(panel)panel.classList.remove('hero-carousel-hidden');
-}else{
-if(panel)panel.classList.add('hero-carousel-hidden');
-if(!heroCarruselDesactivadoPorUsuario())mostrarCarruselHero();
-}
-actualizarBotonEventosFamiliares();
-}
-function ocultarZonaSuperiorBusqueda(){
-if(eventosFamiliaresAbierto){
-var panel=document.getElementById('eventosFamiliaresPanel');
-if(panel)panel.classList.add('hero-carousel-hidden');
-}else{
-ocultarCarruselHero();
-}
-}
-function restaurarZonaSuperiorBusqueda(){
-if(eventosFamiliaresAbierto){
-var panel=document.getElementById('eventosFamiliaresPanel');
-if(panel)panel.classList.remove('hero-carousel-hidden');
-}else if(!heroCarruselDesactivadoPorUsuario()){
-mostrarCarruselHero();
-}
 }
 document.addEventListener('visibilitychange',function(){
 if(document.hidden)clearTimeout(heroCarruselTimer);
