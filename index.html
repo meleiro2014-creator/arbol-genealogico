@@ -49,6 +49,12 @@ nav{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrol
 nav::-webkit-scrollbar{display:none}
 nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:12px;padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
 nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
+/* ===== MEJORA UX: navegación "Más" para pantallas estrechas (ver 2. Visibilidad) ===== */
+.nav-more-wrap{display:none}
+.nav-more-menu{position:fixed;display:none;background:var(--card);border:2px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:6px;min-width:190px;z-index:150}
+.nav-more-menu.open{display:block}
+.nav-more-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:9px 10px;cursor:pointer;font-family:'Lato',sans-serif;font-size:13px;color:var(--text)}
+.nav-more-menu button:hover,.nav-more-menu button.active{background:rgba(196,101,58,.08);color:var(--accent)}
 main{max-width:100%;margin:0 auto;padding:14px}
 .view{display:none}.view.active{display:block}
 .view.active.dir-fwd{animation:viewSlideFromRight .24s ease}
@@ -134,7 +140,23 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:10px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
-.anocalc-tag{color:var(--accent);font-style:italic}
+.anocalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
+/* ===== MEJORA UX: separación visual de acciones irreversibles en Herramientas (ver 1. Usabilidad) ===== */
+.herr-item-danger{background:rgba(166,52,43,.05);border:1px solid rgba(166,52,43,.2);margin-top:10px}
+.herr-item-danger .herr-icon{background:rgba(166,52,43,.12);color:#a6342b}
+.herr-item-danger .herr-title{color:#a6342b}
+.herr-item-danger:hover{background:rgba(166,52,43,.1)}
+/* ===== MEJORA UX: estado de guardado visible por ficha (ver 4. Utilidad) ===== */
+.fic-estado-guardado{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;margin:-4px 0 14px}
+.fic-estado-guardado.guardado{background:rgba(60,140,90,.13);color:#2f7a52}
+.fic-estado-guardado.pendiente{background:rgba(196,140,40,.15);color:#a06a1d}
+/* ===== MEJORA UX: aviso notorio de desconexión mientras se edita (ver 2. Visibilidad) ===== */
+.ef-conexion-aviso{display:flex;align-items:center;gap:10px;background:rgba(166,52,43,.08);border:1px solid rgba(166,52,43,.3);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#8a2f22;flex-wrap:wrap}
+.ef-conexion-aviso span{flex:1;min-width:180px}
+/* ===== MEJORA UX: ayuda de primera vez para "Viendo a" (ver 1. Usabilidad) ===== */
+.activebar-ayuda-popover{position:fixed;z-index:300;background:var(--card);border:2px solid var(--accent);border-radius:12px;padding:12px 14px;max-width:280px;font-size:12px;line-height:1.45;color:var(--text);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.activebar-ayuda-popover b{color:var(--accent)}
+.activebar-ayuda-popover button{margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'Lato',sans-serif}
 .fv-anio{font-size:11px;font-weight:400;color:var(--muted);margin-left:4px}
 .etq-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(196,101,58,.1);color:var(--accent);border-radius:999px;padding:4px 10px 4px 12px;font-size:11px;font-weight:700;margin:2px 5px 2px 0;cursor:pointer;border:1px solid rgba(196,101,58,.2)}
 .etq-chip:hover{background:rgba(196,101,58,.18)}
@@ -288,7 +310,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .activebar-label{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:9px}
 .activebar-name{font-weight:700;color:var(--text);cursor:pointer;flex:1;min-width:0;overflow-wrap:anywhere}
 .activebar-name:hover{color:var(--accent);text-decoration:underline}
-@media(max-width:640px){.hero{padding:24px 12px 16px}.cmd-grid{gap:8px}.cmd-card{padding:9px 14px;min-width:100px}.cmd-num{font-size:20px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}nav button{padding:6px 8px}nav button .mh{display:none}}
+@media(max-width:640px){.hero{padding:24px 12px 16px}.cmd-grid{gap:8px}.cmd-card{padding:9px 14px;min-width:100px}.cmd-num{font-size:20px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}nav button{padding:6px 8px}#mn>button[data-view="inf"],#mn>button[data-view="inv"],#mn>button[data-view="ges"],#mn>button[data-view="cam"]{display:none!important}.nav-more-wrap{display:inline-flex!important}}
 /* ===== ÁRBOL GENEALÓGICO ===== */
 .tc{overflow-x:auto;overflow-y:auto;padding:20px 10px}
 .tr{display:flex;flex-direction:column;align-items:center;min-width:max-content}
@@ -596,10 +618,11 @@ body{background:#fff}
 <button data-view="inf" aria-label="Informes" onclick="sv('inf')"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> <span class="mh">Informes</span></button>
 <button data-view="inv" style="display:none" aria-label="Investigación" onclick="sv('inv')"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i> <span class="mh">Investigación</span></button>
 <button data-view="ges" style="display:none" onclick="sv('ges')" title="Gestor de datos" aria-label="Gestor de datos"><i class="fa-solid fa-list-check" aria-hidden="true"></i> <span class="mh">Gestor</span></button>
-<button data-view="cam" style="display:none" aria-label="Registro de cambios" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none" aria-hidden="true">0</span></button></nav>
+<button data-view="cam" style="display:none" aria-label="Registro de cambios" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none" aria-hidden="true">0</span></button><div class="nav-more-wrap" id="navMoreWrap"><button type="button" data-view="mas" id="navMoreBtn" aria-haspopup="true" aria-expanded="false" aria-label="Más opciones de navegación" onclick="toggleNavMore(event)"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i> <span class="mh">Más</span></button></div></nav>
+<div class="nav-more-menu" id="navMoreMenu" role="menu" aria-label="Más pantallas"></div>
 </header>
 <div class="activebar" id="activeBar">
-<span class="activebar-label" id="activebarLabelTxt">Persona activa</span>
+<span class="activebar-label" id="activebarLabelTxt" title="Esta es la persona sobre la que trabajan el Árbol, la Ficha y los Informes; cámbiala con la lupa de al lado">Viendo a</span>
 <span class="activebar-name" id="activeBarName" role="button" tabindex="0" onclick="irFicha()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();irFicha();}" aria-describedby="activebarLabelTxt"></span>
 <button type="button" class="nav-hist-btn" id="quickSearchBtn" style="width:38px;height:38px;font-size:13px" onclick="abrirBusquedaRapida()" title="Cambiar persona activa" aria-label="Cambiar persona activa (buscar sin salir de esta pantalla)" aria-haspopup="dialog"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
 </div>
@@ -3267,7 +3290,7 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function svInternal(v,dir){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v,dir){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='inv'||v==='ges'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
 /* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
    Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
    navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
@@ -3349,9 +3372,78 @@ if(!bar)return;
 if(cid&&PI[cid]){
 document.getElementById('activeBarName').textContent=fn(PI[cid]);
 bar.style.display='flex';
+mostrarAyudaPersonaActivaSiToca();
 }else{
 bar.style.display='none';
 }
+}
+/* ===== MEJORA UX: explica "Viendo a" la primera vez que aparece (ver 1. Usabilidad) =====
+   Un familiar no técnico no sabe por qué esa barra cambia sola ni qué pasa si la toca;
+   se muestra una única vez (marca en localStorage) un aviso breve explicándolo. */
+function mostrarAyudaPersonaActivaSiToca(){
+try{if(localStorage.getItem('lb_ayuda_activebar_vista'))return;}catch(e){return;}
+if(document.querySelector('.activebar-ayuda-popover'))return;
+var bar=document.getElementById('activeBar');
+if(!bar)return;
+var r=bar.getBoundingClientRect();
+var pop=document.createElement('div');
+pop.className='activebar-ayuda-popover';
+pop.style.top=(r.bottom+8)+'px';
+pop.style.left='50%';
+pop.style.transform='translateX(-50%)';
+var nombre=document.getElementById('activeBarName')?document.getElementById('activeBarName').textContent:'';
+pop.innerHTML='<b>Viendo a: '+esc(nombre)+'</b><br>Esta es la persona sobre la que trabajan el Árbol, la Ficha y los Informes. Cámbiala cuando quieras con la lupa <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> de al lado.<br><button type="button" onclick="this.closest(\'.activebar-ayuda-popover\').remove()">Entendido</button>';
+document.body.appendChild(pop);
+try{localStorage.setItem('lb_ayuda_activebar_vista','1');}catch(e){}
+setTimeout(function(){if(pop&&pop.parentNode)pop.parentNode.removeChild(pop);},18000);
+}
+/* ===== MEJORA UX: menú "Más" del nav para pantallas estrechas (ver 2. Visibilidad) =====
+   Bajo 640px se ocultan Informes/Investigación/Gestor/Cambios del nav y se ofrecen aquí,
+   para dejar solo 3-4 iconos con texto corto y fáciles de aprender. */
+function actualizarNavMasMenu(){
+var wrap=document.getElementById('navMoreWrap'),menu=document.getElementById('navMoreMenu');
+if(!wrap||!menu)return;
+var btnInv=document.querySelector('#mn button[data-view="inv"]');
+var btnGes=document.querySelector('#mn button[data-view="ges"]');
+var btnCam=document.querySelector('#mn button[data-view="cam"]');
+var badge=document.getElementById('navCambiosBadge');
+var items=[
+{view:'inf',icon:'fa-file-pdf',label:'Informes',visible:true},
+{view:'inv',icon:'fa-magnifying-glass-chart',label:'Investigación',visible:!!(btnInv&&btnInv.style.display!=='none')},
+{view:'ges',icon:'fa-list-check',label:'Gestor de datos',visible:!!(btnGes&&btnGes.style.display!=='none')},
+{view:'cam',icon:'fa-clock-rotate-left',label:'Registro de cambios',visible:!!(btnCam&&btnCam.style.display!=='none')}
+];
+menu.innerHTML=items.filter(function(it){return it.visible;}).map(function(it){
+var vista=document.getElementById('v'+it.view.charAt(0).toUpperCase()+it.view.slice(1));
+var activo=vista&&vista.classList.contains('active');
+var badgeHtml=(it.view==='cam'&&badge&&badge.style.display!=='none')?' <span class="cambio-badge" aria-hidden="true">'+esc(badge.textContent)+'</span>':'';
+return '<button type="button" role="menuitem" class="'+(activo?'active':'')+'" onclick="sv(\''+it.view+'\');cerrarNavMas()"><i class="fa-solid '+it.icon+'" aria-hidden="true"></i> '+it.label+badgeHtml+'</button>';
+}).join('');
+}
+function toggleNavMore(ev){
+if(ev)ev.stopPropagation();
+var menu=document.getElementById('navMoreMenu'),btn=document.getElementById('navMoreBtn');
+if(!menu||!btn)return;
+if(menu.classList.contains('open')){cerrarNavMas();return;}
+actualizarNavMasMenu();
+var r=btn.getBoundingClientRect();
+menu.style.top=(r.bottom+6)+'px';
+menu.style.right=(window.innerWidth-r.right)+'px';
+menu.classList.add('open');
+btn.setAttribute('aria-expanded','true');
+setTimeout(function(){document.addEventListener('click',cerrarNavMasFuera,true);},0);
+}
+function cerrarNavMas(){
+var menu=document.getElementById('navMoreMenu'),btn=document.getElementById('navMoreBtn');
+if(menu)menu.classList.remove('open');
+if(btn)btn.setAttribute('aria-expanded','false');
+document.removeEventListener('click',cerrarNavMasFuera,true);
+}
+function cerrarNavMasFuera(e){
+var wrap=document.getElementById('navMoreWrap'),menu=document.getElementById('navMoreMenu');
+if(wrap&&wrap.contains(e.target))return;
+if(menu&&menu.contains(e.target))return;
+cerrarNavMas();
 }
 function mostrarHerramientas(){
 mostrarVersionEnHerramientas();
@@ -5076,6 +5168,11 @@ if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
 h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div></div>';
+var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
+if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
+var esPend=estadoGuardado.estado==='pendiente';
+h+='<div class="fic-estado-guardado '+(esPend?'pendiente':'guardado')+'" role="status"><i class="fa-solid '+(esPend?'fa-clock':'fa-check')+'" aria-hidden="true"></i> '+(esPend?'Pendiente de revisión: se aplicará cuando el administrador lo apruebe':'Guardado')+'</div>';
+}
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
@@ -5166,6 +5263,23 @@ return '<div class="ef-row"><div class="ef-field" style="flex:0 0 90px;min-width
 acciones+
 '</div></div>';
 }
+/* ===== MEJORA UX: aviso notorio de desconexión mientras se edita una ficha (ver 2. Visibilidad) =====
+   Antes solo existía la pastilla pequeña de estado de Drive; si la conexión se
+   perdía a media edición, se podía seguir escribiendo sin darse cuenta de que
+   el cambio no se podría atribuir ni guardar. Se muestra un aviso visible dentro
+   del propio formulario, y se mantiene actualizado si la conexión cambia mientras
+   se está editando (ver llamada añadida en actualizarDriveStatusPill). */
+function actualizarAvisoConexionEdicion(){
+var el=document.getElementById('efConexionAviso');
+if(!el)return;
+if(editMode&&!tokenDriveValido()){
+el.style.display='block';
+el.innerHTML='<div class="ef-conexion-aviso"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Sin conexión con Google Drive: si guardas ahora, el cambio no podrá atribuirse ni sincronizarse. Conéctate antes de continuar.</span><button type="button" class="ef-btn ghost" onclick="accionDriveStatusPill()">Conectar</button></div>';
+}else{
+el.style.display='none';
+el.innerHTML='';
+}
+}
 function rFicEdit(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
@@ -5175,6 +5289,7 @@ var fallecido=!isAl(p);
 var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
 h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
 h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
+h+='<div id="efConexionAviso" style="display:none"></div>';
 h+='<div class="fs"><h3>Foto</h3><div style="display:flex;align-items:center;gap:14px">';
 h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
 h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
@@ -5239,6 +5354,7 @@ document.getElementById('fco').innerHTML=h;
 cid=id;
 actualizarDatalistEtiquetas();
 efRenderEtiquetas();
+actualizarAvisoConexionEdicion();
 }
 /* ===== Edición de etiquetas dentro de la ficha ===== efEtiquetasEdit vive solo en memoria mientras
 se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar. */
@@ -5869,6 +5985,11 @@ if(!(await confirmarApp('Este apellido ("'+valorAntiguo+'") también lo llevan '
 afectados.forEach(function(a){var d=PI[a.id];if(d)d[a.campo]=valorNuevo;});
 return afectados.length;
 }
+/* ===== MEJORA UX: estado de guardado visible por ficha (ver 4. Utilidad) =====
+   Un colaborador no administrador no tenía forma clara de saber si su cambio quedó
+   guardado directamente o pendiente de aprobación. Se recuerda en memoria el último
+   resultado de guardado de cada ficha (esta sesión) y se muestra como aviso en la ficha. */
+var FICHA_ULTIMO_GUARDADO={};
 async function guardarFicha(id,btn){
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
@@ -5919,6 +6040,7 @@ var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
 sAll(D).then(function(){
 editMode=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
 rStats();
 rFic(id);
 toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
@@ -6589,7 +6711,8 @@ problemas.push({
 icono:'fa-spell-check',
 etiqueta:'Posible errata en apellido heredado de un progenitor',
 mensaje:esc(fn(p))+' tiene «'+esc(propio)+'» en '+etiquetaCampoApellido(campoPropio)+', mientras que su '+rel+' '+esc(fn(prog))+' tiene «'+esc(deProg)+'»: probablemente la misma grafía con tildes o mayúsculas distintas.',
-verId:p.ID
+verId:p.ID,
+aplicar:(function(pp,camp,val){return function(){pp[camp]=val;return true;};})(p,campoPropio,deProg)
 });
 }else{
 problemas.push({
@@ -7732,6 +7855,7 @@ return `<div class="pedigree-card ${extraClass||""}" data-id="${esc(pp.ID)}" sty
 }
 var y=year(pp),dy=defYear(pp);
 var yearsTxt=y?(dy?(y+' \u2013 '+dy):y):(dy?('? \u2013 '+dy):'');
+var yearEstimado=esAnioEstimado(pp);
 var placeTxt=pp.LUGARNAC?String(pp.LUGARNAC):'';
 var sexClass="";
 if(pp.SEXO==="Hombre"||pp.SEXO==="M")sexClass="male";
@@ -7743,7 +7867,7 @@ if(pp.PADRE&&PI[pp.PADRE])attrs+=` data-father="${esc(pp.PADRE)}"`;
 if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
 }
 var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
-return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year">${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
+return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year${yearEstimado?" anocalc-tag":""}" ${yearEstimado?'title="Año estimado automáticamente (ANOCALC), no es un dato real"':''}>${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
 }
 document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-gen-info" style="font-size:11px;color:var(--muted);margin-top:2px">${esc(etiquetaGeneracionesArbol(id))}</div><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
 var ancestors=[[id]];
@@ -7774,7 +7898,7 @@ if(!puedeVerPersona(nid)){
 h+=`<div class="tree-gchild" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;font-style:italic;color:var(--muted)">Persona no visible</div>`;
 return;
 }
-h+=`<div class="tree-gchild${isAl(PI[nid])?' alive':''}" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;cursor:pointer" onclick="selP('${safeId(nid)}')">${esc(PI[nid].NOMBRE||'?')}${year(PI[nid])?' '+esc(year(PI[nid])):''}</div>`;
+h+=`<div class="tree-gchild${isAl(PI[nid])?' alive':''}" style="font-size:9px;padding:2px 6px;background:#f5f2ec;border-radius:4px;cursor:pointer" onclick="selP('${safeId(nid)}')">${esc(PI[nid].NOMBRE||'?')}${year(PI[nid])?' <span'+(esAnioEstimado(PI[nid])?' class="anocalc-tag"':'')+'>'+esc(year(PI[nid]))+'</span>':''}</div>`;
 });
 h+=`</div>`;
 }
@@ -8094,8 +8218,35 @@ var txtAsc=asc===0?'sin ascendientes registrados':(asc+(asc===1?' generación as
 var txtDesc=desc===0?'sin descendientes registrados':(desc+(desc===1?' generación descendiente':' generaciones descendientes'));
 return capitalizar(txtAsc)+' · '+txtDesc;
 }
+/* ===== Parentesco por matrimonio (afinidad), no de sangre =====
+   calcularParentesco() de más abajo solo recorre PADRE/MADRE (mapaAncestros),
+   así que dos personas emparentadas por matrimonio (cónyuges, suegro/a,
+   yerno/nuera, cuñado/a) podían acabar etiquetadas por el ANCESTRO COMÚN DE
+   SANGRE más lejano que encontrara el algoritmo. En un árbol con varias
+   generaciones de matrimonios dentro del mismo pueblo eso es fácil que exista
+   (todo el mundo acaba emparentado de lejos con todo el mundo), y el
+   resultado era una etiqueta absurda tipo "Prima novena" para alguien que en
+   realidad es sencillamente la cuñada. Por eso esto se comprueba ANTES y,
+   si hay una relación directa por matrimonio, tiene prioridad. */
+function esConyugeDirecto(idA,idB){var p=PI[idA];return!!(p&&CAMPOS_CONYUGE.some(function(c){return p[c]===idB;}));}
+function padresDe(id){var p=PI[id];var r=[];if(p&&p.PADRE)r.push(p.PADRE);if(p&&p.MADRE)r.push(p.MADRE);return r;}
+function conyugesDe(id){var p=PI[id];if(!p)return[];return CAMPOS_CONYUGE.map(function(c){return p[c];}).filter(function(x){return x&&PI[x];});}
+function calcularParentescoPolitico(idA,idB){
+var A=PI[idA],B=PI[idB];if(!A||!B)return null;
+var sexA=sexoLetra(A);
+if(esConyugeDirecto(idA,idB))return{corto:'Cónyuge',texto:fn(A)+' y '+fn(B)+' son cónyuges.'};
+var i,conyugesB=conyugesDe(idB),conyugesA=conyugesDe(idA);
+for(i=0;i<conyugesB.length;i++){if(padresDe(conyugesB[i]).indexOf(idA)!==-1){var t=formaSexo('suegro','suegra',sexA);return{corto:capitalizar(t),texto:fn(A)+' es '+t+' de '+fn(B)+' (progenitor/a de su cónyuge).'};}}
+for(i=0;i<conyugesA.length;i++){if(padresDe(conyugesA[i]).indexOf(idB)!==-1){var t2=formaSexo('yerno','nuera',sexA);return{corto:capitalizar(t2),texto:fn(A)+' es '+t2+' de '+fn(B)+' (cónyuge de su hijo/a).'};}}
+var hermA=gHerm(idA).map(function(h){return h.ID;}),hermB=gHerm(idB).map(function(h){return h.ID;});
+for(i=0;i<conyugesB.length;i++){if(hermA.indexOf(conyugesB[i])!==-1){var t3=formaSexo('cuñado','cuñada',sexA);return{corto:capitalizar(t3),texto:fn(A)+' es '+t3+' de '+fn(B)+' (cónyuge de su hermano/a).'};}}
+for(i=0;i<conyugesA.length;i++){if(hermB.indexOf(conyugesA[i])!==-1){var t4=formaSexo('cuñado','cuñada',sexA);return{corto:capitalizar(t4),texto:fn(A)+' es '+t4+' de '+fn(B)+' (hermano/a de su cónyuge).'};}}
+return null;
+}
 function calcularParentesco(idA,idB){
 if(idA===idB)return{corto:'Misma persona',texto:'Es la misma persona.'};
+var pol=calcularParentescoPolitico(idA,idB);
+if(pol)return pol;
 var ancA=mapaAncestros(idA),ancB=mapaAncestros(idB);
 var mejor=null;
 Object.keys(ancA).forEach(function(anc){
@@ -9245,7 +9396,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><div class="manual-warn">A diferencia del resto de la aplicacion, estos posteres todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Se corregira en una proxima actualizacion.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
-{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes) o con un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real -con boton «Solucionar»-, y casos solo para revisar como un apellido distinto al del padre o al primer apellido de la madre, una posible errata (misma grafia con tildes o mayusculas distintas) o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
+{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes), un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real, o una posible errata en un apellido heredado de un progenitor (misma grafia con tildes o mayusculas distintas) -estos tres, con boton «Solucionar»-, y casos solo para revisar como un apellido distinto al del padre o al primer apellido de la madre, o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite unificarlos con un solo clic.</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
 {titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En la pantalla principal hay un botón para restaurar el árbol oficial; las funciones de copia avanzada siguen en Herramientas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar árbol oficial</strong> (cualquier usuario): está disponible directamente debajo de la conexión con Google Drive en la pantalla principal; descarga la última copia que exista en la carpeta compartida de Drive y la carga en la aplicación. Requiere identidad de Google conectada. Al restaurar, la app pregunta si también quieres traer las fotos: decir que no hace la restauración mucho más rápida, y las fotos se pueden importar después desde «Importar fotos».</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
@@ -11383,11 +11534,14 @@ actualizarPantallaBusPills();
    NOTA: los aniversarios de boda no se calculan todavía porque MF1..MF6 se
    guardan como texto libre (solo se puede extraer el año, no el día/mes);
    se podrían añadir si en el futuro se guardan con día y mes exactos. */
-/* EVENTOS_FAM_MAX_PASOS=4: núcleo familiar hasta "hijos de primos" (yo→
-   padre=1→abuelo=2→tío=3→primo... un hijo de un primo queda a 4 saltos,
-   usando vecinosParentesco() donde padre/madre/hijo/hermano/cónyuge cuentan
-   como 1 salto cada uno). */
-var EVENTOS_FAM_MAX_PASOS=4;
+/* EVENTOS_FAM_MAX_PASOS=3: nucleo familiar hasta "tio abuelo"/"sobrino nieto"
+   (y, de paso, primos hermanos y bisabuelos/bisnietos, que caen a la misma
+   distancia). Con vecinosParentesco() donde padre/madre/hijo/hermano/conyuge
+   cuentan como 1 salto cada uno: yo->padre(1)->hermano del padre=tio(2)->hijo
+   del tio=primo(3); yo->hermano(1)->sobrino(2)->hijo del sobrino=sobrino
+   nieto(3); yo->padre(1)->abuelo(2)->hermano del abuelo=tio abuelo(3). Antes
+   estaba en 4, que llega hasta "hijos de primos" (un grado de mas). */
+var EVENTOS_FAM_MAX_PASOS=3;
 var EVENTOS_FAM_DIAS=90;
 function personasCercanas(idCentral,maxPasos){
 var dist={};dist[idCentral]=0;
@@ -11465,6 +11619,7 @@ if(nAnios>0)eventos.push({fecha:fDef,persona:p,relacion:relTxt,tipo:'defuncion',
 CAMPOS_CONYUGE.forEach(function(campoConyuge){
 var conyugeId=p[campoConyuge];
 if(!conyugeId||!PI[conyugeId])return;
+if(!isAl(p)||!isAl(PI[conyugeId]))return;
 var n=campoConyuge.replace('M','');
 var fm=extraerFechaMatrimonio(p['MF'+n]);
 if(!fm)return;
@@ -11642,7 +11797,7 @@ if(!esAdministrador()){toast('Solo el administrador puede recargar el registro d
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
 try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro de cambios recargado desde Drive: '+lista.length+' registro(s)');}catch(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);}
 }
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
 conectada como colaboradores). Si alguien ya estaba en esa vista y deja de ser admin
@@ -11667,6 +11822,7 @@ if(btnCam)btnCam.style.display=conectado?'':'none';
    redirigir: si la persona estaba leyendo algo ahí, se queda donde estaba. */
 if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibilidadHerramientasDrive();
 if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial();
+if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
 function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';mostrarCambios('pendientes');sincronizarCambiosDrive(false,true);}
@@ -11691,12 +11847,12 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 <div id="modalLimpiar" role="dialog" aria-modal="true" aria-labelledby="modalLimpiarTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="font-size:36px;color:var(--accent);margin-bottom:14px;display:block"></i>
+<i class="fa-solid fa-triangle-exclamation" aria-hidden="true" style="font-size:36px;color:#a6342b;margin-bottom:14px;display:block"></i>
 <h2 id="modalLimpiarTitulo" style="font-family:'Cinzel',serif;font-size:18px;margin-bottom:8px;color:var(--text)">Limpiar Cache y Base de Datos</h2>
 <p style="font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.5">Se eliminaran todos los datos de IndexedDB. Esta acción no se puede deshacer.</p>
 <div style="display:flex;gap:10px;justify-content:center;">
 <button class="btn" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="document.getElementById('modalLimpiar').style.display='none'">Cancelar</button>
-<button class="btn" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="ejecutarLimpiar()"><i class="fa-solid fa-trash-can"></i> Si, limpiar todo</button>
+<button class="btn" style="background:#a6342b;color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;" onclick="ejecutarLimpiar()"><i class="fa-solid fa-trash-can"></i> Si, limpiar todo</button>
 </div>
 </div>
 </div>
@@ -11770,7 +11926,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Puedes usarlo para subir fotos de <strong>cualquier persona del árbol</strong> (no solo de tu propia rama), siempre que el nombre del archivo coincida exactamente con su ID. Si ya existe una foto, se sustituye. Solo se leen los archivos que están directamente dentro de la carpeta FOTO (no los de subcarpetas).</div>
 </div></div>
 <div class="herr-subhead">Mantenimiento</div>
-<button class="herr-item" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo</div></div></button>
+<button class="herr-item herr-item-danger" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo. Acción irreversible</div></div></button>
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Acceso</div>
