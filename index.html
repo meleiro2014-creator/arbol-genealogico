@@ -928,7 +928,7 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.05.1';
+var APP_VERSION = '2026.09.05.2';
 var APP_CHANGELOG = [
   { version:'2026.09.05.1', fecha:'2026-09-05', cambios:[
     'Gestion de cambios: corregido de raiz para que ya NO se guarde nada en la memoria del ordenador (IndexedDB). La unica fuente del registro de cambios es ahora el archivo cambios-arbol.json de Drive: cada vez que se abre la pantalla, se aprueba, se rechaza, se elimina un registro o se vacia el historial, la app lee ese archivo, aplica el cambio y lo vuelve a subir entero, sin fusionar con nada guardado antes en el dispositivo. Antes, la sincronizacion mezclaba (por id) lo que hubiera en Drive con restos que quedaban en la base de datos local del navegador, asi que podian verse cambios que ya no estaban en el archivo. Si el archivo no tiene cambios pendientes, la pantalla no muestra ninguno.'
