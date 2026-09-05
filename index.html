@@ -1156,6 +1156,19 @@ driveModoManual=false;
 try{localStorage.removeItem(DRIVE_MODO_MANUAL_KEY);}catch(e){}
 }
 var ADMIN_EMAIL='meleiro2014@gmail.com';
+/* ===== PRUEBA TEMPORAL DE DIAGNÓSTICO (quitar cuando se confirme la causa) =====
+   Con esto en true, obtenerIdentidadGoogle() YA NO expulsa ni revoca el
+   token a una cuenta de Google válida solo porque no aparezca (todavía)
+   en usuarios.json. Se deja pasar a cualquiera: se conecta a Drive, se
+   guarda la identidad y se sigue con la carga normal del árbol. Lo único
+   que decide qué ve cada uno sigue siendo tipoUsuarioActual()/
+   puedeVerPersona() más abajo, que YA trataba "sin tipo reconocido" igual
+   que "sin conexión a Google": solo personas fallecidas visibles, nada
+   editable. Así se puede comprobar con una cuenta nueva si el problema
+   real es que cargarUsuarios() no llega a leer bien usuarios.json a
+   tiempo (carpeta compartida pero lectura fallando) o si de verdad la
+   cuenta no está en la lista. Volver a false para restaurar el filtro.*/
+var MODO_PRUEBA_ACCESO=true;
 /* ===== USUARIOS (modelo unificado: email + tipo + ficha vinculada) =====
    Un único archivo en Drive, usuarios.json, sustituye a los dos antiguos
    ("usuarios-autorizados.json" con la lista de emails, y "vinculo-fichas.json"
@@ -1371,7 +1384,8 @@ var d=await r.json();
 if(!d.email){googleIdentidad=null;return null;}
 var emailNormalizado=String(d.email).trim().toLowerCase();
 await cargarUsuarios();
-if(!esUsuarioAutorizado(emailNormalizado)){
+var autorizadaEnLista=esUsuarioAutorizado(emailNormalizado);
+if(!MODO_PRUEBA_ACCESO&&!autorizadaEnLista){
 /* Cuenta válida de Google pero no autorizada para esta app: se revoca el
    token localmente (y en Google, si es posible) para no dejar la sesión
    conectada a Drive, y no se guarda ninguna identidad. */
@@ -1383,6 +1397,12 @@ return null;
 }
 googleIdentidad={email:emailNormalizado,name:d.name||'',picture:d.picture||''};
 registrarConexion();
+if(MODO_PRUEBA_ACCESO&&!autorizadaEnLista){
+/* Aviso solo de diagnóstico: la cuenta ha entrado (modo prueba) pero
+   usuarios.json no la reconoce, así que de momento solo verá personas
+   fallecidas (igual que "sin conexión"), nunca podrá editar ni gestionar. */
+toast('[PRUEBA] Conectado como '+emailNormalizado+', pero no consta en usuarios.json (tipo detectado: '+(tipoDeEmail(emailNormalizado)||'ninguno')+'). Verá solo personas fallecidas hasta que se le reconozca.',true);
+}
 return googleIdentidad;
 }catch(err){googleIdentidad=null;return null;}
 }
