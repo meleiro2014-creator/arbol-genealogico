@@ -4417,7 +4417,19 @@ acota(yH-ANOCALC_LIMITES.dispersionMaxHermanos,yH+ANOCALC_LIMITES.dispersionMaxH
 }
 var yDefPropia=getDeathYear(p);
 if(yDefPropia!==null)acota(null,yDefPropia);
-if(isAl(p))acota(new Date().getFullYear()-EDAD_VIVO_EXTREMA,null);
+/* v2.7 — CORRECCIÓN: "vivo" para este límite NUNCA debe basarse en un FALLECIDO
+   en blanco. isAl(p) devuelve true tanto si FALLECIDO='0' (confirmado vivo) como
+   si FALLECIDO='' (desconocido, el caso más común en fichas históricas importadas
+   sin fecha de defunción). Usar isAl(p) aquí forzaba una cota "no puede haber
+   nacido antes de hoy-110" a cualquier ficha antigua sin ese dato relleno — y
+   como esa cota es un límite DURO, ganaba a cualquier otro cálculo del motor,
+   arrastrando el año hacia ~1916 (=año actual-EDAD_VIVO_EXTREMA) sin relación
+   alguna con los datos reales de la persona. Medido sobre el árbol: el 94% de
+   las 3.980 fichas marcadas ANOCALC_CONTAMINADO tenían FALLECIDO en blanco (no
+   vivas confirmadas), y solo esta condición basta para explicar casi todos los
+   saltos de siglos vistos en ANOCALC_MOTIVO. Ahora solo se aplica esta cota
+   cuando la persona está CONFIRMADA viva (FALLECIDO==='0'), nunca por defecto. */
+if(p.FALLECIDO==='0')acota(new Date().getFullYear()-EDAD_VIVO_EXTREMA,null);
 return{lo:lo,hi:hi};
 }
 /* ===== FASE C (nueva en v2): relajación global por consenso ponderado =====
