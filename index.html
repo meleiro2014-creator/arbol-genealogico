@@ -7160,12 +7160,14 @@ return String(v||'').replace(/[-_.]/g,' ').replace(/\s+/g,' ').trim();
    porque aquí el problema es la capitalización, no caracteres sueltos. La corrección
    propuesta NUNCA añade tildes que no estuvieran ya en el texto original: solo cambia
    mayúscula/minúscula letra a letra, respetando las partículas de apellidos compuestos
-   ("de", "del", "la", "los", "y"...) que van en minúscula salvo al principio. */
+   ("de", "del", "la", "los", "y"...), que siempre van en minúscula (también cuando son
+   la primera palabra del campo APELLIDO1/APELLIDO2, ya que nunca son la primera palabra
+   del nombre completo de la persona). */
 var APE_PARTICULAS={'de':1,'del':1,'la':1,'las':1,'los':1,'y':1,'san':1,'santa':1,'do':1,'dos':1,'da':1,'das':1,'van':1,'von':1,'der':1,'di':1,'le':1,'el':1,'al':1,'bin':1,'ibn':1};
 function capitalizarNombreApellido(v){
 return String(v||'').toLowerCase().split(/(\s+|-)/).map(function(tok,i){
 if(!tok||/^\s+$/.test(tok)||tok==='-')return tok;
-if(APE_PARTICULAS[tok]&&i>0)return tok;
+if(APE_PARTICULAS[tok])return tok;
 return tok.replace(/(^|['’])([a-zà-öø-ÿ])/g,function(m,antes,letra){return antes+letra.toUpperCase();});
 }).join('');
 }
@@ -7906,7 +7908,7 @@ o refrescar el Gestor) y se aplican de golpe hasta LOTE_MASIVA casos de ese anal
 volver a escanear nada entre medias. Si quedan mas casos de los que caben en un lote, el
 boton se puede volver a pulsar: al refrescar el Gestor (rGesLigero) esos casos ya resueltos
 habran desaparecido y el siguiente lote empieza por los que quedan. */
-var LOTE_MASIVA=100;
+var LOTE_MASIVA=200;
 var aplicables=cat.items.filter(function(it){return typeof it.aplicar==='function';});
 if(!aplicables.length)return;
 var lote=aplicables.slice(0,LOTE_MASIVA);
