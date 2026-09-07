@@ -141,22 +141,24 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
 .anocalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
-.fic-age-chip{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:8px;vertical-align:middle;white-space:nowrap}
 .fic-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:3px;-webkit-overflow-scrolling:touch}
 .fic-tabs::-webkit-scrollbar{height:4px}
 .fic-tab-btn{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:7px 15px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Lato',sans-serif;text-transform:uppercase;letter-spacing:.5px}
 .fic-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .fic-tab-panel{display:none}
 .fic-tab-panel.active{display:block}
-.fic-mini-tree{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 8px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
-.fic-mini-tree:hover{opacity:.85}
-.fic-mini-tree .mt-row{display:flex;gap:4px;justify-content:center}
-.fic-mini-tree .mt-node{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'Cinzel',serif;color:#fff}
-.fic-mini-tree .mt-node.mt-empty{background:transparent;border:1px dashed var(--border);color:var(--muted)}
-.fic-mini-tree .mt-node.mt-al{background:var(--alive)}
-.fic-mini-tree .mt-node.mt-de{background:var(--dead)}
-.fic-mini-tree .mt-node.mt-self{width:28px;height:28px;font-size:11px;border:2px solid var(--accent)}
-.fic-mini-tree .mt-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fic-arbol-caja{margin:16px 0 4px}
+.fic-arbol-caja .fac-titulo{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:8px}
+.fac-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.fac-connector{height:12px;position:relative}
+.fac-connector::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)}
+.fac-box{border:1.5px solid var(--accent);border-radius:8px;background:var(--card);padding:6px 8px;font-size:10px;line-height:1.35;text-align:center;flex:1 1 120px;max-width:150px;cursor:pointer}
+.fac-box:hover{background:rgba(196,101,58,.07)}
+.fac-box .fac-nombre{display:block;font-weight:700;color:var(--accent)}
+.fac-box .fac-anio{display:block;color:var(--muted);font-weight:400;margin-top:1px}
+.fac-box.fac-empty{border-style:dashed;border-color:var(--border);color:var(--muted);cursor:default}
+.fac-box.fac-empty:hover{background:none}
+.fac-box.fac-self{cursor:default;border-width:2px;background:rgba(196,101,58,.06)}
 .fic-lugarcalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
 /* ===== MEJORA UX: separación visual de acciones irreversibles en Herramientas (ver 1. Usabilidad) ===== */
 .herr-item-danger{background:rgba(166,52,43,.05);border:1px solid rgba(166,52,43,.2);margin-top:10px}
@@ -1700,6 +1702,30 @@ if(!p)return;
 p.AMIGOS=amigosIdsDe(p);
 }
 function htmlSeccionAmigos(id){
+/* Solo se muestra en la ficha (pestaña Familia) si hay amigos registrados;
+   si no hay ninguno, no se pinta nada. Añadir/quitar amigos solo puede
+   hacerse desde la pantalla de edición (ver seccionAmigosEdit). */
+if(!puedeVerAmigosDe(id))return '';
+var p=PI[id];
+if(!p)return '';
+var ids=amigosIdsDe(p);
+if(!ids.length)return '';
+var h='<h3 style="margin:0 0 6px">Amigos ('+ids.length+')</h3>';
+h+='<ul class="ul">';
+ids.forEach(function(aid){
+var a=PI[aid];
+if(!a){
+h+='<li style="color:var(--muted)">ID '+esc(String(aid))+' (no encontrado)</li>';
+return;
+}
+h+='<li><a onclick="irAFicha(\''+safeId(aid)+'\')">'+esc(fn(a))+'</a>'+etiquetaAnioRelacion(a)+'</li>';
+});
+h+='</ul>';
+return h;
+}
+/* Sección de Amigos dentro del formulario de edición (rFicEdit): añadir y
+   quitar amigos solo está disponible aquí, no en la vista de solo lectura. */
+function htmlAmigosEdit(id){
 if(!puedeVerAmigosDe(id))return '';
 var p=PI[id];
 if(!p)return '';
@@ -5577,27 +5603,31 @@ if(nm&&refM&&(refM<nm||(refM===nm&&nd&&refD&&refD<nd)))edad--;
 if(edad<0||edad>130)return null;
 return{edad:edad,estimado:!!esNacEst,alFallecer:!al};
 }
-function htmlChipEdad(p){
-var info=edadOAlFallecer(p);
-if(!info)return'';
-return'<span class="fic-age-chip" title="'+(info.estimado?'Calculada a partir del año estimado (ANOCALC)':'Edad calculada a partir de las fechas registradas')+'">'+info.edad+' años'+(info.alFallecer?' al fallecer':'')+(info.estimado?' \u2248':'')+'</span>';
+/* ===== Esquema de árbol en cajas (ficha) — 3 niveles: abuelos / padres / persona =====
+   Sustituye al antiguo mini árbol de nodos circulares en la cabecera. Va
+   dentro de la pestaña "Datos", debajo de los datos y antes de Observaciones.
+   Cada caja (menos la de la propia persona) lleva a la ficha de quien
+   representa. Solo se muestra si hay al menos un padre o madre conocidos;
+   si no hay ningún abuelo, la fila de abuelos se omite. */
+function textoAniosCajaArbol(per){
+var nac=getYearReal(per);
+var nacTxt=nac!==null?String(nac):(esAnioEstimado(per)?'\u2248'+per.ANOCALC:'?');
+if(isAl(per))return nacTxt;
+var defA=per.DEFA?parseInt(per.DEFA,10):null;
+return nacTxt+'\u2013'+(defA?String(defA):'?');
 }
-/* ===== Mini árbol embebido (ficha) — 3 niveles: abuelos / padres / persona =====
-   Miniatura clicable (cada nodo lleva a la ficha de esa persona) con enlace
-   aparte a "Árbol completo" (misma pantalla vArb que ya usa el resto de la
-   app, vía cid+sv('arb')). Solo se muestra si hay al menos un padre o madre
-   conocidos; si no hay ningún abuelo, la fila de abuelos se omite. */
-function nodoMiniArbol(per,claseExtra){
-if(!per)return'<div class="mt-node mt-empty" title="Desconocido">?</div>';
-return'<div class="mt-node '+(isAl(per)?'mt-al':'mt-de')+(claseExtra?' '+claseExtra:'')+'" onclick="event.stopPropagation();irAFicha(\''+safeId(per.ID)+'\')" title="'+escAttr(fn(per))+'">'+esc(ini(per))+'</div>';
+function cajaArbol(per,claseExtra,clicable){
+if(!per)return'<div class="fac-box fac-empty">?</div>';
+var attrs=clicable!==false?' onclick="event.stopPropagation();irAFicha(\''+safeId(per.ID)+'\')"':'';
+return'<div class="fac-box '+(claseExtra||'')+'"'+attrs+' title="'+escAttr(fn(per))+'"><span class="fac-nombre">'+esc(fn(per))+'</span><span class="fac-anio">'+esc(textoAniosCajaArbol(per))+'</span></div>';
 }
-function htmlMiniArbol(id,p,padreObj,madreObj,abuelos){
+function htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos){
 if(!padreObj&&!madreObj)return'';
 function abueloDe(etq){var m=abuelos.filter(function(a){return a[0]===etq;});return m.length?m[0][1]:null;}
-var filaAbuelos='<div class="mt-row">'+nodoMiniArbol(abueloDe('Abuelo paterno'))+nodoMiniArbol(abueloDe('Abuela paterna'))+nodoMiniArbol(abueloDe('Abuelo materno'))+nodoMiniArbol(abueloDe('Abuela materna'))+'</div>';
-var filaPadres='<div class="mt-row">'+nodoMiniArbol(padreObj)+nodoMiniArbol(madreObj)+'</div>';
-var filaPersona='<div class="mt-row">'+nodoMiniArbol(p,'mt-self')+'</div>';
-return'<div class="fic-mini-tree" onclick="cid=\''+safeId(id)+'\';sv(\'arb\')" title="Ver árbol completo">'+(abuelos.length?filaAbuelos:'')+filaPadres+filaPersona+'<span class="mt-label">Árbol completo</span></div>';
+var filaAbuelos='<div class="fac-row">'+cajaArbol(abueloDe('Abuelo paterno'))+cajaArbol(abueloDe('Abuela paterna'))+cajaArbol(abueloDe('Abuelo materno'))+cajaArbol(abueloDe('Abuela materna'))+'</div>';
+var filaPadres='<div class="fac-row">'+cajaArbol(padreObj)+cajaArbol(madreObj)+'</div>';
+var filaPersona='<div class="fac-row">'+cajaArbol(p,'fac-self',false)+'</div>';
+return'<div class="fic-arbol-caja"><div class="fac-titulo">Árbol genealógico (hasta los abuelos)</div>'+(abuelos.length?filaAbuelos+'<div class="fac-connector"></div>':'')+filaPadres+'<div class="fac-connector"></div>'+filaPersona+'</div>';
 }
 /* ===== Pestañas de la ficha (Datos/Familia/Abuelos/Hermanos) =====
    Sustituye las tarjetas apiladas por una vista con pestañas para reducir
@@ -5621,7 +5651,8 @@ var esPend=estadoGuardado.estado==='pendiente';
 h+='<div class="fic-estado-guardado '+(esPend?'pendiente':'guardado')+'" role="status"><i class="fa-solid '+(esPend?'fa-clock':'fa-check')+'" aria-hidden="true"></i> '+(esPend?'Pendiente de revisión: se aplicará cuando el administrador lo apruebe':'Guardado')+'</div>';
 }
 /* Familia directa/ampliada calculada aquí arriba porque hace falta tanto
-   para el mini árbol de la cabecera como para las pestañas Familia/Abuelos. */
+   para el esquema de árbol en cajas (dentro de la pestaña Datos) como para
+   las pestañas Familia/Abuelos. */
 var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
 var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
 var abuelos=[];
@@ -5636,7 +5667,9 @@ if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
-h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+htmlChipEdad(p)+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div>'+htmlMiniArbol(id,p,padreObj,madreObj,abuelos)+'</div>';
+var infoEdad=edadOAlFallecer(p);
+var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
+h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera))+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):''):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):''):'')+'</div></div></div>';
 if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
@@ -5652,6 +5685,8 @@ secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed va
 if(esLugarEstimado(p)){
 secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
 }
+secDatos+=htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos);
+if(p.OBSERVACIONES)secDatos+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
 var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
 var ml=madreObj?nombreFamiliarEnlazable(madreObj,'irAFicha(\''+safeId(p.MADRE)+'\')',etiquetaAnioRelacion(madreObj)):'<span style="color:var(--muted)">Desconocida</span>';
 var conyugesHtml='';
@@ -5667,6 +5702,18 @@ var detalleBoda=!ocultoConyuge?[p[campoML]?esc(p[campoML]):'',p[campoMF]?esc(fFe
 conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+'</span></div>'+(detalleBoda?'<div class="fr" style="margin-top:-4px"><span class="fl"></span><span class="fv" style="font-size:11px;font-weight:400;color:var(--muted)"><i class="fa-solid fa-ring" style="font-size:9px;margin-right:4px;opacity:.7"></i>'+detalleBoda+'</span></div>':'');
 });
 var secFamilia='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml;
+var hij=ordenarIdsPorEdad(HD[id]||[]);
+secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Hijos ('+hij.length+')</h3>';
+if(hij.length){
+var hi='';
+hij.forEach(function(x){hi+='<li>'+nombreFamiliarEnlazable(PI[x],'irAFicha(\''+safeId(x)+'\')',etiquetaAnioRelacion(PI[x]),'')+'</li>';});
+secFamilia+='<ul class="ul">'+hi+'</ul>';
+}else{
+secFamilia+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
+}
+secFamilia+='</div>';
+var htmlAmigosFamilia=htmlSeccionAmigos(id);
+if(htmlAmigosFamilia)secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+htmlAmigosFamilia+'</div>';
 var secAbuelos=abuelos.length?abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin abuelos registrados</p>';
 var her=gHerm(id);
 her=her.length?ordenarPersonasPorEdad(her):her;
@@ -5690,18 +5737,6 @@ h+='<div class="fs fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-ta
 h+='<div class="fs fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia"><h3>Familia</h3>'+secFamilia+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos"><h3>Abuelos</h3>'+secAbuelos+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos"><h3>Hermanos</h3>'+secHermanos+'</div>';
-var hij=ordenarIdsPorEdad(HD[id]||[]);
-h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
-if(hij.length){
-var hi='';
-hij.forEach(function(x){hi+='<li>'+nombreFamiliarEnlazable(PI[x],'irAFicha(\''+safeId(x)+'\')',etiquetaAnioRelacion(PI[x]),'')+'</li>';});
-h+='<ul class="ul">'+hi+'</ul>';
-} else {
-h+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
-}
-h+='</div>';
-h+=htmlSeccionAmigos(id);
-if(p.OBSERVACIONES) h+='<div class="fs"><h3>Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
 }
@@ -5813,6 +5848,7 @@ var mid=p['M'+n];
 if(mid&&PI[mid])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(mid)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[mid]))+'</button>';
 });
 h+='</div></div>';
+h+=htmlAmigosEdit(id);
 h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
