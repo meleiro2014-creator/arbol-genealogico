@@ -141,6 +141,23 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
 .anocalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
+.fic-age-chip{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:8px;vertical-align:middle;white-space:nowrap}
+.fic-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:3px;-webkit-overflow-scrolling:touch}
+.fic-tabs::-webkit-scrollbar{height:4px}
+.fic-tab-btn{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:7px 15px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Lato',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+.fic-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fic-tab-panel{display:none}
+.fic-tab-panel.active{display:block}
+.fic-mini-tree{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 8px;border:1px solid var(--border);border-radius:12px;background:var(--card)}
+.fic-mini-tree:hover{opacity:.85}
+.fic-mini-tree .mt-row{display:flex;gap:4px;justify-content:center}
+.fic-mini-tree .mt-node{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'Cinzel',serif;color:#fff}
+.fic-mini-tree .mt-node.mt-empty{background:transparent;border:1px dashed var(--border);color:var(--muted)}
+.fic-mini-tree .mt-node.mt-al{background:var(--alive)}
+.fic-mini-tree .mt-node.mt-de{background:var(--dead)}
+.fic-mini-tree .mt-node.mt-self{width:28px;height:28px;font-size:11px;border:2px solid var(--accent)}
+.fic-mini-tree .mt-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fic-lugarcalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
 /* ===== MEJORA UX: separación visual de acciones irreversibles en Herramientas (ver 1. Usabilidad) ===== */
 .herr-item-danger{background:rgba(166,52,43,.05);border:1px solid rgba(166,52,43,.2);margin-top:10px}
 .herr-item-danger .herr-icon{background:rgba(166,52,43,.12);color:#a6342b}
@@ -2212,7 +2229,7 @@ var CAMBIOS_STORE='cambios';
 var CAMBIOS_ESTADO='pendiente';
 var CAMBIOS_HISTORIAL='historial';
 var CAMBIOS_SYNC_FILENAME='cambios-arbol.json';
-var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion'];
+var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'];
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',M3:'Cónyuge 3',M4:'Cónyuge 4',M5:'Cónyuge 5',M6:'Cónyuge 6',
@@ -2280,7 +2297,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{await refrescarCambiosDesdeDrive();var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -4071,7 +4088,7 @@ function etiquetaAnioRelacion(p){
 if(!p)return'';
 var yr=getYearReal(p);
 if(yr!==null)return' <span class="fv-anio">(n. '+yr+')</span>';
-if(esAnioEstimado(p))return' <span class="fv-anio anocalc-tag">(\u2248'+esc(String(p.ANOCALC))+', año CALCULADO)</span>';
+if(esAnioEstimado(p))return' <span class="fv-anio anocalc-tag">(\u2248'+esc(String(p.ANOCALC))+', Calculada)</span>';
 return' <span class="fv-anio" style="color:var(--muted)">(año no calculado)</span>';
 }
 function textoNacimientoFicha(p){
@@ -4927,6 +4944,169 @@ renderConfigANOCALC();
 if(huboManual&&D.length&&(await confirmarApp('Has restaurado el cálculo automático de ANOCALC. Esto puede modificar los años estimados de muchas personas. ¿Recalcular ahora?')))recalcularAnosEstimadosManual();
 }).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
 }
+/* ===== MOTOR DE LUGAR DE NACIMIENTO ESTIMADO (LUGARCALC) =====
+   Hermano de ANOCALC pero para el lugar de nacimiento en vez del año. A
+   diferencia de ANOCALC (que promedia diferencias de edad numéricas), aquí
+   no hay nada que promediar: un lugar se "hereda" del familiar real
+   conocido más cercano por parentesco (padre, madre, hijos, hermanos y
+   cónyuges), con estos niveles de confianza:
+     - "alta": dos o más familiares a 1 paso de distancia (padre/madre/
+       hijo/hermano/cónyuge) tienen lugar real y coinciden.
+     - "media": un único familiar a 1 paso con lugar real, o varios a 1
+       paso que no coinciden entre sí (se toma el mayoritario).
+     - "baja": el familiar real conocido más cercano está a 2 o más pasos
+       (p.ej. un abuelo, un sobrino, el cónyuge de un hermano...).
+     - "por defecto"/"sin evidencia": nadie en toda su componente conexa
+       del árbol tiene lugar real conocido; se usa España (país del ~80%
+       de las personas con lugar real conocido en el árbol completo).
+   El cálculo NUNCA toca LUGARNAC (lugar real); solo escribe LUGARCALC,
+   LUGARCALC_CONFIANZA y LUGARCALC_MOTIVO, y solo se ejecuta cuando el
+   administrador pulsa el botón manual "Recalcular lugar" en Herramientas
+   (igual que ANOCALC: nada se recalcula solo al abrir/importar/restaurar). */
+var LUGARCALC_PAIS_DEFECTO='España';
+var LUGARCALC_PORC_PAIS_DEFECTO=80;
+var LUGARCALC_MAX_NIVELES=30;
+function tieneLugarReal(p){return!!(p&&p.LUGARNAC&&String(p.LUGARNAC).trim()!=='');}
+function lugarNormalizado(s){return String(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+function adyacenciaLugar(id){
+var p=PI[id];if(!p)return[];
+var out=[];
+if(p.PADRE&&PI[p.PADRE])out.push({id:p.PADRE,tipo:'padre'});
+if(p.MADRE&&PI[p.MADRE])out.push({id:p.MADRE,tipo:'madre'});
+(HD[id]||[]).forEach(function(hid){if(PI[hid])out.push({id:hid,tipo:'hijo'});});
+gHerm(id).forEach(function(h){if(h.ID!==id)out.push({id:h.ID,tipo:'hermano/a'});});
+[1,2,3,4,5,6].forEach(function(n){var cid2=p['M'+n];if(cid2&&PI[cid2])out.push({id:cid2,tipo:'cónyuge'});});
+return out;
+}
+/* BFS multiorigen por niveles: arranca desde todas las personas con lugar
+   real y avanza nivel a nivel por parentesco, de forma que cada persona sin
+   lugar real queda etiquetada con la distancia mínima (en pasos de
+   parentesco) a la que se encuentra el familiar real conocido más cercano,
+   junto con TODAS las fuentes que llegan a esa distancia mínima (para poder
+   detectar coincidencia/desacuerdo entre ellas). */
+function calcularLugaresEstimados(){
+var dist={},labels={},visited={};
+D.forEach(function(p){
+if(tieneLugarReal(p)){visited[p.ID]=true;dist[p.ID]=0;labels[p.ID]=[{origenId:p.ID,lugar:String(p.LUGARNAC).trim()}];}
+});
+var frontier=Object.keys(visited),nivel=0;
+while(frontier.length&&nivel<LUGARCALC_MAX_NIVELES){
+var siguiente={};
+frontier.forEach(function(id){
+adyacenciaLugar(id).forEach(function(ed){
+if(visited[ed.id])return;
+if(!siguiente[ed.id])siguiente[ed.id]=[];
+labels[id].forEach(function(lbl){siguiente[ed.id].push({origenId:lbl.origenId,lugar:lbl.lugar,ultimoTramo:ed.tipo});});
+});
+});
+var idsSig=Object.keys(siguiente);
+if(!idsSig.length)break;
+idsSig.forEach(function(nid){
+visited[nid]=true;dist[nid]=nivel+1;
+var vistos={},dedup=[];
+siguiente[nid].forEach(function(l){if(!vistos[l.origenId]){vistos[l.origenId]=true;dedup.push(l);}});
+labels[nid]=dedup;
+});
+frontier=idsSig;nivel++;
+}
+return{dist:dist,labels:labels};
+}
+function construirEstimacionLugar(id,resultado){
+var p=PI[id];
+if(!p||tieneLugarReal(p))return null;
+var d=resultado.dist[id],labs=resultado.labels[id];
+if(d===undefined||!labs||!labs.length){
+return{lugar:LUGARCALC_PAIS_DEFECTO,confianza:'por defecto',motivo:'No se ha encontrado ningún familiar (por sangre o matrimonio, en cualquier grado) con lugar de nacimiento real conocido dentro de su rama conectada del árbol. Se aplica el valor por defecto del árbol: '+LUGARCALC_PAIS_DEFECTO+' (país de origen de aproximadamente el '+LUGARCALC_PORC_PAIS_DEFECTO+'% de las personas del árbol con lugar real conocido).'};
+}
+var conteo={};
+labs.forEach(function(l){var k=lugarNormalizado(l.lugar);conteo[k]=(conteo[k]||0)+1;});
+var claves=Object.keys(conteo).sort(function(a,b){return conteo[b]-conteo[a];});
+var mejorClave=claves[0];
+var lugarFinal=labs.filter(function(l){return lugarNormalizado(l.lugar)===mejorClave;})[0].lugar;
+var hayDesacuerdo=claves.length>1;
+var confianza;
+if(d===1)confianza=(!hayDesacuerdo&&labs.length>=2)?'alta':'media';
+else confianza='baja';
+var fuentes=labs.slice(0,4).map(function(l){var per=PI[l.origenId];var nombreF=per?fn(per):('ID '+l.origenId);return nombreF+(d===1?' ('+l.ultimoTramo+')':'')+' — '+l.lugar;}).join('; ')+(labs.length>4?'; y '+(labs.length-4)+' más':'');
+var motivo='Distancia genealógica mínima a un lugar real conocido: '+d+' paso(s). Familiar(es) más cercano(s): '+fuentes+'.'+(hayDesacuerdo?' Había desacuerdo entre las fuentes a esa misma distancia; se ha tomado el lugar mayoritario ('+lugarFinal+').':'');
+return{lugar:lugarFinal,confianza:confianza,motivo:motivo};
+}
+function aplicarResultadoLugaresEstimados(resultado){
+var cambios=0;
+D.forEach(function(p){
+if(tieneLugarReal(p)){
+if(p.LUGARCALC){p.LUGARCALC='';p.LUGARCALC_CONFIANZA='';p.LUGARCALC_MOTIVO='';cambios++;}
+return;
+}
+var est=construirEstimacionLugar(p.ID,resultado);
+if(!est)return;
+if(p.LUGARCALC!==est.lugar||p.LUGARCALC_CONFIANZA!==est.confianza||p.LUGARCALC_MOTIVO!==est.motivo){
+p.LUGARCALC=est.lugar;p.LUGARCALC_CONFIANZA=est.confianza;p.LUGARCALC_MOTIVO=est.motivo;cambios++;
+}
+});
+bIdx(D);
+return cambios;
+}
+function esLugarEstimado(p){return!!(p&&!tieneLugarReal(p)&&p.LUGARCALC);}
+function etiquetaConfianzaLugar(c){return{alta:'Alta (varios familiares directos coinciden)',media:'Media (un único familiar directo, o desacuerdo entre varios)',baja:'Baja (familiar más cercano a 2 o más pasos de distancia)','por defecto':'Sin evidencia (valor por defecto del árbol: España)'}[c]||(c||'');}
+function htmlLugarFicha(p){
+if(tieneLugarReal(p))return esc(p.LUGARNAC);
+if(esLugarEstimado(p))return'<span class="fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+' (estimado)</span>';
+return esc(p.LUGARNAC||'');
+}
+async function recalcularLugaresEstimadosManual(){
+if(!D.length){toast('No hay datos cargados',true);return;}
+if(!esAdministrador()){toast('Solo el administrador puede recalcular el lugar estimado (LUGARCALC)',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se recalculará el lugar de nacimiento estimado de todas las personas sin lugar propio, usando el lugar real conocido del familiar más cercano (padres, hijos, cónyuges y hermanos primero; si no hay ninguno conectado, se usa España por defecto).\nEsto NUNCA modifica ni sobrescribe un lugar de nacimiento real; solo actualiza el campo separado "lugar estimado" (marcado siempre con el símbolo ≈).')))return;
+var btn=document.getElementById('btnCalcularLugaresEstimados');
+if(btn)btn.disabled=true;
+setTimeout(function(){
+var cambios;
+try{
+var resultado=calcularLugaresEstimados();
+cambios=aplicarResultadoLugaresEstimados(resultado);
+}catch(err){
+if(btn)btn.disabled=false;
+toast('No se pudo calcular: '+err.message,true);
+return;
+}
+sAll(D,{marcarANOCALCSucio:false}).then(function(){
+rStats();var siEl=document.getElementById('si');if(siEl)doSrch(siEl.value);if(cid)rFic(cid);
+if(btn)btn.disabled=false;
+toast(cambios?('Lugares estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
+}).catch(function(err){
+if(btn)btn.disabled=false;
+toast('Se calculó localmente, pero no se pudo guardar: '+err.message,true);
+});
+},20);
+}
+/* ===== VISTA DE DEPURACIÓN POR PERSONA (LUGARCALC, solo lectura) =====
+   Igual que abrirDepuracionANOCALC: recalcula bajo demanda (sin guardar
+   nada) para mostrar siempre de dónde saldría el lugar con los datos
+   actuales del árbol, aunque no coincida con el último LUGARCALC guardado
+   (p.ej. si el árbol ha cambiado desde el último recálculo manual). */
+function abrirDepuracionLUGARCALC(id){
+var p=PI[id];
+if(!p){toast('Persona no encontrada',true);return;}
+var cont=document.getElementById('depuracionLUGARCALCBody'),modal=document.getElementById('modalDepuracionLUGARCALC');
+if(!cont||!modal)return;
+if(tieneLugarReal(p)){
+cont.innerHTML='<p style="font-size:13px;color:var(--muted)">'+esc(fn(p))+' tiene un lugar de nacimiento propio ('+esc(p.LUGARNAC)+'), así que no se ha calculado ningún lugar estimado para esta persona.</p>';
+modal.style.display='flex';
+return;
+}
+var resultado=calcularLugaresEstimados();
+var est=construirEstimacionLugar(id,resultado);
+var h='<div class="fs"><h3>Resumen</h3>';
+h+='<div class="fr"><span class="fl">Persona</span><span class="fv">'+esc(fn(p))+'</span></div>';
+h+='<div class="fr"><span class="fl">Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(est.lugar)+'</span></div>';
+h+='<div class="fr"><span class="fl">Confianza</span><span class="fv">'+esc(etiquetaConfianzaLugar(est.confianza))+'</span></div>';
+h+='</div><div class="fs"><h3>Motivo</h3><p style="font-size:12px;line-height:1.6;color:var(--muted)">'+esc(est.motivo)+'</p></div>';
+cont.innerHTML=h;
+modal.style.display='flex';
+}
+function cerrarDepuracionLUGARCALC(){var m=document.getElementById('modalDepuracionLUGARCALC');if(m)m.style.display='none';}
 /* ===== TAREA 4: VISTA DE DEPURACIÓN POR PERSONA (solo lectura) =====
    Recalcula bajo demanda (sin mutar D ni guardar nada) para mostrar siempre el
    estado vigente, incluidas medias manuales aún no aplicadas con un recálculo. */
@@ -5372,6 +5552,63 @@ actualizarBarraActiva();
    la pantalla activa es una ficha, la redibuja para que aparezcan de inmediato
    los botones/avisos que dependen de estar conectado. */
 function refrescarFichaTrasConectar(){if(typeof __vistaActual!=='undefined'&&__vistaActual==='fic'&&cid)rFic(cid);}
+/* ===== Chip de edad / edad al fallecer (ficha) =====
+   Calcula la edad usando año+mes+dia reales cuando existen, o el año
+   estimado (ANOCALC) si no hay año real. Si la persona ha fallecido, la
+   edad es "al fallecer" (usa DEFA/DEFM/DEFD); si sigue viva, es la edad
+   actual respecto a hoy. Devuelve null si no hay datos suficientes o el
+   resultado no es verosímil (fuera de 0-130). */
+function edadOAlFallecer(p){
+if(!p)return null;
+var esNacEst=(!p.NACA||p.NACA==='')&&p.ANOCALC;
+var na=p.NACA?parseInt(p.NACA,10):(p.ANOCALC?parseInt(p.ANOCALC,10):NaN);
+if(isNaN(na))return null;
+var nm=p.NACM?parseInt(p.NACM,10):null,nd=p.NACD?parseInt(p.NACD,10):null;
+var al=isAl(p);
+var refA,refM,refD;
+if(al){var hoy=new Date();refA=hoy.getFullYear();refM=hoy.getMonth()+1;refD=hoy.getDate();}
+else{
+if(!p.DEFA)return null;
+refA=parseInt(p.DEFA,10);if(isNaN(refA))return null;
+refM=p.DEFM?parseInt(p.DEFM,10):null;refD=p.DEFD?parseInt(p.DEFD,10):null;
+}
+var edad=refA-na;
+if(nm&&refM&&(refM<nm||(refM===nm&&nd&&refD&&refD<nd)))edad--;
+if(edad<0||edad>130)return null;
+return{edad:edad,estimado:!!esNacEst,alFallecer:!al};
+}
+function htmlChipEdad(p){
+var info=edadOAlFallecer(p);
+if(!info)return'';
+return'<span class="fic-age-chip" title="'+(info.estimado?'Calculada a partir del año estimado (ANOCALC)':'Edad calculada a partir de las fechas registradas')+'">'+info.edad+' años'+(info.alFallecer?' al fallecer':'')+(info.estimado?' \u2248':'')+'</span>';
+}
+/* ===== Mini árbol embebido (ficha) — 3 niveles: abuelos / padres / persona =====
+   Miniatura clicable (cada nodo lleva a la ficha de esa persona) con enlace
+   aparte a "Árbol completo" (misma pantalla vArb que ya usa el resto de la
+   app, vía cid+sv('arb')). Solo se muestra si hay al menos un padre o madre
+   conocidos; si no hay ningún abuelo, la fila de abuelos se omite. */
+function nodoMiniArbol(per,claseExtra){
+if(!per)return'<div class="mt-node mt-empty" title="Desconocido">?</div>';
+return'<div class="mt-node '+(isAl(per)?'mt-al':'mt-de')+(claseExtra?' '+claseExtra:'')+'" onclick="event.stopPropagation();irAFicha(\''+safeId(per.ID)+'\')" title="'+escAttr(fn(per))+'">'+esc(ini(per))+'</div>';
+}
+function htmlMiniArbol(id,p,padreObj,madreObj,abuelos){
+if(!padreObj&&!madreObj)return'';
+function abueloDe(etq){var m=abuelos.filter(function(a){return a[0]===etq;});return m.length?m[0][1]:null;}
+var filaAbuelos='<div class="mt-row">'+nodoMiniArbol(abueloDe('Abuelo paterno'))+nodoMiniArbol(abueloDe('Abuela paterna'))+nodoMiniArbol(abueloDe('Abuelo materno'))+nodoMiniArbol(abueloDe('Abuela materna'))+'</div>';
+var filaPadres='<div class="mt-row">'+nodoMiniArbol(padreObj)+nodoMiniArbol(madreObj)+'</div>';
+var filaPersona='<div class="mt-row">'+nodoMiniArbol(p,'mt-self')+'</div>';
+return'<div class="fic-mini-tree" onclick="cid=\''+safeId(id)+'\';sv(\'arb\')" title="Ver árbol completo">'+(abuelos.length?filaAbuelos:'')+filaPadres+filaPersona+'<span class="mt-label">Árbol completo</span></div>';
+}
+/* ===== Pestañas de la ficha (Datos/Familia/Abuelos/Hermanos) =====
+   Sustituye las tarjetas apiladas por una vista con pestañas para reducir
+   el scroll. Recuerda la última pestaña elegida (localStorage) entre
+   fichas distintas. */
+function fichaTabActivaGuardada(){try{return localStorage.getItem('fichaTabActiva')||'datos';}catch(e){return'datos';}}
+function fSelTab(tab){
+document.querySelectorAll('#fco .fic-tab-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab);});
+document.querySelectorAll('#fco .fic-tab-panel').forEach(function(pn){pn.classList.toggle('active',pn.getAttribute('data-tab')===tab);});
+try{localStorage.setItem('fichaTabActiva',tab);}catch(e){}
+}
 function rFicView(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
@@ -5383,22 +5620,38 @@ if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
 var esPend=estadoGuardado.estado==='pendiente';
 h+='<div class="fic-estado-guardado '+(esPend?'pendiente':'guardado')+'" role="status"><i class="fa-solid '+(esPend?'fa-clock':'fa-check')+'" aria-hidden="true"></i> '+(esPend?'Pendiente de revisión: se aplicará cuando el administrador lo apruebe':'Guardado')+'</div>';
 }
+/* Familia directa/ampliada calculada aquí arriba porque hace falta tanto
+   para el mini árbol de la cabecera como para las pestañas Familia/Abuelos. */
+var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
+var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
+var abuelos=[];
+if(padreObj){
+if(padreObj.PADRE&&PI[padreObj.PADRE])abuelos.push(['Abuelo paterno',PI[padreObj.PADRE]]);
+if(padreObj.MADRE&&PI[padreObj.MADRE])abuelos.push(['Abuela paterna',PI[padreObj.MADRE]]);
+}
+if(madreObj){
+if(madreObj.PADRE&&PI[madreObj.PADRE])abuelos.push(['Abuelo materno',PI[madreObj.PADRE]]);
+if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj.MADRE]]);
+}
 var nacCabecera=fDate(p.NACD,p.NACM,p.NACA)||pdAnioTexto(p);
 var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
-h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+htmlChipEdad(p)+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div>'+htmlMiniArbol(id,p,padreObj,madreObj,abuelos)+'</div>';
 if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
 h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
 }
 h+=htmlAvisosFicha(id);
-h+='<div class="fs"><h3>Datos</h3><div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+esc(p.LUGARNAC)+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div></div>';
+/* ===== Pestañas Datos / Familia / Abuelos / Hermanos ===== */
+var lugarNacHtml=htmlLugarFicha(p);
+var secDatos='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
 if(esAnioEstimado(p)){
-h+='<div class="fs" style="border-style:dashed"><h3><i class="fa-solid fa-calculator"></i> Año estimado automáticamente</h3><div class="fr"><span class="fl">Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:8px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo (de dónde sale este año)</button></div></div>';
+secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
 }
-var padreObj=p.PADRE&&PI[p.PADRE]?PI[p.PADRE]:null;
-var madreObj=p.MADRE&&PI[p.MADRE]?PI[p.MADRE]:null;
+if(esLugarEstimado(p)){
+secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
+}
 var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
 var ml=madreObj?nombreFamiliarEnlazable(madreObj,'irAFicha(\''+safeId(p.MADRE)+'\')',etiquetaAnioRelacion(madreObj)):'<span style="color:var(--muted)">Desconocida</span>';
 var conyugesHtml='';
@@ -5410,32 +5663,33 @@ if(!cObj)return;
 var cl=nombreFamiliarEnlazable(cObj,'irAFicha(\''+safeId(p[campoM])+'\')',etiquetaAnioRelacion(cObj));
 var ocultoConyuge=!puedeVerPersona(cObj.ID);
 var etiquetaConyuge=conyugesLlenos.length>1?('Cónyuge '+n):'Cónyuge';
-conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+(!ocultoConyuge&&p[campoML]?' · '+esc(p[campoML]):'')+(!ocultoConyuge&&p[campoMF]?' · '+esc(fFechaMatrimonio(p[campoMF])):'')+'</span></div>';
+var detalleBoda=!ocultoConyuge?[p[campoML]?esc(p[campoML]):'',p[campoMF]?esc(fFechaMatrimonio(p[campoMF])):''].filter(Boolean).join(' · '):'';
+conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+'</span></div>'+(detalleBoda?'<div class="fr" style="margin-top:-4px"><span class="fl"></span><span class="fv" style="font-size:11px;font-weight:400;color:var(--muted)"><i class="fa-solid fa-ring" style="font-size:9px;margin-right:4px;opacity:.7"></i>'+detalleBoda+'</span></div>':'');
 });
-h+='<div class="fs"><h3>Familia</h3><div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml+'</div>';
-/* Abuelos (nuevo, v2.3): mismo patron padre.PADRE/madre.MADRE que ya usa la Cronologia
-   ("Comparativa familiar ampliada"), aqui como bloque propio de la ficha, con año real o
-   CALCULADO (ANOCALC) junto a cada uno via etiquetaAnioRelacion. */
-var abuelos=[];
-if(padreObj){
-if(padreObj.PADRE&&PI[padreObj.PADRE])abuelos.push(['Abuelo paterno',PI[padreObj.PADRE]]);
-if(padreObj.MADRE&&PI[padreObj.MADRE])abuelos.push(['Abuela paterna',PI[padreObj.MADRE]]);
-}
-if(madreObj){
-if(madreObj.PADRE&&PI[madreObj.PADRE])abuelos.push(['Abuelo materno',PI[madreObj.PADRE]]);
-if(madreObj.MADRE&&PI[madreObj.MADRE])abuelos.push(['Abuela materna',PI[madreObj.MADRE]]);
-}
-if(abuelos.length){
-var ah=abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join('');
-h+='<div class="fs"><h3>Abuelos</h3>'+ah+'</div>';
-}
+var secFamilia='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml;
+var secAbuelos=abuelos.length?abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin abuelos registrados</p>';
 var her=gHerm(id);
+her=her.length?ordenarPersonasPorEdad(her):her;
+var secHermanos;
 if(her.length){
-her=ordenarPersonasPorEdad(her);
 var hh='';
 her.forEach(function(x){if(x.ID!==id)hh+='<li>'+nombreFamiliarEnlazable(x,'irAFicha(\''+safeId(x.ID)+'\')',etiquetaAnioRelacion(x),'')+'</li>';});
-h+='<div class="fs"><h3>Hermanos ('+her.length+')</h3><ul class="ul">'+hh+'</ul></div>';
+secHermanos='<ul class="ul">'+hh+'</ul>';
+} else {
+secHermanos='<p style="font-size:12px;color:var(--muted)">Sin hermanos registrados</p>';
 }
+var tabInicial=fichaTabActivaGuardada();
+if(['datos','familia','abuelos','hermanos'].indexOf(tabInicial)===-1)tabInicial='datos';
+h+='<div class="fic-tabs" role="tablist">'+
+'<button type="button" class="fic-tab-btn'+(tabInicial==='datos'?' active':'')+'" data-tab="datos" onclick="fSelTab(\'datos\')">Datos</button>'+
+'<button type="button" class="fic-tab-btn'+(tabInicial==='familia'?' active':'')+'" data-tab="familia" onclick="fSelTab(\'familia\')">Familia</button>'+
+'<button type="button" class="fic-tab-btn'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos" onclick="fSelTab(\'abuelos\')">Abuelos ('+abuelos.length+')</button>'+
+'<button type="button" class="fic-tab-btn'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos" onclick="fSelTab(\'hermanos\')">Hermanos ('+her.length+')</button>'+
+'</div>';
+h+='<div class="fs fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-tab="datos"><h3>Datos</h3>'+secDatos+'</div>';
+h+='<div class="fs fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia"><h3>Familia</h3>'+secFamilia+'</div>';
+h+='<div class="fs fic-tab-panel'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos"><h3>Abuelos</h3>'+secAbuelos+'</div>';
+h+='<div class="fs fic-tab-panel'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos"><h3>Hermanos</h3>'+secHermanos+'</div>';
 var hij=ordenarIdsPorEdad(HD[id]||[]);
 h+='<div class="fs"><h3>Hijos ('+hij.length+')</h3>';
 if(hij.length){
@@ -6308,7 +6562,7 @@ try{
 var newId=await elegirIdNueva();
 if(!newId)return;
 var antesCambioCrear=mapaPersonas(D);
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);
 var actual=PI[id];
 if(actual){
@@ -6469,7 +6723,7 @@ var newId=await elegirIdNueva();
 if(!newId){finOperacionFicha(btn);return;}
 var antes=mapaPersonas(D);
 var duenio=PI[idDuenio];
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',AMIGOS:[]};
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:'',AMIGOS:[]};
 D.push(nuevo);
 bIdx(D);
 await anadirAmigoEntre(idDuenio,newId);
@@ -6520,7 +6774,7 @@ var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
-var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:''};
+var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
@@ -12261,6 +12515,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
 <button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
+<button class="herr-item" id="btnCalcularLugaresEstimados" onclick="recalcularLugaresEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-map-location-dot"></i></div><div class="herr-text"><div class="herr-title">Recalcular lugar estimado (LUGARCALC)</div><div class="herr-desc">Vuelve a estimar el lugar de nacimiento (\u2248) de todas las personas sin lugar propio, a partir del familiar real conocido más cercano (o España por defecto)</div></div></button>
 <div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
 <div class="herr-subhead">Documentos y fotos</div>
@@ -12355,6 +12610,16 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="depuracionANOCALCBody" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
+<!-- ===== LUGARCALC — modal de vista de depuración (mismo patrón que ANOCALC) ===== -->
+<div id="modalDepuracionLUGARCALC" role="dialog" aria-modal="true" aria-labelledby="modalDepuracionLUGARCALCTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="modalDepuracionLUGARCALCTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-map-location-dot" aria-hidden="true" style="color:var(--accent)"></i> ¿De dónde sale este lugar?</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarDepuracionLUGARCALC()">×</button>
+</div>
+<div id="depuracionLUGARCALCBody" style="overflow:auto;padding-right:2px"></div>
+</div>
+</div>
 <!-- ===== TAREA 5: ACCESIBILIDAD — gestión genérica de modales (Escape, foco) =====
      Módulo autocontenido y aditivo: no modifica IndexedDB, Google Drive, ANOCALC,
      copias ni PWA. Detecta la apertura/cierre de los modales existentes (por su
@@ -12374,6 +12639,7 @@ var MODAL_CLOSERS={
 'modalImportFotos':function(){if(typeof cerrarModalImportFotos==='function')cerrarModalImportFotos();},
 'modalConfigANOCALC':function(){if(typeof cerrarModalConfigANOCALC==='function')cerrarModalConfigANOCALC();},
 'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
+'modalDepuracionLUGARCALC':function(){if(typeof cerrarDepuracionLUGARCALC==='function')cerrarDepuracionLUGARCALC();},
 'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();},
 'modalZipSeguridad':function(){if(typeof cerrarModalZipSeguridad==='function')cerrarModalZipSeguridad();},
 'modalConexiones':function(){if(typeof cerrarRegistroConexiones==='function')cerrarRegistroConexiones();}
