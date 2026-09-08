@@ -686,6 +686,7 @@ body{background:#fff}
 <button type="button" class="pbus-pill" id="pbusPillCarrusel" onclick="seleccionarPantallaBusqueda('carrusel')" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Carrusel</button>
 <button type="button" class="pbus-pill" id="pbusPillResultados" onclick="seleccionarPantallaBusqueda('resultados')" aria-pressed="false"><i class="fa-solid fa-list" aria-hidden="true"></i> Resultados</button>
 <button type="button" class="pbus-pill" id="pbusPillEventos" onclick="seleccionarPantallaBusqueda('eventos')" aria-pressed="false"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> Eventos</button>
+<button type="button" class="pbus-pill" id="pbusPillJuego" onclick="seleccionarPantallaBusqueda('juego')" aria-pressed="false"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Juego</button>
 </div>
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar, ID u observaciones..." autocomplete="off"></div>
@@ -722,6 +723,25 @@ body{background:#fff}
 </div>
 <div class="hero-carousel-hidden" id="eventosFamiliaresPanel" style="max-width:460px;margin:12px auto 0;text-align:left">
 <div id="eventosFamiliaresLista"></div>
+</div>
+<div class="hero-carousel-hidden" id="pantallaBusJuego" style="max-width:460px;margin:12px auto 0;text-align:left">
+<div id="juegoPuntosResumen" style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-bottom:4px">
+<span id="juegoPuntosMesTexto">Puntos este mes: 0</span>
+<span id="juegoRachaTexto"></span>
+</div>
+<div id="juegoRachaActualWrap" style="text-align:right;font-size:12px;color:var(--accent);font-weight:600;min-height:16px;margin-bottom:6px"><span id="juegoRachaActualTexto"></span></div>
+<div id="juegoCard" style="background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px">
+<div id="juegoSinPreguntas" style="display:none;text-align:center;color:var(--muted);font-size:13px;padding:10px 0">Todavía no hay suficientes personas fallecidas con datos completos para generar preguntas. Añade fechas, cónyuges o hijos a las fichas y vuelve a intentarlo.</div>
+<div id="juegoContenido">
+<div id="juegoEnunciado" style="font-family:'Cinzel',serif;font-size:15px;line-height:1.4;margin-bottom:12px"></div>
+<div class="pb" style="margin:0 0 12px"><div class="pf" id="juegoBarraTiempo" style="background:var(--accent)"></div></div>
+<div id="juegoOpciones" style="display:flex;flex-direction:column;gap:8px"></div>
+<div id="juegoFeedback" style="display:none;margin-top:12px;font-size:13px"></div>
+<div id="juegoSiguienteWrap" style="display:none;margin-top:12px;text-align:center">
+<button type="button" class="ef-btn" onclick="siguientePreguntaJuego()"><i class="fa-solid fa-forward" aria-hidden="true"></i> Siguiente pregunta</button>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div id="rl"></div>
@@ -5627,7 +5647,7 @@ function abueloDe(etq){var m=abuelos.filter(function(a){return a[0]===etq;});ret
 var filaAbuelos='<div class="fac-row">'+cajaArbol(abueloDe('Abuelo paterno'))+cajaArbol(abueloDe('Abuela paterna'))+cajaArbol(abueloDe('Abuelo materno'))+cajaArbol(abueloDe('Abuela materna'))+'</div>';
 var filaPadres='<div class="fac-row">'+cajaArbol(padreObj)+cajaArbol(madreObj)+'</div>';
 var filaPersona='<div class="fac-row">'+cajaArbol(p,'fac-self',false)+'</div>';
-return'<div class="fic-arbol-caja"><div class="fac-titulo">Árbol genealógico (hasta los abuelos)</div>'+(abuelos.length?filaAbuelos+'<div class="fac-connector"></div>':'')+filaPadres+'<div class="fac-connector"></div>'+filaPersona+'</div>';
+return'<div class="fic-arbol-caja"><div class="fac-titulo">Árbol genealógico</div>'+(abuelos.length?filaAbuelos+'<div class="fac-connector"></div>':'')+filaPadres+'<div class="fac-connector"></div>'+filaPersona+'</div>';
 }
 /* ===== Pestañas de la ficha (Datos/Familia/Abuelos/Hermanos) =====
    Sustituye las tarjetas apiladas por una vista con pestañas para reducir
@@ -12098,7 +12118,7 @@ avanzarCarruselHero();
 var pantallaBusquedaActiva='carrusel';
 var pantallaBusquedaPrevia=null;
 function actualizarPantallaBusPills(){
-var mapa={carrusel:'pbusPillCarrusel',resultados:'pbusPillResultados',eventos:'pbusPillEventos'};
+var mapa={carrusel:'pbusPillCarrusel',resultados:'pbusPillResultados',eventos:'pbusPillEventos',juego:'pbusPillJuego'};
 Object.keys(mapa).forEach(function(modo){
 var btn=document.getElementById(mapa[modo]);
 if(!btn)return;
@@ -12108,7 +12128,7 @@ btn.setAttribute('aria-pressed',activa?'true':'false');
 });
 }
 function seleccionarPantallaBusqueda(modo){
-if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos')return;
+if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos'&&modo!=='juego')return;
 pantallaBusquedaActiva=modo;
 pantallaBusquedaPrevia=modo;
 aplicarPantallaBusqueda();
@@ -12117,28 +12137,269 @@ function aplicarPantallaBusqueda(){
 var contCarrusel=document.getElementById('pantallaBusCarrusel');
 var contEventos=document.getElementById('eventosFamiliaresPanel');
 var contResultados=document.getElementById('rl');
+var contJuego=document.getElementById('pantallaBusJuego');
 if(pantallaBusquedaActiva==='carrusel'){
 if(contCarrusel)contCarrusel.classList.remove('hero-carousel-hidden');
 if(contEventos)contEventos.classList.add('hero-carousel-hidden');
 if(contResultados)contResultados.classList.add('hero-carousel-hidden');
+if(contJuego)contJuego.classList.add('hero-carousel-hidden');
+detenerCronometroJuego();
 if(!heroCarruselDesactivadoPorUsuario())mostrarCarruselHero();
 }else if(pantallaBusquedaActiva==='eventos'){
 if(contCarrusel)contCarrusel.classList.add('hero-carousel-hidden');
 ocultarCarruselHero();
 if(contEventos)contEventos.classList.remove('hero-carousel-hidden');
 if(contResultados)contResultados.classList.add('hero-carousel-hidden');
+if(contJuego)contJuego.classList.add('hero-carousel-hidden');
+detenerCronometroJuego();
 renderEventosFamiliares();
+}else if(pantallaBusquedaActiva==='juego'){
+if(contCarrusel)contCarrusel.classList.add('hero-carousel-hidden');
+ocultarCarruselHero();
+if(contEventos)contEventos.classList.add('hero-carousel-hidden');
+if(contResultados)contResultados.classList.add('hero-carousel-hidden');
+if(contJuego)contJuego.classList.remove('hero-carousel-hidden');
+entrarPantallaJuego();
 }else{
 if(contCarrusel)contCarrusel.classList.add('hero-carousel-hidden');
 ocultarCarruselHero();
 if(contEventos)contEventos.classList.add('hero-carousel-hidden');
+if(contJuego)contJuego.classList.add('hero-carousel-hidden');
+detenerCronometroJuego();
 if(contResultados)contResultados.classList.remove('hero-carousel-hidden');
 }
 actualizarPantallaBusPills();
 }
+/* ===== Juego: trivia familiar (Fase 1) =====
+   Preguntas generadas automáticamente a partir de personas fallecidas con
+   datos suficientes: año de nacimiento/defunción, número de hijos, cónyuge,
+   segundo apellido y relación de parentesco con la persona activa (cid).
+   Cronómetro visual (barra .pb/.pf reutilizada): cuanto más se tarda en
+   responder, menos puntos se ganan. Los puntos de acierto se acumulan por
+   mes en la configuración local (CFG) bajo la clave juegoPuntos_AAAA-MM.
+   El ranking familiar compartido (Fase 2) queda pendiente: de momento el
+   acumulado es solo local a este dispositivo/usuario. */
+var JUEGO_TIEMPO_MS=20000;
+var JUEGO_ESTADO={pregunta:null,timerId:null,inicio:0,respondida:false,puntosSesion:0,racha:0};
+function juegoBarajar(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function juegoPersonasVisibles(){return Object.keys(PI).map(function(id){return PI[id];}).filter(function(p){return p&&puedeVerPersona(p.ID);});}
+function juegoFallecidosVisibles(){return juegoPersonasVisibles().filter(function(p){return !isAl(p);});}
+function claveMesJuego(){var d=new Date();return 'juegoPuntos_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function refrescarPuntosMesJuego(){leerValorCFG(claveMesJuego()).then(function(v){var texto=document.getElementById('juegoPuntosMesTexto');var total=v&&v.puntos?v.puntos:0;if(texto)texto.textContent='Puntos este mes: '+total;var racha=document.getElementById('juegoRachaTexto');if(racha&&v)racha.textContent=(v.aciertos||0)+'/'+(v.respuestas||0)+' aciertos · mejor racha '+(v.mejorRacha||0);});}
+function actualizarPuntosMesJuego(puntos,acierto,racha){var clave=claveMesJuego();leerValorCFG(clave).then(function(v){var actual=v||{puntos:0,respuestas:0,aciertos:0,mejorRacha:0};actual.puntos=(actual.puntos||0)+puntos;actual.respuestas=(actual.respuestas||0)+1;actual.aciertos=(actual.aciertos||0)+(acierto?1:0);actual.mejorRacha=Math.max(actual.mejorRacha||0,racha||0);return guardarValorCFG(clave,actual).then(function(){return actual;});}).then(function(actual){var texto=document.getElementById('juegoPuntosMesTexto');if(texto)texto.textContent='Puntos este mes: '+actual.puntos;var racha2=document.getElementById('juegoRachaTexto');if(racha2)racha2.textContent=actual.aciertos+'/'+actual.respuestas+' aciertos · mejor racha '+actual.mejorRacha;});}
+function juegoPreguntaAnio(campo,etiqueta){
+var candidatos=juegoFallecidosVisibles().filter(function(p){return p[campo]&&!isNaN(parseInt(p[campo],10));});
+if(!candidatos.length)return null;
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var correcto=parseInt(p[campo],10);
+var offsets=juegoBarajar([-25,-18,-12,-8,-5,5,8,12,18,25]);
+var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
+for(var i=0;i<offsets.length&&opciones.length<4;i++){var v=correcto+offsets[i];if(v>0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
+if(opciones.length<2)return null;
+return{enunciado:'¿En qué año '+etiqueta+' '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+}
+function juegoPreguntaNumHijos(){
+var candidatos=juegoFallecidosVisibles();
+if(!candidatos.length)return null;
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var correcto=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
+var pool=juegoBarajar([-3,-2,-1,1,2,3,4]);
+var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
+for(var i=0;i<pool.length&&opciones.length<4;i++){var v=correcto+pool[i];if(v>=0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
+if(opciones.length<2)return null;
+return{enunciado:'¿Cuántos hijos tuvo '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+}
+function juegoPreguntaConyuge(){
+var candidatos=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
+if(!candidatos.length)return null;
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var conys=conyugesDe(p.ID).filter(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});
+var correctoId=conys[Math.floor(Math.random()*conys.length)];
+var correctoNombre=fn(PI[correctoId]);
+var pool=juegoPersonasVisibles().filter(function(x){return x.ID!==p.ID&&x.ID!==correctoId&&fn(x).trim()!==correctoNombre.trim();});
+if(pool.length<3)return null;
+var distractores=juegoBarajar(pool).slice(0,3).map(function(x){return{texto:fn(x),correcta:false};});
+var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
+return{enunciado:'¿Quién fue cónyuge de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+}
+function juegoPreguntaApellido2(){
+var candidatos=juegoFallecidosVisibles().filter(function(p){return p.APELLIDO2;});
+if(!candidatos.length)return null;
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var correcto=p.APELLIDO2;
+var pool=juegoPersonasVisibles().filter(function(x){return x.APELLIDO2&&x.APELLIDO2!==correcto;});
+var apellidosUnicos=juegoBarajar(Array.from(new Set(pool.map(function(x){return x.APELLIDO2;}))));
+if(apellidosUnicos.length<3)return null;
+var opciones=[{texto:correcto,correcta:true}].concat(apellidosUnicos.slice(0,3).map(function(a){return{texto:a,correcta:false};}));
+return{enunciado:'¿Cuál es el segundo apellido de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+}
+function juegoPreguntaParentesco(){
+if(!cid||!PI[cid])return null;
+var candidatos=juegoBarajar(juegoFallecidosVisibles().filter(function(p){return p.ID!==cid;}));
+var etiquetasComunes=['Padre','Madre','Hijo/a','Hermano/a','Abuelo/a','Nieto/a','Tío/a','Primo/a hermano/a','Cuñado/a','Suegro/a','Yerno/nuera'];
+for(var i=0;i<candidatos.length&&i<25;i++){
+var p=candidatos[i];
+var rel=calcularParentescoDesde(cid,p.ID);
+if(!rel||!rel.corto||rel.corto==='Misma persona')continue;
+var correcto=rel.corto;
+var distractoresPool=juegoBarajar(etiquetasComunes.filter(function(e){return e.toLowerCase()!==correcto.toLowerCase();}));
+var opciones=[{texto:correcto,correcta:true}].concat(distractoresPool.slice(0,3).map(function(e){return{texto:e,correcta:false};}));
+return{enunciado:'¿Qué relación de parentesco tiene '+fn(p)+' contigo (respecto a la persona activa)?',opciones:juegoBarajar(opciones)};
+}
+return null;
+}
+function juegoPreguntaVerdaderoFalso(){
+var tipos=juegoBarajar(['hijos','conyuge','edadRelativa']);
+for(var t=0;t<tipos.length;t++){
+if(tipos[t]==='hijos'){
+var candidatos=juegoFallecidosVisibles();
+if(candidatos.length){
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var real=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
+var esVerdadero=Math.random()<0.5;
+var numMostrado=real;
+if(!esVerdadero){
+var opcionesDelta=juegoBarajar([-3,-2,-1,1,2,3]).filter(function(d){return real+d>=0;});
+if(!opcionesDelta.length)continue;
+numMostrado=real+opcionesDelta[0];
+}
+return{enunciado:fn(p)+' tuvo '+numMostrado+' '+(numMostrado===1?'hijo':'hijos')+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero},{texto:'Falso',correcta:!esVerdadero}])};
+}
+}
+if(tipos[t]==='conyuge'){
+var candidatos2=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(c){return PI[c]&&puedeVerPersona(c);});});
+if(candidatos2.length){
+var p2=candidatos2[Math.floor(Math.random()*candidatos2.length)];
+var conys2=conyugesDe(p2.ID).filter(function(c){return PI[c]&&puedeVerPersona(c);});
+var esVerdadero2=Math.random()<0.5;
+var otraPersona;
+if(esVerdadero2){
+otraPersona=PI[conys2[Math.floor(Math.random()*conys2.length)]];
+}else{
+var pool2=juegoPersonasVisibles().filter(function(x){return x.ID!==p2.ID&&conys2.indexOf(x.ID)===-1;});
+if(!pool2.length)continue;
+otraPersona=pool2[Math.floor(Math.random()*pool2.length)];
+}
+return{enunciado:fn(p2)+' fue cónyuge de '+fn(otraPersona)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero2},{texto:'Falso',correcta:!esVerdadero2}])};
+}
+}
+if(tipos[t]==='edadRelativa'){
+var candidatos3=juegoFallecidosVisibles().filter(function(p){return p.NACA&&conyugesDe(p.ID).some(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});});
+if(candidatos3.length){
+var p3=candidatos3[Math.floor(Math.random()*candidatos3.length)];
+var conys3=conyugesDe(p3.ID).filter(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});
+var conyuge3=PI[conys3[Math.floor(Math.random()*conys3.length)]];
+if(parseInt(p3.NACA,10)===parseInt(conyuge3.NACA,10))continue;
+var real3=parseInt(p3.NACA,10)<parseInt(conyuge3.NACA,10);
+return{enunciado:fn(p3)+' nació antes que '+fn(conyuge3)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:real3},{texto:'Falso',correcta:!real3}])};
+}
+}
+}
+return null;
+}
+function juegoMultiplicadorRacha(racha){
+if(racha>=7)return 2;
+if(racha>=5)return 1.5;
+if(racha>=3)return 1.25;
+if(racha>=2)return 1.1;
+return 1;
+}
+function generarPreguntaJuego(){
+var generadores=juegoBarajar([
+function(){return juegoPreguntaAnio('NACA','nació');},
+function(){return juegoPreguntaAnio('DEFA','falleció');},
+function(){return juegoPreguntaNumHijos();},
+function(){return juegoPreguntaConyuge();},
+function(){return juegoPreguntaApellido2();},
+function(){return juegoPreguntaParentesco();},
+function(){return juegoPreguntaVerdaderoFalso();}
+]);
+for(var i=0;i<generadores.length;i++){var preg=generadores[i]();if(preg)return preg;}
+return null;
+}
+function detenerCronometroJuego(){if(JUEGO_ESTADO.timerId){clearInterval(JUEGO_ESTADO.timerId);JUEGO_ESTADO.timerId=null;}}
+function renderPreguntaJuego(preg){
+var enun=document.getElementById('juegoEnunciado');if(enun)enun.textContent=preg.enunciado;
+var opsWrap=document.getElementById('juegoOpciones');
+if(opsWrap)opsWrap.innerHTML=preg.opciones.map(function(op,idx){return '<button type="button" class="ef-btn ghost" style="text-align:left" onclick="responderJuego('+idx+')">'+esc(op.texto)+'</button>';}).join('');
+var fb=document.getElementById('juegoFeedback');if(fb){fb.style.display='none';fb.innerHTML='';}
+var sig=document.getElementById('juegoSiguienteWrap');if(sig)sig.style.display='none';
+}
+function iniciarPreguntaJuego(){
+detenerCronometroJuego();
+var preg=generarPreguntaJuego();
+var sinPreguntas=document.getElementById('juegoSinPreguntas'),contenido=document.getElementById('juegoContenido');
+if(!preg){
+if(sinPreguntas)sinPreguntas.style.display='block';
+if(contenido)contenido.style.display='none';
+JUEGO_ESTADO.pregunta=null;
+return;
+}
+if(sinPreguntas)sinPreguntas.style.display='none';
+if(contenido)contenido.style.display='block';
+JUEGO_ESTADO.pregunta=preg;
+JUEGO_ESTADO.respondida=false;
+JUEGO_ESTADO.inicio=Date.now();
+renderPreguntaJuego(preg);
+var barra=document.getElementById('juegoBarraTiempo');
+if(barra)barra.style.width='100%';
+JUEGO_ESTADO.timerId=setInterval(function(){
+var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
+var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
+if(barra)barra.style.width=(restanteFrac*100)+'%';
+if(restanteFrac<=0)responderJuego(-1);
+},100);
+}
+function responderJuego(idx){
+if(!JUEGO_ESTADO.pregunta||JUEGO_ESTADO.respondida)return;
+JUEGO_ESTADO.respondida=true;
+detenerCronometroJuego();
+var preg=JUEGO_ESTADO.pregunta;
+var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
+var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
+var opcion=idx>=0?preg.opciones[idx]:null;
+var acierto=!!(opcion&&opcion.correcta);
+var puntosBase=acierto?Math.max(10,Math.round(100*restanteFrac)):0;
+var rachaAnterior=JUEGO_ESTADO.racha||0;
+var rachaPerdida=false,multiplicador=1,puntos=0;
+if(acierto){
+JUEGO_ESTADO.racha=rachaAnterior+1;
+multiplicador=juegoMultiplicadorRacha(JUEGO_ESTADO.racha);
+puntos=Math.round(puntosBase*multiplicador);
+}else{
+rachaPerdida=rachaAnterior>0;
+JUEGO_ESTADO.racha=0;
+puntos=0;
+}
+JUEGO_ESTADO.puntosSesion=(JUEGO_ESTADO.puntosSesion||0)+puntos;
+var opsWrap=document.getElementById('juegoOpciones');
+if(opsWrap){
+var btns=opsWrap.querySelectorAll('button');
+btns.forEach(function(btn,i2){
+btn.disabled=true;
+if(preg.opciones[i2].correcta){btn.style.borderColor='#2e7d32';btn.style.color='#2e7d32';}
+else if(i2===idx){btn.style.borderColor='#c62828';btn.style.color='#c62828';}
+});
+}
+var fb=document.getElementById('juegoFeedback');
+if(fb){
+fb.style.display='block';
+var titulo=acierto?'<strong style="color:#2e7d32">¡Correcto!</strong> ':(idx===-1?'<strong style="color:#c62828">Se acabó el tiempo.</strong> ':'<strong style="color:#c62828">No es correcto.</strong> ');
+var extraRacha=acierto&&multiplicador>1?' (racha ×'+multiplicador+')':'';
+var lineaPerdida=rachaPerdida?'<br><span style="color:#c62828">💥 Racha perdida.</span>':'';
+fb.innerHTML=titulo+'Has ganado '+puntos+' puntos'+extraRacha+'.'+lineaPerdida;
+}
+var rachaActualSpan=document.getElementById('juegoRachaActualTexto');
+if(rachaActualSpan)rachaActualSpan.textContent=JUEGO_ESTADO.racha>=2?'🔥 Racha: '+JUEGO_ESTADO.racha:'';
+var sig=document.getElementById('juegoSiguienteWrap');if(sig)sig.style.display='block';
+actualizarPuntosMesJuego(puntos,acierto,JUEGO_ESTADO.racha);
+}
+function siguientePreguntaJuego(){iniciarPreguntaJuego();}
+function entrarPantallaJuego(){refrescarPuntosMesJuego();iniciarPreguntaJuego();}
 /* ===== Eventos familiares =====
-   Próximos cumpleaños y aniversarios de fallecimiento de los familiares más
-   cercanos a la persona activa (cid), reutilizando lo que ya existe:
+   Próximos cumpleaños, santos (solo de los vivos, ver SANTORAL más abajo) y
+   aniversarios de fallecimiento de los familiares más cercanos a la persona
+   activa (cid), reutilizando lo que ya existe:
    - vecinosParentesco()/BFS ya usado por buscarCaminoParentesco, para medir
      "cercanía" en nº de saltos (padre/madre/hijo/hermano/cónyuge=1 salto).
    - calcularParentesco() para la etiqueta ("Madre", "Nieto de su hermano"...).
@@ -12205,6 +12466,67 @@ if(mesNum)return{dia:parseInt(m[1],10),mes:mesNum,anio:parseInt(m[3],10)};
 }
 return null;
 }
+/* ===== Santoral (onomástica) =====
+   Calendario aproximado con los nombres más habituales en España, para poder
+   mostrar el "santo" de las personas VIVAS en Eventos familiares (los
+   difuntos no tienen onomástica que celebrar). No es una fuente litúrgica
+   exhaustiva ni oficial: recoge, para cada nombre, la fecha que más
+   popularmente se celebra en España. Se puede ampliar o corregir añadiendo
+   entradas al objeto SANTORAL (clave = nombre en mayúsculas y sin acentos,
+   valor = {dia:D, mes:M}). Cuando una persona tiene varios nombres y el
+   primero es "María" o "José" (p.ej. "María del Carmen", "José Antonio"),
+   por convención se usa el santo del segundo nombre si está en el
+   calendario, tal y como se celebra habitualmente. */
+var SANTORAL={
+'ALBERTO':{dia:15,mes:11},'ALEJANDRO':{dia:3,mes:5},'ALFONSO':{dia:1,mes:8},
+'ALVARO':{dia:19,mes:2},'AMBROSIO':{dia:7,mes:12},'ANA':{dia:26,mes:7},
+'ANDRES':{dia:30,mes:11},'ANGEL':{dia:2,mes:10},'ANGELA':{dia:2,mes:10},
+'ANTONIO':{dia:13,mes:6},'BARBARA':{dia:4,mes:12},'BARTOLOME':{dia:24,mes:8},
+'BEATRIZ':{dia:29,mes:8},'BEGOÑA':{dia:11,mes:10},'BENITO':{dia:11,mes:7},
+'BERNARDO':{dia:20,mes:8},'BLAS':{dia:3,mes:2},'CARLOS':{dia:4,mes:11},
+'CARMEN':{dia:16,mes:7},'CATALINA':{dia:25,mes:11},'CECILIA':{dia:22,mes:11},
+'CLARA':{dia:11,mes:8},'COVADONGA':{dia:8,mes:9},'CRISTINA':{dia:24,mes:7},
+'CRISTOBAL':{dia:10,mes:7},'DANIEL':{dia:11,mes:12},'DAVID':{dia:29,mes:12},
+'DIEGO':{dia:13,mes:11},'DOLORES':{dia:15,mes:9},'DOMINGO':{dia:8,mes:8},
+'DOROTEA':{dia:6,mes:2},'EDUARDO':{dia:13,mes:10},'ELENA':{dia:18,mes:8},
+'EMILIO':{dia:22,mes:5},'ENRIQUE':{dia:13,mes:7},'ERNESTO':{dia:7,mes:11},
+'ESTEBAN':{dia:26,mes:12},'EUGENIA':{dia:25,mes:12},'FATIMA':{dia:13,mes:5},
+'FELIPE':{dia:3,mes:5},'FERNANDO':{dia:30,mes:5},'FRANCISCO':{dia:4,mes:10},
+'GABRIEL':{dia:29,mes:9},'GLORIA':{dia:15,mes:8},'GONZALO':{dia:10,mes:1},
+'GREGORIO':{dia:3,mes:9},'GUILLERMO':{dia:25,mes:6},'HUGO':{dia:1,mes:4},
+'IGNACIO':{dia:31,mes:7},'INES':{dia:21,mes:1},'IRENE':{dia:5,mes:4},
+'ISABEL':{dia:19,mes:11},'ISIDORO':{dia:15,mes:5},'ISIDRO':{dia:15,mes:5},
+'JAVIER':{dia:3,mes:12},'JESUS':{dia:3,mes:1},'JOAQUIN':{dia:26,mes:7},
+'JORGE':{dia:23,mes:4},'JOSE':{dia:19,mes:3},'JOSEFA':{dia:19,mes:3},
+'JUAN':{dia:24,mes:6},'JULIA':{dia:22,mes:5},'JULIO':{dia:12,mes:4},
+'LAURA':{dia:19,mes:10},'LORENZO':{dia:10,mes:8},'LUCAS':{dia:18,mes:10},
+'LUCIA':{dia:13,mes:12},'LUIS':{dia:25,mes:8},'MANUEL':{dia:1,mes:1},
+'MARCOS':{dia:25,mes:4},'MARGARITA':{dia:20,mes:7},'MARIA':{dia:15,mes:8},
+'MARTA':{dia:29,mes:7},'MARTIN':{dia:11,mes:11},'MATEO':{dia:21,mes:9},
+'MERCEDES':{dia:24,mes:9},'MIGUEL':{dia:29,mes:9},'MONICA':{dia:27,mes:8},
+'NATALIA':{dia:1,mes:12},'NICOLAS':{dia:6,mes:12},'NURIA':{dia:8,mes:9},
+'OLGA':{dia:11,mes:7},'OSCAR':{dia:3,mes:2},'PABLO':{dia:29,mes:6},
+'PATRICIA':{dia:25,mes:8},'PATRICIO':{dia:17,mes:3},'PAULA':{dia:26,mes:1},
+'PAZ':{dia:24,mes:1},'PEDRO':{dia:29,mes:6},'PILAR':{dia:12,mes:10},
+'RAFAEL':{dia:29,mes:9},'RAIMUNDO':{dia:7,mes:1},'RAMON':{dia:31,mes:8},
+'RICARDO':{dia:3,mes:4},'ROBERTO':{dia:17,mes:9},'RODRIGO':{dia:13,mes:3},
+'ROSA':{dia:23,mes:8},'ROSARIO':{dia:7,mes:10},'SALVADOR':{dia:6,mes:8},
+'SANTIAGO':{dia:25,mes:7},'SEBASTIAN':{dia:20,mes:1},'SERGIO':{dia:7,mes:10},
+'SILVIA':{dia:3,mes:11},'SOFIA':{dia:30,mes:9},'SUSANA':{dia:11,mes:8},
+'TERESA':{dia:15,mes:10},'TOMAS':{dia:3,mes:7},'VALENTIN':{dia:14,mes:2},
+'VERONICA':{dia:4,mes:2},'VICENTE':{dia:22,mes:1},'VICTOR':{dia:21,mes:7},
+'VICTORIA':{dia:23,mes:12},'YOLANDA':{dia:11,mes:6}
+};
+function normalizaNombrePila(s){return quitarAcentos(String(s||'')).toUpperCase().trim();}
+function santoDePersona(p){
+var nombre=normalizaNombrePila(p.NOMBRE);
+if(!nombre)return null;
+if(SANTORAL[nombre])return SANTORAL[nombre];
+var partes=nombre.split(/\s+/).filter(Boolean);
+if(partes.length>1&&(partes[0]==='MARIA'||partes[0]==='JOSE')&&SANTORAL[partes[1]])return SANTORAL[partes[1]];
+if(SANTORAL[partes[0]])return SANTORAL[partes[0]];
+return null;
+}
 function calcularEventosFamiliares(idCentral){
 if(!idCentral||!PI[idCentral])return[];
 var cercanos=personasCercanas(idCentral,EVENTOS_FAM_MAX_PASOS);
@@ -12221,6 +12543,11 @@ var fNac=proximaFechaDesde(p.NACD,p.NACM,hoy,EVENTOS_FAM_DIAS);
 if(fNac&&p.NACA){
 var edad=fNac.getFullYear()-parseInt(p.NACA,10);
 if(edad>0)eventos.push({fecha:fNac,persona:p,relacion:relTxt,tipo:'cumple',texto:edad+'º cumpleaños de '+fn(p)});
+}
+var santo=santoDePersona(p);
+if(santo){
+var fSanto=proximaFechaDesde(santo.dia,santo.mes,hoy,EVENTOS_FAM_DIAS);
+if(fSanto)eventos.push({fecha:fSanto,persona:p,relacion:relTxt,tipo:'santo',texto:'Santo de '+fn(p)});
 }
 }else{
 var fDef=proximaFechaDesde(p.DEFD,p.DEFM,hoy,EVENTOS_FAM_DIAS);
@@ -12270,7 +12597,7 @@ return;
 var eventos=calcularEventosFamiliares(idCentral);
 if(!eventos.length){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">No hay cumpleaños ni aniversarios de tu familia más cercana en los próximos '+EVENTOS_FAM_DIAS+' días.</p>';return;}
 var EVF_SEM=['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-var EVF_ICONOS={cumple:'fa-cake-candles',defuncion:'fa-leaf',boda:'fa-heart'};
+var EVF_ICONOS={cumple:'fa-cake-candles',defuncion:'fa-leaf',boda:'fa-heart',santo:'fa-dove'};
 var h='',claveMesAnterior=null;
 eventos.forEach(function(ev){
 var clave=ev.fecha.getFullYear()+'-'+ev.fecha.getMonth();
