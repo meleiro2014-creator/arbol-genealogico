@@ -404,6 +404,12 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .inf-sel{max-width:520px;margin:0 auto 18px}
 .inf-sel-box{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:10px 14px;text-align:center;font-size:13px;font-weight:700;margin-bottom:10px}
 .inf-sel-box.empty{color:var(--muted);font-weight:400}
+.rel-sel-box{display:flex;align-items:center;justify-content:center;gap:10px}
+.rel-sel-foto{display:none;flex:0 0 auto}
+.rel-sel-foto img{width:34px;height:34px;border-radius:50%;object-fit:cover;display:block}
+.rel-sel-foto .rel-sel-inicial{width:34px;height:34px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted)}
+.rel-sel-box.empty .rel-sel-foto{display:none}
+.rel-sel-txt{min-width:0}
 .print-area{position:fixed;left:-10000px;top:0}
 .print-report h1{font-family:'Cinzel',serif;font-size:20px;margin-bottom:2px}
 /* ===== MANUAL DE USUARIO — diseno editorial (portada, indice y secciones) ===== */
@@ -909,14 +915,14 @@ body{background:#fff}
 <div class="rel-picker">
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona A</div>
-<div id="relSelBoxA" class="inf-sel-box empty">Ninguna seleccionada</div>
-<div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelA" class="sr-only">Buscar persona A</label><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
+<div class="search-box" style="margin:0 0 8px"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelA" class="sr-only">Buscar persona A</label><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
+<div id="relSelBoxA" class="inf-sel-box rel-sel-box empty"><span class="rel-sel-foto" id="relSelFotoA"></span><span class="rel-sel-txt" id="relSelTxtA">Ninguna seleccionada</span></div>
 <div id="rlRelA"></div>
 </div>
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona B</div>
-<div id="relSelBoxB" class="inf-sel-box empty">Ninguna seleccionada</div>
-<div class="search-box" style="margin:8px 0 0"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelB" class="sr-only">Buscar persona B</label><input type="text" id="siRelB" placeholder="Buscar persona B..." autocomplete="off"></div>
+<div class="search-box" style="margin:0 0 8px"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelB" class="sr-only">Buscar persona B</label><input type="text" id="siRelB" placeholder="Buscar persona B..." autocomplete="off"></div>
+<div id="relSelBoxB" class="inf-sel-box rel-sel-box empty"><span class="rel-sel-foto" id="relSelFotoB"></span><span class="rel-sel-txt" id="relSelTxtB">Ninguna seleccionada</span></div>
 <div id="rlRelB"></div>
 </div>
 </div>
@@ -5777,6 +5783,7 @@ h+='<div class="fs fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-ta
 h+='<div class="fs fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia"><h3>Familia</h3>'+secFamilia+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos"><h3>Abuelos</h3>'+secAbuelos+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos"><h3>Hermanos</h3>'+secHermanos+'</div>';
+if(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)h+='<div style="margin-top:14px"><button type="button" class="ef-btn" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
 }
@@ -8990,10 +8997,13 @@ return capitalizar(paso.tipo);
 var relIdA=null,relIdB=null;
 function actualizarCadenaRel(letra,persona){
 var box=document.getElementById('relSelBox'+letra);
+var foto=document.getElementById('relSelFoto'+letra),txt=document.getElementById('relSelTxt'+letra);
 var cadena=document.getElementById('relCadena'+letra),cadenaTxt=document.getElementById('relCadenaTxt'+letra);
 var cadenaCount=document.getElementById('relCadenaCount'+letra);
 if(persona){
-box.textContent=fn(persona);box.classList.remove('empty');
+txt.textContent=fn(persona);box.classList.remove('empty');
+foto.innerHTML=persona.FOTO?'<img src="'+escAttr(persona.FOTO)+'" alt="">':'<span class="rel-sel-inicial">'+esc(ini(persona))+'</span>';
+foto.style.display='';
 var info=fnEncadenadoInfo(persona);
 cadenaTxt.textContent=info.texto;cadena.style.display='';
 cadenaTxt.onclick=null;
@@ -9002,7 +9012,8 @@ var detalle=etiquetaGeneracionCadena(info.generaciones);
 cadenaCount.textContent=' ('+info.apellidos+(info.apellidos===1?' apellido':' apellidos')+(detalle?' · '+detalle:'')+')';
 }
 }else{
-box.textContent='Ninguna seleccionada';box.classList.add('empty');
+txt.textContent='Ninguna seleccionada';box.classList.add('empty');
+foto.innerHTML='';foto.style.display='none';
 cadenaTxt.textContent='';cadena.style.display='none';
 cadenaTxt.onclick=null;
 if(cadenaCount)cadenaCount.textContent='';
