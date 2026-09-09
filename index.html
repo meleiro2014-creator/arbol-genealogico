@@ -734,6 +734,7 @@ body{background:#fff}
 <div id="juegoSinPreguntas" style="display:none;text-align:center;color:var(--muted);font-size:13px;padding:10px 0">Todavía no hay suficientes personas, dentro de tus tatarabuelos y su descendencia, con datos completos para generar preguntas. Añade fechas, cónyuges o hijos a las fichas y vuelve a intentarlo.</div>
 <div id="juegoContenido">
 <div id="juegoCategoria" style="font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--accent);margin-bottom:6px"></div>
+<div id="juegoFotoWrap" style="display:none;text-align:center;margin-bottom:12px"><img id="juegoFotoImg" src="" alt="" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:contain"></div>
 <div id="juegoEnunciado" style="font-family:'Cinzel',serif;font-size:15px;line-height:1.4;margin-bottom:12px"></div>
 <div id="juegoVerFichaWrap" style="margin-bottom:12px"></div>
 <div id="juegoOpciones" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -12234,6 +12235,9 @@ var sinPadres=!(p.PADRE&&PI[p.PADRE])&&!(p.MADRE&&PI[p.MADRE]);
 if(d===4||sinPadres)topes[id]=true;
 }
 });
+var raizObj=PI[raiz];
+var raizSinPadres=!(raizObj.PADRE&&PI[raizObj.PADRE])&&!(raizObj.MADRE&&PI[raizObj.MADRE]);
+if(raizSinPadres)topes[raiz]=true; /* si la propia raíz no tiene ascendientes conocidos, ella misma actúa de "tope" de su línea, para no dejar el ámbito reducido solo a sí misma */
 Object.keys(topes).forEach(function(topeId){
 var queue=[topeId];
 while(queue.length){
@@ -12376,6 +12380,56 @@ if(racha>=3)return 1.25;
 if(racha>=2)return 1.1;
 return 1;
 }
+/* Un texto de OBSERVACIONES "sirve" para el juego si parece una nota
+   biográfica real y no un artefacto administrativo (fusiones, importaciones,
+   valores de relleno) ni algo demasiado corto para ser reconocible. También
+   se puede excluir a mano marcando la observación con el prefijo "[privado]"
+   (en cualquier posición), para dejar fuera del juego notas delicadas. */
+var JUEGO_OBS_PATRONES_EXCLUIDOS=[/\[fusionado con el registro/i,/^s\/d$/i,/^desconocid[oa]$/i,/\[privado\]/i,/^ref\.\s*árbol/i];
+function juegoObservacionUtil(texto){
+if(!texto)return null;
+var t=String(texto).trim();
+if(t.length<20)return null;
+for(var i=0;i<JUEGO_OBS_PATRONES_EXCLUIDOS.length;i++){if(JUEGO_OBS_PATRONES_EXCLUIDOS[i].test(t))return null;}
+return t;
+}
+function juegoFragmentoObservacion(texto,maxLen){
+maxLen=maxLen||110;
+var linea=texto.split('\n')[0].trim();
+if(linea.length<=maxLen)return linea;
+var corte=linea.slice(0,maxLen);
+var ultimoEspacio=corte.lastIndexOf(' ');
+if(ultimoEspacio>maxLen*0.6)corte=corte.slice(0,ultimoEspacio);
+return corte+'…';
+}
+function juegoPreguntaFoto(){
+var candidatos=juegoFallecidosAmbito().filter(function(p){return p.FOTO;});
+if(!candidatos.length)return null;
+var p=candidatos[Math.floor(Math.random()*candidatos.length)];
+var correctoNombre=fn(p);
+var pool=juegoDistractoresPool(3).filter(function(x){return x.ID!==p.ID&&fn(x).trim()!==correctoNombre.trim();});
+if(pool.length<3)return null;
+var distractores=juegoBarajar(pool).slice(0,3).map(function(x){return{texto:fn(x),correcta:false};});
+var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
+return{enunciado:'¿Quién es esta persona?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Fotos',foto:p.FOTO};
+}
+function juegoPreguntaObservacion(){
+var candidatos=juegoFallecidosAmbito().map(function(p){var u=juegoObservacionUtil(p.OBSERVACIONES);return u?{p:p,obs:u}:null;}).filter(Boolean);
+if(!candidatos.length)return null;
+var elegido=candidatos[Math.floor(Math.random()*candidatos.length)];
+var p=elegido.p;
+var correctoTexto=juegoFragmentoObservacion(elegido.obs);
+var poolObs=juegoFallecidosAmbito().map(function(x){var u=juegoObservacionUtil(x.OBSERVACIONES);return u?{p:x,obs:u}:null;}).filter(function(o){return o&&o.p.ID!==p.ID;});
+if(poolObs.length<3){
+/* si dentro del ámbito no hay suficientes observaciones "sanas" para
+   hacer de señuelo, recurrimos a todas las personas visibles */
+poolObs=juegoPersonasVisibles().map(function(x){var u=juegoObservacionUtil(x.OBSERVACIONES);return u?{p:x,obs:u}:null;}).filter(function(o){return o&&o.p.ID!==p.ID;});
+}
+if(poolObs.length<3)return null;
+var distractores=juegoBarajar(poolObs).slice(0,3).map(function(o){return{texto:juegoFragmentoObservacion(o.obs),correcta:false};});
+var opciones=[{texto:correctoTexto,correcta:true}].concat(distractores);
+return{enunciado:'¿Cuál de estas observaciones corresponde a '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Observaciones'};
+}
 function generarPreguntaJuego(){
 var generadores=juegoBarajar([
 function(){return juegoPreguntaAnio('NACA','nació');},
@@ -12384,7 +12438,9 @@ function(){return juegoPreguntaNumHijos();},
 function(){return juegoPreguntaConyuge();},
 function(){return juegoPreguntaApellido2();},
 function(){return juegoPreguntaParentesco();},
-function(){return juegoPreguntaVerdaderoFalso();}
+function(){return juegoPreguntaVerdaderoFalso();},
+function(){return juegoPreguntaFoto();},
+function(){return juegoPreguntaObservacion();}
 ]);
 for(var i=0;i<generadores.length;i++){var preg=generadores[i]();if(preg)return preg;}
 return null;
@@ -12411,6 +12467,11 @@ wrap.innerHTML='<button type="button" class="ef-btn ghost" style="font-size:12px
 }
 function renderPreguntaJuego(preg){
 var cat=document.getElementById('juegoCategoria');if(cat)cat.textContent=preg.categoria||'';
+var fotoWrap=document.getElementById('juegoFotoWrap'),fotoImg=document.getElementById('juegoFotoImg');
+if(fotoWrap&&fotoImg){
+if(preg.foto){fotoImg.src=preg.foto;fotoWrap.style.display='block';}
+else{fotoImg.src='';fotoWrap.style.display='none';}
+}
 var enun=document.getElementById('juegoEnunciado');if(enun)enun.textContent=preg.enunciado;
 var opsWrap=document.getElementById('juegoOpciones');
 if(opsWrap)opsWrap.innerHTML=preg.opciones.map(function(op,idx){return '<button type="button" class="ef-btn ghost" style="text-align:left" onclick="responderJuego('+idx+')">'+esc(op.texto)+'</button>';}).join('');
