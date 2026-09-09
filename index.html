@@ -12196,13 +12196,30 @@ actualizarPantallaBusPills();
    acumulado es solo local a este dispositivo/usuario. */
 var JUEGO_PUNTOS_ACIERTO=100;
 var JUEGO_ESTADO={pregunta:null,respondida:false,puntosSesion:0,racha:0,consultada:false,viendoFichaDesdeJuego:false};
-/* Relación de parentesco (respecto a la persona activa "cid") que se
-   antepone al nombre en las preguntas, ej: "tu primo Juan Pérez",
-   "tu abuelo Antonio", "tu pariente directo en 3ª líneas". Si no hay
-   persona activa o no hay relación calculable, se usa solo el nombre. */
+/* ===== "Quién eres tú" para el juego =====
+   El parentesco que se muestra en las preguntas ("tu primo...", "tu
+   abuelo...") no puede depender de la "persona activa" (cid), porque esa
+   variable cambia constantemente al navegar por la app (Árbol, Ficha,
+   Informes...) y muchas veces está vacía al entrar directamente al Juego.
+   Por eso el juego guarda su propia identidad ("¿quién eres tú en el
+   árbol?") ya no se pregunta: se usa directamente la ficha que el
+   administrador vinculó a la cuenta de Google conectada (Herramientas →
+   Acceso), que es exactamente el mismo dato que usa el resto de la app
+   para saber "quién eres" (miFichaId()). */
+function juegoObtenerYoId(){
+var id=miFichaId();
+if(!id||!PI[id]||!puedeVerPersona(id))return null;
+return id;
+}
+/* Relación de parentesco (respecto a la ficha vinculada a tu cuenta) que se
+   antepone al nombre en las preguntas, ej: "tu primo Juan Pérez", "tu
+   abuelo Antonio", "tu pariente directo en 3ª líneas". Si tu cuenta no
+   tiene ficha vinculada o no hay relación calculable, se usa solo el
+   nombre. */
 function juegoParentescoTexto(personaId){
-if(!cid||!PI[cid]||!personaId||personaId===cid)return'';
-var rel=calcularParentescoDesde(cid,personaId);
+var yoId=juegoObtenerYoId();
+if(!yoId||!personaId||personaId===yoId)return'';
+var rel=calcularParentescoDesde(yoId,personaId);
 if(!rel||!rel.corto||rel.corto==='Misma persona')return'';
 var texto=rel.corto;
 if(/ascendiente directo|descendiente directo/i.test(texto)){
@@ -12272,12 +12289,13 @@ var opciones=[{texto:correcto,correcta:true}].concat(apellidosUnicos.slice(0,3).
 return{enunciado:'¿Cuál es el segundo apellido de '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaParentesco(){
-if(!cid||!PI[cid])return null;
-var candidatos=juegoBarajar(juegoFallecidosVisibles().filter(function(p){return p.ID!==cid;}));
+var yoId=juegoObtenerYoId();
+if(!yoId)return null;
+var candidatos=juegoBarajar(juegoFallecidosVisibles().filter(function(p){return p.ID!==yoId;}));
 var etiquetasComunes=['padre','madre','hijo/a','hermano/a','abuelo/a','bisabuelo/a','tatarabuelo/a','nieto/a','tío/a','primo/a hermano/a','primo/a segundo/a','cuñado/a','suegro/a','yerno/nuera','pariente directo en varias líneas'];
 for(var i=0;i<candidatos.length&&i<25;i++){
 var p=candidatos[i];
-var rel=calcularParentescoDesde(cid,p.ID);
+var rel=calcularParentescoDesde(yoId,p.ID);
 if(!rel||!rel.corto||rel.corto==='Misma persona')continue;
 var textoRel=rel.corto;
 if(/ascendiente directo|descendiente directo/i.test(textoRel)){
