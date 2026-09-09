@@ -3470,6 +3470,28 @@ finally{botonCargando(btn,false);}
 var HERM_PM={};
 function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});if(typeof invalidarCachePersonasVisibles==='function')invalidarCachePersonasVisibles();}
 function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE;if(!pa&&!ma)return[];var ids=HERM_PM[(pa||'')+'|'+(ma||'')]||[];var r=[];for(var i=0;i<ids.length;i++){if(ids[i]!==id&&PI[ids[i]])r.push(PI[ids[i]]);}return r;}
+/* Ascendientes a partir de bisabuelos (nivel 3) y tatarabuelos (nivel 4): recorre PADRE/MADRE
+   recursivamente desde idRaiz y devuelve, para cada rama que llega hasta ese nivel exacto, la
+   persona encontrada junto con el camino de pasos ('P'=padre,'M'=madre) que se siguió. */
+function ascendientesNivel(idRaiz,nivel){
+var raiz=PI[idRaiz];if(!raiz)return[];
+var out=[];
+(function rec(persona,pasos,path){
+if(!persona)return;
+if(pasos===0){out.push({p:persona,path:path});return;}
+if(persona.PADRE&&PI[persona.PADRE])rec(PI[persona.PADRE],pasos-1,path.concat('P'));
+if(persona.MADRE&&PI[persona.MADRE])rec(PI[persona.MADRE],pasos-1,path.concat('M'));
+})(raiz,nivel,[]);
+return out;
+}
+var NOMBRE_GEN_ASC={3:['Bisabuelo','Bisabuela'],4:['Tatarabuelo','Tatarabuela']};
+function etiquetaAscendienteNivel(nivel,path,persona){
+var nombres=NOMBRE_GEN_ASC[nivel];if(!nombres)return path.join('-');
+var esF=sexoLetra(persona)==='F';
+var base=nombres[esF?1:0];
+var adj=esF?{'P':'paterna','M':'materna'}:{'P':'paterno','M':'materno'};
+return base+' '+path.map(function(c){return adj[c];}).join('-');
+}
 function fDate(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];return d+' de '+ms[parseInt(m)||0]+' de '+a;}
 function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return d+' '+ms[parseInt(m)||0]+' '+a;}
 function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?::0{2})?(?:\.0+)?Z?$/,'');}
@@ -5748,7 +5770,19 @@ var etiquetaConyuge=conyugesLlenos.length>1?('Cónyuge '+n):'Cónyuge';
 var detalleBoda=!ocultoConyuge?[p[campoML]?esc(p[campoML]):'',p[campoMF]?esc(fFechaMatrimonio(p[campoMF])):''].filter(Boolean).join(' · '):'';
 conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+'</span></div>'+(detalleBoda?'<div class="fr" style="margin-top:-4px"><span class="fl"></span><span class="fv" style="font-size:11px;font-weight:400;color:var(--muted)"><i class="fa-solid fa-ring" style="font-size:9px;margin-right:4px;opacity:.7"></i>'+detalleBoda+'</span></div>':'');
 });
-var secFamilia='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml;
+var her=gHerm(id);
+her=her.length?ordenarPersonasPorEdad(her):her;
+var secHermanosBloque;
+if(her.length){
+var hh='';
+her.forEach(function(x){if(x.ID!==id)hh+='<li>'+nombreFamiliarEnlazable(x,'irAFicha(\''+safeId(x.ID)+'\')',etiquetaAnioRelacion(x),'')+'</li>';});
+secHermanosBloque='<ul class="ul">'+hh+'</ul>';
+} else {
+secHermanosBloque='<p style="font-size:12px;color:var(--muted)">Sin hermanos registrados</p>';
+}
+var secFamilia='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>';
+secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Hermanos ('+her.length+')</h3>'+secHermanosBloque+'</div>';
+if(conyugesHtml)secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+conyugesHtml+'</div>';
 var hij=ordenarIdsPorEdad(HD[id]||[]);
 secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Hijos ('+hij.length+')</h3>';
 if(hij.length){
@@ -5761,29 +5795,24 @@ secFamilia+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados<
 secFamilia+='</div>';
 var htmlAmigosFamilia=htmlSeccionAmigos(id);
 if(htmlAmigosFamilia)secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+htmlAmigosFamilia+'</div>';
-var secAbuelos=abuelos.length?abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin abuelos registrados</p>';
-var her=gHerm(id);
-her=her.length?ordenarPersonasPorEdad(her):her;
-var secHermanos;
-if(her.length){
-var hh='';
-her.forEach(function(x){if(x.ID!==id)hh+='<li>'+nombreFamiliarEnlazable(x,'irAFicha(\''+safeId(x.ID)+'\')',etiquetaAnioRelacion(x),'')+'</li>';});
-secHermanos='<ul class="ul">'+hh+'</ul>';
-} else {
-secHermanos='<p style="font-size:12px;color:var(--muted)">Sin hermanos registrados</p>';
-}
+var secAbuelosBloque=abuelos.length?abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin abuelos registrados</p>';
+var bisabuelos=ascendientesNivel(id,3).map(function(a){return[etiquetaAscendienteNivel(3,a.path,a.p),a.p];});
+var secBisabuelosBloque=bisabuelos.length?bisabuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin bisabuelos registrados</p>';
+var tatarabuelos=ascendientesNivel(id,4).map(function(a){return[etiquetaAscendienteNivel(4,a.path,a.p),a.p];});
+var secTatarabuelosBloque=tatarabuelos.length?tatarabuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin tatarabuelos registrados</p>';
+var secExtendida='<div><h3 style="margin:0 0 6px">Abuelos ('+abuelos.length+')</h3>'+secAbuelosBloque+'</div>'+
+'<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Bisabuelos ('+bisabuelos.length+')</h3>'+secBisabuelosBloque+'</div>'+
+'<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Tatarabuelos ('+tatarabuelos.length+')</h3>'+secTatarabuelosBloque+'</div>';
 var tabInicial=fichaTabActivaGuardada();
-if(['datos','familia','abuelos','hermanos'].indexOf(tabInicial)===-1)tabInicial='datos';
+if(['datos','familia','extendida'].indexOf(tabInicial)===-1)tabInicial='datos';
 h+='<div class="fic-tabs" role="tablist">'+
 '<button type="button" class="fic-tab-btn'+(tabInicial==='datos'?' active':'')+'" data-tab="datos" onclick="fSelTab(\'datos\')">Datos</button>'+
 '<button type="button" class="fic-tab-btn'+(tabInicial==='familia'?' active':'')+'" data-tab="familia" onclick="fSelTab(\'familia\')">Familia</button>'+
-'<button type="button" class="fic-tab-btn'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos" onclick="fSelTab(\'abuelos\')">Abuelos ('+abuelos.length+')</button>'+
-'<button type="button" class="fic-tab-btn'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos" onclick="fSelTab(\'hermanos\')">Hermanos ('+her.length+')</button>'+
+'<button type="button" class="fic-tab-btn'+(tabInicial==='extendida'?' active':'')+'" data-tab="extendida" onclick="fSelTab(\'extendida\')">Familia extendida ('+(abuelos.length+bisabuelos.length+tatarabuelos.length)+')</button>'+
 '</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-tab="datos"><h3>Datos</h3>'+secDatos+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia"><h3>Familia</h3>'+secFamilia+'</div>';
-h+='<div class="fs fic-tab-panel'+(tabInicial==='abuelos'?' active':'')+'" data-tab="abuelos"><h3>Abuelos</h3>'+secAbuelos+'</div>';
-h+='<div class="fs fic-tab-panel'+(tabInicial==='hermanos'?' active':'')+'" data-tab="hermanos"><h3>Hermanos</h3>'+secHermanos+'</div>';
+h+='<div class="fs fic-tab-panel'+(tabInicial==='extendida'?' active':'')+'" data-tab="extendida"><h3>Familia extendida</h3>'+secExtendida+'</div>';
 if(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)h+='<div style="margin-top:14px"><button type="button" class="ef-btn" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
