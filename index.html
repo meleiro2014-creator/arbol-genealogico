@@ -141,6 +141,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .fs{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:10px}
 .fs h3{font-size:10px;color:var(--muted);margin-bottom:7px;font-family:'Lato',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:1px}
 .fr{display:flex;gap:8px;margin-bottom:4px;font-size:13px}.fl{color:var(--muted);min-width:85px;font-weight:700;font-size:10px}.fv{font-weight:600}
+.rel-nodo-anio{display:inline-block;font-weight:400;font-size:11px;color:var(--muted);margin-left:4px}
 .anocalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
 .fic-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:3px;-webkit-overflow-scrolling:touch}
 .fic-tabs::-webkit-scrollbar{height:4px}
@@ -8994,6 +8995,13 @@ if(paso.tipo==='hermano')return capitalizar(formaSexo('hermano','hermana',sexoDe
 if(paso.tipo==='conyuge')return sexoDestino==='M'?'Esposo':(sexoDestino==='F'?'Esposa':'Cónyuge');
 return capitalizar(paso.tipo);
 }
+/* Año de nacimiento (real o ANOCALC) que se muestra junto a cada persona del
+   camino genealógico, para poder situarla en el tiempo de un vistazo. */
+function camino_nacTxt(p){
+var y=pdAnioTexto(p);
+if(!y)return'';
+return' <span class="rel-nodo-anio'+(esAnioEstimado(p)?' anocalc-tag':'')+'">n. '+esc(String(y))+'</span>';
+}
 var relIdA=null,relIdB=null;
 function actualizarCadenaRel(letra,persona){
 var box=document.getElementById('relSelBox'+letra);
@@ -9036,7 +9044,7 @@ var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
-f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
+f.forEach(function(p){var y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
 lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaRel(id,letra){
@@ -9066,12 +9074,12 @@ h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún cam
 }else if(!camino.length){
 h+='<p style="font-size:13px;color:var(--muted)">Es la misma persona.</p>';
 }else{
-h+='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]).trim())+'</div>';
+h+='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]).trim())+camino_nacTxt(PI[relIdA])+'</div>';
 camino.forEach(function(paso){
 var vis=puedeVerPersona(paso.hasta);
 h+='<div class="rel-flecha"><i class="fa-solid fa-arrow-down"></i><span>'+esc(etiquetaPaso(paso))+'</span></div>';
 if(vis){
-h+='<div class="rel-nodo'+(paso.hasta===relIdB?' root':'')+'" onclick="selP(\''+safeId(paso.hasta)+'\')">'+esc(fn(PI[paso.hasta]).trim())+'</div>';
+h+='<div class="rel-nodo'+(paso.hasta===relIdB?' root':'')+'" onclick="selP(\''+safeId(paso.hasta)+'\')">'+esc(fn(PI[paso.hasta]).trim())+camino_nacTxt(PI[paso.hasta])+'</div>';
 }else{
 h+='<div class="rel-nodo" style="cursor:default;font-style:italic;color:var(--muted)" title="No tienes acceso a esta ficha">Persona no visible</div>';
 }
