@@ -729,14 +729,15 @@ body{background:#fff}
 <span id="juegoPuntosMesTexto">Puntos este mes: 0</span>
 <span id="juegoRachaTexto"></span>
 </div>
-<div id="juegoRachaActualWrap" style="text-align:right;font-size:12px;color:var(--accent);font-weight:600;min-height:16px;margin-bottom:6px"><span id="juegoRachaActualTexto"></span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+<span id="juegoRachaActualTexto" style="font-size:12px;color:var(--accent);font-weight:600"></span>
+<button type="button" class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirModalConcursoJuego()"><i class="fa-solid fa-trophy" aria-hidden="true"></i> Concurso</button>
+</div>
 <div id="juegoCard" style="background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px">
-<div id="juegoSinPreguntas" style="display:none;text-align:center;color:var(--muted);font-size:13px;padding:10px 0">Todavía no hay suficientes personas, dentro de tus tatarabuelos y su descendencia, con datos completos para generar preguntas. Añade fechas, cónyuges o hijos a las fichas y vuelve a intentarlo.</div>
+<div id="juegoSinPreguntas" style="display:none;text-align:center;color:var(--muted);font-size:13px;padding:10px 0">Todavía no hay suficientes personas fallecidas con datos completos para generar preguntas. Añade fechas, cónyuges o hijos a las fichas y vuelve a intentarlo.</div>
 <div id="juegoContenido">
-<div id="juegoCategoria" style="font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--accent);margin-bottom:6px"></div>
-<div id="juegoFotoWrap" style="display:none;text-align:center;margin-bottom:12px"><img id="juegoFotoImg" src="" alt="" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:contain"></div>
 <div id="juegoEnunciado" style="font-family:'Cinzel',serif;font-size:15px;line-height:1.4;margin-bottom:12px"></div>
-<div id="juegoVerFichaWrap" style="margin-bottom:12px"></div>
+<div class="pb" style="margin:0 0 12px"><div class="pf" id="juegoBarraTiempo" style="background:var(--accent)"></div></div>
 <div id="juegoOpciones" style="display:flex;flex-direction:column;gap:8px"></div>
 <div id="juegoFeedback" style="display:none;margin-top:12px;font-size:13px"></div>
 <div id="juegoSiguienteWrap" style="display:none;margin-top:12px;text-align:center">
@@ -744,7 +745,6 @@ body{background:#fff}
 </div>
 </div>
 </div>
-<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px"><span id="juegoPuntosSesionTexto"></span></div>
 </div>
 </div>
 <div id="rl"></div>
@@ -1827,8 +1827,7 @@ return true;
    decidir si una persona puede mostrarse/buscarse/abrirse. */
 var __cacheComponentes=null; /* {clave,indice,tamanos,principal} o null */
 var __cachePersonasVisiblesAmigo=null;
-var __cacheAmbitoJuego=null; /* {raiz,set} o null; ver calcularAmbitoJuego() más abajo */
-function invalidarCachePersonasVisibles(){__cacheComponentes=null;__cachePersonasVisiblesAmigo=null;__cacheAmbitoJuego=null;}
+function invalidarCachePersonasVisibles(){__cacheComponentes=null;__cachePersonasVisiblesAmigo=null;}
 function calcularComponentesConexos(){
 var clave=(D&&D.length?D.length+'|'+D[D.length-1].ID:'0');
 if(__cacheComponentes&&__cacheComponentes.clave===clave)return __cacheComponentes;
@@ -5667,8 +5666,7 @@ function rFicView(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
-var vieneDelJuego=!!(JUEGO_ESTADO&&JUEGO_ESTADO.volviendoDesdeFicha);
-var h='<div class="bb" onclick="'+(vieneDelJuego?'volverAJuegoDesdeFicha()':'navHistBackSafe()')+'"><i class="fa-solid fa-arrow-left"></i> '+(vieneDelJuego?'Volver al juego':'Volver')+'</div>';
+var h='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
 h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
@@ -12179,91 +12177,21 @@ actualizarPantallaBusPills();
    Preguntas generadas automáticamente a partir de personas fallecidas con
    datos suficientes: año de nacimiento/defunción, número de hijos, cónyuge,
    segundo apellido y relación de parentesco con la persona activa (cid).
-   Sin límite de tiempo: se responde con calma, sin cronómetro ni barra de
-   cuenta atrás. Los puntos de acierto se acumulan por mes en la
-   configuración local (CFG) bajo la clave juegoPuntos_AAAA-MM.
+   Cronómetro visual (barra .pb/.pf reutilizada): cuanto más se tarda en
+   responder, menos puntos se ganan. Los puntos de acierto se acumulan por
+   mes en la configuración local (CFG) bajo la clave juegoPuntos_AAAA-MM.
    El ranking familiar compartido (Fase 2) queda pendiente: de momento el
-   acumulado es solo local a este dispositivo/usuario.
-   ===== Alcance de las preguntas =====
-   El "sujeto" de cada pregunta (la persona sobre la que se pregunta) se
-   restringe al ámbito familiar cercano del usuario: sus tatarabuelos
-   (incluidos) y todos los descendientes de estos (lo que cubre, de paso,
-   padres, hermanos, tíos, primos, sobrinos, etc.), más -por encima de los
-   tatarabuelos- únicamente su línea directa de ascendientes (sin la
-   descendencia de esos antepasados más lejanos, para no acabar
-   preguntando por parientes muy remotos y desconocidos). El "usuario" es
-   la ficha vinculada a la cuenta de Google conectada (miFichaId()); si no
-   hay ninguna vinculada, se usa como referencia la persona activa (cid).
-   Ver calcularAmbitoJuego(). Los distractores (opciones incorrectas) sí
-   pueden salir de fuera de ese ámbito cuando no hay suficientes dentro,
-   para no dejar preguntas sin generar por falta de datos.
-   ===== Botón "Ver ficha" =====
-   Desde cualquier pregunta se puede abrir la ficha de la persona
-   protagonista (subjetoId) para consultar sus datos con calma; al volver
-   con el botón "Volver al juego" se retoma la MISMA pregunta (no se
-   genera una nueva), pero al responder los puntos de esa pregunta se
-   dividen entre 3 (ver JUEGO_ESTADO.fichaConsultada). */
-var JUEGO_ESTADO={pregunta:null,respondida:false,puntosSesion:0,racha:0,fichaConsultada:false,volviendoDesdeFicha:false,cidAntesFicha:null};
+   acumulado es solo local a este dispositivo/usuario. */
+var JUEGO_TIEMPO_MS=20000;
+var JUEGO_ESTADO={pregunta:null,timerId:null,inicio:0,respondida:false,puntosSesion:0,racha:0};
 function juegoBarajar(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function juegoPersonasVisibles(){return Object.keys(PI).map(function(id){return PI[id];}).filter(function(p){return p&&puedeVerPersona(p.ID);});}
 function juegoFallecidosVisibles(){return juegoPersonasVisibles().filter(function(p){return !isAl(p);});}
-/* Persona de referencia para calcular el ámbito del juego: la ficha
-   vinculada a la cuenta de Google conectada, o si no hay ninguna, la
-   persona activa (cid). Puede no existir ninguna de las dos (p.ej. nadie
-   conectado y sin persona activa todavía), en cuyo caso el juego no
-   restringe el ámbito (se comporta como antes, con todo el árbol visible). */
-function juegoIdReferencia(){return(typeof miFichaId==='function'&&miFichaId())||cid||null;}
-/* Calcula el conjunto de IDs dentro del ámbito del juego (ver comentario de
-   cabecera). Devuelve null si no hay persona de referencia (sin restricción).
-   Cacheado por persona de referencia; se invalida junto con el resto de
-   cachés de visibilidad en invalidarCachePersonasVisibles(). */
-function calcularAmbitoJuego(){
-var raiz=juegoIdReferencia();
-if(__cacheAmbitoJuego&&__cacheAmbitoJuego.raiz===raiz)return __cacheAmbitoJuego.set;
-var set=null;
-if(raiz&&PI[raiz]){
-var ancestros=mapaAncestros(raiz,30);
-var amb={};amb[raiz]=true;
-var topes={};
-Object.keys(ancestros).forEach(function(id){
-var d=ancestros[id];
-if(d===0)return;
-amb[id]=true;
-if(d<=4){
-var p=PI[id];
-var sinPadres=!(p.PADRE&&PI[p.PADRE])&&!(p.MADRE&&PI[p.MADRE]);
-if(d===4||sinPadres)topes[id]=true;
-}
-});
-var raizObj=PI[raiz];
-var raizSinPadres=!(raizObj.PADRE&&PI[raizObj.PADRE])&&!(raizObj.MADRE&&PI[raizObj.MADRE]);
-if(raizSinPadres)topes[raiz]=true; /* si la propia raíz no tiene ascendientes conocidos, ella misma actúa de "tope" de su línea, para no dejar el ámbito reducido solo a sí misma */
-Object.keys(topes).forEach(function(topeId){
-var queue=[topeId];
-while(queue.length){
-var pid=queue.shift();
-(HD[pid]||[]).forEach(function(hid){if(!amb[hid]){amb[hid]=true;queue.push(hid);}});
-}
-});
-set=amb;
-}
-__cacheAmbitoJuego={raiz:raiz,set:set};
-return set;
-}
-/* Personas (resp. fallecidas) visibles Y dentro del ámbito del juego, para
-   elegir el SUJETO de una pregunta: sin recurrir a nadie fuera del ámbito. */
-function juegoPersonasAmbito(){var base=juegoPersonasVisibles();var amb=calcularAmbitoJuego();return amb?base.filter(function(p){return amb[p.ID];}):base;}
-function juegoFallecidosAmbito(){var base=juegoFallecidosVisibles();var amb=calcularAmbitoJuego();return amb?base.filter(function(p){return amb[p.ID];}):base;}
-/* Para DISTRACTORES (opciones incorrectas): preferimos también quedarnos
-   dentro del ámbito (nombres reconocibles), pero si no hay suficientes
-   recurrimos a todas las personas visibles para no dejar sin generar la
-   pregunta. */
-function juegoDistractoresPool(minLen){var pool=juegoPersonasAmbito();return pool.length>=minLen?pool:juegoPersonasVisibles();}
 function claveMesJuego(){var d=new Date();return 'juegoPuntos_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function refrescarPuntosMesJuego(){leerValorCFG(claveMesJuego()).then(function(v){var texto=document.getElementById('juegoPuntosMesTexto');var total=v&&v.puntos?v.puntos:0;if(texto)texto.textContent='Puntos este mes: '+total;var racha=document.getElementById('juegoRachaTexto');if(racha&&v)racha.textContent=(v.aciertos||0)+'/'+(v.respuestas||0)+' aciertos · mejor racha '+(v.mejorRacha||0);});}
-function actualizarPuntosMesJuego(puntos,acierto,racha){var clave=claveMesJuego();leerValorCFG(clave).then(function(v){var actual=v||{puntos:0,respuestas:0,aciertos:0,mejorRacha:0};actual.puntos=(actual.puntos||0)+puntos;actual.respuestas=(actual.respuestas||0)+1;actual.aciertos=(actual.aciertos||0)+(acierto?1:0);actual.mejorRacha=Math.max(actual.mejorRacha||0,racha||0);return guardarValorCFG(clave,actual).then(function(){return actual;});}).then(function(actual){var texto=document.getElementById('juegoPuntosMesTexto');if(texto)texto.textContent='Puntos este mes: '+actual.puntos;var racha2=document.getElementById('juegoRachaTexto');if(racha2)racha2.textContent=actual.aciertos+'/'+actual.respuestas+' aciertos · mejor racha '+actual.mejorRacha;});}
+function actualizarPuntosMesJuego(puntos,acierto,racha){var clave=claveMesJuego();leerValorCFG(clave).then(function(v){var actual=v||{puntos:0,respuestas:0,aciertos:0,mejorRacha:0};actual.puntos=(actual.puntos||0)+puntos;actual.respuestas=(actual.respuestas||0)+1;actual.aciertos=(actual.aciertos||0)+(acierto?1:0);actual.mejorRacha=Math.max(actual.mejorRacha||0,racha||0);return guardarValorCFG(clave,actual).then(function(){return actual;});}).then(function(actual){var texto=document.getElementById('juegoPuntosMesTexto');if(texto)texto.textContent='Puntos este mes: '+actual.puntos;var racha2=document.getElementById('juegoRachaTexto');if(racha2)racha2.textContent=actual.aciertos+'/'+actual.respuestas+' aciertos · mejor racha '+actual.mejorRacha;if(googleIdentidad&&googleIdentidad.email&&tokenDriveValido()){sincronizarConcursoJuego().catch(function(){});}});}
 function juegoPreguntaAnio(campo,etiqueta){
-var candidatos=juegoFallecidosAmbito().filter(function(p){return p[campo]&&!isNaN(parseInt(p[campo],10));});
+var candidatos=juegoFallecidosVisibles().filter(function(p){return p[campo]&&!isNaN(parseInt(p[campo],10));});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=parseInt(p[campo],10);
@@ -12271,10 +12199,10 @@ var offsets=juegoBarajar([-25,-18,-12,-8,-5,5,8,12,18,25]);
 var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
 for(var i=0;i<offsets.length&&opciones.length<4;i++){var v=correcto+offsets[i];if(v>0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
 if(opciones.length<2)return null;
-return{enunciado:'¿En qué año '+etiqueta+' '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Fechas'};
+return{enunciado:'¿En qué año '+etiqueta+' '+fn(p)+'?',opciones:juegoBarajar(opciones)};
 }
 function juegoPreguntaNumHijos(){
-var candidatos=juegoFallecidosAmbito();
+var candidatos=juegoFallecidosVisibles();
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
@@ -12282,45 +12210,51 @@ var pool=juegoBarajar([-3,-2,-1,1,2,3,4]);
 var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
 for(var i=0;i<pool.length&&opciones.length<4;i++){var v=correcto+pool[i];if(v>=0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
 if(opciones.length<2)return null;
-return{enunciado:'¿Cuántos hijos tuvo '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Descendencia'};
+return{enunciado:'¿Cuántos hijos tuvo '+fn(p)+'?',opciones:juegoBarajar(opciones)};
 }
 function juegoPreguntaConyuge(){
-var candidatos=juegoFallecidosAmbito().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
+var candidatos=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var conys=conyugesDe(p.ID).filter(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});
 var correctoId=conys[Math.floor(Math.random()*conys.length)];
 var correctoNombre=fn(PI[correctoId]);
-var pool=juegoDistractoresPool(3).filter(function(x){return x.ID!==p.ID&&x.ID!==correctoId&&fn(x).trim()!==correctoNombre.trim();});
+var pool=juegoPersonasVisibles().filter(function(x){return x.ID!==p.ID&&x.ID!==correctoId&&fn(x).trim()!==correctoNombre.trim();});
 if(pool.length<3)return null;
 var distractores=juegoBarajar(pool).slice(0,3).map(function(x){return{texto:fn(x),correcta:false};});
 var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
-return{enunciado:'¿Quién fue cónyuge de '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Matrimonios'};
+return{enunciado:'¿Quién fue cónyuge de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
 }
 function juegoPreguntaApellido2(){
-var candidatos=juegoFallecidosAmbito().filter(function(p){return p.APELLIDO2;});
+var candidatos=juegoFallecidosVisibles().filter(function(p){return p.APELLIDO2;});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=p.APELLIDO2;
-var pool=juegoDistractoresPool(3).filter(function(x){return x.APELLIDO2&&x.APELLIDO2!==correcto;});
+var pool=juegoPersonasVisibles().filter(function(x){return x.APELLIDO2&&x.APELLIDO2!==correcto;});
 var apellidosUnicos=juegoBarajar(Array.from(new Set(pool.map(function(x){return x.APELLIDO2;}))));
 if(apellidosUnicos.length<3)return null;
 var opciones=[{texto:correcto,correcta:true}].concat(apellidosUnicos.slice(0,3).map(function(a){return{texto:a,correcta:false};}));
-return{enunciado:'¿Cuál es el segundo apellido de '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Apellidos'};
+return{enunciado:'¿Cuál es el segundo apellido de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
 }
 function juegoPreguntaParentesco(){
-var ref=juegoIdReferencia();
-if(!ref||!PI[ref])return null;
-var candidatos=juegoBarajar(juegoFallecidosAmbito().filter(function(p){return p.ID!==ref;}));
-var etiquetasComunes=['Padre','Madre','Hijo/a','Hermano/a','Abuelo/a','Nieto/a','Tío/a','Primo/a hermano/a','Cuñado/a','Suegro/a','Yerno/nuera'];
+if(!cid||!PI[cid])return null;
+var candidatos=juegoBarajar(juegoFallecidosVisibles().filter(function(p){return p.ID!==cid;}));
+var etiquetasComunes=['padre','madre','hijo/a','hermano/a','abuelo/a','bisabuelo/a','tatarabuelo/a','nieto/a','tío/a','primo/a hermano/a','primo/a segundo/a','cuñado/a','suegro/a','yerno/nuera','pariente directo en varias líneas'];
 for(var i=0;i<candidatos.length&&i<25;i++){
 var p=candidatos[i];
-var rel=calcularParentescoDesde(ref,p.ID);
+var rel=calcularParentescoDesde(cid,p.ID);
 if(!rel||!rel.corto||rel.corto==='Misma persona')continue;
-var correcto=rel.corto;
-var distractoresPool=juegoBarajar(etiquetasComunes.filter(function(e){return e.toLowerCase()!==correcto.toLowerCase();}));
-var opciones=[{texto:correcto,correcta:true}].concat(distractoresPool.slice(0,3).map(function(e){return{texto:e,correcta:false};}));
-return{enunciado:'¿Qué relación de parentesco tiene '+fn(p)+' contigo?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Parentesco'};
+var textoRel=rel.corto;
+if(/ascendiente directo|descendiente directo/i.test(textoRel)){
+var m=textoRel.match(/\((\d+)ª generación\)/);
+textoRel='pariente directo en '+(m?m[1]:'varias')+' líneas';
+}else{
+textoRel=textoRel.charAt(0).toLowerCase()+textoRel.slice(1);
+}
+var correcto='Tu '+textoRel;
+var distractoresPool=juegoBarajar(etiquetasComunes.filter(function(e){return e.toLowerCase()!==textoRel.toLowerCase();}));
+var opciones=[{texto:correcto,correcta:true}].concat(distractoresPool.slice(0,3).map(function(e){return{texto:'Tu '+e,correcta:false};}));
+return{enunciado:'¿Qué relación de parentesco tienes con '+fn(p)+'?',opciones:juegoBarajar(opciones)};
 }
 return null;
 }
@@ -12328,7 +12262,7 @@ function juegoPreguntaVerdaderoFalso(){
 var tipos=juegoBarajar(['hijos','conyuge','edadRelativa']);
 for(var t=0;t<tipos.length;t++){
 if(tipos[t]==='hijos'){
-var candidatos=juegoFallecidosAmbito();
+var candidatos=juegoFallecidosVisibles();
 if(candidatos.length){
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var real=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
@@ -12339,11 +12273,11 @@ var opcionesDelta=juegoBarajar([-3,-2,-1,1,2,3]).filter(function(d){return real+
 if(!opcionesDelta.length)continue;
 numMostrado=real+opcionesDelta[0];
 }
-return{enunciado:fn(p)+' tuvo '+numMostrado+' '+(numMostrado===1?'hijo':'hijos')+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero},{texto:'Falso',correcta:!esVerdadero}]),subjetoId:p.ID,categoria:'Verdadero o falso'};
+return{enunciado:fn(p)+' tuvo '+numMostrado+' '+(numMostrado===1?'hijo':'hijos')+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero},{texto:'Falso',correcta:!esVerdadero}])};
 }
 }
 if(tipos[t]==='conyuge'){
-var candidatos2=juegoFallecidosAmbito().filter(function(p){return conyugesDe(p.ID).some(function(c){return PI[c]&&puedeVerPersona(c);});});
+var candidatos2=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(c){return PI[c]&&puedeVerPersona(c);});});
 if(candidatos2.length){
 var p2=candidatos2[Math.floor(Math.random()*candidatos2.length)];
 var conys2=conyugesDe(p2.ID).filter(function(c){return PI[c]&&puedeVerPersona(c);});
@@ -12352,22 +12286,22 @@ var otraPersona;
 if(esVerdadero2){
 otraPersona=PI[conys2[Math.floor(Math.random()*conys2.length)]];
 }else{
-var pool2=juegoDistractoresPool(1).filter(function(x){return x.ID!==p2.ID&&conys2.indexOf(x.ID)===-1;});
+var pool2=juegoPersonasVisibles().filter(function(x){return x.ID!==p2.ID&&conys2.indexOf(x.ID)===-1;});
 if(!pool2.length)continue;
 otraPersona=pool2[Math.floor(Math.random()*pool2.length)];
 }
-return{enunciado:fn(p2)+' fue cónyuge de '+fn(otraPersona)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero2},{texto:'Falso',correcta:!esVerdadero2}]),subjetoId:p2.ID,categoria:'Verdadero o falso'};
+return{enunciado:fn(p2)+' fue cónyuge de '+fn(otraPersona)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero2},{texto:'Falso',correcta:!esVerdadero2}])};
 }
 }
 if(tipos[t]==='edadRelativa'){
-var candidatos3=juegoFallecidosAmbito().filter(function(p){return p.NACA&&conyugesDe(p.ID).some(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});});
+var candidatos3=juegoFallecidosVisibles().filter(function(p){return p.NACA&&conyugesDe(p.ID).some(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});});
 if(candidatos3.length){
 var p3=candidatos3[Math.floor(Math.random()*candidatos3.length)];
 var conys3=conyugesDe(p3.ID).filter(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});
 var conyuge3=PI[conys3[Math.floor(Math.random()*conys3.length)]];
 if(parseInt(p3.NACA,10)===parseInt(conyuge3.NACA,10))continue;
 var real3=parseInt(p3.NACA,10)<parseInt(conyuge3.NACA,10);
-return{enunciado:fn(p3)+' nació antes que '+fn(conyuge3)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:real3},{texto:'Falso',correcta:!real3}]),subjetoId:p3.ID,categoria:'Verdadero o falso'};
+return{enunciado:fn(p3)+' nació antes que '+fn(conyuge3)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:real3},{texto:'Falso',correcta:!real3}])};
 }
 }
 }
@@ -12380,56 +12314,6 @@ if(racha>=3)return 1.25;
 if(racha>=2)return 1.1;
 return 1;
 }
-/* Un texto de OBSERVACIONES "sirve" para el juego si parece una nota
-   biográfica real y no un artefacto administrativo (fusiones, importaciones,
-   valores de relleno) ni algo demasiado corto para ser reconocible. También
-   se puede excluir a mano marcando la observación con el prefijo "[privado]"
-   (en cualquier posición), para dejar fuera del juego notas delicadas. */
-var JUEGO_OBS_PATRONES_EXCLUIDOS=[/\[fusionado con el registro/i,/^s\/d$/i,/^desconocid[oa]$/i,/\[privado\]/i,/^ref\.\s*árbol/i];
-function juegoObservacionUtil(texto){
-if(!texto)return null;
-var t=String(texto).trim();
-if(t.length<20)return null;
-for(var i=0;i<JUEGO_OBS_PATRONES_EXCLUIDOS.length;i++){if(JUEGO_OBS_PATRONES_EXCLUIDOS[i].test(t))return null;}
-return t;
-}
-function juegoFragmentoObservacion(texto,maxLen){
-maxLen=maxLen||110;
-var linea=texto.split('\n')[0].trim();
-if(linea.length<=maxLen)return linea;
-var corte=linea.slice(0,maxLen);
-var ultimoEspacio=corte.lastIndexOf(' ');
-if(ultimoEspacio>maxLen*0.6)corte=corte.slice(0,ultimoEspacio);
-return corte+'…';
-}
-function juegoPreguntaFoto(){
-var candidatos=juegoFallecidosAmbito().filter(function(p){return p.FOTO;});
-if(!candidatos.length)return null;
-var p=candidatos[Math.floor(Math.random()*candidatos.length)];
-var correctoNombre=fn(p);
-var pool=juegoDistractoresPool(3).filter(function(x){return x.ID!==p.ID&&fn(x).trim()!==correctoNombre.trim();});
-if(pool.length<3)return null;
-var distractores=juegoBarajar(pool).slice(0,3).map(function(x){return{texto:fn(x),correcta:false};});
-var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
-return{enunciado:'¿Quién es esta persona?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Fotos',foto:p.FOTO};
-}
-function juegoPreguntaObservacion(){
-var candidatos=juegoFallecidosAmbito().map(function(p){var u=juegoObservacionUtil(p.OBSERVACIONES);return u?{p:p,obs:u}:null;}).filter(Boolean);
-if(!candidatos.length)return null;
-var elegido=candidatos[Math.floor(Math.random()*candidatos.length)];
-var p=elegido.p;
-var correctoTexto=juegoFragmentoObservacion(elegido.obs);
-var poolObs=juegoFallecidosAmbito().map(function(x){var u=juegoObservacionUtil(x.OBSERVACIONES);return u?{p:x,obs:u}:null;}).filter(function(o){return o&&o.p.ID!==p.ID;});
-if(poolObs.length<3){
-/* si dentro del ámbito no hay suficientes observaciones "sanas" para
-   hacer de señuelo, recurrimos a todas las personas visibles */
-poolObs=juegoPersonasVisibles().map(function(x){var u=juegoObservacionUtil(x.OBSERVACIONES);return u?{p:x,obs:u}:null;}).filter(function(o){return o&&o.p.ID!==p.ID;});
-}
-if(poolObs.length<3)return null;
-var distractores=juegoBarajar(poolObs).slice(0,3).map(function(o){return{texto:juegoFragmentoObservacion(o.obs),correcta:false};});
-var opciones=[{texto:correctoTexto,correcta:true}].concat(distractores);
-return{enunciado:'¿Cuál de estas observaciones corresponde a '+fn(p)+'?',opciones:juegoBarajar(opciones),subjetoId:p.ID,categoria:'Observaciones'};
-}
 function generarPreguntaJuego(){
 var generadores=juegoBarajar([
 function(){return juegoPreguntaAnio('NACA','nació');},
@@ -12438,49 +12322,21 @@ function(){return juegoPreguntaNumHijos();},
 function(){return juegoPreguntaConyuge();},
 function(){return juegoPreguntaApellido2();},
 function(){return juegoPreguntaParentesco();},
-function(){return juegoPreguntaVerdaderoFalso();},
-function(){return juegoPreguntaFoto();},
-function(){return juegoPreguntaObservacion();}
+function(){return juegoPreguntaVerdaderoFalso();}
 ]);
 for(var i=0;i<generadores.length;i++){var preg=generadores[i]();if(preg)return preg;}
 return null;
 }
-/* Ya no hay cronómetro (sin límite de tiempo para responder); se deja este
-   nombre de función como no-op porque aplicarPantallaBusqueda() todavía la
-   llama al salir de la pestaña Juego. */
-function detenerCronometroJuego(){}
-/* Mensajes variados de acierto/fallo, para que el juego no repita siempre
-   la misma frase (pequeño detalle para hacerlo más entretenido). */
-var JUEGO_FRASES_ACIERTO=['¡Correcto!','¡Exacto!','¡Muy bien!','¡Así es!','¡En el clavo!'];
-var JUEGO_FRASES_FALLO=['No es correcto.','Esta vez no.','Casi, pero no.','No era esa.'];
-function juegoFraseAleatoria(lista){return lista[Math.floor(Math.random()*lista.length)];}
-function actualizarBotonVerFichaJuego(){
-var wrap=document.getElementById('juegoVerFichaWrap');
-if(!wrap)return;
-var preg=JUEGO_ESTADO.pregunta;
-if(!preg||!preg.subjetoId||!PI[preg.subjetoId]||JUEGO_ESTADO.respondida){wrap.innerHTML='';return;}
-if(JUEGO_ESTADO.fichaConsultada){
-wrap.innerHTML='<div style="font-size:12px;color:var(--muted)"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Has consultado su ficha: esta pregunta valdrá solo un tercio de los puntos.</div>';
-}else{
-wrap.innerHTML='<button type="button" class="ef-btn ghost" style="font-size:12px" onclick="verFichaDesdeJuego(\''+safeId(preg.subjetoId)+'\')"><i class="fa-solid fa-id-card" aria-hidden="true"></i> Ver su ficha (puntos ÷3 si la consultas)</button>';
-}
-}
+function detenerCronometroJuego(){if(JUEGO_ESTADO.timerId){clearInterval(JUEGO_ESTADO.timerId);JUEGO_ESTADO.timerId=null;}}
 function renderPreguntaJuego(preg){
-var cat=document.getElementById('juegoCategoria');if(cat)cat.textContent=preg.categoria||'';
-var fotoWrap=document.getElementById('juegoFotoWrap'),fotoImg=document.getElementById('juegoFotoImg');
-if(fotoWrap&&fotoImg){
-if(preg.foto){fotoImg.src=preg.foto;fotoWrap.style.display='block';}
-else{fotoImg.src='';fotoWrap.style.display='none';}
-}
 var enun=document.getElementById('juegoEnunciado');if(enun)enun.textContent=preg.enunciado;
 var opsWrap=document.getElementById('juegoOpciones');
 if(opsWrap)opsWrap.innerHTML=preg.opciones.map(function(op,idx){return '<button type="button" class="ef-btn ghost" style="text-align:left" onclick="responderJuego('+idx+')">'+esc(op.texto)+'</button>';}).join('');
 var fb=document.getElementById('juegoFeedback');if(fb){fb.style.display='none';fb.innerHTML='';}
 var sig=document.getElementById('juegoSiguienteWrap');if(sig)sig.style.display='none';
-actualizarBotonVerFichaJuego();
 }
-function refrescarPuntosSesionJuego(){var t=document.getElementById('juegoPuntosSesionTexto');if(t)t.textContent='Puntos en esta partida: '+(JUEGO_ESTADO.puntosSesion||0);}
 function iniciarPreguntaJuego(){
+detenerCronometroJuego();
 var preg=generarPreguntaJuego();
 var sinPreguntas=document.getElementById('juegoSinPreguntas'),contenido=document.getElementById('juegoContenido');
 if(!preg){
@@ -12493,40 +12349,33 @@ if(sinPreguntas)sinPreguntas.style.display='none';
 if(contenido)contenido.style.display='block';
 JUEGO_ESTADO.pregunta=preg;
 JUEGO_ESTADO.respondida=false;
-JUEGO_ESTADO.fichaConsultada=false;
-JUEGO_ESTADO.volviendoDesdeFicha=false;
+JUEGO_ESTADO.inicio=Date.now();
 renderPreguntaJuego(preg);
-}
-/* Abre la ficha de la persona protagonista de la pregunta actual, sin
-   perder la pregunta: al volver con "Volver al juego" se retoma tal cual
-   (ver volverAJuegoDesdeFicha), pero marcada para dar solo un tercio de
-   los puntos al responder. */
-function verFichaDesdeJuego(id){
-if(!id||!PI[id]||!JUEGO_ESTADO.pregunta||JUEGO_ESTADO.respondida)return;
-if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
-JUEGO_ESTADO.fichaConsultada=true;
-JUEGO_ESTADO.volviendoDesdeFicha=true;
-JUEGO_ESTADO.cidAntesFicha=cid;
-cid=id;editMode=false;sv('fic');
-}
-function volverAJuegoDesdeFicha(){
-JUEGO_ESTADO.volviendoDesdeFicha=false;
-cid=(JUEGO_ESTADO.cidAntesFicha!==undefined)?JUEGO_ESTADO.cidAntesFicha:cid;
-sv('bus');
+var barra=document.getElementById('juegoBarraTiempo');
+if(barra)barra.style.width='100%';
+JUEGO_ESTADO.timerId=setInterval(function(){
+var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
+var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
+if(barra)barra.style.width=(restanteFrac*100)+'%';
+if(restanteFrac<=0)responderJuego(-1);
+},100);
 }
 function responderJuego(idx){
 if(!JUEGO_ESTADO.pregunta||JUEGO_ESTADO.respondida)return;
 JUEGO_ESTADO.respondida=true;
+detenerCronometroJuego();
 var preg=JUEGO_ESTADO.pregunta;
+var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
+var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
 var opcion=idx>=0?preg.opciones[idx]:null;
 var acierto=!!(opcion&&opcion.correcta);
+var puntosBase=acierto?Math.max(10,Math.round(100*restanteFrac)):0;
 var rachaAnterior=JUEGO_ESTADO.racha||0;
 var rachaPerdida=false,multiplicador=1,puntos=0;
 if(acierto){
 JUEGO_ESTADO.racha=rachaAnterior+1;
 multiplicador=juegoMultiplicadorRacha(JUEGO_ESTADO.racha);
-puntos=Math.round(100*multiplicador);
-if(JUEGO_ESTADO.fichaConsultada)puntos=Math.max(1,Math.round(puntos/3));
+puntos=Math.round(puntosBase*multiplicador);
 }else{
 rachaPerdida=rachaAnterior>0;
 JUEGO_ESTADO.racha=0;
@@ -12542,24 +12391,137 @@ if(preg.opciones[i2].correcta){btn.style.borderColor='#2e7d32';btn.style.color='
 else if(i2===idx){btn.style.borderColor='#c62828';btn.style.color='#c62828';}
 });
 }
-actualizarBotonVerFichaJuego();
 var fb=document.getElementById('juegoFeedback');
 if(fb){
 fb.style.display='block';
-var titulo=acierto?'<strong style="color:#2e7d32">'+esc(juegoFraseAleatoria(JUEGO_FRASES_ACIERTO))+'</strong> ':'<strong style="color:#c62828">'+esc(juegoFraseAleatoria(JUEGO_FRASES_FALLO))+'</strong> ';
+var titulo=acierto?'<strong style="color:#2e7d32">¡Correcto!</strong> ':(idx===-1?'<strong style="color:#c62828">Se acabó el tiempo.</strong> ':'<strong style="color:#c62828">No es correcto.</strong> ');
 var extraRacha=acierto&&multiplicador>1?' (racha ×'+multiplicador+')':'';
-var extraFicha=acierto&&JUEGO_ESTADO.fichaConsultada?' (÷3 por consultar la ficha)':'';
 var lineaPerdida=rachaPerdida?'<br><span style="color:#c62828">💥 Racha perdida.</span>':'';
-fb.innerHTML=titulo+'Has ganado '+puntos+' puntos'+extraRacha+extraFicha+'.'+lineaPerdida;
+fb.innerHTML=titulo+'Has ganado '+puntos+' puntos'+extraRacha+'.'+lineaPerdida;
 }
 var rachaActualSpan=document.getElementById('juegoRachaActualTexto');
 if(rachaActualSpan)rachaActualSpan.textContent=JUEGO_ESTADO.racha>=2?'🔥 Racha: '+JUEGO_ESTADO.racha:'';
 var sig=document.getElementById('juegoSiguienteWrap');if(sig)sig.style.display='block';
-refrescarPuntosSesionJuego();
 actualizarPuntosMesJuego(puntos,acierto,JUEGO_ESTADO.racha);
 }
 function siguientePreguntaJuego(){iniciarPreguntaJuego();}
-function entrarPantallaJuego(){JUEGO_ESTADO.puntosSesion=0;JUEGO_ESTADO.racha=0;refrescarPuntosSesionJuego();refrescarPuntosMesJuego();iniciarPreguntaJuego();}
+function entrarPantallaJuego(){refrescarPuntosMesJuego();iniciarPreguntaJuego();}
+/* ===== Concurso mensual del juego (Fase 2): ranking familiar compartido =====
+   Se guarda en juego-puntos.json dentro de la carpeta DATOS de Drive (mismo
+   patrón que cambios-arbol.json). El archivo agrupa los puntos por mes
+   natural (clave AAAA-MM, igual que claveMesJuego) y, dentro de cada mes,
+   por email de Google. Cada dispositivo solo escribe SU PROPIA fila al
+   sincronizar (no toca las de los demás), fusionando siempre sobre la
+   última versión descargada. Requiere identidad de Google conectada; el
+   botón de "Conectar y sincronizar" es quien la pide. */
+var CONCURSO_JUEGO_FILENAME='juego-puntos.json';
+var concursoJuegoSyncEnCurso=null;
+async function obtenerArchivoConcursoJuegoDrive(){
+var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;
+var q="'"+folderId+"' in parents and name='"+CONCURSO_JUEGO_FILENAME+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(r.status===404)return null;
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+return d.files&&d.files.length?d.files[0]:null;
+}
+async function descargarConcursoJuegoDrive(){
+var f=await obtenerArchivoConcursoJuegoDrive();
+if(!f)return{formato:'Libro de los Ancestros - concurso del juego',version:1,meses:{}};
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)throw new Error('No se pudo descargar '+CONCURSO_JUEGO_FILENAME);
+var x=await r.json();
+if(!x||typeof x!=='object')x={};
+if(!x.meses||typeof x.meses!=='object')x.meses={};
+return x;
+}
+async function guardarConcursoJuegoCompleto(datos){
+var existente=await obtenerArchivoConcursoJuegoDrive();
+var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;
+var contenido=JSON.stringify(datos);
+var r=await subirArchivoDrive(CONCURSO_JUEGO_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);
+if(r.status===404&&existente){r=await subirArchivoDrive(CONCURSO_JUEGO_FILENAME,contenido,'application/json',folderId,null);}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+}
+function sincronizarConcursoJuego(){
+if(concursoJuegoSyncEnCurso)return concursoJuegoSyncEnCurso;
+concursoJuegoSyncEnCurso=(async function(){
+try{
+if(!(await exigirIdentidadGoogle()))return null;
+var clave=claveMesJuego();
+var local=await leerValorCFG(clave)||{puntos:0,respuestas:0,aciertos:0,mejorRacha:0};
+var remoto=await descargarConcursoJuegoDrive();
+if(!remoto.meses[clave])remoto.meses[clave]={};
+var email=googleIdentidad.email;
+var nombre=googleIdentidad.name||googleIdentidad.email;
+remoto.meses[clave][email]={nombre:nombre,puntos:local.puntos||0,respuestas:local.respuestas||0,aciertos:local.aciertos||0,mejorRacha:local.mejorRacha||0,actualizadoEn:new Date().toISOString()};
+await guardarConcursoJuegoCompleto(remoto);
+return remoto;
+}finally{
+concursoJuegoSyncEnCurso=null;
+}
+})();
+return concursoJuegoSyncEnCurso;
+}
+function nombreMesNaturalJuego(clave){
+var partes=clave.split('-');
+var meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+var idx=parseInt(partes[1],10)-1;
+return(meses[idx]||'')+' de '+partes[0];
+}
+function abrirModalConcursoJuego(){
+var m=document.getElementById('modalConcursoJuego');
+if(m)m.style.display='flex';
+var mesTexto=document.getElementById('concursoJuegoMesTexto');
+if(mesTexto)mesTexto.textContent='Ranking de '+nombreMesNaturalJuego(claveMesJuego())+' (mes natural)';
+var sinConexion=document.getElementById('concursoJuegoSinConexion');
+var btnAct=document.getElementById('concursoJuegoBtnActualizar');
+if(!(googleIdentidad&&googleIdentidad.email)&&!tokenDriveValido()){
+if(sinConexion)sinConexion.style.display='block';
+if(btnAct)btnAct.style.display='none';
+var lista=document.getElementById('concursoJuegoLista');
+if(lista)lista.innerHTML='';
+return;
+}
+conectarYSincronizarConcursoJuego();
+}
+function cerrarModalConcursoJuego(){var m=document.getElementById('modalConcursoJuego');if(m)m.style.display='none';}
+function conectarYSincronizarConcursoJuego(){
+var cargando=document.getElementById('concursoJuegoCargando');
+var sinConexion=document.getElementById('concursoJuegoSinConexion');
+var lista=document.getElementById('concursoJuegoLista');
+var btnAct=document.getElementById('concursoJuegoBtnActualizar');
+if(cargando)cargando.style.display='block';
+if(sinConexion)sinConexion.style.display='none';
+sincronizarConcursoJuego().then(function(remoto){
+if(cargando)cargando.style.display='none';
+if(!remoto){
+if(sinConexion)sinConexion.style.display='block';
+return;
+}
+if(btnAct)btnAct.style.display='inline-flex';
+pintarRankingConcursoJuego(remoto);
+}).catch(function(err){
+if(cargando)cargando.style.display='none';
+toast('No se pudo sincronizar el concurso: '+err.message,true);
+});
+}
+function pintarRankingConcursoJuego(remoto){
+var clave=claveMesJuego();
+var datosMes=remoto.meses&&remoto.meses[clave]?remoto.meses[clave]:{};
+var participantes=Object.keys(datosMes).map(function(email){var d=datosMes[email];return{email:email,nombre:d.nombre||email,puntos:d.puntos||0,aciertos:d.aciertos||0,respuestas:d.respuestas||0,mejorRacha:d.mejorRacha||0};});
+participantes.sort(function(a,b){return b.puntos-a.puntos;});
+var lista=document.getElementById('concursoJuegoLista');
+if(!lista)return;
+if(!participantes.length){lista.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:10px 0">Todavía nadie ha jugado este mes.</p>';return;}
+var medallas=['🥇','🥈','🥉'];
+lista.innerHTML=participantes.map(function(p,i){
+var medalla=medallas[i]||('#'+(i+1));
+var esYo=googleIdentidad&&googleIdentidad.email===p.email;
+return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border)'+(esYo?';background:rgba(0,0,0,0.03)':'')+'"><span>'+medalla+' '+esc(p.nombre)+(esYo?' <span style="color:var(--muted);font-size:11px">(tú)</span>':'')+'</span><strong>'+p.puntos+' pts</strong></div>';
+}).join('');
+}
 /* ===== Eventos familiares =====
    Próximos cumpleaños, santos (solo de los vivos, ver SANTORAL más abajo) y
    aniversarios de fallecimiento de los familiares más cercanos a la persona
@@ -13116,6 +13078,24 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 </div>
 </div>
 <!-- ===== TAREA 4: refinamiento de ANOCALC — modal de configuración de medias ===== -->
+<div id="modalConcursoJuego" role="dialog" aria-modal="true" aria-labelledby="modalConcursoJuegoTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+<h2 id="modalConcursoJuegoTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-trophy" aria-hidden="true" style="color:var(--accent)"></i> Concurso mensual</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalConcursoJuego()">×</button>
+</div>
+<div id="concursoJuegoMesTexto" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+<div id="concursoJuegoSinConexion" style="display:none;text-align:center;padding:14px 4px">
+<p style="font-size:13px;color:var(--muted);margin-bottom:10px">Conecta tu cuenta de Google para ver y guardar el concurso familiar (se guarda en un archivo compartido dentro de la carpeta DATOS de Drive).</p>
+<button type="button" class="ef-btn save" onclick="conectarYSincronizarConcursoJuego()"><i class="fa-solid fa-plug" aria-hidden="true"></i> Conectar y sincronizar</button>
+</div>
+<div id="concursoJuegoCargando" style="display:none;text-align:center;padding:14px;color:var(--muted);font-size:13px"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Leyendo el concurso desde Drive…</div>
+<div id="concursoJuegoLista" style="overflow:auto"></div>
+<div style="margin-top:12px;text-align:center">
+<button type="button" class="ef-btn ghost" id="concursoJuegoBtnActualizar" style="display:none" onclick="conectarYSincronizarConcursoJuego()"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Actualizar</button>
+</div>
+</div>
+</div>
 <div id="modalConfigANOCALC" role="dialog" aria-modal="true" aria-labelledby="modalConfigANOCALCTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
