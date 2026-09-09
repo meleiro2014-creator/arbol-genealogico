@@ -12254,11 +12254,65 @@ return(capitalizar?'Tu ':'tu ')+rel+' '+nombre;
 function juegoBarajar(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function juegoPersonasVisibles(){return Object.keys(PI).map(function(id){return PI[id];}).filter(function(p){return p&&puedeVerPersona(p.ID);});}
 function juegoFallecidosVisibles(){return juegoPersonasVisibles().filter(function(p){return !isAl(p);});}
+/* ===== Conjunto de "familia" de quien juega =====
+   El pool de candidatos de las preguntas (juegoFallecidosVisibles) es TODO
+   el árbol visible, incluyendo ramas enteras incorporadas por fusiones de
+   GEDCOM/Excel externos que no comparten ningún antepasado de sangre con
+   la ficha vinculada a la cuenta. Para esas personas calcularParentescoDesde()
+   devuelve null y juegoNombreRelativo se queda solo con el nombre, sin el
+   "tu primo/tu tío..." delante. juegoConjuntoFamiliaDeYo() calcula, una vez
+   por sesión de juego, el círculo familiar real: los descendientes de los
+   antepasados de quien juega hasta la generación de los tatarabuelos (4
+   generaciones: padres, abuelos, bisabuelos, tatarabuelos), más la línea
+   directa completa (ascendientes y descendientes de quien juega, sin límite
+   de generación, igual que ya distingue el resto de la app como "ascendiente/
+   descendiente directo"), más su propio cónyuge. Nada de ramas ni personas
+   más allá de eso: no se sigue el hilo por matrimonios de terceros (eso
+   arrastraría de nuevo a medio árbol, el mismo motivo por el que
+   calcularParentescoPolitico ya evita el ancestro común de sangre más lejano
+   para relaciones políticas). */
+var JUEGO_FAMILIA_YO=null,JUEGO_FAMILIA_YO_ID=null;
+function juegoConjuntoFamiliaDeYo(){
+var yoId=juegoObtenerYoId();
+if(!yoId)return{};
+if(JUEGO_FAMILIA_YO&&JUEGO_FAMILIA_YO_ID===yoId)return JUEGO_FAMILIA_YO;
+var visitado={};
+var ascendientes=mapaAncestros(yoId);
+Object.keys(ascendientes).forEach(function(id){visitado[id]=true;});
+var colaDesc=[yoId];
+while(colaDesc.length){
+var id2=colaDesc.shift();
+(HD[id2]||[]).forEach(function(hid){if(!visitado[hid]){visitado[hid]=true;colaDesc.push(hid);}});
+}
+Object.keys(ascendientes).forEach(function(id){
+if(ascendientes[id]<=4){
+var colaD=[id];
+while(colaD.length){
+var idx=colaD.shift();
+(HD[idx]||[]).forEach(function(hid){if(!visitado[hid]){visitado[hid]=true;colaD.push(hid);}});
+}
+}
+});
+conyugesDe(yoId).forEach(function(c){if(PI[c])visitado[c]=true;});
+JUEGO_FAMILIA_YO=visitado;JUEGO_FAMILIA_YO_ID=yoId;
+return JUEGO_FAMILIA_YO;
+}
+/* Candidatos a protagonista de pregunta, priorizando a quienes SÍ tienen un
+   parentesco calculable con quien juega (para que "tu ___" aparezca), con
+   vuelta al pool completo si la familia conectada resulta demasiado pequeña
+   (cuenta sin ficha vinculada, o árbol propio muy corto todavía). */
+function juegoFallecidosFamilia(){
+var base=juegoFallecidosVisibles();
+var fam=juegoConjuntoFamiliaDeYo();
+if(!Object.keys(fam).length)return base;
+var filtrada=base.filter(function(p){return fam[p.ID];});
+return filtrada.length>=8?filtrada:base;
+}
 function claveMesJuego(){var d=new Date();return 'juegoPuntos_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function refrescarPuntosMesJuego(){leerValorCFG(claveMesJuego()).then(function(v){var texto=document.getElementById('juegoPuntosMesTexto');var total=v&&v.puntos?v.puntos:0;if(texto)texto.textContent='Puntos este mes: '+total;var racha=document.getElementById('juegoRachaTexto');if(racha&&v)racha.textContent=(v.aciertos||0)+'/'+(v.respuestas||0)+' aciertos · mejor racha '+(v.mejorRacha||0);});}
 function actualizarPuntosMesJuego(puntos,acierto,racha){var clave=claveMesJuego();leerValorCFG(clave).then(function(v){var actual=v||{puntos:0,respuestas:0,aciertos:0,mejorRacha:0};actual.puntos=(actual.puntos||0)+puntos;actual.respuestas=(actual.respuestas||0)+1;actual.aciertos=(actual.aciertos||0)+(acierto?1:0);actual.mejorRacha=Math.max(actual.mejorRacha||0,racha||0);return guardarValorCFG(clave,actual).then(function(){return actual;});}).then(function(actual){var texto=document.getElementById('juegoPuntosMesTexto');if(texto)texto.textContent='Puntos este mes: '+actual.puntos;var racha2=document.getElementById('juegoRachaTexto');if(racha2)racha2.textContent=actual.aciertos+'/'+actual.respuestas+' aciertos · mejor racha '+actual.mejorRacha;if(googleIdentidad&&googleIdentidad.email&&tokenDriveValido()){sincronizarConcursoJuego().catch(function(){});}});}
 function juegoPreguntaAnio(campo,etiqueta){
-var candidatos=juegoFallecidosVisibles().filter(function(p){return p[campo]&&!isNaN(parseInt(p[campo],10));});
+var candidatos=juegoFallecidosFamilia().filter(function(p){return p[campo]&&!isNaN(parseInt(p[campo],10));});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=parseInt(p[campo],10);
@@ -12269,7 +12323,7 @@ if(opciones.length<2)return null;
 return{enunciado:'¿En qué año '+etiqueta+' '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaNumHijos(){
-var candidatos=juegoFallecidosVisibles();
+var candidatos=juegoFallecidosFamilia();
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
@@ -12280,7 +12334,7 @@ if(opciones.length<2)return null;
 return{enunciado:'¿Cuántos hijos tuvo '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaConyuge(){
-var candidatos=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
+var candidatos=juegoFallecidosFamilia().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var conys=conyugesDe(p.ID).filter(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});
@@ -12293,7 +12347,7 @@ var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
 return{enunciado:'¿Quién fue cónyuge de '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaApellido2(){
-var candidatos=juegoFallecidosVisibles().filter(function(p){return p.APELLIDO2;});
+var candidatos=juegoFallecidosFamilia().filter(function(p){return p.APELLIDO2;});
 if(!candidatos.length)return null;
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var correcto=p.APELLIDO2;
@@ -12306,7 +12360,7 @@ return{enunciado:'¿Cuál es el segundo apellido de '+juegoNombreRelativo(p)+'?'
 function juegoPreguntaParentesco(){
 var yoId=juegoObtenerYoId();
 if(!yoId)return null;
-var candidatos=juegoBarajar(juegoFallecidosVisibles().filter(function(p){return p.ID!==yoId;}));
+var candidatos=juegoBarajar(juegoFallecidosFamilia().filter(function(p){return p.ID!==yoId;}));
 var etiquetasComunes=['padre','madre','hijo/a','hermano/a','abuelo/a','bisabuelo/a','tatarabuelo/a','nieto/a','tío/a','primo/a hermano/a','primo/a segundo/a','cuñado/a','suegro/a','yerno/nuera','pariente directo en varias líneas'];
 for(var i=0;i<candidatos.length&&i<25;i++){
 var p=candidatos[i];
@@ -12330,7 +12384,7 @@ function juegoPreguntaVerdaderoFalso(){
 var tipos=juegoBarajar(['hijos','conyuge','edadRelativa']);
 for(var t=0;t<tipos.length;t++){
 if(tipos[t]==='hijos'){
-var candidatos=juegoFallecidosVisibles();
+var candidatos=juegoFallecidosFamilia();
 if(candidatos.length){
 var p=candidatos[Math.floor(Math.random()*candidatos.length)];
 var real=(HD[p.ID]||[]).filter(function(hid){return puedeVerPersona(hid);}).length;
@@ -12345,7 +12399,7 @@ return{enunciado:juegoNombreRelativo(p,true)+' tuvo '+numMostrado+' '+(numMostra
 }
 }
 if(tipos[t]==='conyuge'){
-var candidatos2=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(c){return PI[c]&&puedeVerPersona(c);});});
+var candidatos2=juegoFallecidosFamilia().filter(function(p){return conyugesDe(p.ID).some(function(c){return PI[c]&&puedeVerPersona(c);});});
 if(candidatos2.length){
 var p2=candidatos2[Math.floor(Math.random()*candidatos2.length)];
 var conys2=conyugesDe(p2.ID).filter(function(c){return PI[c]&&puedeVerPersona(c);});
@@ -12362,7 +12416,7 @@ return{enunciado:juegoNombreRelativo(p2,true)+' fue cónyuge de '+juegoNombreRel
 }
 }
 if(tipos[t]==='edadRelativa'){
-var candidatos3=juegoFallecidosVisibles().filter(function(p){return p.NACA&&conyugesDe(p.ID).some(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});});
+var candidatos3=juegoFallecidosFamilia().filter(function(p){return p.NACA&&conyugesDe(p.ID).some(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});});
 if(candidatos3.length){
 var p3=candidatos3[Math.floor(Math.random()*candidatos3.length)];
 var conys3=conyugesDe(p3.ID).filter(function(c){return PI[c]&&PI[c].NACA&&puedeVerPersona(c);});
@@ -12682,10 +12736,16 @@ return null;
    exhaustiva ni oficial: recoge, para cada nombre, la fecha que más
    popularmente se celebra en España. Se puede ampliar o corregir añadiendo
    entradas al objeto SANTORAL (clave = nombre en mayúsculas y sin acentos,
-   valor = {dia:D, mes:M}). Cuando una persona tiene varios nombres y el
-   primero es "María" o "José" (p.ej. "María del Carmen", "José Antonio"),
-   por convención se usa el santo del segundo nombre si está en el
-   calendario, tal y como se celebra habitualmente. */
+   valor = {dia:D, mes:M} para fiesta fija, o {movil:'viernesDolores'} para
+   una fiesta móvil calculada a partir de la Pascua). Cuando una persona
+   tiene varios nombres y el primero es "María" o "José" (p.ej. "María del
+   Carmen", "José Antonio"), por convención se usa el santo del nombre
+   siguiente si está en el calendario, saltando conectores como "de/del/de
+   la/de los/de las" (p.ej. "María de los Dolores" -> Dolores).
+   Nombres compuestos con santo propio distinto del de cada palabra por
+   separado (p.ej. "Francisco Javier" es San Francisco Javier, 3 de
+   diciembre, no San Francisco de Asís del 4 de octubre) se resuelven antes,
+   contra SANTORAL_COMPUESTOS. */
 var SANTORAL={
 'ALBERTO':{dia:15,mes:11},'ALEJANDRO':{dia:3,mes:5},'ALFONSO':{dia:1,mes:8},
 'ALVARO':{dia:19,mes:2},'AMBROSIO':{dia:7,mes:12},'ANA':{dia:26,mes:7},
@@ -12696,7 +12756,7 @@ var SANTORAL={
 'CARMEN':{dia:16,mes:7},'CATALINA':{dia:25,mes:11},'CECILIA':{dia:22,mes:11},
 'CLARA':{dia:11,mes:8},'COVADONGA':{dia:8,mes:9},'CRISTINA':{dia:24,mes:7},
 'CRISTOBAL':{dia:10,mes:7},'DANIEL':{dia:11,mes:12},'DAVID':{dia:29,mes:12},
-'DIEGO':{dia:13,mes:11},'DOLORES':{dia:15,mes:9},'DOMINGO':{dia:8,mes:8},
+'DIEGO':{dia:13,mes:11},'DOLORES':{movil:'viernesDolores'},'DOMINGO':{dia:8,mes:8},
 'DOROTEA':{dia:6,mes:2},'EDUARDO':{dia:13,mes:10},'ELENA':{dia:18,mes:8},
 'EMILIO':{dia:22,mes:5},'ENRIQUE':{dia:13,mes:7},'ERNESTO':{dia:7,mes:11},
 'ESTEBAN':{dia:26,mes:12},'EUGENIA':{dia:25,mes:12},'FATIMA':{dia:13,mes:5},
@@ -12726,15 +12786,56 @@ var SANTORAL={
 'VERONICA':{dia:4,mes:2},'VICENTE':{dia:22,mes:1},'VICTOR':{dia:21,mes:7},
 'VICTORIA':{dia:23,mes:12},'YOLANDA':{dia:11,mes:6}
 };
+/* Nombres compuestos cuyo santo NO es el de la primera palabra por separado
+   (comprobados antes que SANTORAL[primera palabra]). Añadir aquí cualquier
+   otro caso equivalente que se detecte (p.ej. "Juan Bautista" si algún día
+   se quisiera distinguir del "Juan" del 24 de junio). */
+var SANTORAL_COMPUESTOS={
+'FRANCISCO JAVIER':{dia:3,mes:12}
+};
+/* Conectores que se saltan al buscar el "segundo nombre" real en compuestos
+   tipo "María del Carmen", "María de los Dolores", "José de la Cruz". */
+var SANTORAL_CONECTORES={DE:1,DEL:1,LA:1,LAS:1,LOS:1};
 function normalizaNombrePila(s){return quitarAcentos(String(s||'')).toUpperCase().trim();}
 function santoDePersona(p){
 var nombre=normalizaNombrePila(p.NOMBRE);
 if(!nombre)return null;
-if(SANTORAL[nombre])return SANTORAL[nombre];
 var partes=nombre.split(/\s+/).filter(Boolean);
-if(partes.length>1&&(partes[0]==='MARIA'||partes[0]==='JOSE')&&SANTORAL[partes[1]])return SANTORAL[partes[1]];
+if(partes.length>1){
+var compuesto=partes[0]+' '+partes[1];
+if(SANTORAL_COMPUESTOS[compuesto])return SANTORAL_COMPUESTOS[compuesto];
+}
+if(SANTORAL[nombre])return SANTORAL[nombre];
+if(partes.length>1&&(partes[0]==='MARIA'||partes[0]==='JOSE')){
+var i=1;
+while(i<partes.length&&SANTORAL_CONECTORES[partes[i]])i++;
+if(i<partes.length&&SANTORAL[partes[i]])return SANTORAL[partes[i]];
+}
 if(SANTORAL[partes[0]])return SANTORAL[partes[0]];
 return null;
+}
+/* ===== Viernes de Dolores (fiesta móvil, ligada a la Pascua) =====
+   El santoral de "Dolores" es el único nombre habitual con fiesta móvil: se
+   celebra el viernes anterior al Domingo de Ramos (9 días antes de Pascua),
+   que es la fecha con la que tradicionalmente se celebra en España — no el
+   15 de septiembre del calendario litúrgico oficial actual, que es una
+   fecha fija introducida en 1969 y mucho menos popular como onomástica. */
+function calcularDomingoResurreccion(anio){
+var a=anio%19,b=Math.floor(anio/100),c=anio%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;
+return new Date(anio,mes-1,dia);
+}
+function calcularViernesDeDolores(anio){
+var pascua=calcularDomingoResurreccion(anio);
+var vd=new Date(pascua.getTime());
+vd.setDate(vd.getDate()-9);
+return vd;
+}
+function proximoViernesDoloresDesde(hoy,dias){
+var f=calcularViernesDeDolores(hoy.getFullYear());
+if(f<hoy)f=calcularViernesDeDolores(hoy.getFullYear()+1);
+var limite=new Date(hoy.getTime()+dias*86400000);
+if(f>limite)return null;
+return f;
 }
 function calcularEventosFamiliares(idCentral){
 if(!idCentral||!PI[idCentral])return[];
@@ -12755,7 +12856,7 @@ if(edad>0)eventos.push({fecha:fNac,persona:p,relacion:relTxt,tipo:'cumple',texto
 }
 var santo=santoDePersona(p);
 if(santo){
-var fSanto=proximaFechaDesde(santo.dia,santo.mes,hoy,EVENTOS_FAM_DIAS);
+var fSanto=santo.movil==='viernesDolores'?proximoViernesDoloresDesde(hoy,EVENTOS_FAM_DIAS):proximaFechaDesde(santo.dia,santo.mes,hoy,EVENTOS_FAM_DIAS);
 if(fSanto)eventos.push({fecha:fSanto,persona:p,relacion:relTxt,tipo:'santo',texto:'Santo de '+fn(p)});
 }
 }else{
