@@ -84,6 +84,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pbus-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
 .pbus-pill:hover{border-color:var(--accent);color:var(--accent)}
 .pbus-pill.pbus-activa{background:var(--accent);border-color:var(--accent);color:#fff}
+.pbus-pill.pbus-disabled{opacity:.45;cursor:not-allowed;pointer-events:none;filter:grayscale(1)}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
 .search-box{max-width:460px;margin:14px auto 0;position:relative}
@@ -736,8 +737,8 @@ body{background:#fff}
 <div id="juegoCard" style="background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px">
 <div id="juegoSinPreguntas" style="display:none;text-align:center;color:var(--muted);font-size:13px;padding:10px 0">Todavía no hay suficientes personas fallecidas con datos completos para generar preguntas. Añade fechas, cónyuges o hijos a las fichas y vuelve a intentarlo.</div>
 <div id="juegoContenido">
-<div id="juegoEnunciado" style="font-family:'Cinzel',serif;font-size:15px;line-height:1.4;margin-bottom:12px"></div>
-<div class="pb" style="margin:0 0 12px"><div class="pf" id="juegoBarraTiempo" style="background:var(--accent)"></div></div>
+<div id="juegoEnunciado" style="font-family:'Cinzel',serif;font-size:15px;line-height:1.4;margin-bottom:8px"></div>
+<div id="juegoConsultarWrap" style="margin-bottom:12px"><button type="button" class="ef-btn ghost" id="juegoConsultarBtn" style="font-size:11px;padding:5px 10px" onclick="consultarFichaJuego()"><i class="fa-solid fa-address-card" aria-hidden="true"></i> Consultar su ficha (solo 1/3 de los puntos)</button></div>
 <div id="juegoOpciones" style="display:flex;flex-direction:column;gap:8px"></div>
 <div id="juegoFeedback" style="display:none;margin-top:12px;font-size:13px"></div>
 <div id="juegoSiguienteWrap" style="display:none;margin-top:12px;text-align:center">
@@ -3545,7 +3546,7 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function svInternal(v,dir){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v,dir){if(v!=='fic'&&typeof JUEGO_ESTADO!=='undefined')JUEGO_ESTADO.viendoFichaDesdeJuego=false;['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
 /* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
    Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
    navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
@@ -3603,7 +3604,7 @@ function navHistForward(){history.forward();}
 function navHistBackSafe(){if(__navPos>0)history.back();else sv('bus');}
 try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();if(typeof actualizarPantallaBusPills==='function')actualizarPantallaBusPills();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
 de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
 mostrados aquí siempre coinciden exactamente con lo que se ve al entrar al Gestor de datos. */
@@ -5666,7 +5667,8 @@ function rFicView(id){
 var p=PI[id];
 if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
-var h='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
+var h=(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)?'<div><button type="button" class="ef-btn" style="margin-bottom:10px" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>':'';
+h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
 h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
@@ -12120,18 +12122,28 @@ avanzarCarruselHero();
    la vez. Por defecto se muestra el carrusel. */
 var pantallaBusquedaActiva='carrusel';
 var pantallaBusquedaPrevia=null;
+/* Mientras no haya ninguna persona cargada (los 3 contadores de arriba están
+   a 0/0/0) no tiene sentido mostrar el carrusel, los resultados de búsqueda
+   ni el juego: esas tres galletas se quedan en gris y no se pueden pulsar
+   hasta que se cargue o importe algún árbol. Eventos sí queda disponible. */
+function pantallaBusquedaSinPersonas(){return !(typeof D!=='undefined'&&D&&D.length);}
 function actualizarPantallaBusPills(){
 var mapa={carrusel:'pbusPillCarrusel',resultados:'pbusPillResultados',eventos:'pbusPillEventos',juego:'pbusPillJuego'};
+var sinPersonas=pantallaBusquedaSinPersonas();
 Object.keys(mapa).forEach(function(modo){
 var btn=document.getElementById(mapa[modo]);
 if(!btn)return;
 var activa=(modo===pantallaBusquedaActiva);
 btn.classList.toggle('pbus-activa',activa);
 btn.setAttribute('aria-pressed',activa?'true':'false');
+var deshabilitada=sinPersonas&&(modo==='carrusel'||modo==='resultados'||modo==='juego');
+btn.classList.toggle('pbus-disabled',deshabilitada);
+btn.disabled=deshabilitada;
 });
 }
 function seleccionarPantallaBusqueda(modo){
 if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos'&&modo!=='juego')return;
+if(pantallaBusquedaSinPersonas()&&(modo==='carrusel'||modo==='resultados'||modo==='juego'))return;
 pantallaBusquedaActiva=modo;
 pantallaBusquedaPrevia=modo;
 aplicarPantallaBusqueda();
@@ -12182,8 +12194,31 @@ actualizarPantallaBusPills();
    mes en la configuración local (CFG) bajo la clave juegoPuntos_AAAA-MM.
    El ranking familiar compartido (Fase 2) queda pendiente: de momento el
    acumulado es solo local a este dispositivo/usuario. */
-var JUEGO_TIEMPO_MS=20000;
-var JUEGO_ESTADO={pregunta:null,timerId:null,inicio:0,respondida:false,puntosSesion:0,racha:0};
+var JUEGO_PUNTOS_ACIERTO=100;
+var JUEGO_ESTADO={pregunta:null,respondida:false,puntosSesion:0,racha:0,consultada:false,viendoFichaDesdeJuego:false};
+/* Relación de parentesco (respecto a la persona activa "cid") que se
+   antepone al nombre en las preguntas, ej: "tu primo Juan Pérez",
+   "tu abuelo Antonio", "tu pariente directo en 3ª líneas". Si no hay
+   persona activa o no hay relación calculable, se usa solo el nombre. */
+function juegoParentescoTexto(personaId){
+if(!cid||!PI[cid]||!personaId||personaId===cid)return'';
+var rel=calcularParentescoDesde(cid,personaId);
+if(!rel||!rel.corto||rel.corto==='Misma persona')return'';
+var texto=rel.corto;
+if(/ascendiente directo|descendiente directo/i.test(texto)){
+var m=texto.match(/\((\d+)ª generación\)/);
+texto='pariente directo en '+(m?m[1]:'varias')+' líneas';
+}else{
+texto=texto.charAt(0).toLowerCase()+texto.slice(1);
+}
+return texto;
+}
+function juegoNombreRelativo(p,capitalizar){
+var nombre=fn(p);
+var rel=juegoParentescoTexto(p.ID);
+if(!rel)return nombre;
+return(capitalizar?'Tu ':'tu ')+rel+' '+nombre;
+}
 function juegoBarajar(arr){var a=arr.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function juegoPersonasVisibles(){return Object.keys(PI).map(function(id){return PI[id];}).filter(function(p){return p&&puedeVerPersona(p.ID);});}
 function juegoFallecidosVisibles(){return juegoPersonasVisibles().filter(function(p){return !isAl(p);});}
@@ -12199,7 +12234,7 @@ var offsets=juegoBarajar([-25,-18,-12,-8,-5,5,8,12,18,25]);
 var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
 for(var i=0;i<offsets.length&&opciones.length<4;i++){var v=correcto+offsets[i];if(v>0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
 if(opciones.length<2)return null;
-return{enunciado:'¿En qué año '+etiqueta+' '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+return{enunciado:'¿En qué año '+etiqueta+' '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaNumHijos(){
 var candidatos=juegoFallecidosVisibles();
@@ -12210,7 +12245,7 @@ var pool=juegoBarajar([-3,-2,-1,1,2,3,4]);
 var valores={};valores[correcto]=true;var opciones=[{texto:String(correcto),correcta:true}];
 for(var i=0;i<pool.length&&opciones.length<4;i++){var v=correcto+pool[i];if(v>=0&&!valores[v]){valores[v]=true;opciones.push({texto:String(v),correcta:false});}}
 if(opciones.length<2)return null;
-return{enunciado:'¿Cuántos hijos tuvo '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+return{enunciado:'¿Cuántos hijos tuvo '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaConyuge(){
 var candidatos=juegoFallecidosVisibles().filter(function(p){return conyugesDe(p.ID).some(function(cid2){return PI[cid2]&&puedeVerPersona(cid2);});});
@@ -12223,7 +12258,7 @@ var pool=juegoPersonasVisibles().filter(function(x){return x.ID!==p.ID&&x.ID!==c
 if(pool.length<3)return null;
 var distractores=juegoBarajar(pool).slice(0,3).map(function(x){return{texto:fn(x),correcta:false};});
 var opciones=[{texto:correctoNombre,correcta:true}].concat(distractores);
-return{enunciado:'¿Quién fue cónyuge de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+return{enunciado:'¿Quién fue cónyuge de '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaApellido2(){
 var candidatos=juegoFallecidosVisibles().filter(function(p){return p.APELLIDO2;});
@@ -12234,7 +12269,7 @@ var pool=juegoPersonasVisibles().filter(function(x){return x.APELLIDO2&&x.APELLI
 var apellidosUnicos=juegoBarajar(Array.from(new Set(pool.map(function(x){return x.APELLIDO2;}))));
 if(apellidosUnicos.length<3)return null;
 var opciones=[{texto:correcto,correcta:true}].concat(apellidosUnicos.slice(0,3).map(function(a){return{texto:a,correcta:false};}));
-return{enunciado:'¿Cuál es el segundo apellido de '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+return{enunciado:'¿Cuál es el segundo apellido de '+juegoNombreRelativo(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 function juegoPreguntaParentesco(){
 if(!cid||!PI[cid])return null;
@@ -12254,7 +12289,7 @@ textoRel=textoRel.charAt(0).toLowerCase()+textoRel.slice(1);
 var correcto='Tu '+textoRel;
 var distractoresPool=juegoBarajar(etiquetasComunes.filter(function(e){return e.toLowerCase()!==textoRel.toLowerCase();}));
 var opciones=[{texto:correcto,correcta:true}].concat(distractoresPool.slice(0,3).map(function(e){return{texto:'Tu '+e,correcta:false};}));
-return{enunciado:'¿Qué relación de parentesco tienes con '+fn(p)+'?',opciones:juegoBarajar(opciones)};
+return{enunciado:'¿Qué relación de parentesco tienes con '+fn(p)+'?',opciones:juegoBarajar(opciones),personaId:p.ID};
 }
 return null;
 }
@@ -12273,7 +12308,7 @@ var opcionesDelta=juegoBarajar([-3,-2,-1,1,2,3]).filter(function(d){return real+
 if(!opcionesDelta.length)continue;
 numMostrado=real+opcionesDelta[0];
 }
-return{enunciado:fn(p)+' tuvo '+numMostrado+' '+(numMostrado===1?'hijo':'hijos')+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero},{texto:'Falso',correcta:!esVerdadero}])};
+return{enunciado:juegoNombreRelativo(p,true)+' tuvo '+numMostrado+' '+(numMostrado===1?'hijo':'hijos')+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero},{texto:'Falso',correcta:!esVerdadero}]),personaId:p.ID};
 }
 }
 if(tipos[t]==='conyuge'){
@@ -12290,7 +12325,7 @@ var pool2=juegoPersonasVisibles().filter(function(x){return x.ID!==p2.ID&&conys2
 if(!pool2.length)continue;
 otraPersona=pool2[Math.floor(Math.random()*pool2.length)];
 }
-return{enunciado:fn(p2)+' fue cónyuge de '+fn(otraPersona)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero2},{texto:'Falso',correcta:!esVerdadero2}])};
+return{enunciado:juegoNombreRelativo(p2,true)+' fue cónyuge de '+juegoNombreRelativo(otraPersona)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:esVerdadero2},{texto:'Falso',correcta:!esVerdadero2}]),personaId:p2.ID};
 }
 }
 if(tipos[t]==='edadRelativa'){
@@ -12301,7 +12336,7 @@ var conys3=conyugesDe(p3.ID).filter(function(c){return PI[c]&&PI[c].NACA&&puedeV
 var conyuge3=PI[conys3[Math.floor(Math.random()*conys3.length)]];
 if(parseInt(p3.NACA,10)===parseInt(conyuge3.NACA,10))continue;
 var real3=parseInt(p3.NACA,10)<parseInt(conyuge3.NACA,10);
-return{enunciado:fn(p3)+' nació antes que '+fn(conyuge3)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:real3},{texto:'Falso',correcta:!real3}])};
+return{enunciado:juegoNombreRelativo(p3,true)+' nació antes que '+juegoNombreRelativo(conyuge3)+'.',opciones:juegoBarajar([{texto:'Verdadero',correcta:real3},{texto:'Falso',correcta:!real3}]),personaId:p3.ID};
 }
 }
 }
@@ -12327,16 +12362,21 @@ function(){return juegoPreguntaVerdaderoFalso();}
 for(var i=0;i<generadores.length;i++){var preg=generadores[i]();if(preg)return preg;}
 return null;
 }
-function detenerCronometroJuego(){if(JUEGO_ESTADO.timerId){clearInterval(JUEGO_ESTADO.timerId);JUEGO_ESTADO.timerId=null;}}
+/* Se ha quitado el cronómetro/barra de tiempo: ya no hay límite para
+   responder ni penalización por tardar. detenerCronometroJuego() se deja
+   como función vacía (no-op) porque otras partes del código todavía la
+   llaman al cambiar de pantalla. */
+function detenerCronometroJuego(){}
 function renderPreguntaJuego(preg){
 var enun=document.getElementById('juegoEnunciado');if(enun)enun.textContent=preg.enunciado;
 var opsWrap=document.getElementById('juegoOpciones');
 if(opsWrap)opsWrap.innerHTML=preg.opciones.map(function(op,idx){return '<button type="button" class="ef-btn ghost" style="text-align:left" onclick="responderJuego('+idx+')">'+esc(op.texto)+'</button>';}).join('');
 var fb=document.getElementById('juegoFeedback');if(fb){fb.style.display='none';fb.innerHTML='';}
 var sig=document.getElementById('juegoSiguienteWrap');if(sig)sig.style.display='none';
+var consultarWrap=document.getElementById('juegoConsultarWrap');
+if(consultarWrap)consultarWrap.style.display=(preg.personaId&&PI[preg.personaId])?'block':'none';
 }
 function iniciarPreguntaJuego(){
-detenerCronometroJuego();
 var preg=generarPreguntaJuego();
 var sinPreguntas=document.getElementById('juegoSinPreguntas'),contenido=document.getElementById('juegoContenido');
 if(!preg){
@@ -12349,33 +12389,40 @@ if(sinPreguntas)sinPreguntas.style.display='none';
 if(contenido)contenido.style.display='block';
 JUEGO_ESTADO.pregunta=preg;
 JUEGO_ESTADO.respondida=false;
-JUEGO_ESTADO.inicio=Date.now();
+JUEGO_ESTADO.consultada=false;
 renderPreguntaJuego(preg);
-var barra=document.getElementById('juegoBarraTiempo');
-if(barra)barra.style.width='100%';
-JUEGO_ESTADO.timerId=setInterval(function(){
-var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
-var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
-if(barra)barra.style.width=(restanteFrac*100)+'%';
-if(restanteFrac<=0)responderJuego(-1);
-},100);
+}
+/* Acceso a la ficha de la persona de la pregunta actual: se puede consultar
+   para ver sus datos, pero si se acierta la pregunta después de haberla
+   consultado solo se dan un tercio de los puntos. Al abrir la ficha aparece
+   un botón "Volver al juego" (ver rFicView) para retomar la pregunta. */
+function consultarFichaJuego(){
+if(!JUEGO_ESTADO.pregunta||!JUEGO_ESTADO.pregunta.personaId)return;
+var id=JUEGO_ESTADO.pregunta.personaId;
+if(!PI[id]){toast('Esa ficha ya no está disponible',true);return;}
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
+JUEGO_ESTADO.consultada=true;
+JUEGO_ESTADO.viendoFichaDesdeJuego=true;
+cid=id;editMode=false;sv('fic');
+}
+function volverAlJuegoDesdeFicha(){
+JUEGO_ESTADO.viendoFichaDesdeJuego=false;
+navHistBackSafe();
 }
 function responderJuego(idx){
 if(!JUEGO_ESTADO.pregunta||JUEGO_ESTADO.respondida)return;
 JUEGO_ESTADO.respondida=true;
-detenerCronometroJuego();
 var preg=JUEGO_ESTADO.pregunta;
-var transcurrido=Date.now()-JUEGO_ESTADO.inicio;
-var restanteFrac=Math.max(0,1-(transcurrido/JUEGO_TIEMPO_MS));
 var opcion=idx>=0?preg.opciones[idx]:null;
 var acierto=!!(opcion&&opcion.correcta);
-var puntosBase=acierto?Math.max(10,Math.round(100*restanteFrac)):0;
+var puntosBase=acierto?JUEGO_PUNTOS_ACIERTO:0;
 var rachaAnterior=JUEGO_ESTADO.racha||0;
 var rachaPerdida=false,multiplicador=1,puntos=0;
 if(acierto){
 JUEGO_ESTADO.racha=rachaAnterior+1;
 multiplicador=juegoMultiplicadorRacha(JUEGO_ESTADO.racha);
 puntos=Math.round(puntosBase*multiplicador);
+if(JUEGO_ESTADO.consultada)puntos=Math.round(puntos/3);
 }else{
 rachaPerdida=rachaAnterior>0;
 JUEGO_ESTADO.racha=0;
@@ -12391,13 +12438,16 @@ if(preg.opciones[i2].correcta){btn.style.borderColor='#2e7d32';btn.style.color='
 else if(i2===idx){btn.style.borderColor='#c62828';btn.style.color='#c62828';}
 });
 }
+var consultarWrap=document.getElementById('juegoConsultarWrap');
+if(consultarWrap)consultarWrap.style.display='none';
 var fb=document.getElementById('juegoFeedback');
 if(fb){
 fb.style.display='block';
-var titulo=acierto?'<strong style="color:#2e7d32">¡Correcto!</strong> ':(idx===-1?'<strong style="color:#c62828">Se acabó el tiempo.</strong> ':'<strong style="color:#c62828">No es correcto.</strong> ');
+var titulo=acierto?'<strong style="color:#2e7d32">¡Correcto!</strong> ':'<strong style="color:#c62828">No es correcto.</strong> ';
 var extraRacha=acierto&&multiplicador>1?' (racha ×'+multiplicador+')':'';
+var extraConsulta=acierto&&JUEGO_ESTADO.consultada?' (ficha consultada: solo 1/3 de los puntos)':'';
 var lineaPerdida=rachaPerdida?'<br><span style="color:#c62828">💥 Racha perdida.</span>':'';
-fb.innerHTML=titulo+'Has ganado '+puntos+' puntos'+extraRacha+'.'+lineaPerdida;
+fb.innerHTML=titulo+'Has ganado '+puntos+' puntos'+extraRacha+extraConsulta+'.'+lineaPerdida;
 }
 var rachaActualSpan=document.getElementById('juegoRachaActualTexto');
 if(rachaActualSpan)rachaActualSpan.textContent=JUEGO_ESTADO.racha>=2?'🔥 Racha: '+JUEGO_ESTADO.racha:'';
