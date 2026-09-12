@@ -604,6 +604,30 @@ body{background:#fff}
 .ges-var em{color:var(--muted);font-style:normal;font-size:11px}
 .ges-var.canonica{border-color:var(--green);background:rgba(90,138,60,.07);font-weight:700}
 .ges-var-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+/* ===== Comparador de documentos (RAÍZ nuevo vs ANTERIOR archivado) ===== */
+.cmp-box{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:rgba(196,101,58,.06);border:none;padding:12px 14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--accent);cursor:pointer;text-align:left}
+.cmp-chev{transition:transform .15s;flex-shrink:0}
+.cmp-body{padding:12px 14px 14px}
+.cmp-resumen{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cmp-count{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.cmp-count-root{color:var(--blue);border-color:rgba(44,95,138,.3)}
+.cmp-count-ant{color:var(--accent);border-color:rgba(196,101,58,.3)}
+.cmp-count-dup{color:#c0392b;border-color:rgba(192,57,43,.3)}
+.cmp-list{max-height:68vh;overflow-y:auto;border:1px solid var(--border);border-radius:10px}
+.cmp-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border)}
+.cmp-row:last-child{border-bottom:0}
+.cmp-row-match{background:rgba(90,138,60,.08)}
+.cmp-half{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:7px 9px;font-size:12px}
+.cmp-mid{width:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--green);font-size:11px;border-left:1px dashed var(--border);border-right:1px dashed var(--border)}
+.cmp-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.cmp-meta{flex-shrink:0;color:var(--muted);font-size:10.5px;white-space:nowrap}
+.cmp-empty{color:var(--muted);font-style:italic;font-size:11.5px;padding:7px 9px;flex:1}
+.cmp-acciones{display:flex;gap:4px;flex-shrink:0}
+.cmp-btn{width:24px;height:24px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cmp-btn:hover{border-color:var(--accent);color:var(--accent)}
+.cmp-btn-danger:hover{border-color:#c0392b;color:#c0392b}
+@media(max-width:640px){.cmp-row{flex-direction:column}.cmp-mid{display:none}.cmp-half{border-bottom:1px dashed var(--border)}.cmp-half:last-child{border-bottom:0}}
 </style>
 <base target="_blank">
 </head>
@@ -962,6 +986,7 @@ body{background:#fff}
 <input class="ef-input" id="docExplorerBuscarPersona" placeholder="Buscar persona por nombre o apellido..." style="flex:1;min-width:220px" oninput="docExplorerBuscarPersonas(this.value)" autocomplete="off">
 </div>
 <div id="docExplorerResultadosBusqueda" style="margin-bottom:12px"></div>
+<div id="docExplorerCmp"></div>
 <div id="docExplorerPersonaActiva"></div>
 <div id="docExplorerLista"></div>
 <div id="docExplorerDetalle" style="display:none;max-width:900px;margin:16px auto 0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px"></div>
@@ -2763,10 +2788,12 @@ return;
 if(DOC_EXPLORER_PERSONA){
 docExplorerRenderPersonaActiva();
 docExplorerRenderLista();
+docExplorerRenderComparadorPanel();
 }else{
 var det=document.getElementById('docExplorerDetalle');if(det)det.style.display='none';
 var host=document.getElementById('docExplorerPersonaActiva');if(host)host.innerHTML='';
 var lista=document.getElementById('docExplorerLista');if(lista)lista.innerHTML='<p style="font-size:12px;color:var(--muted);text-align:center">Busca y elige una persona para ver sus documentos.</p>';
+var cmp=document.getElementById('docExplorerCmp');if(cmp)cmp.innerHTML='';
 }
 }
 
@@ -2793,11 +2820,296 @@ if(!p){toast('Esa persona ya no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 DOC_EXPLORER_PERSONA={id:id,nombre:fn(p)};
 DOC_EXPLORER_ARCHIVOS=[];
+DOC_EXPLORER_CARPETA_ID=null;
+docExplorerCmpResetear();
 var input=document.getElementById('docExplorerBuscarPersona');if(input)input.value='';
 var res=document.getElementById('docExplorerResultadosBusqueda');if(res)res.innerHTML='';
 var det=document.getElementById('docExplorerDetalle');if(det)det.style.display='none';
 docExplorerRenderPersonaActiva();
+docExplorerRenderComparadorPanel();
 docExplorerRepasarCarpeta();
+}
+
+/* ==========================================================================
+   COMPARADOR "RAÍZ (NUEVO) vs ANTERIOR (ARCHIVADO)"
+   --------------------------------------------------------------------------
+   Trae al Libro de los Ancestros el mismo comparador de carpetas que ya
+   existía en el programa de archivo documental familiar: para la persona
+   activa del Explorador de documentos, enfrenta el contenido directo de su
+   carpeta DOCUMENTOS/<ID> (RAÍZ, lo nuevo) con el de su subcarpeta ANTERIOR
+   (lo ya archivado) para poder descartar repetidos antes de mezclarlo todo.
+
+   A diferencia del comparador original (dos listas independientes que había
+   que desplazar por separado para cruzar visualmente), aquí los archivos con
+   EXACTAMENTE el mismo nombre en ambos lados se colocan en la MISMA fila,
+   resaltada, para poder detectar y eliminar duplicados de un vistazo. Los
+   archivos que solo existen en un lado se muestran igualmente, con el otro
+   lado vacío.
+   ========================================================================== */
+
+var DOC_EXPLORER_CARPETA_ID=null; /* carpeta DOCUMENTOS/<ID> de la persona activa, cacheada por docExplorerRepasarCarpeta */
+var DOC_EXPLORER_CMP_ANTERIOR_ID=null;
+var DOC_EXPLORER_CMP_ABIERTO=false;
+var DOC_EXPLORER_CMP_CARGADO=false;
+var DOC_EXPLORER_CMP_FILAS=[];
+var DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS=true;
+
+function docExplorerCmpResetear(){
+DOC_EXPLORER_CMP_ANTERIOR_ID=null;
+DOC_EXPLORER_CMP_ABIERTO=false;
+DOC_EXPLORER_CMP_CARGADO=false;
+DOC_EXPLORER_CMP_FILAS=[];
+}
+
+function docExplorerRenderComparadorPanel(){
+var host=document.getElementById('docExplorerCmp');
+if(!host)return;
+if(!DOC_EXPLORER_PERSONA){host.innerHTML='';return;}
+var abierto=DOC_EXPLORER_CMP_ABIERTO;
+var h='<div class="cmp-box">';
+h+='<button type="button" class="cmp-head" onclick="docExplorerCmpToggle()" aria-expanded="'+(abierto?'true':'false')+'" aria-controls="docExplorerCmpBody">';
+h+='<span><i class="fa-solid fa-code-compare" aria-hidden="true"></i> 0. Comparar con lo archivado (ANTERIOR)</span>';
+h+='<i class="fa-solid fa-chevron-down cmp-chev" style="'+(abierto?'transform:rotate(180deg)':'')+'" aria-hidden="true"></i>';
+h+='</button>';
+h+='<div class="cmp-body" id="docExplorerCmpBody" style="display:'+(abierto?'block':'none')+'">';
+h+='<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Solo hace falta si antes usaste «Preparar carpeta antes de añadir documentos nuevos» en el Panel. Enfrenta la raíz de la persona (lo nuevo) con la subcarpeta ANTERIOR (lo archivado) para descartar repetidos antes de mezclarlo todo. Trabaja sobre la persona activa de arriba: <strong>'+esc(DOC_EXPLORER_PERSONA.nombre)+'</strong>.</p>';
+h+='<div id="docExplorerCmpResultado">';
+h+='<button type="button" class="ef-btn ghost" onclick="docExplorerCmpComparar(this)"><i class="fa-solid fa-code-compare"></i> Comparar carpetas de esta persona</button>';
+h+='</div></div></div>';
+host.innerHTML=h;
+if(abierto&&DOC_EXPLORER_CMP_CARGADO)docExplorerCmpPintarResultado();
+}
+function docExplorerCmpToggle(){
+DOC_EXPLORER_CMP_ABIERTO=!DOC_EXPLORER_CMP_ABIERTO;
+docExplorerRenderComparadorPanel();
+}
+
+/* Busca (sin crear) una subcarpeta por nombre exacto dentro de otra carpeta. */
+async function docExplorerCmpBuscarSubcarpeta(parentId,nombre){
+var q="'"+parentId+"' in parents and name='"+String(nombre).replace(/'/g,"\\'")+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+var d=await r.json();
+return(d.files&&d.files.length)?d.files[0].id:null;
+}
+
+/* Lista (paginado, hasta agotar) el contenido directo de una carpeta y lo
+   deja listo para comparar: descarta subcarpetas, separa los sidecars
+   propios (mismo patrón que docExplorerEsSidecarPropio) y los empareja con
+   su archivo real por nombre base, SIN descargar el contenido de cada
+   sidecar (solo hace falta su id, para poder borrarlo en cascada si hace
+   falta), así que es rápido incluso con cientos de archivos por carpeta. */
+async function docExplorerCmpListarCarpeta(folderId){
+var todos=[],pageToken;
+do{
+var q="'"+folderId+"' in parents and trashed=false";
+var url='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime)&spaces=drive&pageSize=1000'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+var r=await fetch(url,{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+var d=await r.json();
+todos=todos.concat(d.files||[]);
+pageToken=d.nextPageToken;
+}while(pageToken);
+var restantes=todos.filter(function(f){return f.mimeType!=='application/vnd.google-apps.folder';});
+var sidecars=restantes.filter(function(f){return docExplorerEsSidecarPropio(f.name);});
+var archivosReales=restantes.filter(function(f){return !docExplorerEsSidecarPropio(f.name)&&!docExplorerEsAgregadoDePersona(f.name);});
+var sidecarPorBase={};
+sidecars.forEach(function(s){sidecarPorBase[s.name.replace(/\.json$/i,'').toLowerCase()]=s.id;});
+return archivosReales.map(function(f){
+var base=f.name.replace(/\.[^.]+$/,'').toLowerCase();
+return{driveFileId:f.id,nombreDrive:f.name,mimeType:f.mimeType||'',size:f.size,modifiedTime:f.modifiedTime,sidecarFileId:sidecarPorBase[base]||null};
+});
+}
+
+function docExplorerCmpNormaliza(s){return String(s||'').trim().toLowerCase();}
+/* Empareja por NOMBRE EXACTO (sin distinguir mayúsculas/acentos de caja):
+   cada nombre distinto entre las dos carpetas es una fila; si aparece en
+   ambas, la fila trae los dos lados rellenos ("coincidencia" = posible
+   duplicado). Se ordena alfabéticamente para que sea fácil de repasar. */
+function docExplorerCmpConstruirFilas(archRoot,archAnt){
+var mapa={};
+archRoot.forEach(function(f){var k=docExplorerCmpNormaliza(f.nombreDrive);if(!mapa[k])mapa[k]={nombre:f.nombreDrive,root:null,anterior:null};mapa[k].root=f;});
+archAnt.forEach(function(f){var k=docExplorerCmpNormaliza(f.nombreDrive);if(!mapa[k])mapa[k]={nombre:f.nombreDrive,root:null,anterior:null};mapa[k].anterior=f;});
+var filas=Object.keys(mapa).map(function(k){return mapa[k];});
+filas.sort(function(a,b){return String(a.nombre).localeCompare(String(b.nombre),'es',{sensitivity:'base'});});
+filas.forEach(function(f,i){f._idx=i;});
+return filas;
+}
+
+async function docExplorerCmpComparar(btn){
+if(!DOC_EXPLORER_PERSONA)return;
+var id=DOC_EXPLORER_PERSONA.id;
+if(!tokenDriveValido()){
+try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+}
+var cont=document.getElementById('docExplorerCmpResultado');
+if(!cont)return;
+botonCargando(btn,true,'Comparando...');
+cont.innerHTML=docExplorerHtmlCargando('Buscando la carpeta de esta persona y su subcarpeta ANTERIOR...');
+try{
+var folderId=DOC_EXPLORER_CARPETA_ID;
+if(!folderId)folderId=await obtenerCarpetaPersonaDocumentos(id,false);
+if(!folderId){
+DOC_EXPLORER_CMP_CARGADO=false;
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta persona todavía no tiene carpeta de documentos en Drive.</p><button type="button" class="ef-btn ghost" onclick="docExplorerCmpComparar(this)"><i class="fa-solid fa-code-compare"></i> Comparar carpetas de esta persona</button>';
+return;
+}
+var anteriorId=await docExplorerCmpBuscarSubcarpeta(folderId,'ANTERIOR');
+if(!anteriorId){
+DOC_EXPLORER_CMP_CARGADO=false;
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta persona no tiene ninguna subcarpeta llamada «ANTERIOR» dentro de su carpeta de documentos, así que no hay nada que comparar.</p><button type="button" class="ef-btn ghost" onclick="docExplorerCmpComparar(this)"><i class="fa-solid fa-code-compare"></i> Comparar carpetas de esta persona</button>';
+return;
+}
+DOC_EXPLORER_CMP_ANTERIOR_ID=anteriorId;
+cont.innerHTML=docExplorerHtmlCargando('Leyendo los archivos de ambas carpetas...');
+var listas=await Promise.all([docExplorerCmpListarCarpeta(folderId),docExplorerCmpListarCarpeta(anteriorId)]);
+DOC_EXPLORER_CMP_FILAS=docExplorerCmpConstruirFilas(listas[0],listas[1]);
+DOC_EXPLORER_CMP_CARGADO=true;
+docExplorerCmpPintarResultado();
+}catch(err){
+DOC_EXPLORER_CMP_CARGADO=false;
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Error al comparar: '+esc(err.message)+'</p><button type="button" class="ef-btn ghost" onclick="docExplorerCmpComparar(this)"><i class="fa-solid fa-rotate"></i> Reintentar</button>';
+}finally{botonCargando(btn,false);}
+}
+
+function docExplorerCmpToggleSolo(marcado){
+DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS=!!marcado;
+docExplorerCmpPintarResultado();
+}
+
+function docExplorerCmpPintarResultado(){
+var cont=document.getElementById('docExplorerCmpResultado');
+if(!cont)return;
+var filas=DOC_EXPLORER_CMP_FILAS;
+var totalRoot=filas.filter(function(f){return f.root;}).length;
+var totalAnt=filas.filter(function(f){return f.anterior;}).length;
+var coincidencias=filas.filter(function(f){return f.root&&f.anterior;});
+var visibles=DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS?coincidencias:filas;
+var h='<div class="cmp-resumen">';
+h+='<span class="cmp-count cmp-count-root">RAÍZ (NUEVO) ('+totalRoot+')</span>';
+h+='<span class="cmp-count cmp-count-ant">ANTERIOR (ARCHIVADO) ('+totalAnt+')</span>';
+h+='<span class="cmp-count cmp-count-dup"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> '+coincidencias.length+' coincidencia(s) por nombre</span>';
+h+='</div>';
+h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 10px">';
+h+='<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer"><input type="checkbox" id="docExplorerCmpSoloDup" '+(DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS?'checked':'')+' onchange="docExplorerCmpToggleSolo(this.checked)"> Mostrar solo coincidencias (mismo nombre)</label>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+if(coincidencias.length)h+='<button type="button" class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="docExplorerCmpEliminarDuplicadosAnterior(this)"><i class="fa-solid fa-broom"></i> Eliminar los '+coincidencias.length+' duplicados de ANTERIOR</button>';
+h+='<button type="button" class="ef-btn ghost" onclick="docExplorerCmpComparar(this)"><i class="fa-solid fa-rotate"></i> Repasar de nuevo</button>';
+h+='</div></div>';
+if(!visibles.length){
+h+='<p style="font-size:12px;color:var(--muted);text-align:center;padding:14px 0">'+(DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS?'No hay ningún archivo con el mismo nombre en ambas carpetas — nada que descartar.':'Ninguna de las dos carpetas tiene archivos.')+'</p>';
+}else{
+h+='<div class="cmp-list">'+visibles.map(docExplorerCmpHtmlFila).join('')+'</div>';
+}
+cont.innerHTML=h;
+}
+
+function docExplorerCmpHtmlFila(fila){
+var esMatch=!!(fila.root&&fila.anterior);
+var h='<div class="cmp-row'+(esMatch?' cmp-row-match':'')+'">';
+h+='<div class="cmp-half">'+docExplorerCmpHtmlLado(fila,'root')+'</div>';
+h+='<div class="cmp-mid">'+(esMatch?'<i class="fa-solid fa-equals" title="Mismo nombre en ambas carpetas — posible duplicado" aria-label="Posible duplicado"></i>':'')+'</div>';
+h+='<div class="cmp-half">'+docExplorerCmpHtmlLado(fila,'anterior')+'</div>';
+h+='</div>';
+return h;
+}
+function docExplorerCmpHtmlLado(fila,lado){
+var f=fila[lado];
+if(!f)return '<span class="cmp-empty">— no está aquí —</span>';
+var icono=docsIconoPorMime(f.mimeType,f.nombreDrive);
+var fecha=f.modifiedTime?String(f.modifiedTime).slice(0,10):'';
+var tam=docsTamanoTexto(f.size);
+var h='<i class="fa-solid fa-'+icono+'" style="color:var(--muted);flex-shrink:0" aria-hidden="true"></i>';
+h+='<span class="cmp-nombre" title="'+escAttr(f.nombreDrive)+'">'+esc(f.nombreDrive)+'</span>';
+h+='<span class="cmp-meta">'+esc(fecha)+(tam?(' · '+esc(tam)):'')+'</span>';
+h+='<span class="cmp-acciones">';
+if(lado==='anterior'&&!fila.root)h+='<button type="button" class="cmp-btn" title="Traer este archivo a RAÍZ" onclick="event.stopPropagation();docExplorerCmpMoverARaiz('+fila._idx+',this)"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>';
+h+='<button type="button" class="cmp-btn cmp-btn-danger" title="Eliminar de Drive" onclick="event.stopPropagation();docExplorerCmpEliminarLado('+fila._idx+',\''+lado+'\',this)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>';
+h+='</span>';
+return h;
+}
+
+function docExplorerCmpQuitarFilaSiVacia(fila){
+if(fila.root||fila.anterior)return;
+DOC_EXPLORER_CMP_FILAS=DOC_EXPLORER_CMP_FILAS.filter(function(x){return x!==fila;});
+DOC_EXPLORER_CMP_FILAS.forEach(function(x,i){x._idx=i;});
+}
+
+/* Elimina definitivamente (con su sidecar si lo tiene) el archivo de UN solo
+   lado de una fila del comparador. */
+async function docExplorerCmpEliminarLado(idx,lado,btn){
+var fila=DOC_EXPLORER_CMP_FILAS[idx];
+if(!fila||!fila[lado])return;
+var f=fila[lado];
+if(!(await exigirIdentidadGoogle()))return;
+var etiquetaLado=lado==='root'?'RAÍZ (nuevo)':'ANTERIOR (archivado)';
+if(!(await confirmarApp('Se eliminará definitivamente "'+f.nombreDrive+'" de '+etiquetaLado+' en Google Drive. Esta acción no se puede deshacer.',{titulo:'Eliminar archivo',textoAceptar:'Eliminar'})))return;
+botonCargando(btn,true,'');
+try{
+await driveEliminarArchivo(f.driveFileId);
+if(f.sidecarFileId)await driveEliminarArchivo(f.sidecarFileId).catch(function(e){console.warn('No se pudo eliminar el sidecar:',e.message);});
+fila[lado]=null;
+docExplorerCmpQuitarFilaSiVacia(fila);
+toast('Archivo eliminado de '+etiquetaLado);
+docExplorerCmpPintarResultado();
+if(lado==='root')docExplorerRepasarCarpeta(); /* mantiene sincronizada la rejilla principal de arriba */
+}catch(err){toast('No se pudo eliminar: '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
+
+/* Acción rápida de limpieza masiva: si el mismo nombre ya está en RAÍZ, el
+   de ANTERIOR se considera un duplicado sobrante y se borra (RAÍZ nunca se
+   toca aquí). Uno a uno, para poder informar cuántos han fallado sin
+   detener el resto. */
+async function docExplorerCmpEliminarDuplicadosAnterior(btn){
+var coincidencias=DOC_EXPLORER_CMP_FILAS.filter(function(f){return f.root&&f.anterior;});
+if(!coincidencias.length)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se eliminarán definitivamente los '+coincidencias.length+' archivo(s) de ANTERIOR que tienen el mismo nombre que uno ya presente en RAÍZ. Los de RAÍZ no se tocan. Esta acción no se puede deshacer.',{titulo:'Eliminar duplicados de ANTERIOR',textoAceptar:'Eliminar '+coincidencias.length})))return;
+botonCargando(btn,true,'Eliminando...');
+var ok=0,fallidos=0;
+for(var i=0;i<coincidencias.length;i++){
+var fila=coincidencias[i],f=fila.anterior;
+try{
+await driveEliminarArchivo(f.driveFileId);
+if(f.sidecarFileId)await driveEliminarArchivo(f.sidecarFileId).catch(function(){});
+fila.anterior=null;
+ok++;
+}catch(err){fallidos++;}
+}
+DOC_EXPLORER_CMP_FILAS=DOC_EXPLORER_CMP_FILAS.filter(function(x){return x.root||x.anterior;});
+DOC_EXPLORER_CMP_FILAS.forEach(function(x,i){x._idx=i;});
+toast(ok+' duplicado(s) eliminado(s) de ANTERIOR'+(fallidos?(' ('+fallidos+' fallaron)'):''));
+docExplorerCmpPintarResultado();
+botonCargando(btn,false);
+}
+
+/* Mueve (no copia) un archivo — y su sidecar, si lo tiene — de ANTERIOR a la
+   carpeta RAÍZ de la misma persona, para los casos en los que ANTERIOR
+   tenía algo que en RAÍZ todavía no se había incorporado. */
+async function driveMoverArchivo(fileId,nuevoParentId,parentActualId){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId+'?addParents='+encodeURIComponent(nuevoParentId)+'&removeParents='+encodeURIComponent(parentActualId),{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+}
+async function docExplorerCmpMoverARaiz(idx,btn){
+var fila=DOC_EXPLORER_CMP_FILAS[idx];
+if(!fila||!fila.anterior||fila.root)return;
+var f=fila.anterior;
+if(!DOC_EXPLORER_CARPETA_ID||!DOC_EXPLORER_CMP_ANTERIOR_ID)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se moverá "'+f.nombreDrive+'" de ANTERIOR a la carpeta RAÍZ de esta persona.',{titulo:'Traer a RAÍZ',textoAceptar:'Mover'})))return;
+botonCargando(btn,true,'');
+try{
+await driveMoverArchivo(f.driveFileId,DOC_EXPLORER_CARPETA_ID,DOC_EXPLORER_CMP_ANTERIOR_ID);
+if(f.sidecarFileId)await driveMoverArchivo(f.sidecarFileId,DOC_EXPLORER_CARPETA_ID,DOC_EXPLORER_CMP_ANTERIOR_ID).catch(function(e){console.warn('No se pudo mover el sidecar:',e.message);});
+fila.root=f;
+fila.anterior=null;
+toast('Archivo movido a RAÍZ');
+docExplorerCmpPintarResultado();
+docExplorerRepasarCarpeta();
+}catch(err){toast('No se pudo mover: '+err.message,true);}
+finally{botonCargando(btn,false);}
 }
 
 /* ==========================================================================
@@ -3146,14 +3458,26 @@ var rC=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURICompo
 if(rC.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="docExplorerConectarYRepasar(\''+safeId(id)+'\')">Reconectar</button>';return;}
 var dC=await rC.json();
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
-if(!dC.files||!dC.files.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta persona todavía no tiene carpeta de documentos en Drive.</p>';return;}
+if(!dC.files||!dC.files.length){DOC_EXPLORER_ARCHIVOS=[];DOC_EXPLORER_CARPETA_ID=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta persona todavía no tiene carpeta de documentos en Drive.</p>';return;}
 var folderId=dC.files[0].id;
+DOC_EXPLORER_CARPETA_ID=folderId;
 
-/* Un único listado con TODO lo que hay en la carpeta (no solo los .json). */
-var rF=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink)&orderBy=name&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+/* Un único listado con TODO lo que hay en la carpeta (no solo los .json).
+   Paginado: Drive solo devuelve una página de resultados por llamada (100
+   por defecto), así que hay que seguir pidiendo con pageToken hasta que no
+   quede ninguno — si no, en carpetas grandes se veían solo los primeros
+   archivos y el resto desaparecía sin avisar. */
+var todos=[],pageTokenPrincipal;
+do{
+var urlPrincipal='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+folderId+"' in parents and trashed=false")+'&fields=nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,webViewLink)&orderBy=name&spaces=drive&pageSize=1000'+(pageTokenPrincipal?'&pageToken='+encodeURIComponent(pageTokenPrincipal):'');
+var rF=await fetch(urlPrincipal,{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(rF.status===401){driveAccessToken=null;lista.innerHTML='<p style="font-size:12px;color:var(--muted)">La sesión de Google Drive caducó.</p><button class="ef-btn ghost" onclick="docExplorerConectarYRepasar(\''+safeId(id)+'\')">Reconectar</button>';return;}
 var dF=await rF.json();
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
-var todos=dF.files||[];
+todos=todos.concat(dF.files||[]);
+pageTokenPrincipal=dF.nextPageToken;
+if(pageTokenPrincipal)lista.innerHTML=docExplorerHtmlCargando('Leyendo '+todos.length+' archivo(s) hasta ahora...');
+}while(pageTokenPrincipal);
 
 var sidecars=todos.filter(function(f){return docExplorerEsSidecarPropio(f.name);});
 var archivosReales=todos.filter(function(f){return !docExplorerEsSidecarPropio(f.name)&&!docExplorerEsAgregadoDePersona(f.name);});
