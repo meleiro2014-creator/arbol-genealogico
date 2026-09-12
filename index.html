@@ -1805,7 +1805,7 @@ var antes=mapaPersonas(D);
 if(a){asegurarAmigosArray(a);a.AMIGOS=amigosIdsDe(a).filter(function(x){return String(x)!==String(idAmigo);});}
 if(b){asegurarAmigosArray(b);b.AMIGOS=amigosIdsDe(b).filter(function(x){return String(x)!==String(idPersona);});}
 bIdx(D);
-sAll(D).then(function(){
+sDesdeSnapshot(antes).then(function(){
 rFic(idPersona);
 toast('Amigo quitado');
 registrarCambiosDesdeSnapshots(antes,D,'vincular');
@@ -2279,6 +2279,63 @@ c.put(e);
 }
 tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};
 });
+}
+/* ===== MEJORA DE RENDIMIENTO: guardado parcial =====
+   sAll(D) reescribe TODO el almacén local (borra y vuelve a insertar cada
+   una de las decenas de miles de fichas) cada vez que se guarda un solo
+   cambio, lo cual se nota especialmente al crear/vincular familiares en un
+   árbol grande. sPersonas() hace lo mismo que sAll (incluida la copia de
+   seguridad completa en IndexedDB y el marcado de ANOCALC pendiente) pero
+   solo escribe en el almacén principal los registros indicados, en vez de
+   reescribir los decenas de miles restantes que no han cambiado. Se usa en
+   las operaciones habituales de edición de una ficha (guardar, vincular,
+   crear cónyuge/descendiente, quitar vínculo), que solo tocan una o pocas
+   personas; las operaciones masivas (importación, fusión, restauración,
+   aplicar cambios pendientes) siguen usando sAll(D) tal cual, porque ahí sí
+   cambia una parte grande del árbol. */
+function sPersonas(ids,opciones){
+opciones=opciones||{};
+var marcarSucio=opciones.marcarANOCALCSucio!==false;
+var idsUnicos=[];
+(ids||[]).forEach(function(id){if(id!=null&&idsUnicos.indexOf(id)<0)idsUnicos.push(id);});
+if(!idsUnicos.length)return Promise.resolve(0);
+return new Promise(function(res,rej){
+var stores=[ST,BK];
+if(db.objectStoreNames.contains(CFG))stores.push(CFG);
+var tx=db.transaction(stores,'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);
+idsUnicos.forEach(function(id){
+var p=PI[id];
+if(p)s.put(p);else s.delete(id);
+});
+b.put({id:'ultima',fecha:new Date().toISOString(),personas:D});
+if(db.objectStoreNames.contains(CFG)){
+var c=tx.objectStore(CFG);
+var req=c.get('anocalcEstado');
+req.onsuccess=function(){
+var e=req.result||{id:'anocalcEstado',datosVersion:0,calculoVersion:0};
+e.datosVersion=(Number(e.datosVersion)||0)+(marcarSucio?1:0);
+if(!marcarSucio)e.calculoVersion=e.datosVersion;
+e.id='anocalcEstado';
+c.put(e);
+};
+}
+tx.oncomplete=function(){res(idsUnicos.length);};tx.onerror=function(){rej(tx.error);};
+});
+}
+/* Variante cómoda: a partir de un snapshot "antes" (mapaPersonas(D), que ya se
+   calcula en casi todos estos sitios para el registro de cambios) calcula
+   exactamente qué personas han cambiado (o se han creado) y guarda solo esas,
+   sin tener que enumerarlas a mano en cada función y sin arriesgarse a que un
+   efecto secundario indirecto (p.ej. propagar un apellido a los descendientes)
+   se quede sin guardar por no haberlo tenido en cuenta. */
+function sDesdeSnapshot(antesMapa,opciones){
+var ids=[];
+D.forEach(function(p){
+var a=antesMapa[p.ID];
+if(!a||JSON.stringify(a)!==JSON.stringify(p))ids.push(p.ID);
+});
+Object.keys(antesMapa||{}).forEach(function(id){if(!PI[id]&&ids.indexOf(id)<0)ids.push(id);});
+return sPersonas(ids,opciones);
 }
 function leerEstadoANOCALC(){return new Promise(function(res){if(!db||!db.objectStoreNames.contains(CFG)){res({datosVersion:0,calculoVersion:0});return;}var r=db.transaction(CFG,'readonly').objectStore(CFG).get('anocalcEstado');r.onsuccess=function(){var e=r.result||{};res({datosVersion:Number(e.datosVersion)||0,calculoVersion:Number(e.calculoVersion)||0});};r.onerror=function(){res({datosVersion:0,calculoVersion:0});};});}
 function anocalcPendiente(){return leerEstadoANOCALC().then(function(e){return e.datosVersion!==e.calculoVersion;});}
@@ -3360,6 +3417,7 @@ h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12
 h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)">Ver JSON completo del sidecar</summary><pre style="white-space:pre-wrap;font-size:11px;background:var(--bg);padding:10px;border-radius:8px;margin-top:6px">'+esc(JSON.stringify(m,null,2))+'</pre></details>';
 }
 if(el.driveFileId)h+='<p style="margin-top:10px"><a class="ef-btn ghost" target="_blank" rel="noopener" href="https://drive.google.com/file/d/'+encodeURIComponent(el.driveFileId)+'/view"><i class="fa-brands fa-google-drive"></i> Abrir archivo original en Drive</a></p>';
+h+='<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)"><button type="button" class="ef-btn" style="background:#c0392b;border-color:#c0392b;color:#fff" onclick="docExplorerEliminarArchivo('+idx+',this)"><i class="fa-solid fa-trash"></i> Eliminar archivo</button><p style="font-size:11px;color:var(--muted);margin-top:4px">Borra el archivo (y su ficha) de Google Drive de forma definitiva.</p></div>';
 det.innerHTML=h;
 det.style.display='block';
 det.scrollIntoView({behavior:'smooth',block:'start'});
@@ -3368,6 +3426,28 @@ det.scrollIntoView({behavior:'smooth',block:'start'});
 /* Renombra el archivo real en Drive y, si tiene ficha (sidecar), también
    renombra el propio .json y actualiza su campo nombreOriginal, para que
    los dos sigan correspondiéndose. */
+async function driveEliminarArchivo(fileId){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'DELETE',headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+if(!r.ok&&r.status!==404)throw new Error('Drive respondió '+r.status);
+}
+async function docExplorerEliminarArchivo(idx,btn){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se eliminará definitivamente "'+el.nombreDrive+'" de Google Drive'+(el.tieneSidecar?' junto con su ficha (sidecar)':'')+'. Esta acción no se puede deshacer.',{titulo:'Eliminar archivo',textoAceptar:'Eliminar'})))return;
+botonCargando(btn,true,'Eliminando...');
+try{
+await driveEliminarArchivo(el.driveFileId);
+if(el.tieneSidecar&&el.sidecarFileId)await driveEliminarArchivo(el.sidecarFileId).catch(function(e){console.warn('No se pudo eliminar el sidecar:',e.message);});
+DOC_EXPLORER_ARCHIVOS.splice(idx,1);
+delete DOC_EXPLORER_MINI_CACHE[el.driveFileId];
+document.getElementById('docExplorerDetalle').style.display='none';
+toast('Archivo eliminado');
+docExplorerPintarLista();
+}catch(err){toast('No se pudo eliminar: '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
 async function driveRenombrarArchivo(fileId,nuevoNombre){
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nuevoNombre})});
 if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
@@ -5747,7 +5827,7 @@ h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span cl
 h+=htmlAvisosFicha(id);
 /* ===== Pestañas Datos / Familia / Abuelos / Hermanos ===== */
 var lugarNacHtml=htmlLugarFicha(p);
-var secDatos='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
+var secDatos='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
 if(esAnioEstimado(p)){
 secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
 }
@@ -6573,6 +6653,7 @@ if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 var antesCambio=clonarPersona(p);
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+var antesGuardadoParcial=mapaPersonas(D);
 var apellido1Anterior=p.APELLIDO1;
 p.APELLIDO1=leerCampo('ef-ap1');
 p.APELLIDO2=leerCampo('ef-ap2');
@@ -6615,7 +6696,7 @@ p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0'
 var antesPropagacion=mapaPersonas(D);
 var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
-sAll(D).then(function(){
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
 editMode=false;
 FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
 rStats();
@@ -6667,13 +6748,46 @@ p.ANOCALC=String(valor);p.ANOCALC_DISTANCIA='1';
 p.ANOCALC_MOTIVO='Calculado automáticamente a partir de un parentesco conocido; el recálculo global queda pendiente para validar todo el árbol.';
 return true;
 }
+/* ===== MEJORA: crear cónyuge/descendiente sin tener que guardar antes =====
+   Antes, crear un cónyuge o descendiente desde una ficha con cambios sin
+   guardar (nombre, fechas, etc. recién escritos pero sin pulsar "Guardar")
+   descartaba esos cambios, obligando a guardar primero, volver a entrar en
+   modo edición y solo entonces crear al familiar. Ahora, justo antes de
+   crear al familiar, se vuelcan en el propio objeto de datos los campos
+   básicos que ya estén escritos en el formulario abierto (si lo hay), para
+   que se guarden junto con el nuevo vínculo en la misma operación. */
+function aplicarCamposEdicionAPersona(idFicha){
+if(!editMode||cid!==idFicha)return;
+var p=PI[idFicha];
+if(!p)return;
+var elAp1=document.getElementById('ef-ap1');
+if(!elAp1)return;
+p.APELLIDO1=leerCampo('ef-ap1');
+p.APELLIDO2=leerCampo('ef-ap2');
+p.NOMBRE=leerCampo('ef-nombre');
+p.SEXO=leerCampo('ef-sexo');
+p.NACD=leerNum('ef-nacd');
+p.NACM=leerNum('ef-nacm');
+p.NACA=leerNum('ef-naca');
+p.LUGARNAC=leerCampo('ef-lugarnac');
+var elFall=document.getElementById('ef-fallecido');
+var fallecido=elFall?elFall.checked:!!p.FALLECIDO;
+p.FALLECIDO=fallecido?'1':'';
+if(fallecido){
+p.DEFD=leerNum('ef-defd');p.DEFM=leerNum('ef-defm');p.DEFA=leerNum('ef-defa');p.LUGARDEF=leerCampo('ef-lugardef');
+}else{
+p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
+}
+p.OBSERVACIONES=leerCampo('ef-obs');
+}
 async function crearVinculado(id,campo,sexoNuevo,btn){
 if(!(await exigirIdentidadGoogle()))return;
-if(!(await confirmarApp('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'. Los cambios sin guardar en este formulario se perderán.')))return;
+if(!(await confirmarApp('Se creará una nueva persona y se vinculará como '+campo.toLowerCase()+'.')))return;
 botonCargando(btn,true,'');
 try{
 var newId=await elegirIdNueva();
 if(!newId)return;
+aplicarCamposEdicionAPersona(id);
 var antesCambioCrear=mapaPersonas(D);
 var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);
@@ -6701,7 +6815,7 @@ else{if(!h.PADRE)h.PADRE=newId;}
 }
 bIdx(D);
 estimarNodoLocal(newId);
-await sAll(D).then(function(){
+await sDesdeSnapshot(antesCambioCrear).then(function(){
 rStats();
 cid=newId;
 editMode=true;
@@ -6807,7 +6921,7 @@ if(String(actual.ID)===String(otro.ID)){toast('No puedes añadirte a ti mismo co
 if(amigosIdsDe(actual).indexOf(String(otro.ID))>=0){toast('Ya está en la lista de amigos',true);finOperacionFicha(btn);return;}
 await anadirAmigoEntre(actual.ID,otro.ID);
 var camposPreviosA=capturarCamposEdicionSiProcede(actual.ID);
-bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPreviosA);toast('Amigo añadido: '+fn(otro).trim());registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo añadir el amigo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 return;
 }
 if(CAMPOS_CONYUGE.indexOf(campo)>=0){
@@ -6823,7 +6937,7 @@ if(campoReciproco)otro[campoReciproco]=actual.ID;
 actual[campo]=otro.ID;
 }
 var camposPrevios=capturarCamposEdicionSiProcede(actual.ID);
-bIdx(D);sAll(D).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){cerrarSelectorRelacion();rFic(actual.ID);restaurarCamposEdicion(camposPrevios);toast('Vínculo actualizado correctamente'+(camposPrevios?' · se han conservado los datos que ya habías escrito en el formulario':''));registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo vincular: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function crearPersonaYAnadirAmigo(btn){
 if(!selectorRelacion||selectorRelacion.campo!=='AMIGOS')return;
@@ -6841,7 +6955,7 @@ D.push(nuevo);
 bIdx(D);
 await anadirAmigoEntre(idDuenio,newId);
 cerrarSelectorRelacion();
-sAll(D).then(function(){
+sDesdeSnapshot(antes).then(function(){
 registrarCambiosDesdeSnapshots(antes,D,'crear');
 cid=newId;editMode=true;rFic(newId);
 toast('Persona creada y añadida como amigo de '+(duenio?fn(duenio).trim():idDuenio)+'. Completa los datos y guarda.');
@@ -6857,7 +6971,7 @@ if(!(await confirmarApp('Se quitará el vínculo de cónyuge, pero no se borrar�
 var otro=PI[otroId];actual[campo]='';
 if(otro){CAMPOS_CONYUGE.forEach(function(c){if(otro[c]===id)otro[c]='';});}
 var camposPrevios=capturarCamposEdicionSiProcede(id);
-bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function quitarPadreMadre(id,campo,btn){
 if(!iniciarOperacionFicha(btn,''))return;
@@ -6869,7 +6983,7 @@ if(!(await confirmarApp('Se quitará el vínculo de '+etiqueta+', pero no se bor
 var antesRelacion=mapaPersonas(D);
 actual[campo]='';
 var camposPrevios=capturarCamposEdicionSiProcede(id);
-bIdx(D);sAll(D).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de '+etiqueta+' eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de '+etiqueta+' eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function editarDescendiente(id){
 if(editMode&&!(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
@@ -6880,9 +6994,10 @@ if(!iniciarOperacionFicha(btn,'Creando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var progenitor=PI[id],pareja=parejaId?PI[parejaId]:null;
 if(!progenitor){toast('No se encontró la persona seleccionada',true);finOperacionFicha(btn);return;}
-if(!(await confirmarApp('Se creará un descendiente. Los cambios sin guardar en esta ficha se perderán.'))){finOperacionFicha(btn);return;}
+if(!(await confirmarApp('Se creará un descendiente.'))){finOperacionFicha(btn);return;}
 var newIdDesc=await elegirIdNueva();
 if(!newIdDesc){finOperacionFicha(btn);return;}
+aplicarCamposEdicionAPersona(id);
 var antesCambioDesc=mapaPersonas(D);
 var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
@@ -6890,7 +7005,7 @@ else {padre=progenitor;madre=pareja;}
 var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
-sAll(D).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
+sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
 registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
