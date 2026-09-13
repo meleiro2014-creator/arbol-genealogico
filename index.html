@@ -2866,6 +2866,7 @@ DOC_EXPLORER_CMP_FILAS=[];
 DOC_EXPLORER_CMP_DETALLE_IDX=null;
 DOC_EXPLORER_DUP_DETALLE_KEY=null;
 DOC_EXPLORER_ANTERIOR_ARCHIVOS=null;
+DOC_EXPLORER_DUP_SELECCION={};
 }
 
 /* ==========================================================================
@@ -2887,6 +2888,7 @@ DOC_EXPLORER_ANTERIOR_ARCHIVOS=null;
 var DOC_EXPLORER_DUP_ABIERTO=false;
 var DOC_EXPLORER_DUP_DETALLE_KEY=null; /* tamaño (bytes, como string) del grupo cuyo detalle ampliado está abierto */
 var DOC_EXPLORER_ANTERIOR_ARCHIVOS=null; /* null = todavía no consultada; [] = consultada y sin subcarpeta ANTERIOR o vacía */
+var DOC_EXPLORER_DUP_SELECCION={}; /* driveFileId -> true, para el borrado masivo */
 
 /* Junta RAÍZ y ANTERIOR (si ya se cargó) en una sola lista de "items"
    homogéneos {origen,idx,driveFileId,nombreDrive,mimeType,size,fecha,
@@ -2951,7 +2953,8 @@ h+='<span><i class="fa-solid fa-clone" aria-hidden="true"></i> Posibles fotos du
 h+='<i class="fa-solid fa-chevron-down cmp-chev" style="'+(abierto?'transform:rotate(180deg)':'')+'" aria-hidden="true"></i>';
 h+='</button>';
 h+='<div class="cmp-body" id="docExplorerDupBody" style="display:'+(abierto?'block':'none')+'">';
-h+='<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Fotografías con el mismo tamaño de archivo aunque tengan nombres distintos — suele ser la misma imagen subida dos veces. Cada una lleva la etiqueta RAÍZ o ANTERIOR según en qué carpeta está; compara las miniaturas y, si son la misma foto, elimina la que sobre (normalmente la de ANTERIOR).</p>';
+h+='<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Fotografías con el mismo tamaño de archivo aunque tengan nombres distintos — suele ser la misma imagen subida dos veces. Cada una lleva la etiqueta RAÍZ o ANTERIOR según en qué carpeta está y una casilla para marcarla; compara las miniaturas y marca las que sobren para borrarlas todas de una vez.</p>';
+h+=docExplorerDupHtmlBarraSeleccion();
 h+='<div class="cmp-list">'+grupos.map(docExplorerDupHtmlGrupo).join('')+'</div>';
 h+='<div id="docExplorerDupDetalle" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:10px"></div>';
 h+='</div></div>';
@@ -2972,6 +2975,86 @@ if(elImg&&elImg.tagName==='I'){elImg.outerHTML='<img id="'+miniId+'" style="widt
 });});
 }
 function docExplorerDupToggle(){DOC_EXPLORER_DUP_ABIERTO=!DOC_EXPLORER_DUP_ABIERTO;docExplorerRenderDupPanel();}
+
+/* Barra de acciones de selección múltiple: cuántas hay marcadas, botón para
+   marcar automáticamente "todas menos una por grupo" (deja la de RAÍZ si la
+   hay) y botón para borrar de golpe todo lo marcado. */
+function docExplorerDupHtmlBarraSeleccion(){
+var nSel=Object.keys(DOC_EXPLORER_DUP_SELECCION).length;
+var h='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+h+='<button type="button" class="ef-btn ghost" onclick="docExplorerDupSeleccionarTodasMenosUna()"><i class="fa-solid fa-object-group"></i> Marcar repetidas de cada grupo</button>';
+h+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+if(nSel){
+h+='<span style="font-size:12px;color:var(--muted)">'+nSel+' marcada(s)</span>';
+h+='<button type="button" class="ef-btn ghost" onclick="docExplorerDupLimpiarSeleccion()">Desmarcar todo</button>';
+h+='<button type="button" class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="docExplorerDupEliminarSeleccionadas(this)"><i class="fa-solid fa-trash"></i> Eliminar '+nSel+' marcada(s)</button>';
+}
+h+='</div></div>';
+return h;
+}
+function docExplorerDupToggleSeleccion(driveFileId,marcada){
+if(marcada)DOC_EXPLORER_DUP_SELECCION[driveFileId]=true;else delete DOC_EXPLORER_DUP_SELECCION[driveFileId];
+docExplorerRenderDupPanel();
+}
+function docExplorerDupLimpiarSeleccion(){DOC_EXPLORER_DUP_SELECCION={};docExplorerRenderDupPanel();}
+/* Atajo: en cada grupo deja SIN marcar una sola foto (la de RAÍZ si hay
+   alguna en el grupo; si no, la primera) y marca todas las demás como
+   candidatas a borrar. No borra nada por sí sola — solo marca; el borrado
+   sigue exigiendo pulsar "Eliminar marcada(s)". */
+function docExplorerDupSeleccionarTodasMenosUna(){
+var grupos=docExplorerDupGrupos();
+if(!grupos.length)return;
+grupos.forEach(function(g){
+var items=g.items.slice().sort(function(a,b){
+if(a.origen===b.origen)return 0;
+return a.origen==='raiz'?-1:1;
+});
+items.slice(1).forEach(function(it){DOC_EXPLORER_DUP_SELECCION[it.driveFileId]=true;});
+});
+docExplorerRenderDupPanel();
+toast('Marcadas las fotos repetidas de cada grupo — revisa la selección antes de eliminar');
+}
+/* Borra de golpe todo lo marcado, sea de RAÍZ o de ANTERIOR, con una única
+   confirmación. No usa docExplorerEliminarArchivo (pediría confirmar una
+   por una): elimina directamente de Drive y luego limpia los arrays locales
+   correspondientes antes de repintar. */
+async function docExplorerDupEliminarSeleccionadas(btn){
+var ids=Object.keys(DOC_EXPLORER_DUP_SELECCION);
+if(!ids.length)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se eliminarán definitivamente '+ids.length+' archivo(s) de Google Drive. Esta acción no se puede deshacer.',{titulo:'Eliminar '+ids.length+' archivo(s)',textoAceptar:'Eliminar todos'})))return;
+botonCargando(btn,true,'Eliminando...');
+var okCount=0,errCount=0;
+try{
+for(var i=0;i<ids.length;i++){
+var driveFileId=ids[i];
+try{
+var idxRaiz=DOC_EXPLORER_ARCHIVOS.findIndex(function(x){return x.driveFileId===driveFileId;});
+if(idxRaiz>=0){
+var elR=DOC_EXPLORER_ARCHIVOS[idxRaiz];
+await driveEliminarArchivo(elR.driveFileId);
+if(elR.tieneSidecar&&elR.sidecarFileId)await driveEliminarArchivo(elR.sidecarFileId).catch(function(){});
+DOC_EXPLORER_ARCHIVOS.splice(idxRaiz,1);
+delete DOC_EXPLORER_MINI_CACHE[elR.driveFileId];
+}else if(DOC_EXPLORER_ANTERIOR_ARCHIVOS){
+var idxAnt=DOC_EXPLORER_ANTERIOR_ARCHIVOS.findIndex(function(x){return x.driveFileId===driveFileId;});
+if(idxAnt>=0){
+var elA=DOC_EXPLORER_ANTERIOR_ARCHIVOS[idxAnt];
+await driveEliminarArchivo(elA.driveFileId);
+if(elA.sidecarFileId)await driveEliminarArchivo(elA.sidecarFileId).catch(function(){});
+DOC_EXPLORER_ANTERIOR_ARCHIVOS.splice(idxAnt,1);
+}
+}
+delete DOC_EXPLORER_DUP_SELECCION[driveFileId];
+okCount++;
+}catch(err){errCount++;console.warn('No se pudo eliminar '+driveFileId+':',err.message);}
+}
+toast(errCount?(okCount+' archivo(s) eliminado(s), '+errCount+' con error'):(okCount+' archivo(s) eliminado(s)'),!!errCount);
+DOC_EXPLORER_DUP_DETALLE_KEY=null;
+var det=document.getElementById('docExplorerDupDetalle');if(det)det.style.display='none';
+docExplorerPintarLista(); /* repinta rejilla principal Y, encadenado, el panel de duplicados */
+}finally{botonCargando(btn,false);}
+}
 
 /* Abre en una pestaña nueva de Drive un archivo de ANTERIOR (no forma parte
    de DOC_EXPLORER_ARCHIVOS, así que no se puede usar el visor de detalle de
@@ -3002,10 +3085,12 @@ var cacheada=DOC_EXPLORER_MINI_CACHE[item.driveFileId];
 var fecha=item.fecha?String(item.fecha).slice(0,10):'';
 var tam=docsTamanoTexto(item.size);
 var miniId=docExplorerDupMiniId(item);
+var marcada=!!DOC_EXPLORER_DUP_SELECCION[item.driveFileId];
 var etiqueta=item.origen==='anterior'?'<span class="cmp-count cmp-count-ant" style="padding:1px 7px;font-size:9px;margin-right:4px">ANTERIOR</span>':'<span class="cmp-count cmp-count-root" style="padding:1px 7px;font-size:9px;margin-right:4px">RAÍZ</span>';
 var onclickAbrir=item.origen==='raiz'?('docExplorerVerDetalle('+item.idx+')'):('docExplorerDupAbrirEnDrive(\''+safeId(item.driveFileId)+'\')');
 var onclickBorrar=item.origen==='raiz'?('docExplorerEliminarArchivo('+item.idx+',this)'):('docExplorerDupEliminarAnterior(\''+safeId(item.driveFileId)+'\',\''+safeId(item.sidecarFileId||'')+'\',this)');
-var h='<div style="width:38px;height:38px;flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="'+onclickAbrir+'" title="Abrir este archivo">'+
+var h='<input type="checkbox" title="Marcar para borrado masivo" style="flex-shrink:0;width:16px;height:16px;cursor:pointer" '+(marcada?'checked':'')+' onclick="event.stopPropagation()" onchange="docExplorerDupToggleSeleccion(\''+safeId(item.driveFileId)+'\',this.checked)">';
+h+='<div style="width:38px;height:38px;flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="'+onclickAbrir+'" title="Abrir este archivo">'+
 (cacheada?'<img id="'+miniId+'" style="width:100%;height:100%;object-fit:cover" src="'+cacheada+'">':'<i id="'+miniId+'" class="fa-solid fa-image" style="color:var(--muted);font-size:14px"></i>')+
 '</div>';
 h+='<div style="min-width:0;flex:1"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+etiqueta+'<span class="cmp-nombre" title="'+escAttr(item.nombreDrive)+'">'+esc(item.nombreDrive)+'</span></div>';
