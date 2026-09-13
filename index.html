@@ -984,8 +984,10 @@ body{background:#fff}
 <div style="max-width:900px;margin:0 auto">
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
 <input class="ef-input" id="docExplorerBuscarPersona" placeholder="Buscar persona por nombre o apellido..." style="flex:1;min-width:220px" oninput="docExplorerBuscarPersonas(this.value)" autocomplete="off">
+<button type="button" class="ef-btn ghost" onclick="docExplorerAbrirPapeleraLibro()" title="Ver y vaciar todo lo eliminado en todo el libro"><i class="fa-solid fa-trash-can"></i> Papelera del libro</button>
 </div>
 <div id="docExplorerResultadosBusqueda" style="margin-bottom:12px"></div>
+<div id="docExplorerPapeleraLibro"></div>
 <div id="docExplorerCmp"></div>
 <div id="docExplorerDup"></div>
 <div id="docExplorerPersonaActiva"></div>
@@ -2465,7 +2467,7 @@ try{var f=await obtenerConfigRaizDrive();if(!f)return false;
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 if(!r.ok)return false;var cfg=await r.json();var id=cfg&&cfg.driveRootFolderId?String(cfg.driveRootFolderId):'';
-if(!id)return false;driveRootFolderId=id;driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;await guardarCarpetaDocumentos();return true;
+if(!id)return false;driveRootFolderId=id;driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveBasuraFolderId=null;await guardarCarpetaDocumentos();return true;
 }catch(err){console.warn('No se pudo cargar la configuración común de Drive:',err);return false;}}
 async function guardarConfigRaizDrive(){
 if(!tokenDriveValido())throw new Error('Conecta primero Google Drive');
@@ -2672,11 +2674,12 @@ if(!entrada)return;
 var folderId=extraerIdCarpetaDrive(entrada);
 if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
 driveRootFolderId=folderId;
-driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;
+driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveBasuraFolderId=null;
 try{await guardarCarpetaDocumentos();await guardarConfigRaizDrive();toast('Carpeta raíz de Google Drive configurada para todos los usuarios');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
 var driveFotoFolderId=null;
+var driveBasuraFolderId=null; /* carpeta DOCUMENTOS/BASURA, para mover en vez de esconder los archivos "eliminados" */
 /* obtenerCarpetaDocumentosId(crear): localiza la carpeta "DOCUMENTOS" dentro de la
 carpeta raíz configurada. Si crear=true y no existe, la crea (necesario para poder
 subir el primer documento de toda la base sin tener que crearla a mano en Drive). */
@@ -2695,6 +2698,55 @@ var dc=await rc.json();
 driveDocumentosFolderId=dc.id;
 return driveDocumentosFolderId;
 }
+/* ===== "Papelera del libro": una única carpeta BASURA, dentro de DOCUMENTOS =====
+   Google Drive solo deja borrar (o mandar a SU papelera) un archivo a quien
+   es su DUEÑO: un colaborador con permiso de editor puede subir, renombrar y
+   editar contenido, pero al pulsar "eliminar" en un archivo que no subió él
+   mismo, Drive responde con un error de permisos ("Only the file owner can
+   trash a file"). Como casi todo el árbol lo subieron originalmente el
+   administrador o el programa de archivo documental, en la práctica los
+   demás colaboradores no podían borrar nada.
+   Mover un archivo de carpeta, en cambio, SÍ está permitido a cualquiera con
+   permiso de editor sobre las dos carpetas (origen y destino), sin exigir
+   ser el dueño — mover no es lo mismo que borrar. Así que "Eliminar" en el
+   Explorador de documentos ahora MUEVE de verdad el archivo (y su ficha) a
+   esta carpeta BASURA (DOCUMENTOS/BASURA), compartida por todo el libro:
+   desaparece al instante de la carpeta de la persona para todo el mundo (no
+   hace falta ninguna lista aparte), y tú, como dueño, puedes entrar en
+   BASURA cuando quieras y vaciarla del tirón —desde la propia app o
+   directamente desde drive.google.com—, porque para entonces sigues siendo
+   tú quien la borra. */
+async function obtenerCarpetaBasura(crear){
+if(driveBasuraFolderId)return driveBasuraFolderId;
+var carpetaDocsId=await obtenerCarpetaDocumentosId(!!crear);
+if(!carpetaDocsId)return null;
+var q="'"+carpetaDocsId+"' in parents and name='BASURA' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length){driveBasuraFolderId=d.files[0].id;return driveBasuraFolderId;}
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'BASURA',parents:[carpetaDocsId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta BASURA');
+var dc=await rc.json();
+driveBasuraFolderId=dc.id;
+return driveBasuraFolderId;
+}
+/* Mueve un archivo de una carpeta a otra Y le cambia sus "properties"
+   (metadatos personalizados clave/valor que Drive adjunta al propio
+   archivo) en la misma llamada. Editar properties, igual que mover, NO
+   exige ser el dueño del archivo — solo permiso de editor. Pasar valor
+   null en una clave la borra. Esto es lo que usamos para recordar, sin
+   necesidad de ningún fichero .json aparte, de qué persona y de qué
+   carpeta vino cada archivo que está en BASURA, para poder restaurarlo. */
+async function driveMoverArchivoConPropiedades(fileId,nuevoParentId,parentActualId,propiedades){
+var url='https://www.googleapis.com/drive/v3/files/'+fileId+'?addParents='+encodeURIComponent(nuevoParentId)+'&removeParents='+encodeURIComponent(parentActualId)+'&fields=id';
+var r=await fetch(url,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({properties:propiedades||{}})});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+}
+
 /* obtenerCarpetaPersonaDocumentos(id,crear): localiza (y opcionalmente crea) la
 subcarpeta de una persona concreta (con su ID exacto como nombre) dentro de la
 carpeta DOCUMENTOS. Con crear=true, permite subir documentos aunque todavía no
@@ -2849,55 +2901,91 @@ docExplorerRepasarCarpeta();
    ========================================================================== */
 
 var DOC_EXPLORER_CARPETA_ID=null; /* carpeta DOCUMENTOS/<ID> de la persona activa, cacheada por docExplorerRepasarCarpeta */
-/* ===== NUEVO: "papelera" propia de la app, independiente de la de Drive =====
-   La API de Drive solo deja mover a la papelera (o borrar del todo) un
-   archivo a quien es su DUEÑO: un colaborador con permiso de editor sobre
-   la carpeta puede subir, renombrar y editar contenido, pero al intentar
-   "eliminar" un archivo que no subió él mismo, Drive responde con un error
-   de permisos y no pasa nada (Google lo documenta así explícitamente: "Only
-   the file owner can trash a file"). Como en este árbol casi todo lo
-   subieron originalmente el administrador o el programa de archivo
-   documental, en la práctica nadie más podía borrar nada.
-   La solución: en vez de depender del borrado/papelera de Drive, se lleva
-   una lista propia de "ocultos" en un único archivo JSON por carpeta de
-   persona (_ocultos_libro.json), que cualquiera con permiso de editor SÍ
-   puede crear y sobrescribir (editar contenido no exige ser el dueño).
-   "Eliminar" pasa a significar: añadir el archivo a esa lista y dejar de
-   mostrarlo (para todo el mundo, lo vea quien lo vea). El archivo real
-   sigue existiendo en Drive -no ocupa "menos espacio"- pero desaparece de
-   la app, y se puede restaurar en cualquier momento desde "Ver eliminados".
-   Además, como intento adicional (best effort, sin bloquear nada si falla),
-   se prueba también a moverlo a la papelera real de Drive: si quien borra
-   SÍ es el dueño (típicamente el administrador), así además se libera
-   espacio de verdad. */
+/* ===== "Eliminar" en el Explorador de documentos =====
+   HISTORIAL: la primera versión de "eliminar" escondía el archivo en una
+   lista propia (_ocultos_libro.json) por carpeta de persona, porque se
+   pensaba que ni siquiera mover-a-la-papelera-de-Drive estaba permitido a
+   un editor no dueño. Comprobando la documentación oficial de Drive: lo que
+   está restringido al DUEÑO es borrar o mandar a la papelera de Drive; en
+   cambio, MOVER un archivo de una carpeta a otra (y editar sus "properties",
+   metadatos personalizados clave/valor) SÍ está permitido a cualquiera con
+   permiso de editor sobre origen y destino, sea o no el dueño.
+   Por eso ahora "Eliminar" MUEVE de verdad el archivo (y su ficha, si la
+   tiene) a una única carpeta BASURA (dentro de DOCUMENTOS), común a todo el
+   libro. Ventajas sobre la lista JSON:
+   - Desaparece al instante de la carpeta de la persona para todo el mundo,
+     sin depender de ninguna lista que haya que leer y mantener sincronizada.
+   - El dueño (tú) puede vaciar BASURA de golpe cuando quiera, tanto desde
+     "Papelera del libro" en esta app como directamente en drive.google.com,
+     porque para entonces sigues siendo tú quien lo borra.
+   - Sigue siendo reversible: cada archivo movido guarda en sus "properties"
+     de qué persona y de qué carpeta vino, así que "Restaurar" solo tiene
+     que devolverlo a su sitio.
+   Los archivos que ya se habían "eliminado" con el sistema antiguo (y que
+   por tanto siguen físicamente en la carpeta de la persona, solo ocultos
+   por estar en _ocultos_libro.json) se siguen leyendo y se siguen pudiendo
+   restaurar igual que antes, para no perder ese historial; simplemente ya
+   no se crean eliminaciones nuevas de ese tipo. */
 var DOC_EXPLORER_OCULTOS_NOMBRE='_ocultos_libro.json';
 var DOC_EXPLORER_OCULTOS_MANIFEST={fileId:null,items:[]};
 var DOC_EXPLORER_VER_OCULTOS=false;
-async function docExplorerCargarOcultos(folderId){
+async function docExplorerCargarOcultos(folderId,personaId){
 DOC_EXPLORER_OCULTOS_MANIFEST={fileId:null,items:[]};
 if(!folderId)return;
+/* 1) Lo que quedó pendiente del sistema antiguo (JSON), si lo hay. */
 try{
 var q="'"+folderId+"' in parents and name='"+DOC_EXPLORER_OCULTOS_NOMBRE+"' and trashed=false";
 var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok)return;
+if(r.ok){
 var d=await r.json();
-if(!d.files||!d.files.length)return;
+if(d.files&&d.files.length){
 DOC_EXPLORER_OCULTOS_MANIFEST.fileId=d.files[0].id;
 var rc=await fetch('https://www.googleapis.com/drive/v3/files/'+d.files[0].id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rc.ok){var contenido=JSON.parse(await rc.text());DOC_EXPLORER_OCULTOS_MANIFEST.items=Array.isArray(contenido.items)?contenido.items:[];}
-}catch(e){/* si no se puede leer, se trata como si no hubiera nada oculto todavía; no bloquea la pantalla */}
+if(rc.ok){
+var contenido=JSON.parse(await rc.text());
+(Array.isArray(contenido.items)?contenido.items:[]).forEach(function(it){it.origen='json';DOC_EXPLORER_OCULTOS_MANIFEST.items.push(it);});
 }
-async function docExplorerGuardarOcultos(folderId){
-var blob=new Blob([JSON.stringify({items:DOC_EXPLORER_OCULTOS_MANIFEST.items},null,2)],{type:'application/json'});
+}
+}
+}catch(e){/* si no se puede leer, se trata como si no hubiera nada oculto de este tipo; no bloquea la pantalla */}
+/* 2) Lo que hay ahora mismo en BASURA para esta persona (sistema nuevo). */
+try{
+if(personaId){
+var basuraId=await obtenerCarpetaBasura(false);
+if(basuraId){
+var qb="'"+basuraId+"' in parents and trashed=false and properties has { key='origenPersonaId' and value='"+String(personaId).replace(/'/g,"\\'")+"' }";
+var rb=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(qb)+'&fields=files(id,name,properties)&spaces=drive&pageSize=1000',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(rb.ok){
+var db=await rb.json();
+(db.files||[]).filter(function(f){return!f.properties||f.properties.esFichaDe===undefined;}).forEach(function(f){
+var p=f.properties||{};
+DOC_EXPLORER_OCULTOS_MANIFEST.items.push({origen:'basura',driveFileId:f.id,sidecarFileId:p.sidecarFileId||null,nombreDrive:f.name,ocultadoPor:p.papeleraPor||'?',ocultadoEn:p.papeleraEn||'',origenFolderId:p.origenFolderId||folderId});
+});
+}
+}
+}
+}catch(e){/* igual, no bloquea la pantalla */}
+}
+async function docExplorerGuardarOcultosJson(folderId){
+var itemsJson=DOC_EXPLORER_OCULTOS_MANIFEST.items.filter(function(it){return it.origen==='json';});
+var blob=new Blob([JSON.stringify({items:itemsJson},null,2)],{type:'application/json'});
 if(!DOC_EXPLORER_OCULTOS_MANIFEST.fileId)DOC_EXPLORER_OCULTOS_MANIFEST.fileId=await crearArchivoDriveVacio(DOC_EXPLORER_OCULTOS_NOMBRE,'application/json',folderId);
 await subirContenidoArchivoDrive(DOC_EXPLORER_OCULTOS_MANIFEST.fileId,blob,'application/json');
 }
 async function docExplorerRestaurarOculto(driveFileId,btn){
+var it=DOC_EXPLORER_OCULTOS_MANIFEST.items.find(function(x){return x.driveFileId===driveFileId;});
+if(!it)return;
 if(!(await exigirIdentidadGoogle()))return;
 botonCargando(btn,true,'Restaurando...');
 try{
-DOC_EXPLORER_OCULTOS_MANIFEST.items=DOC_EXPLORER_OCULTOS_MANIFEST.items.filter(function(it){return it.driveFileId!==driveFileId;});
-await docExplorerGuardarOcultos(DOC_EXPLORER_CARPETA_ID);
+if(it.origen==='basura'){
+var basuraId=await obtenerCarpetaBasura(false);
+await driveMoverArchivoConPropiedades(it.driveFileId,it.origenFolderId,basuraId,{origenPersonaId:null,origenFolderId:null,papeleraPor:null,papeleraEn:null,sidecarFileId:null});
+if(it.sidecarFileId)await driveMoverArchivoConPropiedades(it.sidecarFileId,it.origenFolderId,basuraId,{origenPersonaId:null,origenFolderId:null,papeleraPor:null,papeleraEn:null,esFichaDe:null}).catch(function(e){console.warn('No se pudo restaurar la ficha:',e.message);});
+}else{
+DOC_EXPLORER_OCULTOS_MANIFEST.items=DOC_EXPLORER_OCULTOS_MANIFEST.items.filter(function(x){return x.driveFileId!==driveFileId;});
+await docExplorerGuardarOcultosJson(DOC_EXPLORER_CARPETA_ID);
+}
 toast('Restaurado');
 docExplorerRepasarCarpeta();
 }catch(err){toast('No se pudo restaurar: '+err.message,true);}
@@ -2914,6 +3002,133 @@ return'<div style="background:var(--bg);border-radius:8px;padding:10px;margin-bo
 DOC_EXPLORER_OCULTOS_MANIFEST.items.map(function(it){
 return'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)"><div><strong>'+esc(it.nombreDrive||'')+'</strong><br><span style="color:var(--muted)">eliminado por '+esc(it.ocultadoPor||'?')+' · '+esc(formatoFechaCambio?formatoFechaCambio(it.ocultadoEn):String(it.ocultadoEn||'').slice(0,10))+'</span></div><button type="button" class="ef-btn ghost" onclick="docExplorerRestaurarOculto(\''+safeId(it.driveFileId)+'\',this)"><i class="fa-solid fa-rotate-left"></i> Restaurar</button></div>';
 }).join('')+'</div>';
+}
+
+/* ==========================================================================
+   "PAPELERA DEL LIBRO": vista global de TODO lo que hay ahora mismo en la
+   carpeta BASURA, venga de la persona que venga, para poder revisarlo o
+   vaciarlo del tirón sin tener que ir persona a persona. Como es una
+   carpeta normal de Drive, el dueño también puede vaciarla directamente
+   desde drive.google.com si lo prefiere (por eso se ofrece el enlace).
+   ========================================================================== */
+var DOC_EXPLORER_PAPELERA_ABIERTA=false;
+var DOC_EXPLORER_PAPELERA_ITEMS=[];
+function docExplorerCerrarPapeleraLibro(){
+DOC_EXPLORER_PAPELERA_ABIERTA=false;
+var h=document.getElementById('docExplorerPapeleraLibro');if(h)h.innerHTML='';
+}
+async function docExplorerAbrirPapeleraLibro(){
+if(DOC_EXPLORER_PAPELERA_ABIERTA){docExplorerCerrarPapeleraLibro();return;}
+DOC_EXPLORER_PAPELERA_ABIERTA=true;
+var host=document.getElementById('docExplorerPapeleraLibro');
+if(!host)return;
+if(!tokenDriveValido()){
+try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);DOC_EXPLORER_PAPELERA_ABIERTA=false;return;}
+}
+host.innerHTML=docExplorerHtmlCargando('Leyendo la carpeta BASURA de todo el libro...');
+try{
+var basuraId=await obtenerCarpetaBasura(false);
+if(!basuraId){DOC_EXPLORER_PAPELERA_ITEMS=[];docExplorerPintarPapeleraLibro();return;}
+var todos=[],pageToken;
+do{
+var q="'"+basuraId+"' in parents and trashed=false";
+var url='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime,properties)&spaces=drive&pageSize=1000'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+var r=await fetch(url,{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
+var d=await r.json();
+todos=todos.concat(d.files||[]);
+pageToken=d.nextPageToken;
+}while(pageToken);
+DOC_EXPLORER_PAPELERA_ITEMS=todos.filter(function(f){return!(f.properties&&f.properties.esFichaDe);}).map(function(f){
+var p=f.properties||{};
+return{driveFileId:f.id,nombreDrive:f.name,mimeType:f.mimeType||'',size:f.size,sidecarFileId:p.sidecarFileId||null,origenPersonaId:p.origenPersonaId||null,origenPersonaNombre:p.origenPersonaNombre||'(persona desconocida)',origenFolderId:p.origenFolderId||null,papeleraPor:p.papeleraPor||'?',papeleraEn:p.papeleraEn||f.modifiedTime||''};
+});
+DOC_EXPLORER_PAPELERA_ITEMS.sort(function(a,b){return String(b.papeleraEn).localeCompare(String(a.papeleraEn));});
+docExplorerPintarPapeleraLibro();
+}catch(err){host.innerHTML='<div class="cmp-box"><div class="cmp-body"><p style="font-size:12px;color:var(--muted)">Error al leer BASURA: '+esc(err.message)+'</p></div></div>';}
+}
+function docExplorerPintarPapeleraLibro(){
+var host=document.getElementById('docExplorerPapeleraLibro');
+if(!host)return;
+var items=DOC_EXPLORER_PAPELERA_ITEMS;
+var h='<div class="cmp-box"><div class="cmp-head" style="cursor:default"><span><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Papelera del libro ('+items.length+')</span><button type="button" class="cmp-btn" title="Cerrar" onclick="docExplorerCerrarPapeleraLibro()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div><div class="cmp-body">';
+h+='<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Todo lo eliminado en cualquier persona del árbol, en un único sitio. Puedes restaurarlo, borrarlo uno a uno para siempre, o vaciarlo del todo. Como quien lo movió aquí no tiene por qué ser el dueño del archivo, solo el borrado definitivo sigue exigiendo serlo — muévelo aquí desde cualquier cuenta, pero vacíalo con la tuya.</p>';
+if(driveBasuraFolderId)h+='<p style="font-size:12px;margin:0 0 10px"><a href="https://drive.google.com/drive/folders/'+encodeURIComponent(driveBasuraFolderId)+'" target="_blank" rel="noopener" style="color:var(--accent)"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Abrir la carpeta BASURA directamente en Google Drive</a></p>';
+if(!items.length){
+h+='<p style="font-size:12px;color:var(--muted);text-align:center;padding:14px 0">La papelera está vacía.</p>';
+}else{
+h+='<div style="margin-bottom:10px"><button type="button" class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="docExplorerPapeleraLibroVaciar(this)"><i class="fa-solid fa-broom"></i> Vaciar papelera para siempre ('+items.length+')</button></div>';
+h+='<div class="cmp-list">'+items.map(docExplorerHtmlPapeleraLibroFila).join('')+'</div>';
+}
+h+='</div></div>';
+host.innerHTML=h;
+}
+function docExplorerHtmlPapeleraLibroFila(it,idx){
+var icono=docsIconoPorMime(it.mimeType,it.nombreDrive);
+var fecha=it.papeleraEn?String(it.papeleraEn).slice(0,10):'';
+var tam=docsTamanoTexto(it.size);
+var h='<div class="cmp-row" style="align-items:center">';
+h+='<div class="cmp-half" style="flex:2">';
+h+='<i class="fa-solid fa-'+icono+'" style="color:var(--muted);flex-shrink:0" aria-hidden="true"></i>';
+h+='<span class="cmp-nombre" title="'+escAttr(it.nombreDrive)+'">'+esc(it.nombreDrive)+'</span>';
+h+='<span class="cmp-meta">'+esc(it.origenPersonaNombre)+' · '+esc(fecha)+(tam?(' · '+esc(tam)):'')+' · por '+esc(it.papeleraPor)+'</span>';
+h+='</div>';
+h+='<div class="cmp-acciones" style="padding:7px 9px">';
+if(it.origenFolderId)h+='<button type="button" class="cmp-btn" title="Restaurar a su carpeta original" onclick="docExplorerPapeleraLibroRestaurar('+idx+',this)"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>';
+h+='<button type="button" class="cmp-btn cmp-btn-danger" title="Eliminar para siempre (solo funciona si eres el dueño del archivo)" onclick="docExplorerPapeleraLibroEliminarDefinitivo('+idx+',this)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>';
+h+='</div></div>';
+return h;
+}
+async function docExplorerPapeleraLibroRestaurar(idx,btn){
+var it=DOC_EXPLORER_PAPELERA_ITEMS[idx];
+if(!it||!it.origenFolderId)return;
+if(!(await exigirIdentidadGoogle()))return;
+botonCargando(btn,true,'');
+try{
+var basuraId=await obtenerCarpetaBasura(false);
+await driveMoverArchivoConPropiedades(it.driveFileId,it.origenFolderId,basuraId,{origenPersonaId:null,origenPersonaNombre:null,origenFolderId:null,papeleraPor:null,papeleraEn:null,sidecarFileId:null});
+if(it.sidecarFileId)await driveMoverArchivoConPropiedades(it.sidecarFileId,it.origenFolderId,basuraId,{origenPersonaId:null,origenPersonaNombre:null,origenFolderId:null,papeleraPor:null,papeleraEn:null,esFichaDe:null}).catch(function(e){console.warn('No se pudo restaurar la ficha:',e.message);});
+DOC_EXPLORER_PAPELERA_ITEMS.splice(idx,1);
+toast('Restaurado a la carpeta de '+it.origenPersonaNombre);
+docExplorerPintarPapeleraLibro();
+if(DOC_EXPLORER_PERSONA&&String(DOC_EXPLORER_PERSONA.id)===String(it.origenPersonaId))docExplorerRepasarCarpeta();
+}catch(err){toast('No se pudo restaurar: '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
+async function docExplorerPapeleraLibroEliminarDefinitivo(idx,btn){
+var it=DOC_EXPLORER_PAPELERA_ITEMS[idx];
+if(!it)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se borrará "'+it.nombreDrive+'" PARA SIEMPRE. Esto solo funciona si tú eres el dueño del archivo en Drive; si no lo eres, Drive lo rechazará y seguirá aquí.',{titulo:'Eliminar para siempre',textoAceptar:'Eliminar para siempre'})))return;
+botonCargando(btn,true,'');
+try{
+await driveEliminarArchivo(it.driveFileId);
+if(it.sidecarFileId)await driveEliminarArchivo(it.sidecarFileId).catch(function(){});
+DOC_EXPLORER_PAPELERA_ITEMS.splice(idx,1);
+toast('Eliminado para siempre');
+docExplorerPintarPapeleraLibro();
+}catch(err){toast('No se pudo borrar para siempre (¿eres el dueño de este archivo?): '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
+async function docExplorerPapeleraLibroVaciar(btn){
+var items=DOC_EXPLORER_PAPELERA_ITEMS.slice();
+if(!items.length)return;
+if(!(await exigirIdentidadGoogle()))return;
+if(!(await confirmarApp('Se intentarán borrar PARA SIEMPRE los '+items.length+' archivo(s) de BASURA. Los que no sean tuyos (de los que no seas dueño) no podrán borrarse y se quedarán ahí para intentarlo luego con la cuenta correcta, o a mano desde drive.google.com.',{titulo:'Vaciar papelera',textoAceptar:'Vaciar ('+items.length+')'})))return;
+botonCargando(btn,true,'Vaciando...');
+var quedan=[],ok=0;
+for(var i=0;i<items.length;i++){
+var it=items[i];
+try{
+await driveEliminarArchivo(it.driveFileId);
+if(it.sidecarFileId)await driveEliminarArchivo(it.sidecarFileId).catch(function(){});
+ok++;
+}catch(err){quedan.push(it);}
+}
+DOC_EXPLORER_PAPELERA_ITEMS=quedan;
+toast(ok+' eliminado(s) para siempre'+(quedan.length?(' · '+quedan.length+' no se pudieron borrar (no eres su dueño)'):''));
+docExplorerPintarPapeleraLibro();
+botonCargando(btn,false);
 }
 var DOC_EXPLORER_CMP_ANTERIOR_ID=null;
 var DOC_EXPLORER_CMP_ABIERTO=false;
@@ -3906,7 +4121,7 @@ meta:enc?enc.meta:null
 };
 });
 resultado.sort(function(a,b){return String(a.nombreDrive||'').localeCompare(String(b.nombreDrive||''),'es');});
-await docExplorerCargarOcultos(folderId);
+await docExplorerCargarOcultos(folderId,id);
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
 var idsOcultos={};
 DOC_EXPLORER_OCULTOS_MANIFEST.items.forEach(function(it){idsOcultos[it.driveFileId]=true;});
@@ -4190,23 +4405,23 @@ async function docExplorerEliminarArchivo(idx,btn){
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
 if(!(await exigirIdentidadGoogle()))return;
-if(!(await confirmarApp('Se quitará "'+el.nombreDrive+'" de la lista de documentos de esta persona (desaparece para todos, no solo para ti). Se puede restaurar después desde «ver eliminados».',{titulo:'Eliminar archivo',textoAceptar:'Eliminar'})))return;
+if(!(await confirmarApp('Se moverá "'+el.nombreDrive+'" a la carpeta BASURA del libro (desaparece para todos, no solo para ti). Se puede restaurar después desde «ver eliminados», o tú, como dueño, puedes vaciar BASURA del todo cuando quieras.',{titulo:'Eliminar archivo',textoAceptar:'Eliminar'})))return;
 botonCargando(btn,true,'Eliminando...');
 try{
 var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'alguien';
-DOC_EXPLORER_OCULTOS_MANIFEST.items.push({driveFileId:el.driveFileId,sidecarFileId:el.sidecarFileId||null,nombreDrive:el.nombreDrive,ocultadoPor:quien,ocultadoEn:new Date().toISOString()});
-await docExplorerGuardarOcultos(DOC_EXPLORER_CARPETA_ID);
-/* Intento adicional, best effort: si quien borra SÍ es el dueño del
-   archivo en Drive (lo habitual para el administrador), esto además lo
-   manda a la papelera real de Drive y libera espacio. Si falla porque
-   quien borra no es el dueño, no importa: ya quedó oculto en la app. */
-driveEliminarArchivo(el.driveFileId).then(function(){
-if(el.tieneSidecar&&el.sidecarFileId)driveEliminarArchivo(el.sidecarFileId).catch(function(){});
-}).catch(function(){});
+var ahora=new Date().toISOString();
+var basuraId=await obtenerCarpetaBasura(true);
+var propiedadesArchivo={origenPersonaId:String(DOC_EXPLORER_PERSONA.id),origenPersonaNombre:DOC_EXPLORER_PERSONA.nombre||'',origenFolderId:DOC_EXPLORER_CARPETA_ID,papeleraPor:quien,papeleraEn:ahora,sidecarFileId:el.sidecarFileId||null};
+await driveMoverArchivoConPropiedades(el.driveFileId,basuraId,DOC_EXPLORER_CARPETA_ID,propiedadesArchivo);
+if(el.tieneSidecar&&el.sidecarFileId){
+var propiedadesFicha={origenPersonaId:String(DOC_EXPLORER_PERSONA.id),origenPersonaNombre:DOC_EXPLORER_PERSONA.nombre||'',origenFolderId:DOC_EXPLORER_CARPETA_ID,papeleraPor:quien,papeleraEn:ahora,esFichaDe:el.driveFileId};
+await driveMoverArchivoConPropiedades(el.sidecarFileId,basuraId,DOC_EXPLORER_CARPETA_ID,propiedadesFicha).catch(function(e){console.warn('No se pudo mover la ficha a BASURA:',e.message);});
+}
+DOC_EXPLORER_OCULTOS_MANIFEST.items.push({origen:'basura',driveFileId:el.driveFileId,sidecarFileId:el.sidecarFileId||null,nombreDrive:el.nombreDrive,ocultadoPor:quien,ocultadoEn:ahora,origenFolderId:DOC_EXPLORER_CARPETA_ID});
 DOC_EXPLORER_ARCHIVOS.splice(idx,1);
 delete DOC_EXPLORER_MINI_CACHE[el.driveFileId];
 document.getElementById('docExplorerDetalle').style.display='none';
-toast('Archivo eliminado de la lista');
+toast('Archivo movido a BASURA');
 docExplorerPintarLista();
 }catch(err){toast('No se pudo eliminar: '+err.message,true);}
 finally{botonCargando(btn,false);}
