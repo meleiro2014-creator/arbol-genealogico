@@ -2853,12 +2853,14 @@ var DOC_EXPLORER_CMP_ABIERTO=false;
 var DOC_EXPLORER_CMP_CARGADO=false;
 var DOC_EXPLORER_CMP_FILAS=[];
 var DOC_EXPLORER_CMP_SOLO_COINCIDENCIAS=true;
+var DOC_EXPLORER_CMP_DETALLE_IDX=null; /* fila cuyo detalle de comparación (visor de ambos archivos) está abierto */
 
 function docExplorerCmpResetear(){
 DOC_EXPLORER_CMP_ANTERIOR_ID=null;
 DOC_EXPLORER_CMP_ABIERTO=false;
 DOC_EXPLORER_CMP_CARGADO=false;
 DOC_EXPLORER_CMP_FILAS=[];
+DOC_EXPLORER_CMP_DETALLE_IDX=null;
 }
 
 function docExplorerRenderComparadorPanel(){
@@ -2868,7 +2870,7 @@ if(!DOC_EXPLORER_PERSONA){host.innerHTML='';return;}
 var abierto=DOC_EXPLORER_CMP_ABIERTO;
 var h='<div class="cmp-box">';
 h+='<button type="button" class="cmp-head" onclick="docExplorerCmpToggle()" aria-expanded="'+(abierto?'true':'false')+'" aria-controls="docExplorerCmpBody">';
-h+='<span><i class="fa-solid fa-code-compare" aria-hidden="true"></i> 0. Comparar con lo archivado (ANTERIOR)</span>';
+h+='<span><i class="fa-solid fa-code-compare" aria-hidden="true"></i> Comparar con lo archivado (ANTERIOR)</span>';
 h+='<i class="fa-solid fa-chevron-down cmp-chev" style="'+(abierto?'transform:rotate(180deg)':'')+'" aria-hidden="true"></i>';
 h+='</button>';
 h+='<div class="cmp-body" id="docExplorerCmpBody" style="display:'+(abierto?'block':'none')+'">';
@@ -3001,14 +3003,16 @@ h+='<p style="font-size:12px;color:var(--muted);text-align:center;padding:14px 0
 }else{
 h+='<div class="cmp-list">'+visibles.map(docExplorerCmpHtmlFila).join('')+'</div>';
 }
+h+='<div id="docExplorerCmpDetalle" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:10px"></div>';
 cont.innerHTML=h;
+if(DOC_EXPLORER_CMP_DETALLE_IDX!==null)docExplorerCmpComparaDetalle(DOC_EXPLORER_CMP_DETALLE_IDX,true);
 }
 
 function docExplorerCmpHtmlFila(fila){
 var esMatch=!!(fila.root&&fila.anterior);
 var h='<div class="cmp-row'+(esMatch?' cmp-row-match':'')+'">';
 h+='<div class="cmp-half">'+docExplorerCmpHtmlLado(fila,'root')+'</div>';
-h+='<div class="cmp-mid">'+(esMatch?'<i class="fa-solid fa-equals" title="Mismo nombre en ambas carpetas — posible duplicado" aria-label="Posible duplicado"></i>':'')+'</div>';
+h+='<div class="cmp-mid">'+(esMatch?'<button type="button" class="cmp-btn" title="Comparar el contenido de ambos archivos" aria-label="Comparar ambos archivos" onclick="event.stopPropagation();docExplorerCmpComparaDetalle('+fila._idx+')"><i class="fa-solid fa-code-compare" aria-hidden="true"></i></button>':'')+'</div>';
 h+='<div class="cmp-half">'+docExplorerCmpHtmlLado(fila,'anterior')+'</div>';
 h+='</div>';
 return h;
@@ -3023,10 +3027,44 @@ var h='<i class="fa-solid fa-'+icono+'" style="color:var(--muted);flex-shrink:0"
 h+='<span class="cmp-nombre" title="'+escAttr(f.nombreDrive)+'">'+esc(f.nombreDrive)+'</span>';
 h+='<span class="cmp-meta">'+esc(fecha)+(tam?(' · '+esc(tam)):'')+'</span>';
 h+='<span class="cmp-acciones">';
-if(lado==='anterior'&&!fila.root)h+='<button type="button" class="cmp-btn" title="Traer este archivo a RAÍZ" onclick="event.stopPropagation();docExplorerCmpMoverARaiz('+fila._idx+',this)"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>';
+/* La flecha para traer el archivo a RAÍZ aparece siempre en el lado
+   ANTERIOR (haya o no coincidencia por nombre): también cuando hay
+   coincidencia, por si tras comparar el usuario prefiere quedarse con la
+   versión archivada — quedarán entonces dos archivos con el mismo nombre
+   en RAÍZ, listos para que borre a mano el que ya no quiera. */
+if(lado==='anterior')h+='<button type="button" class="cmp-btn" title="Traer este archivo a RAÍZ" onclick="event.stopPropagation();docExplorerCmpMoverARaiz('+fila._idx+',this)"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>';
 h+='<button type="button" class="cmp-btn cmp-btn-danger" title="Eliminar de Drive" onclick="event.stopPropagation();docExplorerCmpEliminarLado('+fila._idx+',\''+lado+'\',this)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>';
 h+='</span>';
 return h;
+}
+/* Visor embebido (imagen/PDF/vídeo) de un archivo del comparador, igual que
+   el que ya usa el Explorador para el detalle de un archivo suelto. */
+function docExplorerCmpHtmlVisorArchivo(f){
+if(!f)return '<span class="cmp-empty">— no está aquí —</span>';
+if(!f.driveFileId||!docExplorerEsVisualizable(f.mimeType))return '<p style="font-size:12px;color:var(--muted);margin:6px 0">Vista previa no disponible para este tipo de archivo — <a href="https://drive.google.com/file/d/'+encodeURIComponent(f.driveFileId)+'/view" target="_blank" rel="noopener">ábrelo en Drive</a>.</p>';
+var src='https://drive.google.com/file/d/'+encodeURIComponent(f.driveFileId)+'/preview';
+return '<iframe src="'+src+'" style="width:100%;height:45vh;max-height:380px;border:0;display:block;border-radius:8px" allow="autoplay" loading="lazy" title="Vista previa de '+escAttr(f.nombreDrive||'')+'"></iframe>';
+}
+/* Abre (o cierra, si ya estaba abierto para la misma fila) un panel con la
+   vista previa de RAÍZ y de ANTERIOR lado a lado, para decidir con
+   seguridad cuál de los dos "duplicados" conservar antes de borrar nada.
+   forzarAbrir=true se usa al repintar la lista (p.ej. tras "Traer a RAÍZ")
+   para mantener el panel abierto en vez de alternarlo. */
+function docExplorerCmpComparaDetalle(idx,forzarAbrir){
+var det=document.getElementById('docExplorerCmpDetalle');
+if(!det)return;
+var fila=DOC_EXPLORER_CMP_FILAS[idx];
+if(!fila||(!fila.root&&!fila.anterior)){det.style.display='none';DOC_EXPLORER_CMP_DETALLE_IDX=null;return;}
+if(!forzarAbrir&&DOC_EXPLORER_CMP_DETALLE_IDX===idx){det.style.display='none';DOC_EXPLORER_CMP_DETALLE_IDX=null;return;}
+DOC_EXPLORER_CMP_DETALLE_IDX=idx;
+var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h4 style="margin:0;font-size:13px;overflow-wrap:anywhere">Comparando: '+esc(fila.nombre)+'</h4><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerCmpDetalle\').style.display=\'none\';DOC_EXPLORER_CMP_DETALLE_IDX=null">Cerrar</button></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">';
+h+='<div><p style="font-size:11px;color:var(--muted);margin:0 0 4px">RAÍZ (NUEVO)</p>'+docExplorerCmpHtmlVisorArchivo(fila.root)+'</div>';
+h+='<div><p style="font-size:11px;color:var(--muted);margin:0 0 4px">ANTERIOR (ARCHIVADO)</p>'+docExplorerCmpHtmlVisorArchivo(fila.anterior)+'</div>';
+h+='</div>';
+det.innerHTML=h;
+det.style.display='block';
+if(!forzarAbrir)det.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function docExplorerCmpQuitarFilaSiVacia(fila){
@@ -3049,6 +3087,7 @@ try{
 await driveEliminarArchivo(f.driveFileId);
 if(f.sidecarFileId)await driveEliminarArchivo(f.sidecarFileId).catch(function(e){console.warn('No se pudo eliminar el sidecar:',e.message);});
 fila[lado]=null;
+if(DOC_EXPLORER_CMP_DETALLE_IDX===idx&&!fila.root&&!fila.anterior)DOC_EXPLORER_CMP_DETALLE_IDX=null;
 docExplorerCmpQuitarFilaSiVacia(fila);
 toast('Archivo eliminado de '+etiquetaLado);
 docExplorerCmpPintarResultado();
@@ -3079,6 +3118,8 @@ ok++;
 }
 DOC_EXPLORER_CMP_FILAS=DOC_EXPLORER_CMP_FILAS.filter(function(x){return x.root||x.anterior;});
 DOC_EXPLORER_CMP_FILAS.forEach(function(x,i){x._idx=i;});
+DOC_EXPLORER_CMP_DETALLE_IDX=null;
+var detCerrar=document.getElementById('docExplorerCmpDetalle');if(detCerrar)detCerrar.style.display='none';
 toast(ok+' duplicado(s) eliminado(s) de ANTERIOR'+(fallidos?(' ('+fallidos+' fallaron)'):''));
 docExplorerCmpPintarResultado();
 botonCargando(btn,false);
@@ -3094,18 +3135,21 @@ if(!r.ok)throw new Error('Drive respondió '+r.status);
 }
 async function docExplorerCmpMoverARaiz(idx,btn){
 var fila=DOC_EXPLORER_CMP_FILAS[idx];
-if(!fila||!fila.anterior||fila.root)return;
+if(!fila||!fila.anterior)return;
 var f=fila.anterior;
+var yaHabiaEnRaiz=!!fila.root;
 if(!DOC_EXPLORER_CARPETA_ID||!DOC_EXPLORER_CMP_ANTERIOR_ID)return;
 if(!(await exigirIdentidadGoogle()))return;
-if(!(await confirmarApp('Se moverá "'+f.nombreDrive+'" de ANTERIOR a la carpeta RAÍZ de esta persona.',{titulo:'Traer a RAÍZ',textoAceptar:'Mover'})))return;
+var msg='Se moverá "'+f.nombreDrive+'" de ANTERIOR a la carpeta RAÍZ de esta persona.'+(yaHabiaEnRaiz?' Como ya hay un archivo con ese mismo nombre en RAÍZ, quedarán los dos ahí — podrás comparar cuál conservar y borrar el otro a mano.':'');
+if(!(await confirmarApp(msg,{titulo:'Traer a RAÍZ',textoAceptar:'Mover'})))return;
 botonCargando(btn,true,'');
 try{
 await driveMoverArchivo(f.driveFileId,DOC_EXPLORER_CARPETA_ID,DOC_EXPLORER_CMP_ANTERIOR_ID);
 if(f.sidecarFileId)await driveMoverArchivo(f.sidecarFileId,DOC_EXPLORER_CARPETA_ID,DOC_EXPLORER_CMP_ANTERIOR_ID).catch(function(e){console.warn('No se pudo mover el sidecar:',e.message);});
-fila.root=f;
+if(!yaHabiaEnRaiz)fila.root=f;
 fila.anterior=null;
-toast('Archivo movido a RAÍZ');
+if(DOC_EXPLORER_CMP_DETALLE_IDX===idx){document.getElementById('docExplorerCmpDetalle').style.display='none';DOC_EXPLORER_CMP_DETALLE_IDX=null;}
+toast(yaHabiaEnRaiz?'Archivo movido a RAÍZ (ahora hay dos con ese nombre; borra el que no quieras)':'Archivo movido a RAÍZ');
 docExplorerCmpPintarResultado();
 docExplorerRepasarCarpeta();
 }catch(err){toast('No se pudo mover: '+err.message,true);}
@@ -6154,7 +6198,7 @@ var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
-h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera))+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):''):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):''):'')+'</div></div></div>';
+h+='<div class="fh"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
