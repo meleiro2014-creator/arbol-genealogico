@@ -2013,28 +2013,26 @@ if(setPropio[String(id)])return true; // su rama completa: viva y fallecida
 return personaEsFallecida(id);
 }
 if(tipo==='colaborador'){
-/* ===== CORREGIDO: un colaborador ya no ve "todo el árbol principal" =====
-   Antes, cualquier persona viva que cayera en la misma componente conexa
-   gigante que el resto del árbol (comp===c.principal) era visible para
-   CUALQUIER colaborador. Como el árbol está diseñado para que casi todo
-   el mundo acabe en un único bloque conectado por matrimonios, eso
-   equivalía en la práctica a "ver a casi todas las personas vivas del
-   árbol", tuvieran o no relación real con el colaborador. Ahora el
-   colaborador ve, entre personas vivas: 1) su propia rama de sangre
-   (mismo cálculo restringido que un "amigo": sube por padres, baja por
-   hijos, cónyuges solo como hoja, sin atravesar cónyuges de fuera); y
-   2) la rama completa de cada "amigo" que él mismo tenga vinculado en su
-   ficha (componentesPropiosDeColaborador). Fuera de eso, una persona
-   viva solo es visible si ya falleció (regla general de abajo). */
-if(mid){
-var miRama=personasVisiblesAmigo(mid);
-if(miRama[String(id)])return true; // su propia rama de sangre
+/* ===== CORREGIDO (de nuevo): un colaborador SÍ ve todo el árbol principal =====
+   Una corrección anterior (ver historial) sustituyó por error la
+   comprobación de "árbol principal" (comp===c.principal, la gran
+   componente conexa por sangre Y matrimonio) por el mismo cálculo
+   restringido que usa un "amigo" (personasVisiblesAmigo: solo sangre,
+   cónyuges como hoja, sin atravesar nunca un cónyuge). Eso dejaba fuera
+   a los parientes políticos -p.ej. la suegra de un colaborador, a la que
+   solo se llega atravesando a su cónyuge- pese a que el comentario de
+   diseño de arriba seguía diciendo lo contrario. Se restablece la regla
+   documentada: un colaborador ve cualquier persona de la componente
+   conexa principal (más la rama completa de cada "amigo" que él mismo
+   haya vinculado); solo queda fuera de su alcance quien esté en una
+   componente distinta (p.ej. la rama de "amigo" traída por OTRO
+   colaborador), y ahí solo se ve si ya falleció. */
 var c=calcularComponentesConexos();
 var comp=c.indice[String(id)];
-if(comp!=null){
+if(comp!=null&&comp===c.principal)return true; // árbol principal: sangre y afines por matrimonio
+if(mid&&comp!=null){
 var propios=componentesPropiosDeColaborador(mid);
 if(propios[comp])return true; // rama completa de un amigo que él mismo vinculó
-}
 }
 return personaEsFallecida(id); // fuera de su alcance: solo si ya falleció
 }
@@ -4058,6 +4056,19 @@ if(m.googlePhotosDescription)filas.push(['Descripción (Google Fotos)',esc(m.goo
 if(m.personasEtiquetadasGoogle&&m.personasEtiquetadasGoogle.length)filas.push(['Personas etiquetadas (Google)',esc(m.personasEtiquetadasGoogle.join(', '))]);
 filas.push(['OCR',m.ocrProcesado?('sí, confianza '+Number(m.ocrConfianza||0).toFixed(0)+'%'):'pendiente']);
 h+='<table style="margin-top:10px;width:100%;font-size:13px">'+filas.map(function(f){return '<tr><th style="text-align:left;width:170px;color:var(--muted);font-weight:600;padding:3px 0">'+f[0]+'</th><td style="padding:3px 0">'+f[1]+'</td></tr>';}).join('')+'</table>';
+/* ===== NUEVO: Lugar y Comentarios editables en la ficha (sidecar) del documento =====
+   Antes la ficha de un documento solo se podía consultar (más renombrar el
+   archivo); no había ningún campo libre para anotar dónde se tomó una foto
+   o dejar una nota sobre el documento. Se guardan como dos campos nuevos
+   (lugar, comentarios) en el propio JSON del sidecar, igual que el resto
+   de metadatos. */
+h+='<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">'+
+'<label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Lugar</label>'+
+'<input type="text" class="ef-input" id="docNotaLugar'+idx+'" value="'+escAttr(m.lugar||'')+'" placeholder="Ej. Calvos de Randín, Ourense" style="width:100%;margin-bottom:10px">'+
+'<label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Comentarios</label>'+
+'<textarea class="ef-input" id="docNotaComentarios'+idx+'" rows="3" placeholder="Notas libres sobre este documento" style="width:100%">'+esc(m.comentarios||'')+'</textarea>'+
+'<button type="button" class="ef-btn save" style="margin-top:8px" onclick="docExplorerGuardarNotas('+idx+',this)"><i class="fa-solid fa-check"></i> Guardar lugar y comentarios</button>'+
+'</div>';
 if(persona)h+=docExplorerHtmlSugerencias(persona,el);
 if(m.ocrSugerencias&&m.ocrSugerencias.informativas&&m.ocrSugerencias.informativas.length){
 h+='<div style="background:var(--bg);border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>💡 Pistas encontradas por el OCR</strong><br>'+m.ocrSugerencias.informativas.map(function(t){return esc(t);}).join('<br>')+'</div>';
@@ -4078,7 +4089,19 @@ det.scrollIntoView({behavior:'smooth',block:'start'});
    renombra el propio .json y actualiza su campo nombreOriginal, para que
    los dos sigan correspondiéndose. */
 async function driveEliminarArchivo(fileId){
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'DELETE',headers:{Authorization:'Bearer '+driveAccessToken}});
+/* ===== CORREGIDO: usar papelera (trashed:true) en vez de borrado permanente =====
+   files.delete (DELETE) borra el archivo de forma permanente, y la API de
+   Drive solo permite hacerlo a quien es DUEÑO del archivo (o, en una
+   Unidad compartida, a quien tiene rol "organizador"). Como los archivos
+   de FOTO/DOCUMENTOS quedan siendo propiedad de quien los subió
+   originalmente (normalmente el administrador, que preparó el árbol),
+   un colaborador con permiso de "editor" en la carpeta podía ver el botón
+   "Eliminar archivo" pero recibía un 403 al pulsarlo en cualquier archivo
+   que no hubiera subido él mismo. Mover a la papelera (PATCH
+   trashed:true) sí está permitido con rol de editor sobre la carpeta —
+   es justo lo que ya hacía correctamente eliminarFotoPersonaDeDrive() —
+   así que ahora ambas rutas de borrado usan el mismo mecanismo. */
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
 if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive caducó, reconéctate');}
 if(!r.ok&&r.status!==404)throw new Error('Drive respondió '+r.status);
 }
@@ -4097,6 +4120,21 @@ document.getElementById('docExplorerDetalle').style.display='none';
 toast('Archivo eliminado');
 docExplorerPintarLista();
 }catch(err){toast('No se pudo eliminar: '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
+async function docExplorerGuardarNotas(idx,btn){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el||!el.tieneSidecar)return;
+if(!(await exigirIdentidadGoogle()))return;
+var lugar=leerCampo('docNotaLugar'+idx);
+var comentarios=leerCampo('docNotaComentarios'+idx);
+botonCargando(btn,true,'Guardando...');
+try{
+var nuevoContenido=Object.assign({},el.meta,{lugar:lugar,comentarios:comentarios});
+await subirContenidoArchivoDrive(el.sidecarFileId,new Blob([JSON.stringify(nuevoContenido,null,2)],{type:'application/json'}),'application/json');
+el.meta=nuevoContenido;
+toast('Lugar y comentarios guardados');
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
 finally{botonCargando(btn,false);}
 }
 async function driveRenombrarArchivo(fileId,nuevoNombre){
