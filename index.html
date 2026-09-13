@@ -987,6 +987,7 @@ body{background:#fff}
 </div>
 <div id="docExplorerResultadosBusqueda" style="margin-bottom:12px"></div>
 <div id="docExplorerCmp"></div>
+<div id="docExplorerDup"></div>
 <div id="docExplorerPersonaActiva"></div>
 <div id="docExplorerLista"></div>
 <div id="docExplorerDetalle" style="display:none;max-width:900px;margin:16px auto 0;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px"></div>
@@ -2789,11 +2790,13 @@ if(DOC_EXPLORER_PERSONA){
 docExplorerRenderPersonaActiva();
 docExplorerRenderLista();
 docExplorerRenderComparadorPanel();
+docExplorerRenderDupPanel();
 }else{
 var det=document.getElementById('docExplorerDetalle');if(det)det.style.display='none';
 var host=document.getElementById('docExplorerPersonaActiva');if(host)host.innerHTML='';
 var lista=document.getElementById('docExplorerLista');if(lista)lista.innerHTML='<p style="font-size:12px;color:var(--muted);text-align:center">Busca y elige una persona para ver sus documentos.</p>';
 var cmp=document.getElementById('docExplorerCmp');if(cmp)cmp.innerHTML='';
+var dup=document.getElementById('docExplorerDup');if(dup)dup.innerHTML='';
 }
 }
 
@@ -2861,6 +2864,123 @@ DOC_EXPLORER_CMP_ABIERTO=false;
 DOC_EXPLORER_CMP_CARGADO=false;
 DOC_EXPLORER_CMP_FILAS=[];
 DOC_EXPLORER_CMP_DETALLE_IDX=null;
+DOC_EXPLORER_DUP_DETALLE_KEY=null;
+}
+
+/* ==========================================================================
+   POSIBLES FOTOS DUPLICADAS DENTRO DE LA MISMA CARPETA
+   --------------------------------------------------------------------------
+   A diferencia del comparador de arriba (que empareja RAÍZ vs ANTERIOR por
+   NOMBRE exacto), este aviso trabaja sobre la carpeta única de la persona
+   activa (DOC_EXPLORER_ARCHIVOS, ya cargada por docExplorerRepasarCarpeta) y
+   agrupa fotografías por su TAMAÑO EN BYTES: dos fotos con nombres distintos
+   pero exactamente el mismo tamaño de archivo casi siempre son la misma
+   imagen subida dos veces (por ejemplo tras descargarla de dos sitios
+   distintos). No hace ninguna llamada extra a Drive: usa el listado que ya
+   está en memoria. No es un hash de imagen real, así que puede haber algún
+   falso positivo (dos fotos distintas que por casualidad pesen igual); por
+   eso siempre se deja ver primero en miniatura y luego en grande antes de
+   dejar borrar nada. ========================================================================== */
+
+var DOC_EXPLORER_DUP_ABIERTO=false;
+var DOC_EXPLORER_DUP_DETALLE_KEY=null; /* tamaño (bytes, como string) del grupo cuyo detalle ampliado está abierto */
+
+function docExplorerDupGrupos(){
+var porTam={};
+DOC_EXPLORER_ARCHIVOS.forEach(function(el,idx){
+var esImg=el.mimeType&&el.mimeType.indexOf('image/')===0;
+if(!esImg||!el.size)return;
+var k=String(el.size);
+if(!porTam[k])porTam[k]=[];
+porTam[k].push(idx);
+});
+var grupos=Object.keys(porTam).filter(function(k){return porTam[k].length>1;}).map(function(k){return{size:k,indices:porTam[k]};});
+grupos.sort(function(a,b){return b.indices.length-a.indices.length;});
+return grupos;
+}
+
+function docExplorerRenderDupPanel(){
+var host=document.getElementById('docExplorerDup');
+if(!host)return;
+if(!DOC_EXPLORER_PERSONA){host.innerHTML='';return;}
+var grupos=docExplorerDupGrupos();
+if(!grupos.length){host.innerHTML='';DOC_EXPLORER_DUP_DETALLE_KEY=null;return;}
+var abierto=DOC_EXPLORER_DUP_ABIERTO;
+var totalFotos=grupos.reduce(function(s,g){return s+g.indices.length;},0);
+var h='<div class="cmp-box">';
+h+='<button type="button" class="cmp-head" onclick="docExplorerDupToggle()" aria-expanded="'+(abierto?'true':'false')+'" aria-controls="docExplorerDupBody">';
+h+='<span><i class="fa-solid fa-clone" aria-hidden="true"></i> Posibles fotos duplicadas ('+grupos.length+' grupo(s), '+totalFotos+' foto(s))</span>';
+h+='<i class="fa-solid fa-chevron-down cmp-chev" style="'+(abierto?'transform:rotate(180deg)':'')+'" aria-hidden="true"></i>';
+h+='</button>';
+h+='<div class="cmp-body" id="docExplorerDupBody" style="display:'+(abierto?'block':'none')+'">';
+h+='<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Fotografías con el mismo tamaño de archivo aunque tengan nombres distintos — suele ser la misma imagen subida dos veces. Compara las miniaturas y, si son la misma foto, elimina la que sobre.</p>';
+h+='<div class="cmp-list">'+grupos.map(docExplorerDupHtmlGrupo).join('')+'</div>';
+h+='<div id="docExplorerDupDetalle" style="display:none;margin-top:12px;border-top:1px dashed var(--border);padding-top:10px"></div>';
+h+='</div></div>';
+host.innerHTML=h;
+if(abierto&&DOC_EXPLORER_DUP_DETALLE_KEY)docExplorerDupComparaDetalle(DOC_EXPLORER_DUP_DETALLE_KEY,true);
+grupos.forEach(function(g){g.indices.forEach(function(idx){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el||!el.driveFileId)return;
+if(DOC_EXPLORER_MINI_CACHE[el.driveFileId]||!tokenDriveValido())return;
+fetch('https://www.googleapis.com/drive/v3/files/'+el.driveFileId+'?fields=thumbnailLink',{headers:{Authorization:'Bearer '+driveAccessToken}})
+.then(function(r){return r.ok?r.json():null;})
+.then(function(d){
+if(!d||!d.thumbnailLink)return;
+DOC_EXPLORER_MINI_CACHE[el.driveFileId]=d.thumbnailLink;
+var elImg=document.getElementById('docExplorerDupMini'+idx);
+if(elImg&&elImg.tagName==='I'){elImg.outerHTML='<img id="docExplorerDupMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+d.thumbnailLink+'">';}
+}).catch(function(){});
+});});
+}
+function docExplorerDupToggle(){DOC_EXPLORER_DUP_ABIERTO=!DOC_EXPLORER_DUP_ABIERTO;docExplorerRenderDupPanel();}
+
+function docExplorerDupHtmlLado(idx){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el)return '';
+var cacheada=DOC_EXPLORER_MINI_CACHE[el.driveFileId];
+var fecha=el.createdTime?String(el.createdTime).slice(0,10):'';
+var tam=docsTamanoTexto(el.size);
+var h='<div style="width:38px;height:38px;flex-shrink:0;border-radius:6px;overflow:hidden;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="docExplorerVerDetalle('+idx+')" title="Abrir este archivo">'+
+(cacheada?'<img id="docExplorerDupMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+cacheada+'">':'<i id="docExplorerDupMini'+idx+'" class="fa-solid fa-image" style="color:var(--muted);font-size:14px"></i>')+
+'</div>';
+h+='<div style="min-width:0;flex:1"><span class="cmp-nombre" title="'+escAttr(el.nombreDrive)+'" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(el.nombreDrive)+'</span>';
+h+='<span class="cmp-meta">'+esc(fecha)+(tam?(' · '+esc(tam)):'')+'</span></div>';
+h+='<span class="cmp-acciones"><button type="button" class="cmp-btn cmp-btn-danger" title="Eliminar de Drive" onclick="event.stopPropagation();docExplorerEliminarArchivo('+idx+',this)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></span>';
+return h;
+}
+function docExplorerDupHtmlGrupo(grupo){
+var h='<div class="cmp-row">';
+h+=grupo.indices.map(function(idx){return '<div class="cmp-half">'+docExplorerDupHtmlLado(idx)+'</div>';}).join('');
+h+='<div class="cmp-mid"><button type="button" class="cmp-btn" title="Comparar en grande" aria-label="Comparar en grande" onclick="event.stopPropagation();docExplorerDupComparaDetalle(\''+grupo.size+'\')"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button></div>';
+h+='</div>';
+return h;
+}
+/* Panel ampliado: enseña en grande (visor de Drive) todas las fotos del
+   grupo, una junto a otra, cada una con su propio botón de borrar — igual
+   patrón que docExplorerCmpComparaDetalle, pero para N fotos de un mismo
+   grupo (no solo 2 lados fijos). */
+function docExplorerDupComparaDetalle(sizeKey,forzarAbrir){
+var det=document.getElementById('docExplorerDupDetalle');
+if(!det)return;
+sizeKey=String(sizeKey);
+var grupo=docExplorerDupGrupos().filter(function(g){return g.size===sizeKey;})[0];
+if(!grupo){det.style.display='none';DOC_EXPLORER_DUP_DETALLE_KEY=null;return;}
+if(!forzarAbrir&&DOC_EXPLORER_DUP_DETALLE_KEY===sizeKey){det.style.display='none';DOC_EXPLORER_DUP_DETALLE_KEY=null;return;}
+DOC_EXPLORER_DUP_DETALLE_KEY=sizeKey;
+var h='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h4 style="margin:0;font-size:13px">Comparando '+grupo.indices.length+' foto(s) de '+esc(docsTamanoTexto(grupo.size))+'</h4><button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerDupDetalle\').style.display=\'none\';DOC_EXPLORER_DUP_DETALLE_KEY=null">Cerrar</button></div>';
+h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">';
+h+=grupo.indices.map(function(idx){
+var el=DOC_EXPLORER_ARCHIVOS[idx];
+if(!el)return '';
+return '<div><p style="font-size:11px;color:var(--muted);margin:0 0 4px;overflow-wrap:anywhere">'+esc(el.nombreDrive)+'</p>'+
+docExplorerCmpHtmlVisorArchivo(el)+
+'<div style="text-align:right;margin-top:6px"><button type="button" class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="docExplorerEliminarArchivo('+idx+',this)"><i class="fa-solid fa-trash"></i> Eliminar esta</button></div></div>';
+}).join('');
+h+='</div>';
+det.innerHTML=h;
+det.style.display='block';
+if(!forzarAbrir)det.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function docExplorerRenderComparadorPanel(){
@@ -3633,6 +3753,7 @@ var elImg=document.getElementById('docExplorerMini'+idx);
 if(elImg&&elImg.tagName==='I'){elImg.outerHTML='<img id="docExplorerMini'+idx+'" style="width:100%;height:100%;object-fit:cover" src="'+d.thumbnailLink+'">';}
 }).catch(function(){});
 });
+docExplorerRenderDupPanel();
 }
 
 /* ---- Bandeja de sugerencias genealógicas, por archivo, dentro del
