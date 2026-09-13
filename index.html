@@ -3484,19 +3484,31 @@ var archivosReales=todos.filter(function(f){return !docExplorerEsSidecarPropio(f
 
 if(!archivosReales.length){DOC_EXPLORER_ARCHIVOS=[];lista.innerHTML='<p style="font-size:12px;color:var(--muted)">Esta carpeta todavía no tiene ningún documento o fotografía.</p>';return;}
 
-lista.innerHTML=docExplorerHtmlCargando('Leyendo '+sidecars.length+' ficha(s) de '+archivosReales.length+' archivo(s)...');
-
+/* Antes esto leía los sidecars uno a uno con await en el bucle: con
+   carpetas de muchos documentos (100, 300...) suponía esa misma cantidad
+   de peticiones a Drive en fila, cada una esperando a la anterior, y la
+   pantalla se quedaba cargando minutos. Ahora se piden en paralelo por
+   lotes (LOTE_SIDECARS a la vez) para no saturar la API de Drive ni
+   disparar límites de peticiones simultáneas. */
 var metaPorId={};
-for(var i=0;i<sidecars.length;i++){
+var LOTE_SIDECARS=15;
+var leidos=0;
+for(var iLote=0;iLote<sidecars.length;iLote+=LOTE_SIDECARS){
+var lote=sidecars.slice(iLote,iLote+LOTE_SIDECARS);
+await Promise.all(lote.map(async function(sc){
 try{
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+sidecars[i].id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok)continue;
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+sc.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return;
 var contenido=JSON.parse(await r.text());
 var claveId=contenido.driveFileId||null;
-if(!claveId)continue; /* sidecar sin referencia clara a su archivo: se ignora, no se puede emparejar */
+if(!claveId)return; /* sidecar sin referencia clara a su archivo: se ignora, no se puede emparejar */
 contenido.driveFileId=claveId;
-metaPorId[claveId]={meta:contenido,sidecarFileId:sidecars[i].id,sidecarNombre:sidecars[i].name};
+metaPorId[claveId]={meta:contenido,sidecarFileId:sc.id,sidecarNombre:sc.name};
 }catch(e){/* sidecar ilegible: se omite, no rompe el resto */}
+}));
+leidos+=lote.length;
+if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
+if(leidos<sidecars.length)lista.innerHTML=docExplorerHtmlCargando('Leyendo '+leidos+' de '+sidecars.length+' ficha(s) de '+archivosReales.length+' archivo(s)...');
 }
 if(!DOC_EXPLORER_PERSONA||DOC_EXPLORER_PERSONA.id!==id)return;
 
