@@ -6800,7 +6800,7 @@ function haySeccionEditando(){for(var k in editSec)if(editSec[k])return true;ret
 function iniciarEdicionSeccion(id,sec){
 if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder editar (toca la abeja de Google Drive arriba) — así se evita escribir cambios que luego no se puedan guardar.',true);return;}
 if(sec==='etiquetas'){var pp=PI[id];efEtiquetasEdit=pp?etiquetasArray(pp).slice():[];}
-if(sec==='foto')fotoPendiente=undefined;
+if(sec==='foto'){fotoPendiente=undefined;try{localStorage.setItem('fichaTabActiva','datos');}catch(e){}}
 cid=id;editSec[sec]=true;rFic(id);
 }
 function cancelarEdicionSeccion(id,sec){
