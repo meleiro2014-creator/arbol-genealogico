@@ -712,7 +712,6 @@ body{background:#fff}
 <div class="hero-icon-row" id="herramientasIconRow">
 <button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
-<button class="hero-icon-btn" id="nuevaPersonaBtn" style="display:none" onclick="abrirModalNuevaPersona()" title="Nueva persona" aria-label="Crear una persona nueva" aria-haspopup="dialog"><i class="fa-solid fa-user-plus" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 </div>
 <div class="pantalla-bus-pills" id="pantallaBusPills">
@@ -6716,55 +6715,6 @@ var modal=document.getElementById('modalHuecoId');
 if(modal)modal.style.display='none';
 var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
-}
-/* ===== NUEVO: creación de una persona nueva con datos mínimos =====
-   Sustituye a cualquier necesidad de abrir un formulario completo solo para
-   crear una ficha. Se pide un mínimo de datos (ID, nombre, apellidos, fecha
-   y lugar de nacimiento, sexo), se guarda de inmediato en el árbol tal cual
-   una persona "suelta" (sin padre/madre/cónyuge todavía) y se abre su ficha
-   en modo normal de consulta. El resto de datos y la familia se completan
-   después, sección por sección, desde la propia ficha. */
-async function abrirModalNuevaPersona(){
-if(!(await exigirIdentidadGoogle()))return;
-if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder crear una persona nueva (toca la abeja de Google Drive arriba).',true);return;}
-['npId','npNombre','npAp1','npAp2','npNacd','npNacm','npNaca','npLugarnac'].forEach(function(iid){var el=document.getElementById(iid);if(el)el.value='';});
-var npSexoEl=document.getElementById('npSexo');if(npSexoEl)npSexoEl.value='';
-var modal=document.getElementById('modalNuevaPersona');
-if(modal)modal.style.display='flex';
-try{
-var sugerido=await reservarIdNuevo();
-var npIdEl=document.getElementById('npId');
-if(npIdEl&&sugerido)npIdEl.value=sugerido;
-}catch(e){}
-setTimeout(function(){var el=document.getElementById('npNombre');if(el)el.focus();},0);
-}
-function cancelarNuevaPersona(){
-var modal=document.getElementById('modalNuevaPersona');
-if(modal)modal.style.display='none';
-}
-async function crearPersonaDesdeCero(btn){
-if(!iniciarOperacionFicha(btn,'Creando...'))return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
-var newId=leerCampo('npId');
-var nombre=leerCampo('npNombre');
-if(!newId){toast('El ID es obligatorio',true);finOperacionFicha(btn);return;}
-if(PI[newId]){toast('Ya existe una persona con ese ID. Elige otro.',true);finOperacionFicha(btn);return;}
-if(!nombre){toast('El nombre es obligatorio',true);finOperacionFicha(btn);return;}
-var antesCambio=mapaPersonas(D);
-var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:leerCampo('npAp1'),APELLIDO2:leerCampo('npAp2'),NOMBRE:nombre,PADRE:'',MADRE:'',LUGARNAC:leerCampo('npLugarnac'),LUGARDEF:'',OBSERVACIONES:'',SEXO:leerCampo('npSexo'),FechaEdicion:'',NACD:leerNum('npNacd'),NACM:leerNum('npNacm'),NACA:leerNum('npNaca'),DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:'',AMIGOS:[]};
-var today=new Date();
-nuevo.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-D.push(nuevo);
-bIdx(D);
-sDesdeSnapshot(antesCambio).then(function(){
-cancelarNuevaPersona();
-rStats();
-var siEl=document.getElementById('si');if(siEl)doSrch(siEl.value);
-cid=newId;editSec={};
-sv('fic');
-toast('Persona creada correctamente. Completa el resto de su ficha cuando quieras.');
-registrarCambiosDesdeSnapshots(antesCambio,D,'crear');
-}).catch(function(err){toast('No se pudo crear la persona: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 function irFicha(){editSec={};sv('fic');}
 function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
@@ -14358,7 +14308,7 @@ if(!esAdministrador()){toast('Solo el administrador puede recargar el registro d
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
 try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro de cambios recargado desde Drive: '+lista.length+' registro(s)');}catch(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);}
 }
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';var btnNP=document.getElementById('nuevaPersonaBtn');if(btnNP)btnNP.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
 conectada como colaboradores). Si alguien ya estaba en esa vista y deja de ser admin
@@ -14453,17 +14403,6 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h2 id="modalHuecoIdTitulo" style="font-family:'Cinzel',serif;font-size:16px">Elegir ID para la nueva persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cancelarElegirIdNueva()">×</button></div>
 <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Se muestran primero los huecos libres en la numeración; puedes elegir cualquiera de ellos.</p>
 <div id="listaHuecosId" style="overflow:auto;padding-right:2px"></div>
-</div>
-</div>
-<div id="modalNuevaPersona" role="dialog" aria-modal="true" aria-labelledby="modalNuevaPersonaTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:223;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h2 id="modalNuevaPersonaTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-user-plus" aria-hidden="true" style="color:var(--accent)"></i> Nueva persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cancelarNuevaPersona()">×</button></div>
-<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Crea la persona con estos datos mínimos y se guardará de inmediato en el árbol. Después podrás completar el resto de su ficha (foto, familia, etiquetas, observaciones...) desde su propia página, sección por sección.</p>
-<div class="ef-row"><div class="ef-field" style="flex:0 0 120px"><span class="ef-label">ID *</span><input class="ef-input" id="npId" autocomplete="off"></div><div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="npSexo"><option value="" selected></option><option value="Hombre">Hombre</option><option value="Mujer">Mujer</option></select></div></div>
-<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre *</span><input class="ef-input" id="npNombre" autocomplete="off"></div></div>
-<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="npAp1" autocomplete="off"></div><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="npAp2" autocomplete="off"></div></div>
-<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="npNacd" type="number" min="1" max="31"></div><div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="npNacm" type="number" min="1" max="12"></div><div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="npNaca" type="number"></div><div class="ef-field" style="flex:2"><span class="ef-label">Lugar nacimiento</span><input class="ef-input" id="npLugarnac" autocomplete="off"></div></div>
-<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="ef-btn ghost" onclick="cancelarNuevaPersona()">Cancelar</button><button type="button" class="ef-btn save" id="npCrearBtn" onclick="crearPersonaDesdeCero(this)"><i class="fa-solid fa-check"></i> Crear persona</button></div>
 </div>
 </div>
 <div id="modalHerramientas" role="dialog" aria-modal="true" aria-labelledby="modalHerramientasTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
