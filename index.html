@@ -7958,6 +7958,12 @@ if(esMujer){if(!h.MADRE)h.MADRE=newId;}
 else{if(!h.PADRE)h.PADRE=newId;}
 });
 }
+}else if(campo==='PADRE'){
+/* Convención española: el primer apellido del hijo/a es el primer apellido del padre. */
+nuevo.APELLIDO1=actual.APELLIDO1||'';
+}else if(campo==='MADRE'){
+/* Convención española: el segundo apellido del hijo/a es el primer apellido de la madre. */
+nuevo.APELLIDO1=actual.APELLIDO2||'';
 }
 }
 bIdx(D);
@@ -7966,6 +7972,7 @@ await sDesdeSnapshot(antesCambioCrear).then(function(){
 rStats();
 cid=newId;
 editSec={datos:true,familia:true};
+try{localStorage.setItem('fichaTabActiva','datos');}catch(e){}
 rFic(newId);
 toast('Nueva persona creada y vinculada');
 registrarCambiosDesdeSnapshots(antesCambioCrear,D,'vincular');
@@ -8152,7 +8159,7 @@ else {padre=progenitor;madre=pareja;}
 var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
-sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editSec={datos:true,familia:true};rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
+sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editSec={datos:true,familia:true};try{localStorage.setItem('fichaTabActiva','datos');}catch(e){}rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
 registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
