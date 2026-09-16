@@ -712,6 +712,7 @@ body{background:#fff}
 <div class="hero-icon-row" id="herramientasIconRow">
 <button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
+<button class="hero-icon-btn" id="nuevaPersonaBtn" style="display:none" onclick="abrirModalNuevaPersona()" title="Nueva persona" aria-label="Crear una persona nueva" aria-haspopup="dialog"><i class="fa-solid fa-user-plus" aria-hidden="true"></i></button>
 <button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 </div>
 <div class="pantalla-bus-pills" id="pantallaBusPills">
@@ -998,7 +999,7 @@ body{background:#fff}
 </main>
 <div class="print-area" id="printArea"></div>
 <script>
-var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editMode=false,fotoPendiente=undefined,treeDepth=4,treeZoom=1;
+var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editSec={},fotoPendiente=undefined,treeDepth=4,treeZoom=1;
 /* Se pone a true en cuanto la base de datos LOCAL (IndexedDB, sin internet)
    termina de cargarse en memoria al abrir la app. Mientras es false, doSrch()
    no debe decir "Sin resultados" -- todavía no hay nada cargado con lo que
@@ -2398,7 +2399,7 @@ function actualizarContadorCambios(){listarCambios().then(function(arr){var n=ar
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 async function confirmarCambio(id){try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Cambio confirmado');}catch(err){toast('No se pudo confirmar el cambio: '+err.message,true);}}
 async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios del archivo cambios-arbol.json de Drive.')))return;try{var arr=await refrescarCambiosDesdeDrive();var i=arr.findIndex(function(x){return x.id===id;});if(i<0)return;arr.splice(i,1);await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro eliminado');}catch(err){toast('No se pudo eliminar el registro: '+err.message,true);}}
-function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editMode=false;sv('fic');}
+function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editSec={};sv('fic');}
 async function obtenerArchivoCambiosDrive(){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 async function descargarCambiosDrive(){var f=await obtenerArchivoCambiosDrive();if(!f)return{cambios:[]};var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('No se pudo descargar cambios-arbol.json');var x=await r.json();return x&&Array.isArray(x.cambios)?x:{cambios:[]};}
 async function subirCambiosDriveDatos(cambios,existente){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var contenido=JSON.stringify({formato:'Libro de los Ancestros - registro de cambios',version:1,fecha:new Date().toISOString(),cambios:cambios});var r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,existente?existente.id:null);if(r.status===404&&existente){r=await subirArchivoDrive(CAMBIOS_SYNC_FILENAME,contenido,'application/json',folderId,null);}if(!r.ok)throw new Error('Drive respondió '+r.status);}
@@ -4257,7 +4258,7 @@ if(s.contexto)c+='<div style="background:var(--bg);border-radius:6px;padding:8px
 c+='<div style="display:flex;gap:8px">';
 c+='<button type="button" class="ef-btn ghost" onclick="docExplorerDescartarSugerencia(\''+safeId(el.driveFileId)+'\',\''+safeId(s.campo)+'\',\''+safeId(s.valor)+'\')">Descartar</button>';
 if(estado==='aplicar')c+='<button type="button" class="ef-btn save" onclick="docExplorerAplicarSugerencia(\''+safeId(persona.ID)+'\',\''+safeId(s.campo)+'\',\''+safeId(s.valor)+'\')">Aplicar a la ficha</button>';
-else c+='<button type="button" class="ef-btn ghost" onclick="cid=\''+safeId(persona.ID)+'\';editMode=true;sv(\'fic\')">Revisar en la ficha</button>';
+else c+='<button type="button" class="ef-btn ghost" onclick="cid=\''+safeId(persona.ID)+'\';editSec={datos:true};sv(\'fic\')">Revisar en la ficha</button>';
 c+='</div></div>';
 return c;
 }).join('');
@@ -4265,7 +4266,7 @@ h+='</div>';
 return h;
 }
 function docExplorerAplicarSugerencia(personaId,campo,valor){
-cid=personaId;editMode=true;sv('fic');
+cid=personaId;editSec={datos:true};sv('fic');
 setTimeout(function(){
 var mapaInput={NACD:'ef-nacd',NACM:'ef-nacm',NACA:'ef-naca',DEFD:'ef-defd',DEFM:'ef-defm',DEFA:'ef-defa'};
 var inputId=mapaInput[campo];
@@ -6568,7 +6569,7 @@ function selP(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',
    (a diferencia de selP, que lleva al Árbol). Se usa para los enlaces a
    Padre/Madre/Cónyuge/Abuelos/Hermanos/Hijos dentro de la ficha, y también
    desde el botón "Abrir ficha" del árbol. */
-function irAFicha(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editMode=false;sv('fic');}
+function irAFicha(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
@@ -6716,10 +6717,59 @@ if(modal)modal.style.display='none';
 var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
 }
-function irFicha(){editMode=false;sv('fic');}
-function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editMode=false;sv('fic');}
+/* ===== NUEVO: creación de una persona nueva con datos mínimos =====
+   Sustituye a cualquier necesidad de abrir un formulario completo solo para
+   crear una ficha. Se pide un mínimo de datos (ID, nombre, apellidos, fecha
+   y lugar de nacimiento, sexo), se guarda de inmediato en el árbol tal cual
+   una persona "suelta" (sin padre/madre/cónyuge todavía) y se abre su ficha
+   en modo normal de consulta. El resto de datos y la familia se completan
+   después, sección por sección, desde la propia ficha. */
+async function abrirModalNuevaPersona(){
+if(!(await exigirIdentidadGoogle()))return;
+if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder crear una persona nueva (toca la abeja de Google Drive arriba).',true);return;}
+['npId','npNombre','npAp1','npAp2','npNacd','npNacm','npNaca','npLugarnac'].forEach(function(iid){var el=document.getElementById(iid);if(el)el.value='';});
+var npSexoEl=document.getElementById('npSexo');if(npSexoEl)npSexoEl.value='';
+var modal=document.getElementById('modalNuevaPersona');
+if(modal)modal.style.display='flex';
+try{
+var sugerido=await reservarIdNuevo();
+var npIdEl=document.getElementById('npId');
+if(npIdEl&&sugerido)npIdEl.value=sugerido;
+}catch(e){}
+setTimeout(function(){var el=document.getElementById('npNombre');if(el)el.focus();},0);
+}
+function cancelarNuevaPersona(){
+var modal=document.getElementById('modalNuevaPersona');
+if(modal)modal.style.display='none';
+}
+async function crearPersonaDesdeCero(btn){
+if(!iniciarOperacionFicha(btn,'Creando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var newId=leerCampo('npId');
+var nombre=leerCampo('npNombre');
+if(!newId){toast('El ID es obligatorio',true);finOperacionFicha(btn);return;}
+if(PI[newId]){toast('Ya existe una persona con ese ID. Elige otro.',true);finOperacionFicha(btn);return;}
+if(!nombre){toast('El nombre es obligatorio',true);finOperacionFicha(btn);return;}
+var antesCambio=mapaPersonas(D);
+var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:leerCampo('npAp1'),APELLIDO2:leerCampo('npAp2'),NOMBRE:nombre,PADRE:'',MADRE:'',LUGARNAC:leerCampo('npLugarnac'),LUGARDEF:'',OBSERVACIONES:'',SEXO:leerCampo('npSexo'),FechaEdicion:'',NACD:leerNum('npNacd'),NACM:leerNum('npNacm'),NACA:leerNum('npNaca'),DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:'',AMIGOS:[]};
+var today=new Date();
+nuevo.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+D.push(nuevo);
+bIdx(D);
+sDesdeSnapshot(antesCambio).then(function(){
+cancelarNuevaPersona();
+rStats();
+var siEl=document.getElementById('si');if(siEl)doSrch(siEl.value);
+cid=newId;editSec={};
+sv('fic');
+toast('Persona creada correctamente. Completa el resto de su ficha cuando quieras.');
+registrarCambiosDesdeSnapshots(antesCambio,D,'crear');
+}).catch(function(err){toast('No se pudo crear la persona: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+function irFicha(){editSec={};sv('fic');}
+function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
 function rFic(id){
-if(editMode) rFicEdit(id); else rFicView(id);
+rFicView(id);
 actualizarBarraActiva();
 }
 /* ===== CORREGIDO: "Editar" no aparecía tras conectar sin cambiar de pantalla =====
@@ -6799,7 +6849,8 @@ if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h=(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)?'<div><button type="button" class="ef-btn" style="margin-bottom:10px" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>':'';
 h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn" onclick="activarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
+h+='<div id="efConexionAviso" style="display:none"></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
 var esPend=estadoGuardado.estado==='pendiente';
@@ -6833,15 +6884,232 @@ h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span cl
 h+=htmlAvisosFicha(id);
 /* ===== Pestañas Datos / Familia / Abuelos / Hermanos ===== */
 var lugarNacHtml=htmlLugarFicha(p);
-var secDatos='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
-if(esAnioEstimado(p)){
-secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
+/* ===== EDICIÓN POR BLOQUES (ver INFORME DE CAMBIOS) =====
+   La ficha ya no tiene un único "Editar"/"Guardar" global (antes editMode).
+   Cada bloque (Foto, Datos personales, Etiquetas, Familia, Descendientes,
+   Observaciones) tiene su propio estado de edición en el objeto editSec,
+   su propio botón "Editar" y sus propios "Guardar"/"Cancelar". Entrar en
+   edición de un bloque no afecta a los demás. */
+function seccionHeaderHtml(titulo,id,sec,mostrarBoton){
+return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px"><h3 style="margin:0">'+esc(titulo)+'</h3>'+(mostrarBoton&&tokenDriveValido()?'<button type="button" class="ef-btn ghost" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\''+sec+'\')"><i class="fa-solid fa-pen"></i> Editar</button>':'')+'</div>';
 }
-if(esLugarEstimado(p)){
-secDatos+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
+function haySeccionEditando(){for(var k in editSec)if(editSec[k])return true;return false;}
+function iniciarEdicionSeccion(id,sec){
+if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder editar (toca la abeja de Google Drive arriba) — así se evita escribir cambios que luego no se puedan guardar.',true);return;}
+if(sec==='etiquetas'){var pp=PI[id];efEtiquetasEdit=pp?etiquetasArray(pp).slice():[];}
+if(sec==='foto')fotoPendiente=undefined;
+cid=id;editSec[sec]=true;rFic(id);
 }
-secDatos+=htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos);
-if(p.OBSERVACIONES)secDatos+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Observaciones</h3><p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p></div>';
+function cancelarEdicionSeccion(id,sec){
+if(sec==='foto')fotoPendiente=undefined;
+editSec[sec]=false;rFic(id);
+}
+function htmlDatosEditForm(id,p){
+var fallecido=!isAl(p);
+var h='';
+h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="ef-ap1" value="'+escAttr(p.APELLIDO1)+'"></div>';
+h+='<div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="ef-sexo"><option value=""'+(p.SEXO?'':' selected')+'></option><option value="Hombre"'+(p.SEXO==='Hombre'?' selected':'')+'>Hombre</option><option value="Mujer"'+(p.SEXO==='Mujer'?' selected':'')+'>Mujer</option></select></div></div>';
+h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="ef-ap2" value="'+escAttr(p.APELLIDO2)+'"></div></div>';
+h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre</span><input class="ef-input" id="ef-nombre" value="'+escAttr(p.NOMBRE)+'"></div></div>';
+h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-nacd" type="number" min="1" max="31" value="'+escAttr(p.NACD||'')+'"></div>';
+h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-nacm" type="number" min="1" max="12" value="'+escAttr(p.NACM||'')+'"></div>';
+h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-naca" type="number" value="'+escAttr(p.NACA||'')+'"></div>';
+h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar nacimiento</span><input class="ef-input" id="ef-lugarnac" value="'+escAttr(p.LUGARNAC)+'"></div></div>';
+h+='<label class="ef-check"><input type="checkbox" id="ef-fallecido" onchange="document.getElementById(\'ef-defwrap\').classList.toggle(\'ef-sub\',!this.checked)" '+(fallecido?'checked':'')+'> Fallecido</label>';
+h+='<div id="ef-defwrap" class="'+(fallecido?'':'ef-sub')+'">';
+h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-defd" type="number" min="1" max="31" value="'+escAttr(p.DEFD||'')+'"></div>';
+h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-defm" type="number" min="1" max="12" value="'+escAttr(p.DEFM||'')+'"></div>';
+h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
+h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defunción</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
+h+='</div>';
+h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'datos\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionDatos(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
+return h;
+}
+function htmlFotoEditForm(id,p){
+var h='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
+h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
+h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
+h+='</div><div>';
+h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="handleFotoSeleccionada(event)">';
+h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'ef-foto-input\').click()"><i class="fa-solid fa-camera"></i> Subir foto</button>';
+h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesFicha()"><i class="fa-solid fa-paste"></i> Pegar del portapapeles</button>';
+if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
+h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
+h+='</div></div>';
+h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'foto\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFoto(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
+return h;
+}
+function htmlEtiquetasEditForm(id){
+var h='<div id="efEtiquetasChips"></div><div class="etq-add-row"><input class="ef-input" id="efEtiquetaInput" list="dlEtiquetasGlobal" placeholder="Ej: Migrante, Línea materna confirmada..." autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();efAnadirEtiqueta();}"><button type="button" class="ef-btn ghost" onclick="efAnadirEtiqueta()"><i class="fa-solid fa-plus"></i> Añadir</button></div>';
+h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'etiquetas\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionEtiquetas(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
+return h;
+}
+function htmlObservacionesEditForm(id,p){
+var h='<textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea>';
+h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'observaciones\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionObservaciones(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
+return h;
+}
+function htmlFamiliaEditForm(id,p){
+var h='';
+h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
+h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
+var bloqueConyugeEdit=function(n){
+var b=linkFieldHtml(p,'M'+n,'Cónyuge '+n,p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
+b+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio '+n+'</span><input class="ef-input" id="ef-ml'+n+'" value="'+escAttr(p['ML'+n])+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio '+n+'</span><input class="ef-input" id="ef-mf'+n+'" value="'+escAttr(fFechaMatrimonio(p['MF'+n]))+'" placeholder="dd/mm/aaaa"></div></div>';
+return b;
+};
+var conyLlenosN=[1,2,3,4,5,6].filter(function(n){return p['M'+n]&&PI[p['M'+n]];});
+var conyVisibles=Math.min(6,conyLlenosN.length+1);
+for(var _cn=1;_cn<=conyVisibles;_cn++)h+=bloqueConyugeEdit(_cn);
+if(conyVisibles<6){
+h+='<details class="ef-conyuges-extra"><summary>Más huecos de cónyuge ('+(6-conyVisibles)+')</summary>';
+for(var _cn2=conyVisibles+1;_cn2<=6;_cn2++)h+=bloqueConyugeEdit(_cn2);
+h+='</details>';
+}
+h+=htmlAmigosEdit(id);
+h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'familia\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFamilia(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
+return h;
+}
+async function guardarSeccionDatos(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesGuardadoParcial=mapaPersonas(D);
+var apellido1Anterior=p.APELLIDO1;
+p.APELLIDO1=leerCampo('ef-ap1');
+p.APELLIDO2=leerCampo('ef-ap2');
+p.NOMBRE=leerCampo('ef-nombre');
+p.SEXO=leerCampo('ef-sexo');
+p.NACD=leerNum('ef-nacd');
+p.NACM=leerNum('ef-nacm');
+p.NACA=leerNum('ef-naca');
+p.LUGARNAC=leerCampo('ef-lugarnac');
+var fallecido=document.getElementById('ef-fallecido').checked;
+p.FALLECIDO=fallecido?'1':'';
+if(fallecido){
+p.DEFD=leerNum('ef-defd');p.DEFM=leerNum('ef-defm');p.DEFA=leerNum('ef-defa');p.LUGARDEF=leerCampo('ef-lugardef');
+}else{
+p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
+}
+var today=new Date();
+p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+var antesPropagacion=mapaPersonas(D);
+var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
+bIdx(D);
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
+editSec.datos=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();
+rFic(id);
+toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+async function guardarSeccionFoto(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+if(fotoPendiente===undefined){editSec.foto=false;rFic(id);finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesGuardadoParcial=mapaPersonas(D);
+p.FOTO=fotoPendiente;
+p.FOTO_FECHA=new Date().toISOString();
+var fotoParaDrive=fotoPendiente,idParaDrive=id;
+fotoPendiente=undefined;
+if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
+else eliminarFotoPersonaDeDrive(idParaDrive);
+bIdx(D);
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
+editSec.foto=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();
+rFic(id);
+toast('Foto guardada');
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+async function guardarSeccionEtiquetas(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesGuardadoParcial=mapaPersonas(D);
+var etqPendiente=leerCampo('efEtiquetaInput');
+if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
+p.ETIQUETAS=efEtiquetasEdit.join('|');
+var today=new Date();
+p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+bIdx(D);
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
+editSec.etiquetas=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();
+rFic(id);
+toast('Etiquetas guardadas');
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+async function guardarSeccionFamilia(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesGuardadoParcial=mapaPersonas(D);
+[1,2,3,4,5,6].forEach(function(n){
+p['ML'+n]=leerCampo('ef-ml'+n);p['MF'+n]=leerCampo('ef-mf'+n);
+});
+[1,2,3,4,5,6].forEach(function(n){
+sincronizarMatrimonioConyuge(p,'M'+n);
+});
+var today=new Date();
+p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+bIdx(D);
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
+editSec.familia=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();
+rFic(id);
+toast('Cambios guardados');
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+async function guardarSeccionObservaciones(id,btn){
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesGuardadoParcial=mapaPersonas(D);
+p.OBSERVACIONES=leerCampo('ef-obs');
+var today=new Date();
+p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+bIdx(D);
+sDesdeSnapshot(antesGuardadoParcial).then(function(){
+editSec.observaciones=false;
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();
+rFic(id);
+toast('Observaciones guardadas');
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+var camposDatosView='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
+var secDatosPersonales=seccionHeaderHtml('Datos personales',id,'datos',!editSec.datos)+(editSec.datos?htmlDatosEditForm(id,p):camposDatosView);
+if(!editSec.datos){
+if(esAnioEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
+if(esLugarEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
+}
+var secFoto=seccionHeaderHtml('Foto',id,'foto',!editSec.foto)+(editSec.foto?htmlFotoEditForm(id,p):(p.FOTO?'<div style="width:96px;height:96px;border-radius:14px;overflow:hidden;background:var(--border)"><img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain"></div>':'<p style="font-size:12px;color:var(--muted)">Sin foto</p>'));
+var etqActuales=etiquetasArray(p);
+var secEtiquetas=seccionHeaderHtml('Etiquetas',id,'etiquetas',!editSec.etiquetas)+(editSec.etiquetas?htmlEtiquetasEditForm(id):(etqActuales.length?etqActuales.map(function(t){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin etiquetas todavía.</p>'));
+var secArbolCaja=htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos);
+var secObservaciones=seccionHeaderHtml('Observaciones',id,'observaciones',!editSec.observaciones)+(editSec.observaciones?htmlObservacionesEditForm(id,p):(p.OBSERVACIONES?'<p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p>':'<p style="font-size:12px;color:var(--muted)">Sin observaciones</p>'));
 var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
 var ml=madreObj?nombreFamiliarEnlazable(madreObj,'irAFicha(\''+safeId(p.MADRE)+'\')',etiquetaAnioRelacion(madreObj)):'<span style="color:var(--muted)">Desconocida</span>';
 var conyugesHtml='';
@@ -6856,6 +7124,14 @@ var etiquetaConyuge=conyugesLlenos.length>1?('Cónyuge '+n):'Cónyuge';
 var detalleBoda=!ocultoConyuge?[p[campoML]?esc(p[campoML]):'',p[campoMF]?esc(fFechaMatrimonio(p[campoMF])):''].filter(Boolean).join(' · '):'';
 conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+'</span></div>'+(detalleBoda?'<div class="fr" style="margin-top:-4px"><span class="fl"></span><span class="fv" style="font-size:11px;font-weight:400;color:var(--muted)"><i class="fa-solid fa-ring" style="font-size:9px;margin-right:4px;opacity:.7"></i>'+detalleBoda+'</span></div>':'');
 });
+var secFamiliaRelaciones=seccionHeaderHtml('Familia',id,'familia',!editSec.familia);
+if(editSec.familia){
+secFamiliaRelaciones+=htmlFamiliaEditForm(id,p);
+}else{
+secFamiliaRelaciones+='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>'+conyugesHtml;
+var htmlAmigosFamilia=htmlSeccionAmigos(id);
+if(htmlAmigosFamilia)secFamiliaRelaciones+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+htmlAmigosFamilia+'</div>';
+}
 var her=gHerm(id);
 her=her.length?ordenarPersonasPorEdad(her):her;
 var secHermanosBloque;
@@ -6866,21 +7142,23 @@ secHermanosBloque='<ul class="ul">'+hh+'</ul>';
 } else {
 secHermanosBloque='<p style="font-size:12px;color:var(--muted)">Sin hermanos registrados</p>';
 }
-var secFamilia='<div class="fr"><span class="fl">Padre</span><span class="fv">'+pl+'</span></div><div class="fr"><span class="fl">Madre</span><span class="fv">'+ml+'</span></div>';
-secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Hermanos ('+her.length+')</h3>'+secHermanosBloque+'</div>';
-if(conyugesHtml)secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+conyugesHtml+'</div>';
 var hij=ordenarIdsPorEdad(HD[id]||[]);
-secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)"><h3 style="margin:0 0 6px">Hijos ('+hij.length+')</h3>';
+var secDescendientes=seccionHeaderHtml('Hijos ('+hij.length+')',id,'descendientes',!editSec.descendientes);
 if(hij.length){
 var hi='';
 hij.forEach(function(x){hi+='<li>'+nombreFamiliarEnlazable(PI[x],'irAFicha(\''+safeId(x)+'\')',etiquetaAnioRelacion(PI[x]),'')+'</li>';});
-secFamilia+='<ul class="ul">'+hi+'</ul>';
+secDescendientes+='<ul class="ul">'+hi+'</ul>';
 }else{
-secFamilia+='<p style="font-size:12px;color:var(--muted)">Sin hijos registrados</p>';
+secDescendientes+='<p style="font-size:12px;color:var(--muted)">No hay descendientes registrados.</p>';
 }
-secFamilia+='</div>';
-var htmlAmigosFamilia=htmlSeccionAmigos(id);
-if(htmlAmigosFamilia)secFamilia+='<div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">'+htmlAmigosFamilia+'</div>';
+if(editSec.descendientes){
+secDescendientes+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\',this)"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
+[1,2,3,4,5,6].forEach(function(n){
+var mid=p['M'+n];
+if(mid&&PI[mid])secDescendientes+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(mid)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[mid]))+'</button>';
+});
+secDescendientes+='</div><div style="margin-top:10px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'descendientes\')">Hecho</button></div>';
+}
 var secAbuelosBloque=abuelos.length?abuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin abuelos registrados</p>';
 var bisabuelos=ascendientesNivel(id,3).map(function(a){return[etiquetaAscendienteNivel(3,a.path,a.p),a.p];});
 var secBisabuelosBloque=bisabuelos.length?bisabuelos.map(function(par){return'<div class="fr"><span class="fl">'+esc(par[0])+'</span><span class="fv">'+nombreFamiliarEnlazable(par[1],'irAFicha(\''+safeId(par[1].ID)+'\')',etiquetaAnioRelacion(par[1]))+'</span></div>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin bisabuelos registrados</p>';
@@ -6896,18 +7174,17 @@ h+='<div class="fic-tabs" role="tablist">'+
 '<button type="button" class="fic-tab-btn'+(tabInicial==='familia'?' active':'')+'" data-tab="familia" onclick="fSelTab(\'familia\')">Familia</button>'+
 '<button type="button" class="fic-tab-btn'+(tabInicial==='extendida'?' active':'')+'" data-tab="extendida" onclick="fSelTab(\'extendida\')">Familia extendida ('+(abuelos.length+bisabuelos.length+tatarabuelos.length)+')</button>'+
 '</div>';
-h+='<div class="fs fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-tab="datos"><h3>Datos</h3>'+secDatos+'</div>';
-h+='<div class="fs fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia"><h3>Familia</h3>'+secFamilia+'</div>';
+var htmlTabDatos='<div class="fs">'+secFoto+'</div><div class="fs">'+secDatosPersonales+'</div><div class="fs">'+secEtiquetas+'</div>'+secArbolCaja+'<div class="fs">'+secObservaciones+'</div>';
+var htmlTabFamilia='<div class="fs">'+secFamiliaRelaciones+'</div><div class="fs"><h3 style="margin:0 0 6px">Hermanos ('+her.length+')</h3>'+secHermanosBloque+'</div><div class="fs">'+secDescendientes+'</div>';
+h+='<div class="fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-tab="datos">'+htmlTabDatos+'</div>';
+h+='<div class="fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia">'+htmlTabFamilia+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='extendida'?' active':'')+'" data-tab="extendida"><h3>Familia extendida</h3>'+secExtendida+'</div>';
 if(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)h+='<div style="margin-top:14px"><button type="button" class="ef-btn" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>';
 document.getElementById('fco').innerHTML=h;
 cid=id;
+if(editSec.etiquetas){actualizarDatalistEtiquetas();efRenderEtiquetas();}
+actualizarAvisoConexionEdicion();
 }
-function activarEdicion(id){
-if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder editar (toca la abeja de Google Drive arriba) — así se evita escribir cambios que luego no se puedan guardar.',true);return;}
-cid=id;editMode=true;rFic(id);
-}
-function cancelarEdicion(id){editMode=false;rFic(id);}
 function linkFieldHtml(p,campo,labelTxt,sexoNuevo){
 var linkedId=p[campo];
 var linked=linkedId?PI[linkedId]:null;
@@ -6934,90 +7211,13 @@ acciones+
 function actualizarAvisoConexionEdicion(){
 var el=document.getElementById('efConexionAviso');
 if(!el)return;
-if(editMode&&!tokenDriveValido()){
+if(haySeccionEditando()&&!tokenDriveValido()){
 el.style.display='block';
 el.innerHTML='<div class="ef-conexion-aviso"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Sin conexión con Google Drive: si guardas ahora, el cambio no podrá atribuirse ni sincronizarse. Conéctate antes de continuar.</span><button type="button" class="ef-btn ghost" onclick="accionDriveStatusPill()">Conectar</button></div>';
 }else{
 el.style.display='none';
 el.innerHTML='';
 }
-}
-function rFicEdit(id){
-var p=PI[id];
-if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
-fotoPendiente=undefined;
-efEtiquetasEdit=etiquetasArray(p).slice();
-var fallecido=!isAl(p);
-var h='<div class="bb" onclick="cancelarEdicion(\''+safeId(id)+'\')"><i class="fa-solid fa-arrow-left"></i> Cancelar</div>';
-h+='<div class="fic-toolbar"><div style="font-size:11px;color:var(--muted);font-weight:700">ID '+esc(p.ID)+'</div>';
-h+='<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ef-btn ghost" onclick="cancelarEdicion(\''+safeId(id)+'\')">Cancelar</button><button class="ef-btn" style="background:var(--accent);border-color:var(--accent)" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button><button class="ef-btn save" onclick="guardarFicha(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div></div>';
-h+='<div id="efConexionAviso" style="display:none"></div>';
-h+='<div class="fs"><h3>Foto</h3><div style="display:flex;align-items:center;gap:14px">';
-h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
-h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
-h+='</div><div>';
-h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="handleFotoSeleccionada(event)">';
-h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'ef-foto-input\').click()"><i class="fa-solid fa-camera"></i> Subir foto</button>';
-h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesFicha()"><i class="fa-solid fa-paste"></i> Pegar del portapapeles</button>';
-if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
-h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
-h+='</div></div></div>';
-h+='<div class="fs"><h3>Datos personales</h3>';
-h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="ef-ap1" value="'+escAttr(p.APELLIDO1)+'"></div>';
-h+='<div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="ef-sexo"><option value=""'+(p.SEXO?'':' selected')+'></option><option value="Hombre"'+(p.SEXO==='Hombre'?' selected':'')+'>Hombre</option><option value="Mujer"'+(p.SEXO==='Mujer'?' selected':'')+'>Mujer</option></select></div></div>';
-h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="ef-ap2" value="'+escAttr(p.APELLIDO2)+'"></div></div>';
-h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre</span><input class="ef-input" id="ef-nombre" value="'+escAttr(p.NOMBRE)+'"></div></div>';
-h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-nacd" type="number" min="1" max="31" value="'+escAttr(p.NACD||'')+'"></div>';
-h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-nacm" type="number" min="1" max="12" value="'+escAttr(p.NACM||'')+'"></div>';
-h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-naca" type="number" value="'+escAttr(p.NACA||'')+'"></div>';
-h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar nacimiento</span><input class="ef-input" id="ef-lugarnac" value="'+escAttr(p.LUGARNAC)+'"></div></div>';
-h+='<label class="ef-check"><input type="checkbox" id="ef-fallecido" onchange="document.getElementById(\'ef-defwrap\').classList.toggle(\'ef-sub\',!this.checked)" '+(fallecido?'checked':'')+'> Fallecido</label>';
-h+='<div id="ef-defwrap" class="'+(fallecido?'':'ef-sub')+'">';
-h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-defd" type="number" min="1" max="31" value="'+escAttr(p.DEFD||'')+'"></div>';
-h+='<div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="ef-defm" type="number" min="1" max="12" value="'+escAttr(p.DEFM||'')+'"></div>';
-h+='<div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="ef-defa" type="number" value="'+escAttr(p.DEFA||'')+'"></div>';
-h+='<div class="ef-field" style="flex:2"><span class="ef-label">Lugar defunción</span><input class="ef-input" id="ef-lugardef" value="'+escAttr(p.LUGARDEF)+'"></div></div>';
-h+='</div></div>';
-h+='<div class="fs"><h3>Etiquetas</h3><div id="efEtiquetasChips"></div><div class="etq-add-row"><input class="ef-input" id="efEtiquetaInput" list="dlEtiquetasGlobal" placeholder="Ej: Migrante, Línea materna confirmada..." autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();efAnadirEtiqueta();}"><button type="button" class="ef-btn ghost" onclick="efAnadirEtiqueta()"><i class="fa-solid fa-plus"></i> Añadir</button></div></div>';
-h+='<div class="fs"><h3>Familia</h3>';
-h+=linkFieldHtml(p,'PADRE','Padre','Hombre');
-h+=linkFieldHtml(p,'MADRE','Madre','Mujer');
-var bloqueConyugeEdit=function(n){
-var b=linkFieldHtml(p,'M'+n,'Cónyuge '+n,p.SEXO==='Hombre'?'Mujer':(p.SEXO==='Mujer'?'Hombre':''));
-b+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Lugar matrimonio '+n+'</span><input class="ef-input" id="ef-ml'+n+'" value="'+escAttr(p['ML'+n])+'"></div><div class="ef-field"><span class="ef-label">Fecha matrimonio '+n+'</span><input class="ef-input" id="ef-mf'+n+'" value="'+escAttr(fFechaMatrimonio(p['MF'+n]))+'" placeholder="dd/mm/aaaa"></div></div>';
-return b;
-};
-/* Antes se pintaban siempre los 6 huecos de cónyuge, con mucho espacio en
-   blanco para quien solo tiene uno. Ahora solo se muestran los cónyuges ya
-   vinculados más un hueco libre para añadir uno nuevo; el resto de huecos
-   vacíos queda plegado en un desplegable. */
-var conyLlenosN=[1,2,3,4,5,6].filter(function(n){return p['M'+n]&&PI[p['M'+n]];});
-var conyVisibles=Math.min(6,conyLlenosN.length+1);
-for(var _cn=1;_cn<=conyVisibles;_cn++)h+=bloqueConyugeEdit(_cn);
-if(conyVisibles<6){
-h+='<details class="ef-conyuges-extra"><summary>Más huecos de cónyuge ('+(6-conyVisibles)+')</summary>';
-for(var _cn2=conyVisibles+1;_cn2<=6;_cn2++)h+=bloqueConyugeEdit(_cn2);
-h+='</details>';
-}
-h+='</div>';
-var descendientes=ordenarIdsPorEdad(HD[id]||[]);
-h+='<div class="fs"><h3>Descendientes ('+descendientes.length+')</h3>';
-if(descendientes.length){
-descendientes.forEach(function(hid){var hp=PI[hid];if(hp)h+='<div class="fr" style="align-items:center;margin-bottom:8px"><span class="fv" style="flex:1">'+esc(fn(hp))+'</span><button type="button" class="ef-btn ghost" style="padding:4px 8px" onclick="editarDescendiente(\''+safeId(hid)+'\')">Editar</button></div>';});
-}else h+='<p style="font-size:11px;color:var(--muted);margin-bottom:8px">No hay descendientes registrados.</p>';
-h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\'\',this)"><i class="fa-solid fa-plus"></i> Añadir descendiente</button>';
-[1,2,3,4,5,6].forEach(function(n){
-var mid=p['M'+n];
-if(mid&&PI[mid])h+='<button type="button" class="ef-btn ghost" onclick="crearDescendiente(\''+safeId(id)+'\',\''+safeId(mid)+'\',this)"><i class="fa-solid fa-plus"></i> Con '+esc(fn(PI[mid]))+'</button>';
-});
-h+='</div></div>';
-h+=htmlAmigosEdit(id);
-h+='<div class="fs"><h3>Observaciones</h3><textarea class="ef-textarea" id="ef-obs">'+escTA(p.OBSERVACIONES)+'</textarea></div>';
-document.getElementById('fco').innerHTML=h;
-cid=id;
-actualizarDatalistEtiquetas();
-efRenderEtiquetas();
-actualizarAvisoConexionEdicion();
 }
 /* ===== Edición de etiquetas dentro de la ficha ===== efEtiquetasEdit vive solo en memoria mientras
 se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar. */
@@ -7653,65 +7853,6 @@ return afectados.length;
    guardado directamente o pendiente de aprobación. Se recuerda en memoria el último
    resultado de guardado de cada ficha (esta sesión) y se muestra como aviso en la ficha. */
 var FICHA_ULTIMO_GUARDADO={};
-async function guardarFicha(id,btn){
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
-if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
-var p=PI[id];
-var antesCambio=clonarPersona(p);
-if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
-var antesGuardadoParcial=mapaPersonas(D);
-var apellido1Anterior=p.APELLIDO1;
-p.APELLIDO1=leerCampo('ef-ap1');
-p.APELLIDO2=leerCampo('ef-ap2');
-p.NOMBRE=leerCampo('ef-nombre');
-p.SEXO=leerCampo('ef-sexo');
-p.NACD=leerNum('ef-nacd');
-p.NACM=leerNum('ef-nacm');
-p.NACA=leerNum('ef-naca');
-p.LUGARNAC=leerCampo('ef-lugarnac');
-var fallecido=document.getElementById('ef-fallecido').checked;
-p.FALLECIDO=fallecido?'1':'';
-if(fallecido){
-p.DEFD=leerNum('ef-defd');
-p.DEFM=leerNum('ef-defm');
-p.DEFA=leerNum('ef-defa');
-p.LUGARDEF=leerCampo('ef-lugardef');
-} else {
-p.DEFD=null;p.DEFM=null;p.DEFA=null;p.LUGARDEF='';
-}
-[1,2,3,4,5,6].forEach(function(n){
-p['ML'+n]=leerCampo('ef-ml'+n);p['MF'+n]=leerCampo('ef-mf'+n);
-});
-[1,2,3,4,5,6].forEach(function(n){
-sincronizarMatrimonioConyuge(p,'M'+n);
-});
-p.OBSERVACIONES=leerCampo('ef-obs');
-var etqPendiente=leerCampo('efEtiquetaInput');
-if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
-p.ETIQUETAS=efEtiquetasEdit.join('|');
-if(fotoPendiente!==undefined){
-p.FOTO=fotoPendiente;
-p.FOTO_FECHA=new Date().toISOString();
-var fotoParaDrive=fotoPendiente,idParaDrive=id;
-fotoPendiente=undefined;
-if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
-else eliminarFotoPersonaDeDrive(idParaDrive);
-}
-var today=new Date();
-p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-var antesPropagacion=mapaPersonas(D);
-var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
-bIdx(D);
-sDesdeSnapshot(antesGuardadoParcial).then(function(){
-editMode=false;
-FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
-rStats();
-rFic(id);
-toast('Cambios guardados'+(nPropagados?(' · apellido actualizado en '+nPropagados+' descendiente(s)'):''));
-registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
-if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
-}).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
-}
 async function eliminarFicha(id){
 if(!(await exigirIdentidadGoogle()))return;
 var persona=PI[id];
@@ -7729,7 +7870,7 @@ copia.AMIGOS=listaAm.filter(function(aid){return String(aid)!==String(id);});
 return copia;
 });
 sAll(nuevos).then(function(){
-D=nuevos;bIdx(D);cid=null;editMode=false;rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
+D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
 toast('Ficha eliminada correctamente');
 registrarCambiosDesdeSnapshots(antesCambioEliminar,nuevos,'eliminar');
 }).catch(function(err){toast('No se pudo eliminar la ficha: '+err.message,true);});
@@ -7763,7 +7904,7 @@ return true;
    básicos que ya estén escritos en el formulario abierto (si lo hay), para
    que se guarden junto con el nuevo vínculo en la misma operación. */
 function aplicarCamposEdicionAPersona(idFicha){
-if(!editMode||cid!==idFicha)return;
+if(cid!==idFicha)return;
 var p=PI[idFicha];
 if(!p)return;
 var elAp1=document.getElementById('ef-ap1');
@@ -7824,7 +7965,7 @@ estimarNodoLocal(newId);
 await sDesdeSnapshot(antesCambioCrear).then(function(){
 rStats();
 cid=newId;
-editMode=true;
+editSec={datos:true,familia:true};
 rFic(newId);
 toast('Nueva persona creada y vinculada');
 registrarCambiosDesdeSnapshots(antesCambioCrear,D,'vincular');
@@ -7835,9 +7976,9 @@ async function editarVinculado(id,campo){
 var actual=PI[id];
 var linkedId=actual?actual[campo]:null;
 if(!linkedId||!PI[linkedId]){toast('No hay nadie vinculado en ese campo',true);return;}
-if(editMode && !(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
+if(haySeccionEditando() && !(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
 cid=linkedId;
-editMode=true;
+editSec={datos:true};
 rFic(linkedId);
 }
 var selectorRelacion=null;
@@ -7847,7 +7988,7 @@ var ETIQUETAS_RELACION={PADRE:'padre',MADRE:'madre',M1:'cónyuge 1',M2:'cónyuge
    con rFic() antes de que el usuario pulse "Guardar". ===== */
 var CAMPOS_FORM_EDICION=['ef-ap1','ef-ap2','ef-nombre','ef-sexo','ef-nacd','ef-nacm','ef-naca','ef-lugarnac','ef-fallecido','ef-defd','ef-defm','ef-defa','ef-lugardef','ef-ml1','ef-mf1','ef-ml2','ef-mf2','ef-obs'];
 function capturarCamposEdicionSiProcede(idFicha){
-if(!editMode||cid!==idFicha)return null;
+if(cid!==idFicha)return null;
 var vals={};
 CAMPOS_FORM_EDICION.forEach(function(idc){
 var el=document.getElementById(idc);
@@ -7963,7 +8104,7 @@ await anadirAmigoEntre(idDuenio,newId);
 cerrarSelectorRelacion();
 sDesdeSnapshot(antes).then(function(){
 registrarCambiosDesdeSnapshots(antes,D,'crear');
-cid=newId;editMode=true;rFic(newId);
+cid=newId;editSec={datos:true};rFic(newId);
 toast('Persona creada y añadida como amigo de '+(duenio?fn(duenio).trim():idDuenio)+'. Completa los datos y guarda.');
 }).catch(function(err){toast('No se pudo crear: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
@@ -7992,8 +8133,8 @@ var camposPrevios=capturarCamposEdicionSiProcede(id);
 bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de '+etiqueta+' eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function editarDescendiente(id){
-if(editMode&&!(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
-cid=id;editMode=true;rFic(id);
+if(haySeccionEditando()&&!(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
+cid=id;editSec={datos:true};rFic(id);
 }
 async function crearDescendiente(id,parejaId,btn){
 if(!iniciarOperacionFicha(btn,'Creando...'))return;
@@ -8011,7 +8152,7 @@ else {padre=progenitor;madre=pareja;}
 var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);bIdx(D);
 estimarNodoLocal(nuevo.ID);
-sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editMode=true;rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
+sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editSec={datos:true,familia:true};rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
 registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 /* ===== COMPROBADOR DE CONSISTENCIA =====
@@ -11650,7 +11791,7 @@ var avisoFotos=textoFotos?(' ('+resultadoFusion.nuevasOEditadas+' fotos nuevas o
 if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.'+avisoFotos)))return;
 mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
 sAll(personas).then(function(){
-D=personas;bIdx(D);cid=null;editMode=false;
+D=personas;bIdx(D);cid=null;editSec={};
 ocultarProgresoDrive();
 init();
 toast('Copia restaurada: '+D.length+' personas');
@@ -12951,7 +13092,7 @@ restaurarUsuariosCacheLocal();
 ['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSoloTokenDrive();});});
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!editMode)rFic(cid);
+function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!haySeccionEditando())rFic(cid);
 /* A PETICIÓN DEL USUARIO: la app arranca siempre desconectada de Google
    Drive y ya NO intenta conectarse sola (ni en silencio) al abrirse; la
    conexión solo se produce cuando la persona toca explícitamente el punto
@@ -13653,7 +13794,7 @@ if(!PI[id]){toast('Esa ficha ya no está disponible',true);return;}
 if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 JUEGO_ESTADO.consultada=true;
 JUEGO_ESTADO.viendoFichaDesdeJuego=true;
-cid=id;editMode=false;sv('fic');
+cid=id;editSec={};sv('fic');
 }
 function volverAlJuegoDesdeFicha(){
 JUEGO_ESTADO.viendoFichaDesdeJuego=false;
@@ -14210,7 +14351,7 @@ if(!esAdministrador()){toast('Solo el administrador puede recargar el registro d
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
 try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro de cambios recargado desde Drive: '+lista.length+' registro(s)');}catch(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);}
 }
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';var btnNP=document.getElementById('nuevaPersonaBtn');if(btnNP)btnNP.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();}
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
 del arbol; se oculta del menu para el resto de personas (aunque tengan identidad de Google
 conectada como colaboradores). Si alguien ya estaba en esa vista y deja de ser admin
@@ -14305,6 +14446,17 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h2 id="modalHuecoIdTitulo" style="font-family:'Cinzel',serif;font-size:16px">Elegir ID para la nueva persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cancelarElegirIdNueva()">×</button></div>
 <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Se muestran primero los huecos libres en la numeración; puedes elegir cualquiera de ellos.</p>
 <div id="listaHuecosId" style="overflow:auto;padding-right:2px"></div>
+</div>
+</div>
+<div id="modalNuevaPersona" role="dialog" aria-modal="true" aria-labelledby="modalNuevaPersonaTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:223;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h2 id="modalNuevaPersonaTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-user-plus" aria-hidden="true" style="color:var(--accent)"></i> Nueva persona</h2><button class="ef-nbtn" aria-label="Cerrar" onclick="cancelarNuevaPersona()">×</button></div>
+<p style="font-size:12px;color:var(--muted);margin-bottom:12px">Crea la persona con estos datos mínimos y se guardará de inmediato en el árbol. Después podrás completar el resto de su ficha (foto, familia, etiquetas, observaciones...) desde su propia página, sección por sección.</p>
+<div class="ef-row"><div class="ef-field" style="flex:0 0 120px"><span class="ef-label">ID *</span><input class="ef-input" id="npId" autocomplete="off"></div><div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="npSexo"><option value="" selected></option><option value="Hombre">Hombre</option><option value="Mujer">Mujer</option></select></div></div>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre *</span><input class="ef-input" id="npNombre" autocomplete="off"></div></div>
+<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="npAp1" autocomplete="off"></div><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="npAp2" autocomplete="off"></div></div>
+<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="npNacd" type="number" min="1" max="31"></div><div class="ef-field tiny"><span class="ef-label">Mes</span><input class="ef-input" id="npNacm" type="number" min="1" max="12"></div><div class="ef-field small"><span class="ef-label">Año</span><input class="ef-input" id="npNaca" type="number"></div><div class="ef-field" style="flex:2"><span class="ef-label">Lugar nacimiento</span><input class="ef-input" id="npLugarnac" autocomplete="off"></div></div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="ef-btn ghost" onclick="cancelarNuevaPersona()">Cancelar</button><button type="button" class="ef-btn save" id="npCrearBtn" onclick="crearPersonaDesdeCero(this)"><i class="fa-solid fa-check"></i> Crear persona</button></div>
 </div>
 </div>
 <div id="modalHerramientas" role="dialog" aria-modal="true" aria-labelledby="modalHerramientasTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
