@@ -7084,7 +7084,7 @@ var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
-h+='<div class="fh"><div style="position:relative;flex-shrink:0"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div>'+(tokenDriveValido()&&!editSec.foto?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="position:absolute;bottom:-6px;right:-6px;width:30px;height:30px;border-radius:50%;background:var(--card);border:2px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--accent);padding:0"><i class="fa-solid fa-pen" style="font-size:11px" aria-hidden="true"></i></button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+h+='<div class="fh"><div style="position:relative;flex-shrink:0"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="position:absolute;bottom:-6px;right:-6px;width:30px;height:30px;border-radius:50%;background:var(--card);border:2px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--accent);padding:0"><i class="fa-solid fa-pen" style="font-size:11px" aria-hidden="true"></i></button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
@@ -7100,16 +7100,16 @@ var lugarNacHtml=htmlLugarFicha(p);
    su propio botón "Editar" y sus propios "Guardar"/"Cancelar". Entrar en
    edición de un bloque no afecta a los demás. */
 var camposDatosView='<div class="fr"><span class="fl">Nombre</span><span class="fv">'+esc(p.NOMBRE)+'</span></div><div class="fr"><span class="fl">Apellido 1</span><span class="fv">'+esc(p.APELLIDO1)+'</span></div><div class="fr"><span class="fl">Apellido 2</span><span class="fv">'+esc(p.APELLIDO2)+'</span></div><div class="fr"><span class="fl">Nacimiento</span><span class="fv'+(nacEsEstimado?' anocalc-tag':'')+'">'+esc(nacTexto||'Desconocido')+(infoEdad&&!infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar nac.</span><span class="fv">'+lugarNacHtml+'</span></div><div class="fr"><span class="fl">Defunción</span><span class="fv">'+esc(al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)'))+(infoEdad&&infoEdad.alFallecer?esc(textoEdadSub):'')+'</span></div><div class="fr"><span class="fl">Lugar def.</span><span class="fv">'+esc(p.LUGARDEF)+'</span></div>';
-var secDatosPersonales=seccionHeaderHtml('Datos personales',id,'datos',!editSec.datos)+(editSec.datos?htmlDatosEditForm(id,p):camposDatosView);
+var secDatosPersonales=seccionHeaderHtml('Datos personales',id,'datos',!haySeccionEditando())+(editSec.datos?htmlDatosEditForm(id,p):camposDatosView);
 if(!editSec.datos){
 if(esAnioEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
 if(esLugarEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
 }
 var secFoto=editSec.foto?(seccionHeaderHtml('Foto',id,'foto',false)+htmlFotoEditForm(id,p)):'';
 var etqActuales=etiquetasArray(p);
-var secEtiquetas=seccionHeaderHtml('Etiquetas',id,'etiquetas',!editSec.etiquetas)+(editSec.etiquetas?htmlEtiquetasEditForm(id):(etqActuales.length?etqActuales.map(function(t){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin etiquetas todavía.</p>'));
+var secEtiquetas=seccionHeaderHtml('Etiquetas',id,'etiquetas',!haySeccionEditando())+(editSec.etiquetas?htmlEtiquetasEditForm(id):(etqActuales.length?etqActuales.map(function(t){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin etiquetas todavía.</p>'));
 var secArbolCaja=htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos);
-var secObservaciones=seccionHeaderHtml('Observaciones',id,'observaciones',!editSec.observaciones)+(editSec.observaciones?htmlObservacionesEditForm(id,p):(p.OBSERVACIONES?'<p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p>':'<p style="font-size:12px;color:var(--muted)">Sin observaciones</p>'));
+var secObservaciones=seccionHeaderHtml('Observaciones',id,'observaciones',!haySeccionEditando())+(editSec.observaciones?htmlObservacionesEditForm(id,p):(p.OBSERVACIONES?'<p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p>':'<p style="font-size:12px;color:var(--muted)">Sin observaciones</p>'));
 var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
 var ml=madreObj?nombreFamiliarEnlazable(madreObj,'irAFicha(\''+safeId(p.MADRE)+'\')',etiquetaAnioRelacion(madreObj)):'<span style="color:var(--muted)">Desconocida</span>';
 var conyugesHtml='';
@@ -7124,7 +7124,7 @@ var etiquetaConyuge=conyugesLlenos.length>1?('Cónyuge '+n):'Cónyuge';
 var detalleBoda=!ocultoConyuge?[p[campoML]?esc(p[campoML]):'',p[campoMF]?esc(fFechaMatrimonio(p[campoMF])):''].filter(Boolean).join(' · '):'';
 conyugesHtml+='<div class="fr"><span class="fl">'+etiquetaConyuge+'</span><span class="fv">'+cl+'</span></div>'+(detalleBoda?'<div class="fr" style="margin-top:-4px"><span class="fl"></span><span class="fv" style="font-size:11px;font-weight:400;color:var(--muted)"><i class="fa-solid fa-ring" style="font-size:9px;margin-right:4px;opacity:.7"></i>'+detalleBoda+'</span></div>':'');
 });
-var secFamiliaRelaciones=seccionHeaderHtml('Familia',id,'familia',!editSec.familia);
+var secFamiliaRelaciones=seccionHeaderHtml('Familia',id,'familia',!haySeccionEditando());
 if(editSec.familia){
 secFamiliaRelaciones+=htmlFamiliaEditForm(id,p);
 }else{
@@ -7143,7 +7143,7 @@ secHermanosBloque='<ul class="ul">'+hh+'</ul>';
 secHermanosBloque='<p style="font-size:12px;color:var(--muted)">Sin hermanos registrados</p>';
 }
 var hij=ordenarIdsPorEdad(HD[id]||[]);
-var secDescendientes=seccionHeaderHtml('Hijos ('+hij.length+')',id,'descendientes',!editSec.descendientes);
+var secDescendientes=seccionHeaderHtml('Hijos ('+hij.length+')',id,'descendientes',!haySeccionEditando());
 if(hij.length){
 var hi='';
 hij.forEach(function(x){hi+='<li>'+nombreFamiliarEnlazable(PI[x],'irAFicha(\''+safeId(x)+'\')',etiquetaAnioRelacion(PI[x]),'')+'</li>';});
