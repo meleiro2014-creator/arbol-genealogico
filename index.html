@@ -14840,19 +14840,33 @@ var BASS_SCALE=[73.42,110.00,130.81,146.83]; // D2,A2,C3,D3
 var VOL_KEY='musicaVolumenGuardado_v1', ACT_KEY='musicaActivadaGuardada_v1';
 
 // Ambientes: cada pantalla del árbol tiene un carácter musical ligeramente distinto,
-// generado con el mismo motor (mismas notas, mismos timbres), variando solo tempo,
-// densidad de silencios, tono del filtro, cantidad de eco/acompañamiento y volumen relativo.
+// generado con el mismo motor (misma frase melódica, mismos timbres), variando solo el
+// tempo (beatMs), el tono del filtro, la cantidad de eco/acompañamiento y el volumen relativo.
 var MODOS={
-  normal:{pausaProb:0.22,duraciones:[1.4,1.8,2.2,2.6,3.1],filtroFrecuencia:2200,ecoWet:0.22,acompProb:0.16,octavaAbajoProb:0.12,gananciaRel:1.0,colorInquietante:0},
-  antepasados:{pausaProb:0.15,duraciones:[2.0,2.6,3.2,3.8,4.4],filtroFrecuencia:1700,ecoWet:0.30,acompProb:0.30,octavaAbajoProb:0.24,gananciaRel:1.05,colorInquietante:0},
-  investigacion:{pausaProb:0.16,duraciones:[1.0,1.3,1.6,2.0,2.4],filtroFrecuencia:2600,ecoWet:0.18,acompProb:0.10,octavaAbajoProb:0.08,gananciaRel:0.95,colorInquietante:0.09},
-  documentos:{pausaProb:0.38,duraciones:[2.4,3.0,3.6,4.2],filtroFrecuencia:1300,ecoWet:0.14,acompProb:0.06,octavaAbajoProb:0.10,gananciaRel:0.55,colorInquietante:0}
+  normal:{beatMs:820,filtroFrecuencia:2200,ecoWet:0.22,acompProb:0.12,gananciaRel:1.0,colorInquietante:0},
+  antepasados:{beatMs:1050,filtroFrecuencia:1700,ecoWet:0.30,acompProb:0.20,gananciaRel:1.05,colorInquietante:0},
+  investigacion:{beatMs:640,filtroFrecuencia:2600,ecoWet:0.18,acompProb:0.08,gananciaRel:0.95,colorInquietante:0.09},
+  documentos:{beatMs:1200,filtroFrecuencia:1300,ecoWet:0.14,acompProb:0.05,gananciaRel:0.55,colorInquietante:0}
 };
 // Qué pantalla (códigos internos de navegación del árbol) corresponde a cada ambiente
 var VISTA_A_MODO={bus:'normal',ges:'normal',inf:'normal',cam:'normal',arb:'antepasados',fic:'antepasados',cro:'antepasados',rel:'antepasados',inv:'investigacion',doc:'documentos'};
 
+// Frase melódica base (motivo): una pequeña melodía con forma propia (sube, culmina,
+// baja y resuelve), en vez de notas sueltas al azar. "deg" es el índice en MEL_SCALE;
+// "beats" es su duración relativa. deg:null es un silencio ya integrado en la frase
+// (no un corte aleatorio). Cada vez que termina de sonar toda la frase se genera una
+// variación ligera (sección 5 del informe: notas/octava/ritmo/pausas/acompañamiento),
+// y cada pocas vueltas se vuelve al motivo original para no perder el carácter general.
+var MOTIVO_BASE=[
+  {deg:4,beats:2},{deg:6,beats:1},{deg:5,beats:1},{deg:4,beats:2},
+  {deg:null,beats:1},{deg:2,beats:1.5},{deg:3,beats:1},{deg:4,beats:3},
+  {deg:null,beats:1.5}
+];
+
 var ctx=null,master=null,filtro=null,delay=null,feedback=null,wetGain=null;
-var activo=false,temporizador=null,posicion=4,pasoContador=0,volumenActual=35;
+var padOsc=null,padGain=null,temporizadorPad=null;
+var activo=false,temporizador=null,volumenActual=35;
+var motivoActual=null,cursorMotivo=0,pasadasMotivo=0;
 var modoActual='normal',intervaloDeteccion=null;
 
 function disponible(){return !!(window.AudioContext||window.webkitAudioContext);}
@@ -14918,38 +14932,103 @@ function aplicarGananciaActual(){
   if(!master||!ctx) return;
   var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
   master.gain.setTargetAtTime((volumenActual/100)*0.5*rel,ctx.currentTime,0.6);
+  if(padGain) padGain.gain.setTargetAtTime(0.05*rel*(volumenActual/100)*2,ctx.currentTime,1.5);
 }
 
-function elegirSiguienteIndice(){
-  var pasos=[-2,-1,-1,0,0,1,1,2];
-  var paso=pasos[Math.floor(Math.random()*pasos.length)];
-  var nuevo=Math.max(0,Math.min(MEL_SCALE.length-1,posicion+paso));
-  posicion=nuevo;
-  return posicion;
+function clonarMotivo(m){
+  return m.map(function(e){return {deg:e.deg,beats:e.beats,_octavaAbajo:!!e._octavaAbajo,_acomp:false};});
+}
+
+// Genera una variación ligera de la frase manteniendo su forma general: puede desplazar
+// alguna nota un grado, bajarla de octava, alargar/acortar su duración, convertir una nota
+// en silencio (o rellenar un silencio existente) y marcar alguna nota para acompañamiento.
+function generarVariacion(motivo){
+  return motivo.map(function(ev){
+    var n={deg:ev.deg,beats:ev.beats,_octavaAbajo:!!ev._octavaAbajo,_acomp:false};
+    if(n.deg!==null){
+      if(Math.random()<0.10){
+        n.deg=null; // esta nota se convierte en silencio
+      }else{
+        if(Math.random()<0.20){
+          var paso=Math.random()<0.5?-1:1;
+          n.deg=Math.max(0,Math.min(MEL_SCALE.length-1,n.deg+paso));
+        }
+        if(Math.random()<0.10) n._octavaAbajo=!n._octavaAbajo;
+        if(Math.random()<0.12) n.beats=Math.max(0.5,n.beats+(Math.random()<0.5?-0.5:0.5));
+        if(Math.random()<0.10) n._acomp=true;
+      }
+    }else{
+      if(Math.random()<0.18) n.deg=4; // el silencio a veces se rellena con la nota central
+    }
+    return n;
+  });
 }
 
 function pasoSecuencia(){
   if(!activo) return;
   var m=MODOS[modoActual]||MODOS.normal;
-  var ahora=ctx.currentTime+0.05;
-  pasoContador++;
-  var esPausa=Math.random()<m.pausaProb;
-  var dur=m.duraciones[Math.floor(Math.random()*m.duraciones.length)];
-  if(!esPausa){
-    var idx=elegirSiguienteIndice();
-    var freq=MEL_SCALE[idx];
-    if(Math.random()<m.octavaAbajoProb) freq=freq/2;
-    if(m.colorInquietante && Math.random()<m.colorInquietante) freq=freq*(1+ (Math.random()<0.5?-1:1)*(0.03+Math.random()*0.035));
-    var pico=(0.10+Math.random()*0.07)*m.gananciaRel;
-    tocarNota(freq,ahora,dur*0.9,pico,'triangle',true);
-    if(Math.random()<m.acompProb){
-      var bassFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
-      tocarNota(bassFreq,ahora+0.05,dur*1.6,(0.05+Math.random()*0.03)*m.gananciaRel,'sine',false);
-    }
-    if(pasoContador%9===0) posicion=4; // vuelve al centro para no perder el carácter general
+  if(cursorMotivo>=motivoActual.length){
+    pasadasMotivo++;
+    // cada 5 vueltas se vuelve al motivo original para no perder el carácter general;
+    // el resto de vueltas, se genera una variación ligera de la última frase sonada.
+    motivoActual=(pasadasMotivo%5===0)?clonarMotivo(MOTIVO_BASE):generarVariacion(motivoActual);
+    cursorMotivo=0;
   }
-  var esperaMs=(esPausa?dur*1.3:dur)*1000+Math.random()*400;
-  temporizador=setTimeout(pasoSecuencia,esperaMs);
+  var evento=motivoActual[cursorMotivo];
+  cursorMotivo++;
+  var intervaloMs=evento.beats*m.beatMs;
+  var ahora=ctx.currentTime+0.05;
+  if(evento.deg!==null){
+    var freq=MEL_SCALE[evento.deg];
+    if(evento._octavaAbajo) freq=freq/2;
+    if(m.colorInquietante && Math.random()<m.colorInquietante) freq=freq*(1+(Math.random()<0.5?-1:1)*(0.03+Math.random()*0.035));
+    var durSeg=(intervaloMs/1000)*1.32; // ligero solape (legato) con la nota siguiente
+    var pico=(0.11+Math.random()*0.05)*m.gananciaRel;
+    tocarNota(freq,ahora,durSeg,pico,'triangle',true);
+    if(evento._acomp || Math.random()<m.acompProb){
+      var bassFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
+      tocarNota(bassFreq,ahora+0.05,durSeg*1.25,(0.05+Math.random()*0.02)*m.gananciaRel,'sine',false);
+    }
+  }
+  temporizador=setTimeout(pasoSecuencia,intervaloMs);
+}
+
+// Fondo continuo (pad): un tono grave sostenido que nunca se apaga del todo mientras
+// suena la música, y que cada 9-16 segundos se desliza suavemente a otra nota grave.
+// Es lo que evita que la música se perciba como "notas y silencios sueltos": siempre
+// hay una base de sonido, y la frase melódica de arriba suena por encima de ella.
+function iniciarPad(){
+  if(padOsc) return;
+  padOsc=ctx.createOscillator();
+  padOsc.type='sine';
+  padOsc.frequency.value=BASS_SCALE[1];
+  padGain=ctx.createGain();
+  padGain.gain.setValueAtTime(0.0001,ctx.currentTime);
+  padOsc.connect(padGain);
+  padGain.connect(filtro);
+  padOsc.start();
+  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
+  padGain.gain.exponentialRampToValueAtTime(Math.max(0.05*rel*(volumenActual/100)*2,0.001),ctx.currentTime+3);
+  programarCambioPad();
+}
+
+function programarCambioPad(){
+  if(!activo) return;
+  var espera=9000+Math.random()*7000;
+  temporizadorPad=setTimeout(function(){
+    if(!activo||!padOsc) return;
+    var nuevaFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
+    padOsc.frequency.setTargetAtTime(nuevaFreq,ctx.currentTime,2.2);
+    programarCambioPad();
+  },espera);
+}
+
+function detenerPad(){
+  if(temporizadorPad){clearTimeout(temporizadorPad);temporizadorPad=null;}
+  if(padGain && ctx) padGain.gain.setTargetAtTime(0.0001,ctx.currentTime,1.0);
+  var oscAApagar=padOsc;
+  padOsc=null;padGain=null;
+  if(oscAApagar && ctx){ try{ oscAApagar.stop(ctx.currentTime+2.5); }catch(e){} }
 }
 
 function guardarEstado(){
@@ -14995,9 +15074,12 @@ function iniciar(){
   if(ctx.state==='suspended') ctx.resume();
   if(activo) return;
   activo=true;
-  pasoContador=0;
+  motivoActual=clonarMotivo(MOTIVO_BASE);
+  cursorMotivo=0;
+  pasadasMotivo=0;
   aplicarModoSegunVista();
   aplicarGananciaActual();
+  iniciarPad();
   pasoSecuencia();
   if(!intervaloDeteccion) intervaloDeteccion=setInterval(aplicarModoSegunVista,1200);
   guardarEstado();
@@ -15008,6 +15090,7 @@ function pausar(){
   activo=false;
   if(temporizador){clearTimeout(temporizador);temporizador=null;}
   if(intervaloDeteccion){clearInterval(intervaloDeteccion);intervaloDeteccion=null;}
+  detenerPad();
   guardarEstado();
   actualizarUI();
 }
