@@ -14825,110 +14825,62 @@ window.addEventListener('appinstalled', function () {
 </div>
 <script>
 /* ============================================================
-   MÓDULO INDEPENDIENTE: música ambiental generativa
-   No depende de servidores externos, no usa MP3/WAV, no modifica
-   ningún otro módulo del árbol. Solo Web Audio API del navegador.
-   Referencia estética libre (ambiente misterioso/melancólico tipo
-   Fringe) sin reproducir ninguna melodía, grabación ni composición
-   ajena: toda la música se genera aquí mismo, nota a nota.
+   MÓDULO INDEPENDIENTE: reproductor de música de fondo
+   No depende de ningún servidor externo: reproduce "musica.mp3", un
+   archivo de audio que debe subirse a la misma carpeta que este
+   index.html en el repositorio. No modifica ningún otro módulo del
+   árbol (personas, fotos, búsquedas, ficha, login...).
    ============================================================ */
 var MusicEngine=(function(){
 'use strict';
-// Escala melódica (modo menor, registro medio-grave) y notas graves de acompañamiento
-// Escala melódica (modo menor, registro medio-grave) y acordes de fondo (progresión
-// armónica real en Re menor natural: i - VI - III - VII), en vez de una sola nota grave
-// suelta. La melodía usa siempre notas de esta misma escala, así que encaja de oído con
-// cualquiera de los cuatro acordes.
-var MEL_SCALE=[146.83,164.81,174.61,196.00,220.00,233.08,261.63,293.66,329.63]; // D3,E3,F3,G3,A3,Bb3,C4,D4,E4
-var BASS_SCALE=[73.42,110.00,130.81,146.83]; // D2,A2,C3,D3 (para los acentos graves ocasionales de la melodía)
-var ACORDES=[
-  [146.83,174.61,220.00], // i   Dm : D3,F3,A3
-  [116.54,146.83,174.61], // VI  Bb : Bb2,D3,F3
-  [174.61,220.00,261.63], // III F  : F3,A3,C4
-  [130.81,164.81,196.00]  // VII C  : C3,E3,G3
-];
+// Reproduce el archivo de audio "musica.mp3" que debe subirse junto a este index.html
+// (misma carpeta del repositorio). No depende de ningún servidor externo: el navegador
+// lo carga directamente desde ahí, igual que carga el propio index.html.
+var RUTA_AUDIO='musica.mp3';
 var VOL_KEY='musicaVolumenGuardado_v1', ACT_KEY='musicaActivadaGuardada_v1';
 
-// Ambientes: cada pantalla del árbol tiene un carácter musical ligeramente distinto,
-// generado con el mismo motor (misma frase melódica, misma progresión de acordes),
-// variando solo el tempo (beatMs), el tono del filtro, el ritmo de cambio de acorde
-// (acordeMs), la reverberación y el volumen relativo.
+// Ambientes: cada pantalla del árbol atenúa/realza ligeramente el volumen de la canción
+// (no cambia la canción en sí, solo su presencia relativa) para que resulte más discreta
+// en pantallas de lectura (Documentos) y algo más presente en Árbol/Ficha.
 var MODOS={
-  normal:{beatMs:820,filtroFrecuencia:2200,reverbWet:0.20,acompProb:0.12,acordeMs:21000,gananciaRel:1.0,colorInquietante:0},
-  antepasados:{beatMs:1050,filtroFrecuencia:1700,reverbWet:0.28,acompProb:0.18,acordeMs:27000,gananciaRel:1.05,colorInquietante:0},
-  investigacion:{beatMs:640,filtroFrecuencia:2600,reverbWet:0.16,acompProb:0.08,acordeMs:15000,gananciaRel:0.95,colorInquietante:0.09},
-  documentos:{beatMs:1200,filtroFrecuencia:1300,reverbWet:0.13,acompProb:0.05,acordeMs:32000,gananciaRel:0.55,colorInquietante:0}
+  normal:{gananciaRel:1.0},
+  antepasados:{gananciaRel:1.0},
+  investigacion:{gananciaRel:0.9},
+  documentos:{gananciaRel:0.6}
 };
-// Qué pantalla (códigos internos de navegación del árbol) corresponde a cada ambiente
 var VISTA_A_MODO={bus:'normal',ges:'normal',inf:'normal',cam:'normal',arb:'antepasados',fic:'antepasados',cro:'antepasados',rel:'antepasados',inv:'investigacion',doc:'documentos'};
 
-// Frase melódica base (motivo): una pequeña melodía con forma propia (sube, culmina,
-// baja y resuelve), en vez de notas sueltas al azar. "deg" es el índice en MEL_SCALE;
-// "beats" es su duración relativa. deg:null es un silencio ya integrado en la frase
-// (no un corte aleatorio). Cada vez que termina de sonar toda la frase se genera una
-// variación ligera (sección 5 del informe: notas/octava/ritmo/pausas/acompañamiento),
-// y cada pocas vueltas se vuelve al motivo original para no perder el carácter general.
-var MOTIVO_BASE=[
-  {deg:4,beats:2},{deg:6,beats:1},{deg:5,beats:1},{deg:4,beats:2},
-  {deg:null,beats:1},{deg:2,beats:1.5},{deg:3,beats:1},{deg:4,beats:3},
-  {deg:null,beats:1.5}
-];
+var audioEl=null,activo=false,volumenActual=35,modoActual='normal',intervaloDeteccion=null;
+var animFade=null;
 
-var ctx=null,master=null,filtro=null,convolver=null,reverbGain=null;
-var vozAcordeActual=null,vozAcordeSaliente=null,indiceAcorde=0,temporizadorAcorde=null;
-var activo=false,temporizador=null,volumenActual=35;
-var motivoActual=null,cursorMotivo=0,pasadasMotivo=0;
-var modoActual='normal',intervaloDeteccion=null;
+function disponible(){return typeof Audio!=='undefined';}
 
-function disponible(){return !!(window.AudioContext||window.webkitAudioContext);}
+function volumenEfectivo(){
+  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
+  return Math.max(0,Math.min(1,(volumenActual/100)*rel));
+}
 
-// Genera en código una respuesta de impulso (ruido con caída exponencial) para el
-// ConvolverNode: es una reverberación de verdad (una "sala" sintética), no un simple eco
-// repetido, y no necesita ningún archivo de audio externo.
-function crearImpulsoReverb(duracionSeg,decaimiento){
-  var muestras=Math.floor(ctx.sampleRate*duracionSeg);
-  var buffer=ctx.createBuffer(2,muestras,ctx.sampleRate);
-  for(var canal=0;canal<2;canal++){
-    var datos=buffer.getChannelData(canal);
-    for(var i=0;i<muestras;i++){
-      datos[i]=(Math.random()*2-1)*Math.pow(1-i/muestras,decaimiento);
-    }
+function fundirVolumenA(destino,duracionMs){
+  if(!audioEl) return;
+  if(animFade) cancelAnimationFrame(animFade);
+  var inicio=audioEl.volume,t0=performance.now();
+  function paso(t){
+    var f=Math.min(1,(t-t0)/duracionMs);
+    audioEl.volume=inicio+(destino-inicio)*f;
+    if(f<1) animFade=requestAnimationFrame(paso);
   }
-  return buffer;
+  animFade=requestAnimationFrame(paso);
 }
 
-function asegurarContexto(){
-  if(ctx) return;
-  var AC=window.AudioContext||window.webkitAudioContext;
-  ctx=new AC();
-  master=ctx.createGain();
-  master.gain.value=(volumenActual/100)*0.5;
-  filtro=ctx.createBiquadFilter();
-  filtro.type='lowpass';
-  filtro.frequency.value=2200;
-  convolver=ctx.createConvolver();
-  convolver.buffer=crearImpulsoReverb(2.8,2.4);
-  reverbGain=ctx.createGain();
-  reverbGain.gain.value=0.20;
-  filtro.connect(convolver);
-  convolver.connect(reverbGain);
-  reverbGain.connect(master);
-  filtro.connect(master);
-  master.connect(ctx.destination);
-}
-
-function tocarNota(freq,inicio,duracion,pico,onda){
-  var osc=ctx.createOscillator();
-  osc.type=onda||'triangle';
-  osc.frequency.value=freq;
-  var g=ctx.createGain();
-  g.gain.setValueAtTime(0.0001,inicio);
-  g.gain.exponentialRampToValueAtTime(Math.max(pico,0.001),inicio+Math.min(0.18,duracion*0.3));
-  g.gain.exponentialRampToValueAtTime(0.0001,inicio+duracion);
-  osc.connect(g);
-  g.connect(filtro);
-  osc.start(inicio);
-  osc.stop(inicio+duracion+0.05);
+function asegurarAudio(){
+  if(audioEl) return;
+  audioEl=new Audio(RUTA_AUDIO);
+  audioEl.loop=true;
+  audioEl.preload='none';
+  audioEl.volume=volumenEfectivo();
+  audioEl.addEventListener('error',function(){
+    avisar('No se encuentra "'+RUTA_AUDIO+'": súbelo a la misma carpeta que index.html.');
+  });
 }
 
 function detectarVistaActual(){
@@ -14944,137 +14896,8 @@ function aplicarModoSegunVista(){
   var nuevoModo=VISTA_A_MODO[vista]||'normal';
   if(nuevoModo!==modoActual){
     modoActual=nuevoModo;
-    if(filtro && ctx) filtro.frequency.setTargetAtTime(MODOS[modoActual].filtroFrecuencia,ctx.currentTime,1.2);
-    if(reverbGain && ctx) reverbGain.gain.setTargetAtTime(MODOS[modoActual].reverbWet,ctx.currentTime,1.2);
-    aplicarGananciaActual();
+    fundirVolumenA(volumenEfectivo(),1200);
   }
-}
-
-function nivelAcordeObjetivo(){
-  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
-  return 0.032*rel*(volumenActual/100)*2;
-}
-
-function aplicarGananciaActual(){
-  if(!master||!ctx) return;
-  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
-  master.gain.setTargetAtTime((volumenActual/100)*0.5*rel,ctx.currentTime,0.6);
-  if(vozAcordeActual) vozAcordeActual.gain.gain.setTargetAtTime(nivelAcordeObjetivo(),ctx.currentTime,1.5);
-}
-
-function clonarMotivo(m){
-  return m.map(function(e){return {deg:e.deg,beats:e.beats,_octavaAbajo:!!e._octavaAbajo,_acomp:false};});
-}
-
-// Genera una variación ligera de la frase manteniendo su forma general: puede desplazar
-// alguna nota un grado, bajarla de octava, alargar/acortar su duración, convertir una nota
-// en silencio (o rellenar un silencio existente) y marcar alguna nota para acompañamiento.
-function generarVariacion(motivo){
-  return motivo.map(function(ev){
-    var n={deg:ev.deg,beats:ev.beats,_octavaAbajo:!!ev._octavaAbajo,_acomp:false};
-    if(n.deg!==null){
-      if(Math.random()<0.10){
-        n.deg=null; // esta nota se convierte en silencio
-      }else{
-        if(Math.random()<0.20){
-          var paso=Math.random()<0.5?-1:1;
-          n.deg=Math.max(0,Math.min(MEL_SCALE.length-1,n.deg+paso));
-        }
-        if(Math.random()<0.10) n._octavaAbajo=!n._octavaAbajo;
-        if(Math.random()<0.12) n.beats=Math.max(0.5,n.beats+(Math.random()<0.5?-0.5:0.5));
-        if(Math.random()<0.10) n._acomp=true;
-      }
-    }else{
-      if(Math.random()<0.18) n.deg=4; // el silencio a veces se rellena con la nota central
-    }
-    return n;
-  });
-}
-
-function pasoSecuencia(){
-  if(!activo) return;
-  var m=MODOS[modoActual]||MODOS.normal;
-  if(cursorMotivo>=motivoActual.length){
-    pasadasMotivo++;
-    // cada 5 vueltas se vuelve al motivo original para no perder el carácter general;
-    // el resto de vueltas, se genera una variación ligera de la última frase sonada.
-    motivoActual=(pasadasMotivo%5===0)?clonarMotivo(MOTIVO_BASE):generarVariacion(motivoActual);
-    cursorMotivo=0;
-  }
-  var evento=motivoActual[cursorMotivo];
-  cursorMotivo++;
-  var intervaloMs=evento.beats*m.beatMs;
-  var ahora=ctx.currentTime+0.05;
-  if(evento.deg!==null){
-    var freq=MEL_SCALE[evento.deg];
-    if(evento._octavaAbajo) freq=freq/2;
-    if(m.colorInquietante && Math.random()<m.colorInquietante) freq=freq*(1+(Math.random()<0.5?-1:1)*(0.03+Math.random()*0.035));
-    var durSeg=(intervaloMs/1000)*1.32; // ligero solape (legato) con la nota siguiente
-    var pico=(0.11+Math.random()*0.05)*m.gananciaRel;
-    tocarNota(freq,ahora,durSeg,pico,'triangle');
-    if(evento._acomp || Math.random()<m.acompProb){
-      var bassFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
-      tocarNota(bassFreq,ahora+0.05,durSeg*1.25,(0.05+Math.random()*0.02)*m.gananciaRel,'sine');
-    }
-  }
-  temporizador=setTimeout(pasoSecuencia,intervaloMs);
-}
-
-// Fondo armónico (acordes): en vez de un tono grave suelto, tres notas a la vez (una
-// tríada real) que suenan sostenidas y van cambiando siguiendo la progresión i-VI-III-VII
-// (Dm-Bb-F-C). Al cambiar de acorde, el nuevo entra mientras el anterior se apaga
-// suavemente (crossfade), así nunca hay un corte ni una nota sola sonando "a lo tonto":
-// siempre hay un acorde completo de fondo, como una alfombra de cuerdas.
-function crearVozAcorde(frecs,nivelObjetivo){
-  var grupo=ctx.createGain();
-  grupo.gain.setValueAtTime(0.0001,ctx.currentTime);
-  grupo.connect(filtro);
-  var oscs=frecs.map(function(f,i){
-    var o=ctx.createOscillator();
-    o.type='triangle';
-    o.frequency.value=f;
-    o.detune.value=(i-1)*3; // leve desafinado entre las 3 voces, da cuerpo (efecto "coro")
-    var og=ctx.createGain();
-    og.gain.value=0.30;
-    o.connect(og);
-    og.connect(grupo);
-    o.start();
-    return o;
-  });
-  grupo.gain.exponentialRampToValueAtTime(Math.max(nivelObjetivo,0.001),ctx.currentTime+4);
-  return {oscs:oscs,gain:grupo};
-}
-
-function apagarVozAcorde(voz){
-  if(!voz) return;
-  voz.gain.gain.setTargetAtTime(0.0001,ctx.currentTime,1.3);
-  var oscs=voz.oscs;
-  setTimeout(function(){oscs.forEach(function(o){try{o.stop();}catch(e){}});},4200);
-}
-
-function avanzarAcorde(){
-  if(!activo) return;
-  indiceAcorde=(indiceAcorde+1)%ACORDES.length;
-  apagarVozAcorde(vozAcordeSaliente);
-  vozAcordeSaliente=vozAcordeActual;
-  vozAcordeActual=crearVozAcorde(ACORDES[indiceAcorde],nivelAcordeObjetivo());
-  apagarVozAcorde(vozAcordeSaliente);
-  var m=MODOS[modoActual]||MODOS.normal;
-  temporizadorAcorde=setTimeout(avanzarAcorde,m.acordeMs);
-}
-
-function iniciarAcordes(){
-  indiceAcorde=0;
-  vozAcordeActual=crearVozAcorde(ACORDES[0],nivelAcordeObjetivo());
-  var m=MODOS[modoActual]||MODOS.normal;
-  temporizadorAcorde=setTimeout(avanzarAcorde,m.acordeMs);
-}
-
-function detenerAcordes(){
-  if(temporizadorAcorde){clearTimeout(temporizadorAcorde);temporizadorAcorde=null;}
-  apagarVozAcorde(vozAcordeActual);
-  apagarVozAcorde(vozAcordeSaliente);
-  vozAcordeActual=null;vozAcordeSaliente=null;
 }
 
 function guardarEstado(){
@@ -15116,17 +14939,12 @@ function iniciar(){
     avisar('La reproducción de música no está disponible en este navegador.');
     return;
   }
-  asegurarContexto();
-  if(ctx.state==='suspended') ctx.resume();
-  if(activo) return;
-  activo=true;
-  motivoActual=clonarMotivo(MOTIVO_BASE);
-  cursorMotivo=0;
-  pasadasMotivo=0;
+  asegurarAudio();
   aplicarModoSegunVista();
-  aplicarGananciaActual();
-  iniciarAcordes();
-  pasoSecuencia();
+  audioEl.volume=volumenEfectivo();
+  var promesa=audioEl.play();
+  if(promesa && promesa.catch) promesa.catch(function(){ avisar('No se pudo iniciar la música.'); });
+  activo=true;
   if(!intervaloDeteccion) intervaloDeteccion=setInterval(aplicarModoSegunVista,1200);
   guardarEstado();
   actualizarUI();
@@ -15134,9 +14952,8 @@ function iniciar(){
 
 function pausar(){
   activo=false;
-  if(temporizador){clearTimeout(temporizador);temporizador=null;}
+  if(audioEl) audioEl.pause();
   if(intervaloDeteccion){clearInterval(intervaloDeteccion);intervaloDeteccion=null;}
-  detenerAcordes();
   guardarEstado();
   actualizarUI();
 }
@@ -15147,7 +14964,7 @@ function alternar(){
 
 function cambiarVolumen(v){
   volumenActual=Math.max(0,Math.min(100,parseInt(v,10)||0));
-  aplicarGananciaActual();
+  if(audioEl) audioEl.volume=volumenEfectivo();
   guardarEstado();
 }
 
