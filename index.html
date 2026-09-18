@@ -2141,12 +2141,12 @@ var modoImportFotosResolver=null;
 function elegirModoImportFotos(origenTexto){
 return new Promise(function(resolve){
 var modal=document.getElementById('modalModoImportFotos');
-if(!modal){resolve('todas');return;}
+if(!modal){resolve('cambiadas');return;}
 document.getElementById('modalModoImportFotosTexto').textContent='Vas a importar fotografías '+origenTexto+'.';
 modoImportFotosResolver=resolve;
 modal.style.display='flex';
-var btnTodas=document.getElementById('modalModoImportFotosTodas');
-if(btnTodas)btnTodas.focus();
+var btnCambiadasFoco=document.getElementById('modalModoImportFotosCambiadas');
+if(btnCambiadasFoco)btnCambiadasFoco.focus();
 });
 }
 function resolverModoImportFotos(valor){
@@ -7544,7 +7544,7 @@ var fechaGuardada=Date.parse(persona.FOTO_FECHA);
 if(isNaN(fechaGuardada))return false;
 return fechaModMs<=fechaGuardada;
 }
-var importFotosModoSeleccionado='todas';
+var importFotosModoSeleccionado='cambiadas';
 async function solicitarImportarFotosLocal(){
 /* La lectura de una carpeta del propio ordenador NO requiere ninguna sesión de
    Google: solo la importación desde Drive necesita identidad/conexión con
@@ -7578,7 +7578,7 @@ return rel.split('/').length===2;
 });
 if(!files.length){toast('No se han encontrado archivos en la raíz de la carpeta seleccionada (las fotos dentro de subcarpetas no se importan)',true);return;}
 if(!D.length){toast('Importa primero un CSV con las personas',true);return;}
-var modoLocal=importFotosModoSeleccionado||'todas';
+var modoLocal=importFotosModoSeleccionado||'cambiadas';
 importFotosEnCurso=true;
 fijarBotonesImportFotos(true);
 abrirModalImportFotos('Importando fotografías desde tu ordenador'+(modoLocal==='cambiadas'?' (solo las que han cambiado)':''));
@@ -13392,11 +13392,16 @@ mostrarCarruselHero();
 actualizarBotonCarruselHero();
 }
 function clicFotoCarruselHero(elId){
-/* Tocar una foto del carrusel ya no lleva a la ficha de esa persona: solo
-   adelanta el carrusel a la siguiente foto (igual que "Renovar fotos"),
-   porque en la práctica se tocaba sin querer al pasar el dedo y molestaba
-   acabar en una ficha no buscada. */
-avanzarCarruselHero();
+/* Tocar una foto del carrusel ya no lleva a la ficha de esa persona: en vez
+   de eso renueva el carrusel con otro lote de hasta 20 personas aleatorias
+   nuevas (igual que hacía el antiguo botón "Renovar fotos"), porque en la
+   práctica se tocaba sin querer al pasar el dedo y molestaba acabar en una
+   ficha no buscada. Antes solo llamaba a avanzarCarruselHero(), que se
+   limita a pasar a la siguiente foto DENTRO del mismo lote de 20 ya
+   cargado (y al llegar al final vuelve a la primera en bucle), así que un
+   toque nunca traía caras nuevas: por eso se cambia a
+   cargarOtrasPersonasCarruselHero(), que sí construye un lote nuevo. */
+cargarOtrasPersonasCarruselHero();
 }
 /* ===== Selector de pantalla en Buscar: Carrusel / Resultados / Eventos =====
    Antes el carrusel y los eventos familiares compartían un único hueco que
@@ -14393,8 +14398,8 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <p style="font-size:11px;color:var(--muted);line-height:1.5;margin:0 0 18px">"Solo las que han cambiado" compara la fecha de modificación de cada archivo con la fecha de la última foto guardada de esa persona, y se salta el archivo si no es más reciente. Si una persona todavía no tiene foto, su archivo se importa siempre.</p>
 <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
 <button type="button" class="btn" id="modalModoImportFotosCancelar" style="background:var(--bg);color:var(--text);border:2px solid var(--border);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Cancelar</button>
-<button type="button" class="btn" id="modalModoImportFotosCambiadas" style="background:var(--bg);color:var(--text);border:2px solid var(--accent);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Solo las que han cambiado</button>
-<button type="button" class="btn" id="modalModoImportFotosTodas" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Todas</button>
+<button type="button" class="btn" id="modalModoImportFotosCambiadas" style="background:var(--accent);color:#fff;border:none;font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Solo las que han cambiado</button>
+<button type="button" class="btn" id="modalModoImportFotosTodas" style="background:var(--bg);color:var(--text);border:2px solid var(--accent);font-family:'Lato',sans-serif;font-size:12px;padding:8px 16px;border-radius:10px;cursor:pointer;">Todas</button>
 </div>
 </div>
 </div>
