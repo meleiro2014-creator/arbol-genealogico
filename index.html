@@ -14835,18 +14835,29 @@ window.addEventListener('appinstalled', function () {
 var MusicEngine=(function(){
 'use strict';
 // Escala melódica (modo menor, registro medio-grave) y notas graves de acompañamiento
+// Escala melódica (modo menor, registro medio-grave) y acordes de fondo (progresión
+// armónica real en Re menor natural: i - VI - III - VII), en vez de una sola nota grave
+// suelta. La melodía usa siempre notas de esta misma escala, así que encaja de oído con
+// cualquiera de los cuatro acordes.
 var MEL_SCALE=[146.83,164.81,174.61,196.00,220.00,233.08,261.63,293.66,329.63]; // D3,E3,F3,G3,A3,Bb3,C4,D4,E4
-var BASS_SCALE=[73.42,110.00,130.81,146.83]; // D2,A2,C3,D3
+var BASS_SCALE=[73.42,110.00,130.81,146.83]; // D2,A2,C3,D3 (para los acentos graves ocasionales de la melodía)
+var ACORDES=[
+  [146.83,174.61,220.00], // i   Dm : D3,F3,A3
+  [116.54,146.83,174.61], // VI  Bb : Bb2,D3,F3
+  [174.61,220.00,261.63], // III F  : F3,A3,C4
+  [130.81,164.81,196.00]  // VII C  : C3,E3,G3
+];
 var VOL_KEY='musicaVolumenGuardado_v1', ACT_KEY='musicaActivadaGuardada_v1';
 
 // Ambientes: cada pantalla del árbol tiene un carácter musical ligeramente distinto,
-// generado con el mismo motor (misma frase melódica, mismos timbres), variando solo el
-// tempo (beatMs), el tono del filtro, la cantidad de eco/acompañamiento y el volumen relativo.
+// generado con el mismo motor (misma frase melódica, misma progresión de acordes),
+// variando solo el tempo (beatMs), el tono del filtro, el ritmo de cambio de acorde
+// (acordeMs), la reverberación y el volumen relativo.
 var MODOS={
-  normal:{beatMs:820,filtroFrecuencia:2200,ecoWet:0.22,acompProb:0.12,gananciaRel:1.0,colorInquietante:0},
-  antepasados:{beatMs:1050,filtroFrecuencia:1700,ecoWet:0.30,acompProb:0.20,gananciaRel:1.05,colorInquietante:0},
-  investigacion:{beatMs:640,filtroFrecuencia:2600,ecoWet:0.18,acompProb:0.08,gananciaRel:0.95,colorInquietante:0.09},
-  documentos:{beatMs:1200,filtroFrecuencia:1300,ecoWet:0.14,acompProb:0.05,gananciaRel:0.55,colorInquietante:0}
+  normal:{beatMs:820,filtroFrecuencia:2200,reverbWet:0.20,acompProb:0.12,acordeMs:21000,gananciaRel:1.0,colorInquietante:0},
+  antepasados:{beatMs:1050,filtroFrecuencia:1700,reverbWet:0.28,acompProb:0.18,acordeMs:27000,gananciaRel:1.05,colorInquietante:0},
+  investigacion:{beatMs:640,filtroFrecuencia:2600,reverbWet:0.16,acompProb:0.08,acordeMs:15000,gananciaRel:0.95,colorInquietante:0.09},
+  documentos:{beatMs:1200,filtroFrecuencia:1300,reverbWet:0.13,acompProb:0.05,acordeMs:32000,gananciaRel:0.55,colorInquietante:0}
 };
 // Qué pantalla (códigos internos de navegación del árbol) corresponde a cada ambiente
 var VISTA_A_MODO={bus:'normal',ges:'normal',inf:'normal',cam:'normal',arb:'antepasados',fic:'antepasados',cro:'antepasados',rel:'antepasados',inv:'investigacion',doc:'documentos'};
@@ -14863,13 +14874,28 @@ var MOTIVO_BASE=[
   {deg:null,beats:1.5}
 ];
 
-var ctx=null,master=null,filtro=null,delay=null,feedback=null,wetGain=null;
-var padOsc=null,padGain=null,temporizadorPad=null;
+var ctx=null,master=null,filtro=null,convolver=null,reverbGain=null;
+var vozAcordeActual=null,vozAcordeSaliente=null,indiceAcorde=0,temporizadorAcorde=null;
 var activo=false,temporizador=null,volumenActual=35;
 var motivoActual=null,cursorMotivo=0,pasadasMotivo=0;
 var modoActual='normal',intervaloDeteccion=null;
 
 function disponible(){return !!(window.AudioContext||window.webkitAudioContext);}
+
+// Genera en código una respuesta de impulso (ruido con caída exponencial) para el
+// ConvolverNode: es una reverberación de verdad (una "sala" sintética), no un simple eco
+// repetido, y no necesita ningún archivo de audio externo.
+function crearImpulsoReverb(duracionSeg,decaimiento){
+  var muestras=Math.floor(ctx.sampleRate*duracionSeg);
+  var buffer=ctx.createBuffer(2,muestras,ctx.sampleRate);
+  for(var canal=0;canal<2;canal++){
+    var datos=buffer.getChannelData(canal);
+    for(var i=0;i<muestras;i++){
+      datos[i]=(Math.random()*2-1)*Math.pow(1-i/muestras,decaimiento);
+    }
+  }
+  return buffer;
+}
 
 function asegurarContexto(){
   if(ctx) return;
@@ -14880,21 +14906,18 @@ function asegurarContexto(){
   filtro=ctx.createBiquadFilter();
   filtro.type='lowpass';
   filtro.frequency.value=2200;
-  delay=ctx.createDelay(2.0);
-  delay.delayTime.value=0.38;
-  feedback=ctx.createGain();
-  feedback.gain.value=0.32;
-  wetGain=ctx.createGain();
-  wetGain.gain.value=0.22;
-  delay.connect(feedback);
-  feedback.connect(delay);
-  delay.connect(wetGain);
-  wetGain.connect(master);
+  convolver=ctx.createConvolver();
+  convolver.buffer=crearImpulsoReverb(2.8,2.4);
+  reverbGain=ctx.createGain();
+  reverbGain.gain.value=0.20;
+  filtro.connect(convolver);
+  convolver.connect(reverbGain);
+  reverbGain.connect(master);
   filtro.connect(master);
   master.connect(ctx.destination);
 }
 
-function tocarNota(freq,inicio,duracion,pico,onda,conEco){
+function tocarNota(freq,inicio,duracion,pico,onda){
   var osc=ctx.createOscillator();
   osc.type=onda||'triangle';
   osc.frequency.value=freq;
@@ -14904,7 +14927,6 @@ function tocarNota(freq,inicio,duracion,pico,onda,conEco){
   g.gain.exponentialRampToValueAtTime(0.0001,inicio+duracion);
   osc.connect(g);
   g.connect(filtro);
-  if(conEco) g.connect(delay);
   osc.start(inicio);
   osc.stop(inicio+duracion+0.05);
 }
@@ -14923,16 +14945,21 @@ function aplicarModoSegunVista(){
   if(nuevoModo!==modoActual){
     modoActual=nuevoModo;
     if(filtro && ctx) filtro.frequency.setTargetAtTime(MODOS[modoActual].filtroFrecuencia,ctx.currentTime,1.2);
-    if(wetGain && ctx) wetGain.gain.setTargetAtTime(MODOS[modoActual].ecoWet,ctx.currentTime,1.2);
+    if(reverbGain && ctx) reverbGain.gain.setTargetAtTime(MODOS[modoActual].reverbWet,ctx.currentTime,1.2);
     aplicarGananciaActual();
   }
+}
+
+function nivelAcordeObjetivo(){
+  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
+  return 0.032*rel*(volumenActual/100)*2;
 }
 
 function aplicarGananciaActual(){
   if(!master||!ctx) return;
   var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
   master.gain.setTargetAtTime((volumenActual/100)*0.5*rel,ctx.currentTime,0.6);
-  if(padGain) padGain.gain.setTargetAtTime(0.05*rel*(volumenActual/100)*2,ctx.currentTime,1.5);
+  if(vozAcordeActual) vozAcordeActual.gain.gain.setTargetAtTime(nivelAcordeObjetivo(),ctx.currentTime,1.5);
 }
 
 function clonarMotivo(m){
@@ -14984,51 +15011,70 @@ function pasoSecuencia(){
     if(m.colorInquietante && Math.random()<m.colorInquietante) freq=freq*(1+(Math.random()<0.5?-1:1)*(0.03+Math.random()*0.035));
     var durSeg=(intervaloMs/1000)*1.32; // ligero solape (legato) con la nota siguiente
     var pico=(0.11+Math.random()*0.05)*m.gananciaRel;
-    tocarNota(freq,ahora,durSeg,pico,'triangle',true);
+    tocarNota(freq,ahora,durSeg,pico,'triangle');
     if(evento._acomp || Math.random()<m.acompProb){
       var bassFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
-      tocarNota(bassFreq,ahora+0.05,durSeg*1.25,(0.05+Math.random()*0.02)*m.gananciaRel,'sine',false);
+      tocarNota(bassFreq,ahora+0.05,durSeg*1.25,(0.05+Math.random()*0.02)*m.gananciaRel,'sine');
     }
   }
   temporizador=setTimeout(pasoSecuencia,intervaloMs);
 }
 
-// Fondo continuo (pad): un tono grave sostenido que nunca se apaga del todo mientras
-// suena la música, y que cada 9-16 segundos se desliza suavemente a otra nota grave.
-// Es lo que evita que la música se perciba como "notas y silencios sueltos": siempre
-// hay una base de sonido, y la frase melódica de arriba suena por encima de ella.
-function iniciarPad(){
-  if(padOsc) return;
-  padOsc=ctx.createOscillator();
-  padOsc.type='sine';
-  padOsc.frequency.value=BASS_SCALE[1];
-  padGain=ctx.createGain();
-  padGain.gain.setValueAtTime(0.0001,ctx.currentTime);
-  padOsc.connect(padGain);
-  padGain.connect(filtro);
-  padOsc.start();
-  var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
-  padGain.gain.exponentialRampToValueAtTime(Math.max(0.05*rel*(volumenActual/100)*2,0.001),ctx.currentTime+3);
-  programarCambioPad();
+// Fondo armónico (acordes): en vez de un tono grave suelto, tres notas a la vez (una
+// tríada real) que suenan sostenidas y van cambiando siguiendo la progresión i-VI-III-VII
+// (Dm-Bb-F-C). Al cambiar de acorde, el nuevo entra mientras el anterior se apaga
+// suavemente (crossfade), así nunca hay un corte ni una nota sola sonando "a lo tonto":
+// siempre hay un acorde completo de fondo, como una alfombra de cuerdas.
+function crearVozAcorde(frecs,nivelObjetivo){
+  var grupo=ctx.createGain();
+  grupo.gain.setValueAtTime(0.0001,ctx.currentTime);
+  grupo.connect(filtro);
+  var oscs=frecs.map(function(f,i){
+    var o=ctx.createOscillator();
+    o.type='triangle';
+    o.frequency.value=f;
+    o.detune.value=(i-1)*3; // leve desafinado entre las 3 voces, da cuerpo (efecto "coro")
+    var og=ctx.createGain();
+    og.gain.value=0.30;
+    o.connect(og);
+    og.connect(grupo);
+    o.start();
+    return o;
+  });
+  grupo.gain.exponentialRampToValueAtTime(Math.max(nivelObjetivo,0.001),ctx.currentTime+4);
+  return {oscs:oscs,gain:grupo};
 }
 
-function programarCambioPad(){
+function apagarVozAcorde(voz){
+  if(!voz) return;
+  voz.gain.gain.setTargetAtTime(0.0001,ctx.currentTime,1.3);
+  var oscs=voz.oscs;
+  setTimeout(function(){oscs.forEach(function(o){try{o.stop();}catch(e){}});},4200);
+}
+
+function avanzarAcorde(){
   if(!activo) return;
-  var espera=9000+Math.random()*7000;
-  temporizadorPad=setTimeout(function(){
-    if(!activo||!padOsc) return;
-    var nuevaFreq=BASS_SCALE[Math.floor(Math.random()*BASS_SCALE.length)];
-    padOsc.frequency.setTargetAtTime(nuevaFreq,ctx.currentTime,2.2);
-    programarCambioPad();
-  },espera);
+  indiceAcorde=(indiceAcorde+1)%ACORDES.length;
+  apagarVozAcorde(vozAcordeSaliente);
+  vozAcordeSaliente=vozAcordeActual;
+  vozAcordeActual=crearVozAcorde(ACORDES[indiceAcorde],nivelAcordeObjetivo());
+  apagarVozAcorde(vozAcordeSaliente);
+  var m=MODOS[modoActual]||MODOS.normal;
+  temporizadorAcorde=setTimeout(avanzarAcorde,m.acordeMs);
 }
 
-function detenerPad(){
-  if(temporizadorPad){clearTimeout(temporizadorPad);temporizadorPad=null;}
-  if(padGain && ctx) padGain.gain.setTargetAtTime(0.0001,ctx.currentTime,1.0);
-  var oscAApagar=padOsc;
-  padOsc=null;padGain=null;
-  if(oscAApagar && ctx){ try{ oscAApagar.stop(ctx.currentTime+2.5); }catch(e){} }
+function iniciarAcordes(){
+  indiceAcorde=0;
+  vozAcordeActual=crearVozAcorde(ACORDES[0],nivelAcordeObjetivo());
+  var m=MODOS[modoActual]||MODOS.normal;
+  temporizadorAcorde=setTimeout(avanzarAcorde,m.acordeMs);
+}
+
+function detenerAcordes(){
+  if(temporizadorAcorde){clearTimeout(temporizadorAcorde);temporizadorAcorde=null;}
+  apagarVozAcorde(vozAcordeActual);
+  apagarVozAcorde(vozAcordeSaliente);
+  vozAcordeActual=null;vozAcordeSaliente=null;
 }
 
 function guardarEstado(){
@@ -15079,7 +15125,7 @@ function iniciar(){
   pasadasMotivo=0;
   aplicarModoSegunVista();
   aplicarGananciaActual();
-  iniciarPad();
+  iniciarAcordes();
   pasoSecuencia();
   if(!intervaloDeteccion) intervaloDeteccion=setInterval(aplicarModoSegunVista,1200);
   guardarEstado();
@@ -15090,7 +15136,7 @@ function pausar(){
   activo=false;
   if(temporizador){clearTimeout(temporizador);temporizador=null;}
   if(intervaloDeteccion){clearInterval(intervaloDeteccion);intervaloDeteccion=null;}
-  detenerPad();
+  detenerAcordes();
   guardarEstado();
   actualizarUI();
 }
