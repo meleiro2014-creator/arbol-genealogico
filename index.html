@@ -14833,10 +14833,11 @@ window.addEventListener('appinstalled', function () {
    ============================================================ */
 var MusicEngine=(function(){
 'use strict';
-// Reproduce el archivo de audio "musica.mp3" que debe subirse junto a este index.html
-// (misma carpeta del repositorio). No depende de ningún servidor externo: el navegador
-// lo carga directamente desde ahí, igual que carga el propio index.html.
-var RUTA_AUDIO='musica.mp3';
+// Reproduce en bucle una lista de canciones (una detrás de otra, y al llegar al final
+// vuelve a empezar). Los archivos deben subirse a la misma carpeta que este index.html.
+// Para añadir o quitar canciones basta con editar esta lista (y subir/borrar los
+// archivos correspondientes con esos mismos nombres).
+var LISTA_CANCIONES=['musica1.mp3','musica2.mp3','musica3.mp3','musica4.mp3'];
 var VOL_KEY='musicaVolumenGuardado_v1', ACT_KEY='musicaActivadaGuardada_v1';
 
 // Ambientes: cada pantalla del árbol atenúa/realza ligeramente el volumen de la canción
@@ -14851,9 +14852,9 @@ var MODOS={
 var VISTA_A_MODO={bus:'normal',ges:'normal',inf:'normal',cam:'normal',arb:'antepasados',fic:'antepasados',cro:'antepasados',rel:'antepasados',inv:'investigacion',doc:'documentos'};
 
 var audioEl=null,activo=false,volumenActual=35,modoActual='normal',intervaloDeteccion=null;
-var animFade=null;
+var animFade=null,pistaActual=0;
 
-function disponible(){return typeof Audio!=='undefined';}
+function disponible(){return typeof Audio!=='undefined' && LISTA_CANCIONES.length>0;}
 
 function volumenEfectivo(){
   var rel=(MODOS[modoActual]||MODOS.normal).gananciaRel;
@@ -14872,15 +14873,31 @@ function fundirVolumenA(destino,duracionMs){
   animFade=requestAnimationFrame(paso);
 }
 
+function siguientePista(){
+  pistaActual=(pistaActual+1)%LISTA_CANCIONES.length;
+  cargarPista();
+  if(activo){
+    var promesa=audioEl.play();
+    if(promesa && promesa.catch) promesa.catch(function(){});
+  }
+}
+
+function cargarPista(){
+  audioEl.src=LISTA_CANCIONES[pistaActual];
+  audioEl.load();
+}
+
 function asegurarAudio(){
   if(audioEl) return;
-  audioEl=new Audio(RUTA_AUDIO);
-  audioEl.loop=true;
+  audioEl=new Audio();
+  audioEl.loop=(LISTA_CANCIONES.length===1); // con una sola canción, se repite ella misma; con varias, se pasa a la siguiente
   audioEl.preload='none';
   audioEl.volume=volumenEfectivo();
+  audioEl.addEventListener('ended',function(){ if(LISTA_CANCIONES.length>1) siguientePista(); });
   audioEl.addEventListener('error',function(){
-    avisar('No se encuentra "'+RUTA_AUDIO+'": súbelo a la misma carpeta que index.html.');
+    avisar('No se encuentra "'+LISTA_CANCIONES[pistaActual]+'": súbelo a la misma carpeta que index.html.');
   });
+  cargarPista();
 }
 
 function detectarVistaActual(){
