@@ -100,6 +100,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .musica-widget{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .musica-vol{width:0;opacity:0;height:44px;accent-color:var(--accent);cursor:pointer;transition:width .25s ease,opacity .25s ease,margin .25s ease}
 .musica-vol.mostrar{width:64px;opacity:1;margin-left:2px}
+.musica-next{width:0;opacity:0;overflow:hidden;padding:0;border-width:0;transition:width .25s ease,opacity .25s ease,margin .25s ease}
+.musica-next.mostrar{width:44px;opacity:1;margin-left:2px;border-width:2px}
 .herr-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-radius:12px;padding:9px 8px;cursor:pointer;transition:background .15s;font-family:'Lato',sans-serif}
 .herr-item:hover{background:rgba(196,101,58,.06)}
 .herr-icon{width:36px;height:36px;border-radius:10px;background:rgba(196,101,58,.08);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
@@ -720,6 +722,7 @@ body{background:#fff}
 <button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 <div class="musica-widget">
 <button class="hero-icon-btn" id="musicaToggleBtn" onclick="MusicEngine.alternar()" title="Música ambiental: reproducir o pausar" aria-label="Música ambiental: reproducir o pausar" aria-pressed="false"><i class="fa-solid fa-music" id="musicaIcono" aria-hidden="true"></i></button>
+<button class="hero-icon-btn musica-next" id="musicaSiguienteBtn" onclick="MusicEngine.siguiente()" title="Pasar a la siguiente canción" aria-label="Pasar a la siguiente canción"><i class="fa-solid fa-forward-step" aria-hidden="true"></i></button>
 <input type="range" class="musica-vol" id="musicaVolumen" min="0" max="100" value="35" title="Volumen de la música" aria-label="Volumen de la música" oninput="MusicEngine.cambiarVolumen(this.value)">
 </div>
 </div>
@@ -14828,8 +14831,10 @@ var MusicEngine=(function(){
 // Reproduce en bucle una lista de canciones (una detrás de otra, y al llegar al final
 // vuelve a empezar). Los archivos deben subirse a la misma carpeta que este index.html.
 // Para añadir o quitar canciones basta con editar esta lista (y subir/borrar los
-// archivos correspondientes con esos mismos nombres).
-var LISTA_CANCIONES=['musica1.mp3','musica2.mp3','musica3.mp3','musica4.mp3'];
+// archivos correspondientes con esos mismos nombres). No hay límite fijo: se puede
+// añadir "musica5.mp3", "musica6.mp3", etc., siempre que cada archivo se suba a la
+// misma carpeta que este index.html con el nombre exacto que aparece aquí.
+var LISTA_CANCIONES=['musica1.mp3','musica2.mp3','musica3.mp3','musica4.mp3','musica5.mp3','musica6.mp3','musica7.mp3','musica8.mp3','musica9.mp3','musica10.mp3'];
 var VOL_KEY='musicaVolumenGuardado_v1', ACT_KEY='musicaActivadaGuardada_v1';
 
 // Ambientes: cada pantalla del árbol atenúa/realza ligeramente el volumen de la canción
@@ -14872,6 +14877,14 @@ function siguientePista(){
     var promesa=audioEl.play();
     if(promesa && promesa.catch) promesa.catch(function(){});
   }
+}
+
+// Pasar a la siguiente canción manualmente, pulsando el botón de "siguiente".
+// Si la música está en pausa, solo cambia la pista cargada (no la empieza a reproducir).
+function siguiente(){
+  if(!disponible() || LISTA_CANCIONES.length<2) return;
+  asegurarAudio();
+  siguientePista();
 }
 
 function cargarPista(){
@@ -14926,15 +14939,18 @@ function cargarEstado(){
 function actualizarUI(){
   var btn=document.getElementById('musicaToggleBtn');
   var slider=document.getElementById('musicaVolumen');
+  var siguienteBtn=document.getElementById('musicaSiguienteBtn');
   if(!btn) return;
   if(activo){
     btn.classList.add('musica-activa');
     btn.setAttribute('aria-pressed','true');
     if(slider) slider.classList.add('mostrar');
+    if(siguienteBtn && LISTA_CANCIONES.length>1) siguienteBtn.classList.add('mostrar');
   }else{
     btn.classList.remove('musica-activa');
     btn.setAttribute('aria-pressed','false');
     if(slider) slider.classList.remove('mostrar');
+    if(siguienteBtn) siguienteBtn.classList.remove('mostrar');
   }
   if(slider) slider.value=volumenActual;
 }
@@ -14982,7 +14998,7 @@ function init(){
   actualizarUI();
 }
 
-return {iniciar:iniciar,pausar:pausar,alternar:alternar,cambiarVolumen:cambiarVolumen,init:init};
+return {iniciar:iniciar,pausar:pausar,alternar:alternar,siguiente:siguiente,cambiarVolumen:cambiarVolumen,init:init};
 })();
 
 if(document.readyState==='loading'){
