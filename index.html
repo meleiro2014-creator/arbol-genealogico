@@ -280,8 +280,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 /* ===== Reloj de tiempo de conexión: cuenta atrás hasta que caduque el token de Google ===== */
 .header-drive-tiempo{font-size:8px;font-weight:600;text-align:center;line-height:1.1;color:var(--muted);letter-spacing:.2px;max-width:52px;font-variant-numeric:tabular-nums;display:block;margin-top:1px}
 .header-drive-tiempo.avisando{color:#c0392b;font-weight:800}
-.drive-status-tiempo{color:var(--muted);font-variant-numeric:tabular-nums}
-.drive-status-tiempo.avisando{color:#c0392b;font-weight:700}
 /* Botones reales con forma de pastilla (p.ej. "Restaurar árbol oficial"):
    mismo lenguaje visual que el botón de arriba — borde, sombra, hover — para
    que se noten interactivos. */
@@ -706,7 +704,7 @@ body{background:#fff}
 <p>Tu árbol genealógico familiar</p>
 <div style="text-align:center">
 <div class="drive-status-row">
-<div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span><span class="drive-status-tiempo" id="driveStatusTiempo"></span></div>
+<div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div>
 </div>
 <div id="backupWarnPill"></div>
 <div id="arbolOficialFechaTxt" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
@@ -11728,16 +11726,16 @@ descargarJSONComoArchivo(copiaFotos,'copia-arbol-genealogico-'+fecha+'-fotos.jso
 toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
 registrarUltimaCopia();
 }
-async function restaurarDesdeJSONTexto(texto,textoFotos){
+async function restaurarDesdeJSONTexto(texto,textoFotos,contenedorId){
 var copia;
-try{copia=JSON.parse(texto);}catch(err){ocultarProgresoDrive();toast('El archivo no es una copia válida',true);return;}
+try{copia=JSON.parse(texto);}catch(err){ocultarProgresoDrive(contenedorId);toast('El archivo no es una copia válida',true);return;}
 var personas=copia&&Array.isArray(copia.personas)?copia.personas:null;
-if(!personas){ocultarProgresoDrive();toast('La copia no contiene personas validas',true);return;}
+if(!personas){ocultarProgresoDrive(contenedorId);toast('La copia no contiene personas validas',true);return;}
 var ids={};
 for(var i=0;i<personas.length;i++){
-if(!personas[i]||typeof personas[i]!=='object'||personas[i].ID===undefined||String(personas[i].ID).trim()===''){ocultarProgresoDrive();toast('La copia contiene un registro sin ID',true);return;}
+if(!personas[i]||typeof personas[i]!=='object'||personas[i].ID===undefined||String(personas[i].ID).trim()===''){ocultarProgresoDrive(contenedorId);toast('La copia contiene un registro sin ID',true);return;}
 personas[i].ID=String(personas[i].ID);
-if(ids[personas[i].ID]){ocultarProgresoDrive();toast('La copia contiene IDs duplicados',true);return;}
+if(ids[personas[i].ID]){ocultarProgresoDrive(contenedorId);toast('La copia contiene IDs duplicados',true);return;}
 ids[personas[i].ID]=true;
 }
 /* Las fotos vienen en un archivo aparte (backup-fotos.json). Si falta o no se
@@ -11759,16 +11757,24 @@ for(var jFoto=0;jFoto<D.length;jFoto++){
 if(D[jFoto]&&D[jFoto].FOTO){fotosReserva[D[jFoto].ID]=D[jFoto].FOTO;fotosReservaFecha[D[jFoto].ID]=D[jFoto].FOTO_FECHA||'';}
 }
 var resultadoFusion=fusionarFotosEnDatos(personas,fotosMap,fotosReserva,fotosReservaFecha);
-ocultarProgresoDrive();
-var avisoFotos=textoFotos?(' ('+resultadoFusion.nuevasOEditadas+' fotos nuevas o editadas'+(resultadoFusion.conservadasLocales?', '+resultadoFusion.conservadasLocales+' conservadas de este dispositivo por ser más recientes':'')+')'):'';
-if(!(await confirmarApp('Se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia, incluidas sus fotos.'+avisoFotos)))return;
-mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...');
+ocultarProgresoDrive(contenedorId);
+/* ===== Mensaje de confirmación =====
+   Este archivo de texto es la copia del ÁRBOL OFICIAL descargada de Drive
+   (el único sitio desde el que se llama a esta función). Nunca incluye
+   fotos (textoFotos siempre llega null aquí: restaurar el árbol oficial es
+   solo datos, ver el comentario grande más abajo en restaurarDesdeDrive), así
+   que el mensaje no debe mencionar fotos en absoluto para no confundir; solo
+   si en el futuro se reutilizara esta función con textoFotos sí se informaría
+   de las fotos fusionadas. */
+var avisoFotos=textoFotos?(' Se fusionarán también las fotos ('+resultadoFusion.nuevasOEditadas+' nuevas o editadas'+(resultadoFusion.conservadasLocales?', '+resultadoFusion.conservadasLocales+' conservadas de este dispositivo por ser más recientes':'')+').'):' Esta operación no incluye fotos (siguen tal cual estaban en este dispositivo).';
+if(!(await confirmarApp('Se restaura la copia del árbol oficial: se reemplazarán los '+D.length+' registros actuales por los '+personas.length+' de la copia descargada de Drive.'+avisoFotos)))return;
+mostrarProgresoDrive('Guardando los '+personas.length+' registros en este dispositivo...',contenedorId);
 sAll(personas).then(function(){
 D=personas;bIdx(D);cid=null;editSec={};
-ocultarProgresoDrive();
+ocultarProgresoDrive(contenedorId);
 init();
 toast('Copia restaurada: '+D.length+' personas');
-}).catch(function(err){ocultarProgresoDrive();toast('No se pudo restaurar la copia: '+err.message,true);});
+}).catch(function(err){ocultarProgresoDrive(contenedorId);toast('No se pudo restaurar la copia: '+err.message,true);});
 }
 function subirArchivoDrive(nombre,contenidoTexto,mimeType,folderId,fileIdExistente){
 if(fileIdExistente){
@@ -12912,7 +12918,7 @@ if(_cancelada())return;
    FOTO de Drive con barra de progreso propia -- más lento por foto, pero no
    depende de bajar un archivo enorme de una sola vez. */
 actualizarProgresoDrive('Comprobando el contenido de la copia...',contenedorId);
-restaurarDesdeJSONTexto(texto,null);
+restaurarDesdeJSONTexto(texto,null,contenedorId);
 registrarSincronizacionDrive();
 actualizarFechaArbolOficial();
 }catch(err){if(err&&err.name==='AbortError'){_finRestore();toast('Restauración cancelada. No se ha modificado nada en este dispositivo.');return;}_finRestore();toast('No se pudo restaurar desde Drive: '+err.message,true);}
@@ -14310,14 +14316,14 @@ try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mos
 }
 function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();actualizarRelojConexionDrive();}
 /* ===== Reloj de tiempo de conexión =====
-   Muestra, junto a la abeja y en la pastilla principal, cuánto le queda al
-   token de acceso de Google antes de caducar (formato m:ss). Es puramente
-   local (solo compara Date.now() con driveTokenExpira): NUNCA llama a
-   Google ni dispara ninguna petición de red. Cuando no hay conexión,
-   muestra "--:--". Se actualiza cada segundo, y también al momento cada
-   vez que cambia el estado de conexión (llamado desde
-   actualizarDriveStatusPill). Cuando quedan menos de 2 minutos, se resalta
-   en rojo para avisar de que la sesión está a punto de caducar.
+   Muestra, junto a la abeja, cuánto le queda al token de acceso de Google
+   antes de caducar (formato m:ss). Es puramente local (solo compara
+   Date.now() con driveTokenExpira): NUNCA llama a Google ni dispara ninguna
+   petición de red. Cuando no hay conexión, no muestra nada. Se actualiza
+   cada segundo, y también al momento cada vez que cambia el estado de
+   conexión (llamado desde actualizarDriveStatusPill). Cuando quedan menos
+   de 2 minutos, se resalta en rojo para avisar de que la sesión está a
+   punto de caducar.
    Además, en cuanto detecta que el token acaba de caducar mientras la
    persona no ha tocado nada, avisa a actualizarDriveStatusPill() (que
    también es local, sin red) para que la abeja se ponga roja al instante,
@@ -14337,11 +14343,9 @@ return;
 }
 _estabaConectadoAntes=vigente;
 var elHeader=document.getElementById('driveStatusHeaderTiempo');
-var elPill=document.getElementById('driveStatusTiempo');
-if(!elHeader&&!elPill)return;
+if(!elHeader)return;
 if(!vigente){
-if(elHeader){elHeader.textContent='';elHeader.classList.remove('avisando');}
-if(elPill){elPill.textContent='';elPill.classList.remove('avisando');}
+elHeader.textContent='';elHeader.classList.remove('avisando');
 return;
 }
 var restanteMs=driveTokenExpira-Date.now();
@@ -14351,8 +14355,7 @@ var min=Math.floor(totalSeg/60);
 var seg=totalSeg%60;
 var txt=min+':'+String(seg).padStart(2,'0');
 var avisando=totalSeg<120;/* menos de 2 minutos: resaltar */
-if(elHeader){elHeader.textContent=txt;elHeader.classList.toggle('avisando',avisando);elHeader.title='Tiempo restante de la sesión con Google Drive antes de caducar: '+txt;}
-if(elPill){elPill.textContent=' · sesión: '+txt;elPill.classList.toggle('avisando',avisando);}
+elHeader.textContent=txt;elHeader.classList.toggle('avisando',avisando);elHeader.title='Tiempo restante de la sesión con Google Drive antes de caducar: '+txt;
 }
 setInterval(actualizarRelojConexionDrive,1000);
 /* El Gestor de datos es una herramienta de mantenimiento pensada solo para el administrador
