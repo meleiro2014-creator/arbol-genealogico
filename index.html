@@ -13088,55 +13088,17 @@ oDB().then(function(){return lAll();}).then(cargarInicial).catch(function(err){c
    Ver también restaurarIdentidadRecordada(): quién eres se recuerda 30 días
    para poder ver y buscar en los datos ya guardados en el dispositivo sin
    necesidad de que el token de Drive esté vivo. */
-/* Renovación periódica: el token de acceso de Google caduca a los ~58 min por
-   diseño de Google (no es algo que dependa de esta app). En vez de esperar a
-   que alguien note la desconexión y toque la pastilla, cada 4 minutos se
-   comprueba en segundo plano si el token está a punto de caducar (o ya
-   caducado) y, si es así, se intenta renovar en silencio, sin pedir nada al
-   usuario. Así la conexión se mantiene sola mientras la app siga abierta. */
-/* ===== MEJORA UX: renovación en segundo plano solo con la pestaña visible =====
-   Antes este mantenimiento periódico corría igual estuviera la pestaña
-   visible, en segundo plano u otra ventana encima: eso es lo que podía
-   provocar que apareciera (o parpadeara) una ventana de Google en momentos
-   en los que la persona no estaba usando la app para nada. Ahora, si la
-   pestaña no está visible, el intento se salta entero — no hay prisa por
-   renovar algo que nadie está usando en ese momento; en cuanto la persona
-   vuelva a la pestaña, el listener de visibilitychange de abajo lanza una
-   comprobación inmediata, así que la espera real nunca es mayor a "hasta que
-   vuelvas a mirar la app", ni un segundo más de lo necesario. */
-function _cicloRenovacionSilenciosaDrive(){
-if(document.visibilityState!=='visible')return;/* pestaña no visible: no hay nada urgente que renovar */
-if(driveModoManual)return;/* el usuario pidió expresamente no reconectar sola: ni renovar ni avisar */
-if(!driveRootFolderId)return;
-/* Principio "conectar solo si hace falta": si en esta sesión todavía no ha
-   habido ninguna conexión real con Drive (huboSesionDriveActiva sigue a
-   false), no tiene sentido intentar renovar nada cada 4 minutos en segundo
-   plano — no hay nada que renovar. Solo se activa este mantenimiento
-   periódico una vez que la app se ha conectado de verdad al menos una vez. */
-if(!huboSesionDriveActiva)return;
-if(tokenDriveValido()){huboSesionDriveActiva=true;guardarSesionDriveLocal();return;}
-conectarGoogleDrive(true).then(function(){actualizarDriveStatusPill();refrescarFichaTrasConectar();}).catch(function(){
-/* ===== MEJORA: si hubo una sesión activa y la renovación silenciosa falla,
-   NUNCA se vuelve a intentar nada visible de forma automática: solo se
-   actualiza la pastilla (que ya se pone roja sola) y, como mucho, se deja
-   el aviso discreto de toast, con un margen amplio entre avisos, en vez de
-   insistir o de esperar a que el usuario descubra la desconexión al
-   intentar guardar algo. ===== */
-actualizarDriveStatusPill();
-if(huboSesionDriveActiva&&Date.now()-_ultimoAvisoProactivoTs>20*60*1000){
-_ultimoAvisoProactivoTs=Date.now();
-avisarSesionDriveCaducada();
-}
-});
-}
-setInterval(_cicloRenovacionSilenciosaDrive,4*60*1000);
-/* Al volver a la pestaña (cambiar de app, restaurar el móvil, etc.), se
-   comprueba al momento en vez de esperar hasta el siguiente tick de 4
-   minutos — así la sesión se mantiene al día sin necesidad de acortar el
-   intervalo general ni de correrlo con la pestaña oculta. */
-document.addEventListener('visibilitychange',function(){
-if(document.visibilityState==='visible')_cicloRenovacionSilenciosaDrive();
-});
+/* ===== A PETICIÓN DEL USUARIO: la app ya NO intenta renovar la sesión con
+   Google en segundo plano, ni siquiera en modo "silencioso". Se ha
+   comprobado que, cuando el navegador tiene varias cuentas de Google
+   iniciadas a la vez (algo muy habitual), el modo silencioso de Google NO
+   es realmente silencioso: igualmente abre la ventana de "Selecciona una
+   cuenta" para que la persona elija, así que el usuario se la encontraba
+   igual aunque no hubiera tocado nada. Por eso ahora, cuando el token
+   caduca (normalmente a los ~58 minutos), la app se limita a ponerse en
+   rojo por sí sola (ver el reloj de abajo, que es 100% local y nunca llama
+   a Google) y espera pasivamente a que la persona pulse la abeja cuando
+   quiera reconectar — exactamente como se pidió. */
 });
 /* ===== Carrusel de fotos de fondo en Buscar =====
    Lee directamente FOTO (dataURL) de las personas ya cargadas en D: no hay
@@ -14349,18 +14311,35 @@ try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mos
 function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();actualizarRelojConexionDrive();}
 /* ===== Reloj de tiempo de conexión =====
    Muestra, junto a la abeja y en la pastilla principal, cuánto le queda al
-   token de acceso de Google antes de caducar (formato m:ss). Es solo un
-   indicador visual: no renueva nada por sí mismo, ni dispara ninguna
-   petición a Google. Cuando no hay conexión, muestra "--:--". Se actualiza
-   cada segundo mediante el setInterval de abajo, y también al momento cada
+   token de acceso de Google antes de caducar (formato m:ss). Es puramente
+   local (solo compara Date.now() con driveTokenExpira): NUNCA llama a
+   Google ni dispara ninguna petición de red. Cuando no hay conexión,
+   muestra "--:--". Se actualiza cada segundo, y también al momento cada
    vez que cambia el estado de conexión (llamado desde
    actualizarDriveStatusPill). Cuando quedan menos de 2 minutos, se resalta
-   en rojo para avisar de que la sesión está a punto de caducar. */
+   en rojo para avisar de que la sesión está a punto de caducar.
+   Además, en cuanto detecta que el token acaba de caducar mientras la
+   persona no ha tocado nada, avisa a actualizarDriveStatusPill() (que
+   también es local, sin red) para que la abeja se ponga roja al instante,
+   en vez de esperar a la próxima acción que necesite Drive. */
+var _estabaConectadoAntes=null;
 function actualizarRelojConexionDrive(){
+var vigente=tokenDriveValido();
+if(_estabaConectadoAntes===true&&vigente===false){
+/* Transición justo ahora de "conectado" a "caducado": refresca la pastilla
+   y la abeja para que se pongan rojas solas, sin esperar a nada más. Esta
+   llamada es segura y no puede entrar en bucle: actualizarDriveStatusPill()
+   vuelve a llamar aquí al final, pero para entonces _estabaConectadoAntes
+   ya vale false, así que esta rama no se repite. */
+_estabaConectadoAntes=vigente;
+actualizarDriveStatusPill();
+return;
+}
+_estabaConectadoAntes=vigente;
 var elHeader=document.getElementById('driveStatusHeaderTiempo');
 var elPill=document.getElementById('driveStatusTiempo');
 if(!elHeader&&!elPill)return;
-if(!tokenDriveValido()){
+if(!vigente){
 if(elHeader){elHeader.textContent='';elHeader.classList.remove('avisando');}
 if(elPill){elPill.textContent='';elPill.classList.remove('avisando');}
 return;
