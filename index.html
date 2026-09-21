@@ -102,6 +102,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .musica-vol.mostrar{width:64px;opacity:1;margin-left:2px}
 .musica-next{width:0;opacity:0;overflow:hidden;padding:0;border-width:0;transition:width .25s ease,opacity .25s ease,margin .25s ease}
 .musica-next.mostrar{width:44px;opacity:1;margin-left:2px;border-width:2px}
+.musica-pista{width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:11px;color:var(--muted);font-weight:600;transition:width .25s ease,opacity .25s ease,margin .25s ease}
+.musica-pista.mostrar{width:32px;opacity:1;margin-left:2px}
 .herr-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-radius:12px;padding:9px 8px;cursor:pointer;transition:background .15s;font-family:'Lato',sans-serif}
 .herr-item:hover{background:rgba(196,101,58,.06)}
 .herr-icon{width:36px;height:36px;border-radius:10px;background:rgba(196,101,58,.08);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
@@ -726,6 +728,7 @@ body{background:#fff}
 <div class="musica-widget">
 <button class="hero-icon-btn" id="musicaToggleBtn" onclick="MusicEngine.alternar()" title="Música ambiental: reproducir o pausar" aria-label="Música ambiental: reproducir o pausar" aria-pressed="false"><i class="fa-solid fa-music" id="musicaIcono" aria-hidden="true"></i></button>
 <button class="hero-icon-btn musica-next" id="musicaSiguienteBtn" onclick="MusicEngine.siguiente()" title="Pasar a la siguiente canción" aria-label="Pasar a la siguiente canción"><i class="fa-solid fa-forward-step" aria-hidden="true"></i></button>
+<span class="musica-pista" id="musicaPistaTxt" role="status" aria-live="polite" title="Canción que se está reproduciendo"></span>
 <input type="range" class="musica-vol" id="musicaVolumen" min="0" max="100" value="35" title="Volumen de la música" aria-label="Volumen de la música" oninput="MusicEngine.cambiarVolumen(this.value)">
 </div>
 </div>
@@ -14916,6 +14919,7 @@ function siguientePista(){
     var promesa=audioEl.play();
     if(promesa && promesa.catch) promesa.catch(function(){});
   }
+  actualizarUI();
 }
 
 // Pasar a la siguiente canción manualmente, pulsando el botón de "siguiente".
@@ -14979,19 +14983,27 @@ function actualizarUI(){
   var btn=document.getElementById('musicaToggleBtn');
   var slider=document.getElementById('musicaVolumen');
   var siguienteBtn=document.getElementById('musicaSiguienteBtn');
+  var pistaTxt=document.getElementById('musicaPistaTxt');
   if(!btn) return;
   if(activo){
     btn.classList.add('musica-activa');
     btn.setAttribute('aria-pressed','true');
     if(slider) slider.classList.add('mostrar');
     if(siguienteBtn && LISTA_CANCIONES.length>1) siguienteBtn.classList.add('mostrar');
+    if(pistaTxt && LISTA_CANCIONES.length>1) pistaTxt.classList.add('mostrar');
   }else{
     btn.classList.remove('musica-activa');
     btn.setAttribute('aria-pressed','false');
     if(slider) slider.classList.remove('mostrar');
     if(siguienteBtn) siguienteBtn.classList.remove('mostrar');
+    if(pistaTxt) pistaTxt.classList.remove('mostrar');
   }
   if(slider) slider.value=volumenActual;
+  if(pistaTxt){
+    var numero=(pistaActual+1)+'/'+LISTA_CANCIONES.length;
+    pistaTxt.textContent=numero;
+    pistaTxt.title='Reproduciendo la canción '+numero+' ('+(LISTA_CANCIONES[pistaActual]||'')+')';
+  }
 }
 
 function avisar(msg){
