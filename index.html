@@ -2300,16 +2300,44 @@ if(btn){btn.disabled=false;btn.innerHTML=textoOriginalBtn;}
 }
 }
 function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB);r.onupgradeneeded=function(e){var d=e.target.result;if(!d.objectStoreNames.contains(ST)){var s=d.createObjectStore(ST,{keyPath:'ID'});s.createIndex('APELLIDO1','APELLIDO1',{unique:false});}if(!d.objectStoreNames.contains(BK))d.createObjectStore(BK,{keyPath:'id'});if(!d.objectStoreNames.contains(CFG))d.createObjectStore(CFG,{keyPath:'id'});if(!d.objectStoreNames.contains('cambios'))d.createObjectStore('cambios',{keyPath:'id'});};r.onsuccess=function(e){db=e.target.result;if(db.objectStoreNames.contains('cambios')){try{db.transaction('cambios','readwrite').objectStore('cambios').clear();}catch(e2){}}res(db);};r.onerror=function(){rej(r.error);};r.onblocked=function(){rej(new Error('Hay otra pestaña con la aplicación abierta; ciérrala e inténtalo de nuevo'));};});}
+/* ===== CORREGIDO: sAll se quedaba (y a veces hacía caer del todo) la
+   pestaña en móviles con árboles grandes (~100.000 personas). Hacía dos
+   cosas costosas de golpe, en una sola transacción: (1) escribir las
+   ~100.000 fichas una a una, y (2) guardar OTRA copia completa de esas
+   mismas ~100.000 fichas, todas juntas, como un único valor gigante en el
+   store BK ('copias'/'ultima'). Ese bloque BK nunca se llega a leer en
+   ningún otro punto de la app (comprobado: solo se escribe, jamás se hace
+   un get de 'ultima'), así que era peso muerto que solo duplicaba el uso
+   de memoria justo en el peor momento. Ahora: se quita esa copia duplicada
+   y el guardado del almacén principal se hace por lotes, cada uno en su
+   propia transacción corta, para no acumular miles de escrituras pendientes
+   en memoria a la vez. */
 function sAll(d,opciones){
 opciones=opciones||{};
 var marcarSucio=opciones.marcarANOCALCSucio!==false;
+var LOTE=2000;
+function txProm(stores,fnUsar){
 return new Promise(function(res,rej){
-var stores=[ST,BK];
-if(db.objectStoreNames.contains(CFG))stores.push(CFG);
-var tx=db.transaction(stores,'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);
-s.clear();d.forEach(function(r){s.put(r);});
-b.put({id:'ultima',fecha:new Date().toISOString(),personas:d});
+var tx=db.transaction(stores,'readwrite');
+fnUsar(tx);
+tx.oncomplete=function(){res();};
+tx.onerror=function(){rej(tx.error);};
+});
+}
+var p=txProm([ST],function(tx){tx.objectStore(ST).clear();});
+for(var i=0;i<d.length;i+=LOTE){
+(function(lote){
+p=p.then(function(){
+return txProm([ST],function(tx){
+var s=tx.objectStore(ST);
+lote.forEach(function(r){s.put(r);});
+});
+});
+})(d.slice(i,i+LOTE));
+}
 if(db.objectStoreNames.contains(CFG)){
+p=p.then(function(){
+return txProm([CFG],function(tx){
 var c=tx.objectStore(CFG);
 var req=c.get('anocalcEstado');
 req.onsuccess=function(){
@@ -2319,9 +2347,10 @@ if(!marcarSucio)e.calculoVersion=e.datosVersion;
 e.id='anocalcEstado';
 c.put(e);
 };
-}
-tx.oncomplete=function(){res(d.length);};tx.onerror=function(){rej(tx.error);};
 });
+});
+}
+return p.then(function(){return d.length;});
 }
 /* ===== MEJORA DE RENDIMIENTO: guardado parcial =====
    sAll(D) reescribe TODO el almacén local (borra y vuelve a insertar cada
