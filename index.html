@@ -238,6 +238,25 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .pf.indet{width:40%!important;transition:none;animation:pfIndet 1.1s ease-in-out infinite}
 @keyframes pfIndet{0%{margin-left:-40%}50%{margin-left:60%}100%{margin-left:-40%}}
 @media (prefers-reduced-motion:reduce){.pf.indet{animation:none;width:100%!important;margin-left:0!important;opacity:.5}}
+/* ===== MEJORA: abeja aleteando sobre CUALQUIER barra de progreso (.pb) =====
+   Se añade automáticamente (ver sincronizarAbejasProgreso más abajo) un
+   "anfitrión" .pb-bee-host alrededor de cada .pb visible, con una abejita en
+   SVG (cuerpo + 2 alas) justo encima de la barra. Las alas tienen su propia
+   animación rápida (aleteo) independiente del vuelo/rebote del cuerpo. */
+.pb-bee-host{position:relative;display:block}
+.pb-bee{position:absolute;top:-15px;left:0;width:22px;height:16px;pointer-events:none;transform:translateX(-50%);transition:left .25s linear;animation:pbBeeBob 1.4s ease-in-out infinite}
+.pb-bee.pb-bee-indet{animation:pbBeeBob 1.4s ease-in-out infinite,pbBeeIndetVuela 1.1s ease-in-out infinite}
+.pb-bee-ala{transform-origin:50% 90%;animation:pbBeeAleteo .16s ease-in-out infinite}
+.pb-bee-ala2{animation-delay:.03s}
+@keyframes pbBeeBob{0%,100%{transform:translateX(-50%) translateY(0) rotate(-6deg)}50%{transform:translateX(-50%) translateY(-3px) rotate(6deg)}}
+@keyframes pbBeeIndetVuela{0%{left:0%}50%{left:100%}100%{left:0%}}
+@keyframes pbBeeAleteo{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.32)}}
+@media (prefers-reduced-motion:reduce){.pb-bee,.pb-bee.pb-bee-indet,.pb-bee-ala{animation:none}}
+/* ===== MEJORA: indicador global de actividad de red (fallback) =====
+   Barra fija abajo que aparece sola mientras haya peticiones fetch() en
+   vuelo (Drive, etc.), para los procesos que aún no tienen su propio aviso
+   visual. Reutiliza el mismo lenguaje visual (.pb/.pf) y hereda la abeja. */
+#globalTrabajoWrap{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:220px;max-width:90vw;box-sizing:border-box;display:none}
 .inc-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .inc-row:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
 .inc-icon{width:28px;height:28px;border-radius:50%;background:rgba(196,101,58,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px}
@@ -663,6 +682,10 @@ body{background:#fff}
 </div>
 </div>
 <div id="progresoCrearPersonaWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
+<div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
+<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
+</div>
+<div id="globalTrabajoWrap" role="status" aria-live="polite">
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
 </div>
@@ -2208,6 +2231,97 @@ function ocultarProgresoDrive(contenedorId){
 var wrap=document.getElementById(contenedorId||'driveOpProgresoWrap');
 if(wrap)wrap.style.display='none';
 }
+/* ===== MEJORA: abeja aleteando en CUALQUIER barra de progreso =====
+   Añade automáticamente, a toda .pb que esté visible en cada momento, una
+   abejita (SVG) que aletea encima de la barra mientras dura el proceso.
+   No hace falta tocar cada función que muestra una barra: un
+   MutationObserver detecta cuándo aparece/desaparece cada .pb (tanto las ya
+   existentes en el HTML como las que se generan dinámicamente por
+   innerHTML) y coloca o quita la abeja según toque. Para las barras
+   indeterminadas (.pf.indet) la abeja vuela de un lado a otro; para las que
+   sí llevan porcentaje, la abeja sigue el borde de avance del relleno. */
+function pbBeeVisible(el){
+var cs=getComputedStyle(el);
+if(cs.display==='none'||cs.visibility==='hidden')return false;
+if(cs.position==='fixed'){
+var p=el.parentElement;
+while(p){var pcs=getComputedStyle(p);if(pcs.display==='none'||pcs.visibility==='hidden')return false;p=p.parentElement;}
+return true;
+}
+return !!el.offsetParent;
+}
+function pbBeeSvg(){
+var s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+s.setAttribute('viewBox','0 0 32 22');s.setAttribute('class','pb-bee');s.setAttribute('aria-hidden','true');
+s.innerHTML='<ellipse cx="17" cy="13" rx="10" ry="6.5" fill="#3D2C1E"/>'+
+'<path d="M8 13a9 6.5 0 0 1 18 0" fill="none" stroke="#F2B705" stroke-width="4.2"/>'+
+'<ellipse class="pb-bee-ala pb-bee-ala1" cx="12" cy="6" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<ellipse class="pb-bee-ala pb-bee-ala2" cx="21" cy="6" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<circle cx="26" cy="11.5" r="1.5" fill="#111"/>';
+return s;
+}
+function sincronizarAbejasProgreso(){
+document.querySelectorAll('.pb').forEach(function(barra){
+if(!pbBeeVisible(barra)){
+if(barra.parentElement&&barra.parentElement.classList&&barra.parentElement.classList.contains('pb-bee-host')){
+var host=barra.parentElement,abeja=host.querySelector('.pb-bee');if(abeja)abeja.remove();
+}
+return;
+}
+var host=barra.parentElement;
+if(!host||!host.classList||!host.classList.contains('pb-bee-host')||host.firstElementChild!==barra){
+host=document.createElement('span');host.className='pb-bee-host';
+barra.parentNode.insertBefore(host,barra);host.appendChild(barra);
+}
+var abeja=host.querySelector('.pb-bee');
+if(!abeja){abeja=pbBeeSvg();host.appendChild(abeja);}
+var relleno=barra.querySelector('.pf');
+if(relleno&&relleno.classList.contains('indet')){
+abeja.classList.add('pb-bee-indet');abeja.style.left='';
+}else{
+abeja.classList.remove('pb-bee-indet');
+var pct=relleno?parseFloat(relleno.style.width)||0:0;
+abeja.style.left=pct+'%';
+}
+});
+}
+(function(){
+var pendiente=false;
+function programar(){if(pendiente)return;pendiente=true;requestAnimationFrame(function(){pendiente=false;sincronizarAbejasProgreso();});}
+document.addEventListener('DOMContentLoaded',function(){
+sincronizarAbejasProgreso();
+new MutationObserver(programar).observe(document.body,{attributes:true,attributeFilter:['style','class'],subtree:true,childList:true});
+});
+})();
+/* ===== MEJORA: indicador global de actividad de red (red de seguridad) =====
+   Muchas operaciones (Drive, sincronización, catálogo, etc.) hacen sus
+   peticiones con fetch() pero, si tardan, no siempre tenían una barra de
+   progreso propia visible en pantalla. En vez de tocar una por una todas las
+   funciones, se instrumenta fetch() una sola vez: mientras haya alguna
+   petición en vuelo se muestra una barra fija abajo (con su abeja, igual que
+   el resto), y desaparece sola en cuanto termina la última. Así CUALQUIER
+   proceso que dependa de la red queda cubierto automáticamente, incluidos
+   los que se añadan en el futuro. */
+(function(){
+var enVuelo=0,ocultarTimer=null;
+var origFetch=window.fetch;
+if(typeof origFetch!=='function')return;
+window.fetch=function(){
+enVuelo++;
+var wrap=document.getElementById('globalTrabajoWrap');
+if(wrap){clearTimeout(ocultarTimer);wrap.style.display='block';}
+var terminar=function(){
+enVuelo=Math.max(0,enVuelo-1);
+if(enVuelo===0){
+var w=document.getElementById('globalTrabajoWrap');
+if(w){ocultarTimer=setTimeout(function(){if(enVuelo===0)w.style.display='none';},250);}
+}
+};
+var p=origFetch.apply(this,arguments);
+p.then(terminar,terminar);
+return p;
+};
+})();
 /* ===== TAREA 3: DESCARGA DE INFORMES EN PDF (jsPDF + html2canvas) =====
 Capa de presentación puramente adicional. No toca D/PI/HD, IndexedDB, Google Drive
 ni el motor ANOCALC: reutiliza el HTML que cada informe ya construye para imprimir
@@ -11532,41 +11646,65 @@ req.onerror=function(){toast('Error al eliminar la base de datos',true);};
 }
 function gLine(s){return String(s||'').replace(/\r\n|\r|\n/g,' ').trim();}
 function gSex(s){if(s==='Hombre')return'M';if(s==='Mujer')return'F';return'';}
-async function expGed(){
-if(!await exigirIdentidadGoogle())return;
-if(!esAdministrador()){toast('Solo el administrador puede exportar GEDCOM',true);return;}
-if(!D.length){toast('No hay datos',true);return;}
-toast('Generando GEDCOM...');
-setTimeout(function(){
+/* ===== CORRECCIÓN DE FONDO (2026-09-24): FAMC apuntaba a la familia
+   equivocada =====
+   El generador de GEDCOM llevaba DOS numeraciones de familia @Fn@
+   independientes: una para "de qué familia soy hijo" (basada en
+   PADRE/MADRE, variable `foc`) y otra para "qué familias conyugales existen"
+   (basada en los campos M1..M6, variable `fom`), pero el archivo final solo
+   escribía las familias de la segunda lista. Como los números @Fn@ de
+   ambas listas se generaban por separado (cada una empezando en 1), casi
+   nunca coincidían: al comprobarlo contra un árbol real, el 99,97% de las
+   fichas con FAMC quedaban enlazadas a la familia de otras personas. Además,
+   la comprobación para no crear una familia "fantasma" a quien no tiene
+   padres comparaba con la cadena '||' cuando en realidad ese caso da '|'
+   (una sola barra), así que ese aviso nunca se activaba y todo el mundo sin
+   padres conocidos también salía con un FAMC roto (HUSB/WIFE apuntando a un
+   ID vacío @I@). Ahora hay una única lista de familias: se construye primero
+   a partir de PADRE/MADRE (así el hijo SIEMPRE cae en su propia familia) y
+   los matrimonios registrados en M1..M6 se cuelgan de esa misma familia si
+   coincide, o crean una familia sin hijos si no hay ninguna hija/hijo
+   registrado bajo esa pareja. */
+function construirGedcomTexto(lista){
+var fam={},orden=[];
+function familia(padre,madre){
+var key=(padre||'')+'|'+(madre||'');
+if(!padre&&!madre)return null;
+if(!fam[key]){fam[key]={h:padre||'',w:madre||'',chil:[],n:orden.length+1};orden.push(key);}
+return fam[key];
+}
+lista.forEach(function(p){
+var f=familia(p.PADRE,p.MADRE);
+if(f){p._famc='@F'+f.n+'@';f.chil.push(p.ID);}
+else p._famc=null;
+});
+var gedFamiliasSexoIndeterminado=0,vistos={};
+lista.forEach(function(p){
+CAMPOS_CONYUGE.forEach(function(c){
+var otro=p[c];if(!otro)return;
+var par=[p.ID,otro].sort(),vk=par[0]+'|'+par[1];
+if(vistos[vk])return;vistos[vk]=true;
+var pA=PI[p.ID],pB=PI[otro];
+var husb=p.ID,wife=otro,determinado=false;
+if(pA&&pB){
+if(pA.SEXO==='Mujer'&&pB.SEXO==='Hombre'){husb=otro;wife=p.ID;determinado=true;}
+else if(pA.SEXO==='Hombre'&&pB.SEXO==='Mujer'){husb=p.ID;wife=otro;determinado=true;}
+}
+if(!determinado)gedFamiliasSexoIndeterminado++;
+var key=husb+'|'+wife;
+if(!fam[key]){fam[key]={h:husb,w:wife,chil:[],n:orden.length+1};orden.push(key);}
+});
+});
+var fmS={};
+orden.forEach(function(key){
+var f=fam[key],fn2='@F'+f.n+'@';
+if(f.h){if(!fmS[f.h])fmS[f.h]=[];fmS[f.h].push(fn2);}
+if(f.w){if(!fmS[f.w])fmS[f.w]=[];fmS[f.w].push(fn2);}
+});
 var today=new Date();
 var headerDate=fDateGed(today.getDate(),today.getMonth()+1,today.getFullYear());
 var ged='0 HEAD\n1 SOUR Libro de los Ancestros\n2 VERS 1.0\n2 NAME Libro de los Ancestros\n1 DATE '+headerDate+'\n1 GEDC\n2 VERS 5.5.1\n2 FORM LINEAGE-LINKED\n1 CHAR UTF-8\n1 LANG Spanish\n0 @SUB1@ SUBM\n1 NAME Usuario\n1 ADDR Espana\n2 CTRY Espana\n';
-var foc={};
-D.forEach(function(p){var pk=(p.PADRE||'')+'|'+(p.MADRE||'');if(pk==='||')return;if(!foc[pk]){foc[pk]=Object.keys(foc).length+1;} p._famc='@F'+foc[pk]+'@';});
-/* --- Construcción de familias conyugales ---
-   Deduplicadas por pareja (clave simétrica, sin importar quién inició el vínculo)
-   y con HUSB/WIFE asignados según el campo SEXO real de cada persona, no según
-   qué registro tiene el campo M1/M2 relleno. */
-var fom={};
-var gedFamiliasSexoIndeterminado=0;
-function registrarFamiliaConyugal(idA,idB){
-if(!idA||!idB)return;
-var par=[idA,idB].sort();
-var k=par[0]+'|'+par[1];
-if(fom[k])return;
-var pA=PI[idA],pB=PI[idB];
-var husb=idA,wife=idB;
-var determinado=false;
-if(pA&&pB){
-if(pA.SEXO==='Mujer'&&pB.SEXO==='Hombre'){husb=idB;wife=idA;determinado=true;}
-else if(pA.SEXO==='Hombre'&&pB.SEXO==='Mujer'){husb=idA;wife=idB;determinado=true;}
-}
-if(!determinado)gedFamiliasSexoIndeterminado++;
-fom[k]={h:husb,w:wife,n:Object.keys(fom).length};
-}
-D.forEach(function(p){CAMPOS_CONYUGE.forEach(function(c){if(p[c])registrarFamiliaConyugal(p.ID,p[c]);});});
-var fmS={};Object.keys(fom).forEach(function(k){var f=fom[k],fn2='@F'+f.n+'@';if(!fmS[f.h])fmS[f.h]=[];if(!fmS[f.w])fmS[f.w]=[];fmS[f.h].push(fn2);fmS[f.w].push(fn2);f._fNum=fn2;});
-D.forEach(function(p){
+lista.forEach(function(p){
 var al=isAl(p);
 ged+='0 @I'+p.ID+'@ INDI\n';
 ged+='1 NAME '+gLine(p.NOMBRE)+' /'+gLine((p.APELLIDO1||'')+' '+(p.APELLIDO2||''))+'/\n';
@@ -11581,20 +11719,66 @@ if(fmS[p.ID])fmS[p.ID].forEach(function(fnm){ged+='1 FAMS '+fnm+'\n';});
 if(p.OBSERVACIONES)ged+='1 NOTE '+gLine(p.OBSERVACIONES)+'\n';
 ged+='\n';
 });
-Object.keys(fom).forEach(function(k){
-var f=fom[k],fnm='@F'+f.n+'@';
-ged+='0 '+fnm+' FAM\n1 HUSB @I'+f.h+'@\n1 WIFE @I'+f.w+'@\n';
-var hf=[];
-D.forEach(function(x){if(x.PADRE===f.h&&x.MADRE===f.w)hf.push(x.ID);else if(x.PADRE===f.w&&x.MADRE===f.h)hf.push(x.ID);else if(x.PADRE===f.h&&!x.MADRE)hf.push(x.ID);else if(x.MADRE===f.w&&!x.PADRE)hf.push(x.ID);});
-hf.forEach(function(hid){ged+='1 CHIL @I'+hid+'@\n';});
+orden.forEach(function(key){
+var f=fam[key],fnm='@F'+f.n+'@';
+ged+='0 '+fnm+' FAM\n';
+if(f.h)ged+='1 HUSB @I'+f.h+'@\n';
+if(f.w)ged+='1 WIFE @I'+f.w+'@\n';
+f.chil.forEach(function(hid){ged+='1 CHIL @I'+hid+'@\n';});
 ged+='\n';
 });
 ged+='0 TRLR\n';
+return{ged:ged,total:lista.length,indeterminado:gedFamiliasSexoIndeterminado};
+}
+function descargarGedTexto(ged,nombreArchivo){
 var blob=new Blob([ged],{type:'text/plain;charset=utf-8'});
 var url=URL.createObjectURL(blob);
-var a=document.createElement('a');a.href=url;a.download='FAMILIA.ged';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-toast('GEDCOM descargado: '+D.length+' personas');
-if(gedFamiliasSexoIndeterminado>0)toast(gedFamiliasSexoIndeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
+var a=document.createElement('a');a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+async function expGed(){
+if(!await exigirIdentidadGoogle())return;
+if(!esAdministrador()){toast('Solo el administrador puede exportar GEDCOM',true);return;}
+if(!D.length){toast('No hay datos',true);return;}
+toast('Generando GEDCOM...');
+mostrarProgresoDrive('Generando GEDCOM...','globalTrabajoWrap');
+setTimeout(function(){
+var r=construirGedcomTexto(D);
+descargarGedTexto(r.ged,'FAMILIA.ged');
+ocultarProgresoDrive('globalTrabajoWrap');
+toast('GEDCOM descargado: '+r.total+' personas');
+if(r.indeterminado>0)toast(r.indeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
+},100);
+}
+/* ===== NUEVO: exportar GEDCOM de solo los antepasados de la persona activa =====
+   Recorre PADRE/MADRE hacia arriba desde "cid" (igual que el Informe de
+   ascendientes ya existente) e incluye también a la propia persona activa,
+   para que el archivo resultante enlace bien desde ella. */
+function recopilarIdsAscendientes(id,visitados){
+visitados=visitados||{};
+if(!id||visitados[id])return visitados;
+visitados[id]=true;
+var p=PI[id];
+if(!p)return visitados;
+if(p.PADRE)recopilarIdsAscendientes(p.PADRE,visitados);
+if(p.MADRE)recopilarIdsAscendientes(p.MADRE,visitados);
+return visitados;
+}
+async function expGedAscendientes(){
+if(!await exigirIdentidadGoogle())return;
+if(!esAdministrador()){toast('Solo el administrador puede exportar GEDCOM',true);return;}
+if(!cid||!PI[cid]){toast('Selecciona antes una persona activa (icono de la lupa) para exportar sus antepasados',true);return;}
+var idsSet=recopilarIdsAscendientes(cid);
+var subconjunto=D.filter(function(p){return idsSet[p.ID];});
+if(subconjunto.length<=1){toast(fn(PI[cid])+' no tiene antepasados registrados en el árbol',true);return;}
+toast('Generando GEDCOM de antepasados...');
+mostrarProgresoDrive('Generando GEDCOM de antepasados...','globalTrabajoWrap');
+setTimeout(function(){
+var r=construirGedcomTexto(subconjunto);
+var base=(fn(PI[cid])||'ANTEPASADOS').trim().replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'ANTEPASADOS';
+descargarGedTexto(r.ged,'ANTEPASADOS_'+base+'.ged');
+ocultarProgresoDrive('globalTrabajoWrap');
+toast('GEDCOM descargado: '+(r.total-1)+' antepasado(s) de '+fn(PI[cid]));
+if(r.indeterminado>0)toast(r.indeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
 /* ===== EXPORTAR A CSV PARA ACCESS (punto 18) =====
@@ -14543,7 +14727,8 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
 <div class="herr-subhead">Exportación</div>
-<button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged compatible con otros programas de genealogía</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de antepasados</div><div class="herr-desc">Descarga un .ged solo con los antepasados de la persona activa (la de la barra "Viendo a")</div></div></button>
 </div>
 </div>
 </div>
