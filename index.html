@@ -979,10 +979,10 @@ body{background:#fff}
 <div class="inf-sel" style="max-width:640px">
 <div class="rel-picker">
 <div class="rel-picker-col">
-<div class="ef-label" style="margin-bottom:6px">Persona A</div>
-<div class="search-box" style="margin:0 0 8px"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="siRelA" class="sr-only">Buscar persona A</label><input type="text" id="siRelA" placeholder="Buscar persona A..." autocomplete="off"></div>
+<div class="ef-label" style="margin-bottom:6px">Persona A &middot; persona activa</div>
 <div id="relSelBoxA" class="inf-sel-box rel-sel-box empty"><span class="rel-sel-foto" id="relSelFotoA"></span><span class="rel-sel-txt" id="relSelTxtA">Ninguna seleccionada</span></div>
-<div id="rlRelA"></div>
+<button type="button" class="ef-btn ghost" style="margin-top:8px;width:100%;justify-content:center" onclick="abrirBusquedaRapida()"><i class="fa-solid fa-magnifying-glass"></i> Cambiar persona activa</button>
+<p style="font-size:11px;color:var(--muted);margin-top:6px">Es siempre la persona activa (la de la cabecera). Para cambiarla, usa este botón o abre otra ficha.</p>
 </div>
 <div class="rel-picker-col">
 <div class="ef-label" style="margin-bottom:6px">Persona B</div>
@@ -1046,8 +1046,13 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.05.3';
+var APP_VERSION = '2026.09.26.1';
 var APP_CHANGELOG = [
+  { version:'2026.09.26.1', fecha:'2026-09-26', cambios:[
+    'Pantalla Inicio: el numero de personas, vivos y fallecidos ahora se muestra con el separador de miles ("."), en vez de una cifra corrida.',
+    'Relacion entre dos personas: la Persona A ya no se elige con un buscador propio, sino que es siempre la persona activa (la de la cabecera), para evitar el despiste habitual de tocar el buscador equivocado al querer fijarla. Se cambia con el nuevo boton "Cambiar persona activa" de esta pantalla, con la lupa del cabecero, o abriendo otra ficha. El unico buscador que queda en esta pantalla es el de la Persona B.',
+    'Relacion entre dos personas: los resultados del buscador de la Persona B muestran ahora la fotografia de la persona cuando existe, en vez de solo su circulo de iniciales (igual que en el resto de buscadores de la app).'
+  ]},
   { version:'2026.09.05.1', fecha:'2026-09-05', cambios:[
     'Gestion de cambios: corregido de raiz para que ya NO se guarde nada en la memoria del ordenador (IndexedDB). La unica fuente del registro de cambios es ahora el archivo cambios-arbol.json de Drive: cada vez que se abre la pantalla, se aprueba, se rechaza, se elimina un registro o se vacia el historial, la app lee ese archivo, aplica el cambio y lo vuelve a subir entero, sin fusionar con nada guardado antes en el dispositivo. Antes, la sincronizacion mezclaba (por id) lo que hubiera en Drive con restos que quedaban en la base de datos local del navegador, asi que podian verse cambios que ya no estaban en el archivo. Si el archivo no tiene cambios pendientes, la pantalla no muestra ninguno.'
   ]},
@@ -4894,7 +4899,7 @@ function navHistForward(){history.forward();}
 function navHistBackSafe(){if(__navPos>0)history.back();else sv('bus');}
 try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+n+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+v+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();if(typeof actualizarPantallaBusPills==='function')actualizarPantallaBusPills();}
+function rStats(){var n=D.length,v=D.filter(isAl).length;var nf=function(x){return x.toLocaleString('es-ES');};document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+nf(n)+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+nf(v)+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+nf(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();if(typeof actualizarPantallaBusPills==='function')actualizarPantallaBusPills();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
 de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
 mostrados aquí siempre coinciden exactamente con lo que se ve al entrar al Gestor de datos. */
@@ -7168,7 +7173,7 @@ if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h=(typeof JUEGO_ESTADO!=='undefined'&&JUEGO_ESTADO.viendoFichaDesdeJuego)?'<div><button type="button" class="ef-btn" style="margin-bottom:10px" onclick="volverAlJuegoDesdeFicha()"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Volver al juego para contestar</button></div>':'';
 h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="relIdA=\''+safeId(id)+'\';sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
 h+='<div id="efConexionAviso" style="display:none"></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
@@ -10429,11 +10434,17 @@ if(cadenaCount)cadenaCount.textContent='';
 }
 }
 function initRelacion(){
-actualizarCadenaRel('A',relIdA&&PI[relIdA]?PI[relIdA]:null);
+/* Persona A es siempre la persona activa (cid): así se evita el error habitual
+   de querer fijar la Persona A y acabar rellenando la Persona B por
+   confusión. Para cambiar la Persona A hay que cambiar la persona activa
+   (botón "Cambiar persona activa" de esta pantalla, la lupa del cabecero, o
+   abriendo otra ficha), nunca buscándola aquí directamente. */
+relIdA=(cid&&PI[cid])?cid:null;
+actualizarCadenaRel('A',relIdA?PI[relIdA]:null);
 actualizarCadenaRel('B',relIdB&&PI[relIdB]?PI[relIdB]:null);
-document.getElementById('rlRelA').innerHTML='';document.getElementById('rlRelB').innerHTML='';
-var ia=document.getElementById('siRelA'),ib=document.getElementById('siRelB');
-if(ia)ia.value='';if(ib)ib.value='';
+var rlB=document.getElementById('rlRelB');if(rlB)rlB.innerHTML='';
+var ib=document.getElementById('siRelB');
+if(ib)ib.value='';
 if(relIdA&&relIdB&&PI[relIdA]&&PI[relIdB])calcularYMostrarRelacion();
 else document.getElementById('relResultado').innerHTML='';
 }
@@ -10445,19 +10456,24 @@ var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 f=f.slice(0,40);
 var h='';
-f.forEach(function(p){var al=isAl(p),y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')"><div class="ra '+(al?'al':'de')+'">'+ini(p)+'</div><div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
+f.forEach(function(p){var y=pdAnioTexto(p);h+='<div class="ri" onclick="seleccionarPersonaRel(\''+safeId(p.ID)+'\',\''+letra+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+'</div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';});
 lista.innerHTML=h||'<p style="text-align:center;color:var(--muted);padding:14px">Sin resultados</p>';
 }
 function seleccionarPersonaRel(id,letra){
 if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
 if(letra==='A')relIdA=id;else relIdB=id;
 actualizarCadenaRel(letra,PI[id]);
-document.getElementById('rlRel'+letra).innerHTML='';
-document.getElementById('siRel'+letra).value='';
+/* Persona A ya no tiene buscador ni lista propios en esta pantalla (ver
+   initRelacion): estos elementos solo existen para la letra 'B'. Se
+   comprueba su existencia para no romper el caso 'A', que sigue
+   pudiendo llegar aquí desde la lupa "Cambiar persona activa". */
+var lista=document.getElementById('rlRel'+letra);if(lista)lista.innerHTML='';
+var input=document.getElementById('siRel'+letra);if(input)input.value='';
 if(relIdA&&relIdB)calcularYMostrarRelacion();
 }
 function calcularYMostrarRelacion(){
-if(!relIdA||!relIdB){toast('Selecciona ambas personas',true);return;}
+if(!relIdA){toast('Elige primero una persona activa (arriba a la izquierda)',true);return;}
+if(!relIdB){toast('Busca y elige la Persona B',true);return;}
 var cont=document.getElementById('relResultado');
 if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
 var parentesco=calcularParentesco(relIdA,relIdB);
@@ -11462,7 +11478,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Documentos y fotografias de cada persona',soloAdmin:false,html:'<p>Cada persona puede tener asociados, en Google Drive, tanto una fotografia como cualquier numero de documentos (partidas, certificados, correspondencia, fotografias historicas...). La seccion Documentos de la ficha permite gestionarlos sin salir de la aplicacion.</p><ul><li><strong>Subir</strong>: arrastra los archivos sobre la zona de subida, o pulsa «Elegir archivos»; se puede anadir una categoria libre (con sugerencias) para agruparlos.</li><li><strong>Buscar</strong>: en cuanto una persona acumula mas de 8 documentos aparece un buscador para filtrarlos por nombre o categoria.</li><li><strong>Renombrar</strong> y <strong>Eliminar</strong>: disponibles en cada documento, sin necesidad de entrar en Drive.</li><li><strong>Abrir carpeta en Drive</strong>: acceso directo a la carpeta de Drive de esa persona.</li></ul><p>Gestionar documentos requiere tener la cuenta de Google conectada, pero esta disponible para cualquier colaborador, no solo para el administrador.</p><p>El buscador de personas de la pantalla Documentos tambien respeta el limite de perfil: no aparece en los resultados una persona viva fuera de tu alcance (vease «Los tres perfiles»).</p><p>La fotografia de perfil se gestiona desde el formulario de edicion de la ficha: al guardarla, se guarda siempre en el dispositivo y, si Google Drive esta disponible en ese momento, tambien se sincroniza en segundo plano con la carpeta FOTO, sin bloquear el guardado si Drive falla.</p>'},
 {titulo:'Importacion masiva de fotografias',soloAdmin:false,html:'<p>Cuando hay muchas fotografias que asociar de golpe, es mas rapido usar la importacion masiva que subirlas una a una desde cada ficha. Hay dos vias, ambas accesibles desde Herramientas:</p><ul><li><strong>Desde una carpeta del ordenador</strong>: no requiere conexion con Google. Elige una carpeta local; cada archivo de imagen debe llamarse exactamente igual que el ID de la persona (por ejemplo «1234.jpg» para la persona con ID 1234).</li><li><strong>Desde Google Drive</strong>: requiere identidad de Google conectada. Busca la carpeta FOTO dentro de la carpeta raiz configurada y asigna cada imagen siguiendo el mismo criterio del nombre exacto.</li></ul><p>En ambos casos la asociacion es <strong>siempre por coincidencia exacta</strong> del nombre de archivo (sin extension) con el ID: nunca se hacen coincidencias aproximadas, para evitar asignar una foto a la persona equivocada. Si una persona ya tenia foto, la nueva la sustituye.</p><p>Al terminar, se muestra un resumen con archivos encontrados, imagenes reconocidas, fotografias asociadas, archivos sin persona coincidente y errores, todo explicado en lenguaje sencillo.</p><div class="manual-warn">No se puede iniciar una nueva importacion mientras otra esta en curso; espera a que termine antes de lanzar la siguiente.</div>'},
 {titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p><p>El buscador de esta pantalla, la comparativa familiar y la linea de vida respetan el mismo limite de perfil que el resto de la aplicacion: una persona viva fuera de tu alcance no aparece en la busqueda ni se menciona por su nombre en la comparativa (vease «Los tres perfiles»).</p>'},
-{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». Elige a la Persona A y a la Persona B con los buscadores correspondientes; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>Los dos buscadores (Persona A y Persona B) y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
+{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». La <strong>Persona A es siempre la persona activa</strong> (la que aparece en la cabecera; se llega aqui normalmente pulsando «Parentesco» desde su ficha, y puede cambiarse con el boton «Cambiar persona activa» de esta misma pantalla, con la lupa del cabecero, o abriendo otra ficha). Busca y elige a la <strong>Persona B</strong> con su buscador; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>La Persona A, la Persona B y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><div class="manual-warn">A diferencia del resto de la aplicacion, estos posteres todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Se corregira en una proxima actualizacion.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
@@ -14464,13 +14480,8 @@ srchTimerCro=setTimeout(function(){doSrchCro(val);},150);
 });
 })();
 (function(){
-var srchTimerRelA=null;
-var elRelA=document.getElementById('siRelA');
-if(elRelA)elRelA.addEventListener('input',function(){
-var val=this.value;
-clearTimeout(srchTimerRelA);
-srchTimerRelA=setTimeout(function(){doSrchRel(val,'A');},150);
-});
+/* Persona A ya no tiene buscador propio (ver initRelacion: siempre es la
+   persona activa), así que aquí solo queda el de la Persona B. */
 var srchTimerRelB=null;
 var elRelB=document.getElementById('siRelB');
 if(elRelB)elRelB.addEventListener('input',function(){
