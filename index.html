@@ -1917,10 +1917,10 @@ if(__cacheComponentes&&__cacheComponentes.clave===clave)return __cacheComponente
 var indice={},tamanos=[],visitadoGlobal={};
 Object.keys(PI).forEach(function(id0){
 if(visitadoGlobal[id0])return;
-var num=tamanos.length,cola=[id0],tam=0;
+var num=tamanos.length,cola=[id0],tam=0,colaI=0;
 visitadoGlobal[id0]=true;
-while(cola.length){
-var actual=cola.shift();
+while(colaI<cola.length){
+var actual=cola[colaI++];
 indice[actual]=num;tam++;
 var vecinos=vecinosParentesco(actual);
 for(var i=0;i<vecinos.length;i++){
@@ -1959,11 +1959,11 @@ if(!PI[idAmigo])return [];
 var sangre={};sangre[idAmigo]=true;
 var visitas=0;
 /* 1) Subir por PADRE/MADRE */
-var colaAsc=[idAmigo];
-while(colaAsc.length){
+var colaAsc=[idAmigo],colaAscI=0;
+while(colaAscI<colaAsc.length){
 visitas++;
 if(visitas>50000)break;
-var actual=PI[colaAsc.shift()];
+var actual=PI[colaAsc[colaAscI++]];
 if(!actual)continue;
 [actual.PADRE,actual.MADRE].forEach(function(pid){
 if(pid&&PI[pid]&&!sangre[pid]){sangre[pid]=true;colaAsc.push(pid);}
@@ -1971,11 +1971,11 @@ if(pid&&PI[pid]&&!sangre[pid]){sangre[pid]=true;colaAsc.push(pid);}
 }
 /* 2) Bajar solo por hijos, desde idAmigo y cada ascendiente hallado */
 var raicesDescenso=Object.keys(sangre);
-var colaDesc=raicesDescenso.slice();
-while(colaDesc.length){
+var colaDesc=raicesDescenso.slice(),colaDescI=0;
+while(colaDescI<colaDesc.length){
 visitas++;
 if(visitas>50000)break;
-var actualId=colaDesc.shift();
+var actualId=colaDesc[colaDescI++];
 (HD[actualId]||[]).forEach(function(hid){
 if(!sangre[hid]){sangre[hid]=true;colaDesc.push(hid);}
 });
@@ -2519,11 +2519,45 @@ tx.oncomplete=function(){res(idsUnicos.length);};tx.onerror=function(){rej(tx.er
    sin tener que enumerarlas a mano en cada función y sin arriesgarse a que un
    efecto secundario indirecto (p.ej. propagar un apellido a los descendientes)
    se quede sin guardar por no haberlo tenido en cuenta. */
+/* ===== OPTIMIZACIÓN: antes sDesdeSnapshot() comparaba "antes" y "después"
+   serializando CADA persona entera con JSON.stringify (dos veces, una por
+   lado) en cada guardado parcial. Con árboles grandes eso son decenas de
+   miles de objetos serializados por cada pulsación de "Guardar", y es el
+   cuello de botella más caro detectado en la app. personaDistinta() hace lo
+   mismo (detectar si algo cambió) comparando campo a campo con !==, sin
+   construir ninguna cadena de texto salvo para el caso raro de un campo que
+   sea un objeto anidado que no sea array/Date (fallback de seguridad). */
+function personaDistinta(a,b){
+if(!a||!b)return true;
+var claves={},k;
+for(k in a)claves[k]=1;
+for(k in b)claves[k]=1;
+for(k in claves){
+var va=a[k],vb=b[k];
+if(va===vb)continue;
+if(Array.isArray(va)||Array.isArray(vb)){
+if(!Array.isArray(va)||!Array.isArray(vb)||va.length!==vb.length)return true;
+for(var i=0;i<va.length;i++){if(va[i]!==vb[i])return true;}
+continue;
+}
+if(va instanceof Date||vb instanceof Date){
+var ta=va instanceof Date?va.getTime():va,tb=vb instanceof Date?vb.getTime():vb;
+if(ta!==tb)return true;
+continue;
+}
+if((va&&typeof va==='object')||(vb&&typeof vb==='object')){
+if(JSON.stringify(va)!==JSON.stringify(vb))return true;
+continue;
+}
+return true;
+}
+return false;
+}
 function sDesdeSnapshot(antesMapa,opciones){
 var ids=[];
 D.forEach(function(p){
 var a=antesMapa[p.ID];
-if(!a||JSON.stringify(a)!==JSON.stringify(p))ids.push(p.ID);
+if(!a||personaDistinta(a,p))ids.push(p.ID);
 });
 Object.keys(antesMapa||{}).forEach(function(id){if(!PI[id]&&ids.indexOf(id)<0)ids.push(id);});
 return sPersonas(ids,opciones);
@@ -4719,7 +4753,46 @@ finally{botonCargando(btn,false);}
 /* HERM_PM: índice de hermanos, agrupando a todas las personas por la clave literal
 "PADRE|MADRE" (con '' para el progenitor que falte). */
 var HERM_PM={};
-function bIdx(d){PI={};HD={};HERM_PM={};d.forEach(function(p){PI[p.ID]=p;});d.forEach(function(p){var k1=p.PADRE, k2=p.MADRE;if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }var key=(p.PADRE||'')+'|'+(p.MADRE||'');if(!HERM_PM[key])HERM_PM[key]=[];HERM_PM[key].push(p.ID);});if(typeof invalidarCachePersonasVisibles==='function')invalidarCachePersonasVisibles();}
+var __firmaEstructuralBIdx=null;
+function bIdx(d){
+PI={};HD={};HERM_PM={};
+d.forEach(function(p){PI[p.ID]=p;});
+var __h=0;
+d.forEach(function(p){
+var k1=p.PADRE, k2=p.MADRE;
+if(k1 && PI[k1]){ if(!HD[k1]) HD[k1]=[]; HD[k1].push(p.ID); }
+if(k2 && PI[k2]){ if(!HD[k2]) HD[k2]=[]; HD[k2].push(p.ID); }
+var key=(p.PADRE||'')+'|'+(p.MADRE||'');
+if(!HERM_PM[key])HERM_PM[key]=[];
+HERM_PM[key].push(p.ID);
+/* ===== OPTIMIZACIÓN (texto de búsqueda): se pre-calcula aquí, ya
+   normalizado (sin tildes, minúsculas, vía normTxt), el texto por el que
+   se busca a esta persona en doSrch/doSrchRapida. Antes se reconstruía
+   ese texto desde cero -- y se le aplicaba normalize('NFD') -- por cada
+   persona en CADA tecla pulsada en cualquier buscador; ahora ese trabajo
+   se hace una sola vez por persona, aquí, que ya se ejecuta en cada
+   guardado. */
+var an=String(pdAnioTexto(p)||'').toLowerCase();
+var comunes=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
+p._buscableRapida=normTxt(comunes);
+p._buscable=normTxt(comunes+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase());
+/* ===== OPTIMIZACIÓN (caché de componentes conexos / rama de amigo):
+   calcularComponentesConexos() y personasVisiblesAmigo() ya tenían su
+   propia caché, pero invalidarCachePersonasVisibles() se llamaba sin
+   condición en cada bIdx() -- es decir, en cada guardado, aunque solo se
+   hubiera tocado un campo de texto suelto -- así que la caché nunca
+   llegaba a aprovecharse entre una búsqueda y la siguiente tras editar
+   una ficha. Solo PADRE/MADRE/M1..M6 pueden cambiar esas dos cosas (ver
+   vecinosParentesco), así que aquí se lleva una firma barata (hash) de
+   esos campos para toda la lista y solo se invalida la caché cuando esa
+   firma cambia de verdad respecto al bIdx() anterior. */
+var estr=(p.PADRE||'')+'|'+(p.MADRE||'')+'|'+(p.M1||'')+'|'+(p.M2||'')+'|'+(p.M3||'')+'|'+(p.M4||'')+'|'+(p.M5||'')+'|'+(p.M6||'')+';';
+for(var i=0;i<estr.length;i++){__h=(__h*31+estr.charCodeAt(i))|0;}
+});
+__h=(__h*31+d.length)|0;
+if(typeof invalidarCachePersonasVisibles==='function'&&__h!==__firmaEstructuralBIdx)invalidarCachePersonasVisibles();
+__firmaEstructuralBIdx=__h;
+}
 function gHerm(id){var p=PI[id]; if(!p) return [];var pa=p.PADRE, ma=p.MADRE;if(!pa&&!ma)return[];var ids=HERM_PM[(pa||'')+'|'+(ma||'')]||[];var r=[];for(var i=0;i<ids.length;i++){if(ids[i]!==id&&PI[ids[i]])r.push(PI[ids[i]]);}return r;}
 /* Ascendientes a partir de bisabuelos (nivel 3) y tatarabuelos (nivel 4): recorre PADRE/MADRE
    recursivamente desde idRaiz y devuelve, para cada rama que llega hasta ese nivel exacto, la
@@ -5130,9 +5203,9 @@ renderParientesInv();
    una hija aparezca como "Hija" y no como "Padre"/"Madre" (el papel de la persona activa).
    Los cónyuges se añaden aparte, como allegados directos, aunque no sean parientes
    consanguíneos. */
-function etiquetaParienteRespectoActivo(idActivo,idOtro){
+function etiquetaParienteRespectoActivo(idActivo,idOtro,ancActivoPre){
 if(idActivo===idOtro)return null;
-var ancActivo=mapaAncestros(idActivo),ancOtro=mapaAncestros(idOtro);
+var ancActivo=ancActivoPre||mapaAncestros(idActivo),ancOtro=mapaAncestros(idOtro);
 var mejor=null;
 Object.keys(ancActivo).forEach(function(anc){
 if(ancOtro[anc]!==undefined){
@@ -5171,10 +5244,17 @@ function parientesCercanos(id,maxGrado){
 maxGrado=maxGrado||3;
 var p=PI[id];
 if(!p)return[];
+/* ===== OPTIMIZACIÓN: antes se recalculaba mapaAncestros(id) desde cero
+   dentro de etiquetaParienteRespectoActivo() una vez POR CADA persona del
+   árbol (D.forEach de abajo), aunque el resultado es siempre el mismo
+   porque "id" no cambia en el bucle. Con árboles grandes eso repetía miles
+   de veces el mismo recorrido de antepasados. Ahora se calcula una única
+   vez aquí y se pasa ya hecho. */
+var ancActivo=mapaAncestros(id);
 var out=[],vistos={};
 D.forEach(function(otro){
 if(!otro||otro.ID===id)return;
-var info=etiquetaParienteRespectoActivo(id,otro.ID);
+var info=etiquetaParienteRespectoActivo(id,otro.ID,ancActivo);
 if(!info||info.grado<1||info.grado>maxGrado)return;
 out.push({id:otro.ID,grado:info.grado,etiqueta:info.etiqueta});
 vistos[otro.ID]=true;
@@ -6621,12 +6701,11 @@ return;
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
 if(q){
-var an=String(pdAnioTexto(p)||'').toLowerCase();
-/* Se incluye el ID de la persona en el texto de búsqueda para permitir
-   "búsqueda inversa": escribiendo el ID exacto (o parte de él) aparece la
-   persona correspondiente con su nombre. */
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase();
-if(!coincideBusqueda(texto,q))return false;
+/* El texto de búsqueda (incluye el ID, para permitir "búsqueda inversa")
+   ya viene pre-normalizado desde bIdx() en p._buscable -- ver ahí el
+   porqué -- así que aquí solo se compara, sin reconstruirlo. */
+var texto=p._buscable!==undefined?p._buscable:normTxt(sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+String(pdAnioTexto(p)||'').toLowerCase()+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase());
+if(!coincideBusquedaNormalizado(texto,q))return false;
 }
 if(busFiltros.lugar){
 var lugares=(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||'')).toLowerCase();
@@ -6687,11 +6766,10 @@ if(!q){cont.innerHTML='';return;}
 if(!datosLocalesListos){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';return;}
 var f=D.filter(function(p){
 if(!puedeVerPersona(p.ID))return false;
-var an=String(pdAnioTexto(p)||'').toLowerCase();
-/* Igual que en doSrch: el ID entra en el texto buscable para la búsqueda inversa
-   (ID → nombre) también desde esta búsqueda rápida flotante. */
-var texto=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
-return coincideBusqueda(texto,q);
+/* Igual que en doSrch: el ID entra en el texto buscable para la búsqueda
+   inversa (ID → nombre); el texto ya viene pre-normalizado de bIdx(). */
+var texto=p._buscableRapida!==undefined?p._buscableRapida:normTxt(sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+String(pdAnioTexto(p)||'').toLowerCase()+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase());
+return coincideBusquedaNormalizado(texto,q);
 });
 f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
 var total=f.length;
@@ -8567,6 +8645,16 @@ texto=normTxt(texto);
 var palabras=q.split(' ').filter(Boolean);
 return palabras.every(function(palabra){return texto.indexOf(palabra)>=0;});
 }
+/* Igual que coincideBusqueda(), pero para cuando "texto" ya viene
+   normalizado de antes (p.ej. p._buscable / p._buscableRapida, calculados
+   una vez en bIdx()): se ahorra repetir normTxt() -- con su normalize('NFD')
+   -- sobre el mismo texto en cada tecla pulsada. */
+function coincideBusquedaNormalizado(textoNormalizado,q){
+q=normTxt(q);
+if(!q)return true;
+var palabras=q.split(' ').filter(Boolean);
+return palabras.every(function(palabra){return textoNormalizado.indexOf(palabra)>=0;});
+}
 /* ===== INTEGRIDAD REFERENCIAL =====
    Ninguna comprobación de arriba (detectarInconsistencias, detectarDuplicados) puede ver
    estos dos casos: por diseño, cada una solo mira PADRE/MADRE/M1/M2 cuando PI[esa_id] SÍ
@@ -10168,9 +10256,9 @@ return(ambosF?'primas ':'primos ')+plural;
 function mapaAncestros(id,maxProf){
 maxProf=maxProf||30;
 var dist={};dist[id]=0;
-var queue=[[id,0]];
-while(queue.length){
-var item=queue.shift(),pid=item[0],d=item[1];
+var queue=[[id,0]],queueI=0;
+while(queueI<queue.length){
+var item=queue[queueI++],pid=item[0],d=item[1];
 if(d>=maxProf)continue;
 var pers=PI[pid];
 if(!pers)continue;
@@ -10197,10 +10285,10 @@ return max;
 function profundidadDescendientesArbol(id,maxProf){
 maxProf=maxProf||60;
 var dist={};dist[id]=0;
-var queue=[[id,0]];
+var queue=[[id,0]],queueI=0;
 var max=0;
-while(queue.length){
-var item=queue.shift(),pid=item[0],d=item[1];
+while(queueI<queue.length){
+var item=queue[queueI++],pid=item[0],d=item[1];
 if(d>=maxProf)continue;
 (HD[pid]||[]).forEach(function(hid){
 if(dist[hid]===undefined||dist[hid]>d+1){
@@ -10380,12 +10468,12 @@ function buscarCaminoParentesco(idA,idB,maxProf){
 maxProf=maxProf||45;
 if(idA===idB)return[];
 var visitado={};visitado[idA]=true;
-var queue=[{id:idA,camino:[]}];
+var queue=[{id:idA,camino:[]}],queueI=0;
 var visitas=0;
-while(queue.length){
+while(queueI<queue.length){
 visitas++;
 if(visitas>60000)return null;
-var actual=queue.shift();
+var actual=queue[queueI++];
 if(actual.camino.length>=maxProf)continue;
 var vecinos=vecinosParentesco(actual.id);
 for(var i=0;i<vecinos.length;i++){
@@ -13778,16 +13866,16 @@ if(JUEGO_FAMILIA_YO&&JUEGO_FAMILIA_YO_ID===yoId)return JUEGO_FAMILIA_YO;
 var visitado={};
 var ascendientes=mapaAncestros(yoId);
 Object.keys(ascendientes).forEach(function(id){visitado[id]=true;});
-var colaDesc=[yoId];
-while(colaDesc.length){
-var id2=colaDesc.shift();
+var colaDesc=[yoId],colaDescI=0;
+while(colaDescI<colaDesc.length){
+var id2=colaDesc[colaDescI++];
 (HD[id2]||[]).forEach(function(hid){if(!visitado[hid]){visitado[hid]=true;colaDesc.push(hid);}});
 }
 Object.keys(ascendientes).forEach(function(id){
 if(ascendientes[id]<=4){
-var colaD=[id];
-while(colaD.length){
-var idx=colaD.shift();
+var colaD=[id],colaDI=0;
+while(colaDI<colaD.length){
+var idx=colaD[colaDI++];
 (HD[idx]||[]).forEach(function(hid){if(!visitado[hid]){visitado[hid]=true;colaD.push(hid);}});
 }
 }
@@ -14181,9 +14269,9 @@ var EVENTOS_FAM_MAX_PASOS=3;
 var EVENTOS_FAM_DIAS=90;
 function personasCercanas(idCentral,maxPasos){
 var dist={};dist[idCentral]=0;
-var queue=[idCentral];
-while(queue.length){
-var actual=queue.shift();
+var queue=[idCentral],queueI=0;
+while(queueI<queue.length){
+var actual=queue[queueI++];
 var d=dist[actual];
 if(d>=maxPasos)continue;
 vecinosParentesco(actual).forEach(function(v){
