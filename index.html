@@ -244,7 +244,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
    SVG (cuerpo + 2 alas) justo encima de la barra. Las alas tienen su propia
    animación rápida (aleteo) independiente del vuelo/rebote del cuerpo. */
 .pb-bee-host{position:relative;display:block}
-.pb-bee{position:absolute;top:-15px;left:0;width:22px;height:16px;pointer-events:none;transform:translateX(-50%);transition:left .25s linear;animation:pbBeeBob 1.4s ease-in-out infinite}
+.pb-bee{position:absolute;top:-16px;left:0;width:26px;height:18px;pointer-events:none;transform:translateX(-50%);transition:left .25s linear;animation:pbBeeBob 1.4s ease-in-out infinite}
 .pb-bee.pb-bee-indet{animation:pbBeeBob 1.4s ease-in-out infinite,pbBeeIndetVuela 1.1s ease-in-out infinite}
 .pb-bee-ala{transform-origin:50% 90%;animation:pbBeeAleteo .16s ease-in-out infinite}
 .pb-bee-ala2{animation-delay:.03s}
@@ -2255,14 +2255,30 @@ return true;
 }
 return !!el.offsetParent;
 }
+var pbBeeIdSeq=0;
 function pbBeeSvg(){
 var s=document.createElementNS('http://www.w3.org/2000/svg','svg');
 s.setAttribute('viewBox','0 0 32 22');s.setAttribute('class','pb-bee');s.setAttribute('aria-hidden','true');
-s.innerHTML='<ellipse cx="17" cy="13" rx="10" ry="6.5" fill="#3D2C1E"/>'+
-'<path d="M8 13a9 6.5 0 0 1 18 0" fill="none" stroke="#F2B705" stroke-width="4.2"/>'+
-'<ellipse class="pb-bee-ala pb-bee-ala1" cx="12" cy="6" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
-'<ellipse class="pb-bee-ala pb-bee-ala2" cx="21" cy="6" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
-'<circle cx="26" cy="11.5" r="1.5" fill="#111"/>';
+var cid='pbBeeClip'+(++pbBeeIdSeq);
+/* Cuerpo ovalado con rayas negras recortadas (clip-path) para que se
+   reconozca como abeja incluso a tamaño pequeño, más cabeza, antenas,
+   aguijón y dos alas semitransparentes. */
+s.innerHTML=
+'<defs><clipPath id="'+cid+'"><ellipse cx="14" cy="13" rx="9" ry="6"/></clipPath></defs>'+
+'<ellipse class="pb-bee-ala pb-bee-ala1" cx="9" cy="5" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<ellipse class="pb-bee-ala pb-bee-ala2" cx="18" cy="5" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<path d="M5 13 L1 10 L1 16 Z" fill="#3D2C1E"/>'+
+'<g clip-path="url(#'+cid+')">'+
+'<ellipse cx="14" cy="13" rx="9" ry="6" fill="#F2B705"/>'+
+'<rect x="6" y="6" width="3" height="14" fill="#20140c"/>'+
+'<rect x="12.5" y="6" width="3" height="14" fill="#20140c"/>'+
+'<rect x="19" y="6" width="3" height="14" fill="#20140c"/>'+
+'</g>'+
+'<ellipse cx="14" cy="13" rx="9" ry="6" fill="none" stroke="#20140c" stroke-width=".6"/>'+
+'<circle cx="24.5" cy="11.5" r="3.4" fill="#20140c"/>'+
+'<line x1="25.5" y1="8.7" x2="28" y2="5.5" stroke="#20140c" stroke-width="1" stroke-linecap="round"/>'+
+'<line x1="26.5" y1="9.3" x2="30" y2="8" stroke="#20140c" stroke-width="1" stroke-linecap="round"/>'+
+'<circle cx="25.6" cy="11.5" r="0.9" fill="#fff"/>';
 return s;
 }
 function sincronizarAbejasProgreso(){
@@ -5407,6 +5423,60 @@ prompt+='{"encontrado": true, "fuentes": ["URL1", "URL2"], "sugerencias": {"luga
 prompt+='3. Si no encuentras nada seguro que coincida, devuelve SOLO este JSON: {"encontrado": false, "fuentes": [], "sugerencias": {}}\n';
 prompt+='4. NUNCA inventes datos, ni adivines fechas, ni rellenes campos por probabilidad. Prefiero que devuelvas "encontrado: false" antes que un dato dudoso.';
 return prompt;
+}
+/* ===== Prompt de limpieza del árbol para IA (solo administrador) =====
+   No analiza nada dentro de la propia app: genera un texto listo para
+   pegar en una IA (Claude, ChatGPT...) junto con el backup-arbol.json,
+   pidiéndole que detecte anomalías y devuelva un cambios-arbol.json con
+   propuestas en estado "pendiente", igual que el flujo ya habitual de
+   incorporar cambios desde fuentes externas. */
+function construirPromptLimpiezaArbol(){
+var prompt='Actúa como auditor de datos genealógicos. Te voy a adjuntar el archivo backup-arbol.json de mi árbol genealógico familiar (personas con campos como ID, PADRE, MADRE, M1..M6 para cónyuges, SEXO, NACD/NACM/NACA (día/mes/año de nacimiento), DEFA (año de defunción), NOMBRE, APELLIDO1, APELLIDO2, OBSERVACIONES, etc.).\n\n';
+prompt+='Revísalo a fondo y detecta SOLO estos tipos de anomalías:\n';
+prompt+='1. Personas fallecidas con más de 100 años de edad al morir (usando la fecha/año de nacimiento y de defunción reales; si el año de nacimiento es calculado por ANOCALC en vez de real, indícalo en la descripción en vez de dar el caso por seguro).\n';
+prompt+='2. Personas sin sexo indicado (campo SEXO vacío).\n';
+prompt+='3. Matrimonios sin vínculo recíproco: la persona A tiene a la persona B como cónyuge (M1-M6), pero la ficha de B no tiene a A en ninguno de sus propios M1-M6.\n';
+prompt+='4. Personas aisladas, sin ninguna conexión con el resto del árbol (sin padre, sin madre, sin cónyuge, y sin que ningún hijo las referencie como padre o madre) — salvo la persona con ID 15496 (José María Getino Rosado), que se mantiene así a propósito como "amigo" suelto y no debe incluirse como anomalía.\n';
+prompt+='5. Ciclos genealógicos imposibles: un antepasado de una persona que a la vez figura como su propio descendiente (por ejemplo, alguien cuyo PADRE o MADRE, subiendo generaciones, acaba siendo un hijo suyo).\n';
+prompt+='6. NOMBRE, APELLIDO1 o APELLIDO2 escritos enteramente en mayúsculas.\n\n';
+prompt+='INSTRUCCIONES:\n';
+prompt+='- No inventes datos ni propongas nada fuera de estas 6 categorías.\n';
+prompt+='- Para mayúsculas, propón la capitalización correcta respetando partículas como "de", "del", "la" y "y".\n';
+prompt+='- Para matrimonios sin vínculo recíproco, indica en la descripción cuál de las dos fichas es la que falta.\n';
+prompt+='- Para personas aisladas, propón tipo "eliminar" (siguiendo el criterio de que todo el árbol debe quedar en un único bloque conectado), salvo que detectes alguna pista de a quién podrían pertenecer, en cuyo caso indícalo en la descripción en vez de eliminar.\n';
+prompt+='- Para los ciclos, indica con claridad qué enlace concreto (PADRE, MADRE o de cónyuge) hay que romper para deshacer el ciclo.\n';
+prompt+='- Devuelve SOLO un bloque JSON, sin texto adicional antes ni después, con este formato exacto (igual que el archivo cambios-arbol.json que ya uso):\n';
+prompt+='[{"id": 1234, "tipo": "editar", "campos": {"NOMBRE": {"antes": "JUAN", "despues": "Juan"}}, "descripcion": "Nombre en mayúsculas", "estado": "pendiente"}, {"id": 5678, "tipo": "eliminar", "campos": {}, "descripcion": "Persona aislada sin ninguna conexión con el resto del árbol", "estado": "pendiente"}]\n';
+prompt+='- Usa tipo "editar" para correcciones de campos y tipo "eliminar" solo para personas aisladas sin ninguna pista de conexión.\n';
+prompt+='- Si un mismo ID tiene varias anomalías, agrúpalas en un único elemento del JSON, con todos los campos afectados dentro de "campos" y las distintas anomalías separadas por " | " en "descripcion".';
+return prompt;
+}
+function mostrarPromptLimpiezaIA(){
+var prompt=construirPromptLimpiezaArbol();
+var ta=document.getElementById('promptLimpiezaIATexto');
+if(ta)ta.value=prompt;
+var modal=document.getElementById('modalPromptLimpiezaIA');
+if(modal)modal.style.display='flex';
+}
+function cerrarPromptLimpiezaIA(){
+var modal=document.getElementById('modalPromptLimpiezaIA');
+if(modal)modal.style.display='none';
+}
+function copiarPromptLimpiezaIA(){
+var ta=document.getElementById('promptLimpiezaIATexto');
+if(!ta)return;
+var prompt=ta.value;
+if(navigator.clipboard&&navigator.clipboard.writeText){
+navigator.clipboard.writeText(prompt).then(function(){
+toast('Prompt copiado al portapapeles. Pégalo en tu IA junto con el archivo backup-arbol.json.');
+}).catch(function(){
+ta.focus();ta.select();
+toast('No se pudo copiar automáticamente: el texto ha quedado seleccionado, copia con Ctrl+C.',true);
+});
+}else{
+ta.focus();ta.select();
+toast('Selecciona y copia el texto con Ctrl+C.',true);
+}
 }
 function investigarConIA(destino){
 if(!cid||!PI[cid]){toast('Selecciona primero una persona en Buscar o en el Árbol',true);return;}
@@ -14807,6 +14877,7 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();mostrarPromptLimpiezaIA()"><div class="herr-icon"><i class="fa-solid fa-broom"></i></div><div class="herr-text"><div class="herr-title">Limpiar árbol con IA (generar prompt)</div><div class="herr-desc">Copia un prompt para pegar en tu IA junto con backup-arbol.json: te devolverá un cambios-arbol.json con fallecidos de más de 100 años, personas sin sexo, matrimonios sin vínculo recíproco, personas aisladas, ciclos y nombres/apellidos en mayúsculas</div></div></button>
 <button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
 <button class="herr-item" id="btnCalcularLugaresEstimados" onclick="recalcularLugaresEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-map-location-dot"></i></div><div class="herr-text"><div class="herr-title">Recalcular lugar estimado (LUGARCALC)</div><div class="herr-desc">Vuelve a estimar el lugar de nacimiento (\u2248) de todas las personas sin lugar propio, a partir del familiar real conocido más cercano (o España por defecto)</div></div></button>
 <div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
@@ -14932,6 +15003,21 @@ function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();v
 <div id="depuracionLUGARCALCBody" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
+<!-- ===== Prompt de limpieza del árbol con IA (solo administrador) ===== -->
+<div id="modalPromptLimpiezaIA" role="dialog" aria-modal="true" aria-labelledby="modalPromptLimpiezaIATitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="modalPromptLimpiezaIATitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-broom" aria-hidden="true" style="color:var(--accent)"></i> Limpiar árbol con IA</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarPromptLimpiezaIA()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Copia este texto y pégalo en tu IA de confianza (Claude, ChatGPT...) adjuntando también tu archivo backup-arbol.json. La IA te devolverá un cambios-arbol.json con propuestas en estado "pendiente" que puedes subir con el flujo habitual de cambios desde fuente externa.</p>
+<textarea id="promptLimpiezaIATexto" readonly onclick="this.focus();this.select()" style="width:100%;flex:1;min-height:260px;resize:vertical;font-family:monospace;font-size:11.5px;line-height:1.4;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></textarea>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+<button class="ef-btn ghost" onclick="cerrarPromptLimpiezaIA()">Cerrar</button>
+<button class="ef-btn save" onclick="copiarPromptLimpiezaIA()"><i class="fa-solid fa-copy"></i> Copiar prompt</button>
+</div>
+</div>
+</div>
 <!-- ===== TAREA 5: ACCESIBILIDAD — gestión genérica de modales (Escape, foco) =====
      Módulo autocontenido y aditivo: no modifica IndexedDB, Google Drive, ANOCALC,
      copias ni PWA. Detecta la apertura/cierre de los modales existentes (por su
@@ -14954,7 +15040,8 @@ var MODAL_CLOSERS={
 'modalDepuracionLUGARCALC':function(){if(typeof cerrarDepuracionLUGARCALC==='function')cerrarDepuracionLUGARCALC();},
 'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();},
 'modalZipSeguridad':function(){if(typeof cerrarModalZipSeguridad==='function')cerrarModalZipSeguridad();},
-'modalConexiones':function(){if(typeof cerrarRegistroConexiones==='function')cerrarRegistroConexiones();}
+'modalConexiones':function(){if(typeof cerrarRegistroConexiones==='function')cerrarRegistroConexiones();},
+'modalPromptLimpiezaIA':function(){if(typeof cerrarPromptLimpiezaIA==='function')cerrarPromptLimpiezaIA();}
 };
 var lastFocused=null;
 function esVisible(m){return m&&getComputedStyle(m).display!=='none';}
