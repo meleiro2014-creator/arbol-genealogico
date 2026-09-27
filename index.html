@@ -2327,10 +2327,25 @@ new MutationObserver(programar).observe(document.body,{attributes:true,attribute
 var enVuelo=0,ocultarTimer=null;
 var origFetch=window.fetch;
 if(typeof origFetch!=='function')return;
+/* Evita que esta barra "de red de seguridad" se superponga a una barra ya
+   visible y con su propio texto (subir copia, reservar ID, sincronizar
+   cambios, importar fotos, copia local, ZIP...): todas esas ya cubren sus
+   propias peticiones, así que si alguna está mostrándose no hace falta
+   duplicarla con esta. Lista explícita (en vez de un selector genérico por
+   nombre) para no toparse con otros "*Wrap" del documento que no son
+   barras de progreso, como el desplegable de más opciones del menú. */
+var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','zipSegProgresoWrap'];
+function otraBarraProgresoVisible(){
+for(var i=0;i<BARRAS_PROGRESO_NOMBRADAS.length;i++){
+var w=document.getElementById(BARRAS_PROGRESO_NOMBRADAS[i]);
+if(w&&getComputedStyle(w).display!=='none')return true;
+}
+return false;
+}
 window.fetch=function(){
 enVuelo++;
 var wrap=document.getElementById('globalTrabajoWrap');
-if(wrap){clearTimeout(ocultarTimer);wrap.style.display='block';}
+if(wrap&&!otraBarraProgresoVisible()){clearTimeout(ocultarTimer);wrap.style.display='block';}
 var terminar=function(){
 enVuelo=Math.max(0,enVuelo-1);
 if(enVuelo===0){
@@ -7045,6 +7060,19 @@ actualizarBarraActiva();
    la pantalla activa es una ficha, la redibuja para que aparezcan de inmediato
    los botones/avisos que dependen de estar conectado. */
 function refrescarFichaTrasConectar(){if(typeof __vistaActual!=='undefined'&&__vistaActual==='fic'&&cid)rFic(cid);}
+/* ===== Refresco de la pantalla activa tras aplicar cambios de otros
+   colaboradores (aprobarCambio/rechazarCambio/aprobarTodosCambios) =====
+   Mismo patrón que refrescarFichaTrasConectar(), arriba: aplicar un cambio
+   pendiente actualiza D/PI/HD (vía bIdx en aplicarCambioALaBase), pero eso
+   por sí solo no vuelve a dibujar el Árbol o la Ficha que el administrador
+   pueda tener abiertos en ese momento — de ahí que a veces el árbol se
+   viera con hijos o personas "viejas" hasta salir de la pantalla y volver
+   a entrar. Se llama justo después de guardar cada cambio aplicado. */
+function refrescarVistaTrasCambios(){
+if(typeof __vistaActual==='undefined'||!cid)return;
+if(__vistaActual==='arb')rTree(cid);
+else if(__vistaActual==='fic')rFic(cid);
+}
 /* ===== Chip de edad / edad al fallecer (ficha) =====
    Calcula la edad usando año+mes+dia reales cuando existen, o el año
    estimado (ANOCALC) si no hay año real. Si la persona ha fallecido, la
@@ -14655,9 +14683,9 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
 function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return true;/* la persona ya existe (p.ej. se creó directamente como administrador): el registro pendiente ya está aplicado en la práctica, así que se da por conforme en vez de quedar bloqueado para siempre */var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
-async function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');toast('Cambio aplicado y conforme.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}
+async function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();toast('Cambio aplicado y conforme.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}
 async function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Cambio rechazado (no se aplico al arbol)');}catch(err){toast('No se pudo rechazar: '+err.message,true);}}
-function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}refrescarCambiosDesdeDrive().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});try{await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}refrescarCambiosDesdeDrive().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});try{await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 /* ===== Eslabón "Aceptada → publicar oficial" =====
    Dar conformidad a un cambio solo lo aplica a la copia local del
    administrador (IndexedDB de su dispositivo); backup-arbol.json en Drive no
