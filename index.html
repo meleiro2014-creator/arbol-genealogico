@@ -742,6 +742,8 @@ body{background:#fff}
 </div>
 </div>
 <div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
+<div class="pb" id="pbInicio" role="status" aria-label="Cargando el árbol" style="max-width:460px;margin:26px auto 8px"><div class="pf indet"></div></div>
+<div id="pbInicioTxt" style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:6px">Cargando el árbol…</div>
 <div class="stats" id="sb"></div>
 <div class="hero-icon-row" id="herramientasIconRow">
 <button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive (solo datos, sin fotos)" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
@@ -1010,7 +1012,7 @@ body{background:#fff}
 </div>
 </div>
 <p id="cambiosAyuda" style="max-width:900px;margin:0 auto 6px;font-size:11px;color:var(--muted)">Esta pantalla comprueba Drive en cuanto la abres, así que la lista ya está al día. <strong>Sincronizar con Drive</strong> vuelve a comprobarlo al momento, por si acaba de llegar algo nuevo mientras la tenías abierta.</p>
-<div id="camSyncProgresoWrap" role="status" aria-live="polite" style="display:none;max-width:900px;margin:0 auto 10px">
+<div id="camSyncProgresoWrap" role="status" aria-live="polite" style="display:none;max-width:900px;margin:24px auto 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Sincronizando...</div>
 </div>
@@ -1046,8 +1048,14 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.26.1';
+var APP_VERSION = '2026.09.28.1';
 var APP_CHANGELOG = [
+  { version:'2026.09.28.1', fecha:'2026-09-28', cambios:[
+    'Pantalla Cambios: al abrirla aparece de inmediato la barra de progreso con la abeja mientras se lee el registro desde Drive, y ya no se muestra el falso mensaje "No hay cambios pendientes" antes de que Drive conteste.',
+    'Ficha: al pulsar Conectar (la abeja o el boton Conectar del aviso) los botones Editar y Documentos se activan solos en cuanto se completa la conexion, sin tener que salir de la ficha y volver a entrar. Si hay una seccion en edicion no se redibuja, para no perder lo escrito.',
+    'Pantalla Inicio: antes de mostrarse el numero de personas, vivos y fallecidos aparece una barra de progreso con la abeja.',
+    'Fichas nuevas: el sexo es ahora obligatorio. No se puede guardar una ficha recien creada sin elegir Hombre o Mujer; el campo se marca con un asterisco y se resalta si falta.'
+  ]},
   { version:'2026.09.26.1', fecha:'2026-09-26', cambios:[
     'Pantalla Inicio: el numero de personas, vivos y fallecidos ahora se muestra con el separador de miles ("."), en vez de una cifra corrida.',
     'Relacion entre dos personas: la Persona A ya no se elige con un buscador propio, sino que es siempre la persona activa (la de la cabecera), para evitar el despiste habitual de tocar el buscador equivocado al querer fijarla. Se cambia con el nuevo boton "Cambiar persona activa" de esta pantalla, con la lupa del cabecero, o abriendo otra ficha. El unico buscador que queda en esta pantalla es el de la Persona B.',
@@ -2620,6 +2628,9 @@ function construirDescripcion(usuario,tipo,p,campos){var nombre=nombrePersonaSna
    recargar la página y nunca se fusiona con nada "antiguo". Si el archivo de Drive no
    tiene cambios pendientes, aquí no hay nada que mostrar. */
 var CAMBIOS_CACHE=[];
+/* true mientras se hace la primera lectura de cambios-arbol.json al abrir la pantalla Cambios:
+   evita mostrar el falso "No hay cambios pendientes" antes de que Drive haya contestado. */
+var CAMBIOS_CARGANDO=false;
 function listarCambios(){return Promise.resolve(CAMBIOS_CACHE.slice());}
 async function refrescarCambiosDesdeDrive(){if(!driveRootFolderId||!tokenDriveValido())throw new Error('Sin conexión con Google Drive');var remoto=await descargarCambiosDrive();CAMBIOS_CACHE=(remoto&&Array.isArray(remoto.cambios))?remoto.cambios:[];return CAMBIOS_CACHE.slice();}
 async function guardarCambiosArbolCompleto(lista){var existente=await obtenerArchivoCambiosDrive();await subirCambiosDriveDatos(lista,existente);CAMBIOS_CACHE=lista;return CAMBIOS_CACHE.slice();}
@@ -2771,7 +2782,7 @@ var pillEnConectando=document.getElementById('driveStatusPill')&&document.getEle
 if(pillEnConectando&&_driveConectandoTimeoutId)return;
 if(!driveRootFolderId){
 mostrarConectandoDrivePill();
-elegirCarpetaDocumentos().then(function(){_pararTimeoutConectandoDrive();_finalizarEstadoConectandoDrive(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();});}).catch(function(){_pararTimeoutConectandoDrive();_finalizarEstadoConectandoDrive(actualizarDriveStatusPill);});
+elegirCarpetaDocumentos().then(function(){_pararTimeoutConectandoDrive();_finalizarEstadoConectandoDrive(function(){registrarSincronizacionDrive();actualizarDriveStatusPill();refrescarFichaTrasConectar();});}).catch(function(){_pararTimeoutConectandoDrive();_finalizarEstadoConectandoDrive(actualizarDriveStatusPill);});
 return;
 }
 if(!tokenDriveValido()){
@@ -5003,7 +5014,19 @@ function navHistForward(){history.forward();}
 function navHistBackSafe(){if(__navPos>0)history.back();else sv('bus');}
 try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
-function rStats(){var n=D.length,v=D.filter(isAl).length;var nf=function(x){return x.toLocaleString('es-ES');};document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+nf(n)+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+nf(v)+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+nf(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();if(typeof actualizarPantallaBusPills==='function')actualizarPantallaBusPills();}
+/* Barra de progreso (con la abeja) que se ve en el inicio hasta que estan listos los numeros.
+   Se mantiene visible un minimo de ~0,8 s desde que se abrio la pagina para que no parpadee. */
+var __pbInicioT0=(window.performance&&performance.now)?Date.now()-performance.now():Date.now();
+function cerrarBarraInicio(){
+var pbi=document.getElementById('pbInicio');
+if(!pbi||pbi.dataset.cerrada)return;
+pbi.dataset.cerrada='1';
+var sbEl=document.getElementById('sb'),txtEl=document.getElementById('pbInicioTxt');
+var cerrar=function(){pbi.style.display='none';if(txtEl)txtEl.style.display='none';if(sbEl)sbEl.style.visibility='';};
+var resta=Math.max(0,800-(Date.now()-__pbInicioT0));
+if(resta>0){if(sbEl)sbEl.style.visibility='hidden';setTimeout(cerrar,resta);}else cerrar();
+}
+function rStats(){var n=D.length,v=D.filter(isAl).length;var nf=function(x){return x.toLocaleString('es-ES');};document.getElementById('sb').innerHTML='<div class="stat"><div class="stat-num">'+nf(n)+'</div><div class="stat-label">Personas</div></div><div class="stat"><div class="stat-num">'+nf(v)+'</div><div class="stat-label">Vivos</div></div><div class="stat"><div class="stat-num">'+nf(n-v)+'</div><div class="stat-label">Fallecidos</div></div>';rPanelMando();actualizarContadorCambios();actualizarDriveStatusPill();actualizarBackupWarnPill();actualizarDatalistEtiquetas();if(typeof actualizarPantallaBusPills==='function')actualizarPantallaBusPills();cerrarBarraInicio();}
 /* Centro de mando: reutiliza las mismas funciones de detección que ya usan las herramientas
 de Investigación (getYear, detectarInconsistencias, detectarDuplicados), así que los números
 mostrados aquí siempre coinciden exactamente con lo que se ve al entrar al Gestor de datos. */
@@ -7059,7 +7082,12 @@ actualizarBarraActiva();
    redibujado). Esta función se llama justo después de conectar con éxito, y si
    la pantalla activa es una ficha, la redibuja para que aparezcan de inmediato
    los botones/avisos que dependen de estar conectado. */
-function refrescarFichaTrasConectar(){if(typeof __vistaActual!=='undefined'&&__vistaActual==='fic'&&cid)rFic(cid);}
+function refrescarFichaTrasConectar(){
+if(typeof __vistaActual==='undefined'||__vistaActual!=='fic'||!cid)return;
+/* Si hay una seccion en edicion NO se redibuja (se perderia lo escrito); solo se actualiza el aviso de conexion. */
+if(haySeccionEditando()){actualizarAvisoConexionEdicion();return;}
+rFic(cid);
+}
 /* ===== Refresco de la pantalla activa tras aplicar cambios de otros
    colaboradores (aprobarCambio/rechazarCambio/aprobarTodosCambios) =====
    Mismo patrón que refrescarFichaTrasConectar(), arriba: aplicar un cambio
@@ -7152,7 +7180,7 @@ function htmlDatosEditForm(id,p){
 var fallecido=!isAl(p);
 var h='';
 h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Primer apellido</span><input class="ef-input" id="ef-ap1" value="'+escAttr(p.APELLIDO1)+'"></div>';
-h+='<div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo</span><select class="ef-select" id="ef-sexo"><option value=""'+(p.SEXO?'':' selected')+'></option><option value="Hombre"'+(p.SEXO==='Hombre'?' selected':'')+'>Hombre</option><option value="Mujer"'+(p.SEXO==='Mujer'?' selected':'')+'>Mujer</option></select></div></div>';
+h+='<div class="ef-field" style="flex:0 0 140px"><span class="ef-label">Sexo'+(FICHAS_NUEVAS_SIN_SEXO[String(p.ID)]?' <span style="color:#c0392b" title="Obligatorio">*</span>':'')+'</span><select class="ef-select" id="ef-sexo"'+(FICHAS_NUEVAS_SIN_SEXO[String(p.ID)]?' required aria-required="true"':'')+'><option value=""'+(p.SEXO?'':' selected')+'></option><option value="Hombre"'+(p.SEXO==='Hombre'?' selected':'')+'>Hombre</option><option value="Mujer"'+(p.SEXO==='Mujer'?' selected':'')+'>Mujer</option></select></div></div>';
 h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Segundo apellido</span><input class="ef-input" id="ef-ap2" value="'+escAttr(p.APELLIDO2)+'"></div></div>';
 h+='<div class="ef-row"><div class="ef-field"><span class="ef-label">Nombre</span><input class="ef-input" id="ef-nombre" value="'+escAttr(p.NOMBRE)+'"></div></div>';
 h+='<div class="ef-row"><div class="ef-field tiny"><span class="ef-label">Dia</span><input class="ef-input" id="ef-nacd" type="number" min="1" max="31" value="'+escAttr(p.NACD||'')+'"></div>';
@@ -7214,7 +7242,30 @@ h+=htmlAmigosEdit(id);
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'familia\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFamilia(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
+/* ===== SEXO OBLIGATORIO EN FICHAS NUEVAS =====
+   Las fichas que se acaban de crear (persona nueva, vinculada, descendiente o amigo) se apuntan aqui.
+   Mientras esten apuntadas no se puede guardar ninguna seccion sin haber elegido el sexo.
+   Solo vive en memoria durante la sesion; se borra en cuanto se guarda con sexo. */
+var FICHAS_NUEVAS_SIN_SEXO={};
+function marcarFichaNuevaSinSexo(id){FICHAS_NUEVAS_SIN_SEXO[String(id)]=true;}
+function exigirSexoFichaNueva(id,usarFormulario){
+id=String(id);
+if(!FICHAS_NUEVAS_SIN_SEXO[id])return true;
+var p=PI[id];
+var el=usarFormulario?document.getElementById('ef-sexo'):null;
+var valor=el?el.value:(p&&p.SEXO?p.SEXO:'');
+if(valor){if(el)el.style.outline='';return true;}
+if(el){
+toast('El sexo es obligatorio en una ficha nueva: elige Hombre o Mujer antes de guardar.',true);
+el.style.outline='2px solid #c0392b';el.focus();
+el.addEventListener('change',function(){el.style.outline='';},{once:true});
+}else{
+toast('Esta ficha es nueva: rellena el sexo en Datos personales y guarda antes de continuar.',true);
+}
+return false;
+}
 async function guardarSeccionDatos(id,btn){
+if(!exigirSexoFichaNueva(id,true))return;
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
@@ -7244,6 +7295,7 @@ var nPropagados=await propagarPrimerApellido(id,apellido1Anterior,p.APELLIDO1);
 bIdx(D);
 sDesdeSnapshot(antesGuardadoParcial).then(function(){
 editSec.datos=false;
+if(p.SEXO)delete FICHAS_NUEVAS_SIN_SEXO[String(id)]; /* guardada con sexo: deja de ser 'ficha nueva sin sexo' */
 FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
 rStats();
 rFic(id);
@@ -7253,6 +7305,7 @@ if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function guardarSeccionFoto(id,btn){
+if(!exigirSexoFichaNueva(id,false))return;
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
@@ -7277,6 +7330,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function guardarSeccionEtiquetas(id,btn){
+if(!exigirSexoFichaNueva(id,false))return;
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
@@ -7299,6 +7353,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function guardarSeccionFamilia(id,btn){
+if(!exigirSexoFichaNueva(id,false))return;
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
@@ -7324,6 +7379,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function guardarSeccionObservaciones(id,btn){
+if(!exigirSexoFichaNueva(id,false))return;
 if(!iniciarOperacionFicha(btn,'Guardando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
@@ -8229,6 +8285,7 @@ aplicarCamposEdicionAPersona(id);
 var antesCambioCrear=mapaPersonas(D);
 var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:sexoNuevo||'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
 D.push(nuevo);
+marcarFichaNuevaSinSexo(nuevo.ID);
 var actual=PI[id];
 if(actual){
 actual[campo]=newId;
@@ -8397,6 +8454,7 @@ var antes=mapaPersonas(D);
 var duenio=PI[idDuenio];
 var nuevo={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:'',APELLIDO2:'',NOMBRE:'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:'',AMIGOS:[]};
 D.push(nuevo);
+marcarFichaNuevaSinSexo(nuevo.ID);
 bIdx(D);
 await anadirAmigoEntre(idDuenio,newId);
 cerrarSelectorRelacion();
@@ -8448,7 +8506,7 @@ var madre=null,padre=null;
 if(progenitor.SEXO==='Mujer'){madre=progenitor;padre=pareja;}
 else {padre=progenitor;madre=pareja;}
 var nuevo={ID:newIdDesc,APROX:'',MotivoAprox:'',NoVISIBLE:'',APELLIDO1:padre?(padre.APELLIDO1||''):'',APELLIDO2:madre?(madre.APELLIDO1||''):'',NOMBRE:'',PADRE:padre?padre.ID:'',MADRE:madre?madre.ID:'',LUGARNAC:madre&&madre.LUGARNAC?madre.LUGARNAC:(padre&&padre.LUGARNAC?padre.LUGARNAC:''),LUGARDEF:'',OBSERVACIONES:'',SEXO:'',FechaEdicion:'',NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:''};
-D.push(nuevo);bIdx(D);
+D.push(nuevo);marcarFichaNuevaSinSexo(nuevo.ID);bIdx(D);
 estimarNodoLocal(nuevo.ID);
 sDesdeSnapshot(antesCambioDesc).then(function(){cid=nuevo.ID;editSec={datos:true,familia:true};try{localStorage.setItem('fichaTabActiva','datos');}catch(e){}rFic(nuevo.ID);toast('Descendiente creado. Revisa los datos y pulsa Guardar.');
 registrarCambiosDesdeSnapshots(antesCambioDesc,D,'crear');}).catch(function(err){toast('No se pudo crear el descendiente: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
@@ -14754,7 +14812,11 @@ _estabaConectadoAntes=vigente;
 actualizarDriveStatusPill();
 return;
 }
+var pasoADesconectadoAConectado=(_estabaConectadoAntes===false&&vigente===true);
 _estabaConectadoAntes=vigente;
+/* Transicion "sin conexion" -> "conectado": se redibuja la ficha abierta para que aparezcan
+   enseguida los botones Editar/Documentos, sea cual sea la via por la que se conecto. */
+if(pasoADesconectadoAConectado){try{refrescarFichaTrasConectar();}catch(eRef){}}
 var elHeader=document.getElementById('driveStatusHeaderTiempo');
 if(!elHeader)return;
 if(!vigente){
@@ -14796,8 +14858,26 @@ if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibili
 if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial();
 if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
-function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
-function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';mostrarCambios('pendientes');sincronizarCambiosDrive(false,true);}
+function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var puedeSyncCam=!!(driveRootFolderId&&tokenDriveValido());
+CAMBIOS_CARGANDO=puedeSyncCam;
+/* La barra (con la abeja) se enseña YA, nada mas abrir la pantalla, y no se oculta hasta que
+   termina la lectura de Drive (minimo 0,7 s para que se vea). */
+if(puedeSyncCam)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
+mostrarCambios('pendientes');
+var t0Cam=Date.now();
+var pSyncCam=sincronizarCambiosDrive(false,true);
+if(puedeSyncCam&&pSyncCam&&typeof pSyncCam.finally==='function'){
+pSyncCam.finally(function(){
+setTimeout(function(){
+var estabaCargando=CAMBIOS_CARGANDO;
+CAMBIOS_CARGANDO=false;
+ocultarProgresoDrive('camSyncProgresoWrap');
+if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))mostrarCambios(document.getElementById('btnCambiosHist').classList.contains('active')?'historial':'pendientes');
+},Math.max(0,700-(Date.now()-t0Cam)));
+});
+}else{CAMBIOS_CARGANDO=false;}
+}
 (function(){var right=document.querySelector('#vCam .cambios-toolbar > div:last-child');if(right)right.insertAdjacentHTML('afterbegin','<span class="drive-status drive-status-info" id="driveStatusCam" style="margin-top:0"><span class="dot"></span><span id="driveStatusCamTxt">Comprobando Google Drive...</span></span>');})();
 </script>
 <div id="modalUsuarios" role="dialog" aria-modal="true" aria-labelledby="modalUsuariosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
