@@ -8422,13 +8422,25 @@ el.value=vals[idc];
    carrera cuando se pulsa dos veces seguidas un botón que hace una operación
    asíncrona (guardar, crear descendiente, vincular). ===== */
 var operacionFichaEnCurso=false;
+/* MEJORA: además del spinner dentro del propio botón, se muestra la barra de
+   progreso flotante (la misma de otras acciones largas) mientras se guarda o
+   crea algo en la ficha, para que quede claro que se está trabajando aunque
+   el botón quede fuera de la vista (formularios largos). Solo se muestra
+   cuando hay texto de carga (textoCarga no vacío); las operaciones silenciosas
+   (textoCarga='') siguen igual que antes. */
+var operacionFichaProgresoMostrado=false;
 function iniciarOperacionFicha(btn,textoCarga){
 if(operacionFichaEnCurso){toast('Espera, ya se está guardando…',true);return false;}
 operacionFichaEnCurso=true;
 botonCargando(btn,true,textoCarga);
+if(textoCarga){mostrarProgresoAccion(textoCarga);operacionFichaProgresoMostrado=true;}
 return true;
 }
-function finOperacionFicha(btn){operacionFichaEnCurso=false;botonCargando(btn,false);}
+function finOperacionFicha(btn){
+operacionFichaEnCurso=false;
+botonCargando(btn,false);
+if(operacionFichaProgresoMostrado){operacionFichaProgresoMostrado=false;ocultarProgresoAccion();}
+}
 function abrirSelectorRelacion(id,campo){
 selectorRelacion={id:id,campo:campo};
 var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
@@ -10041,7 +10053,7 @@ finally{ocultarProgresoAccion();}
 async function rGesInterno(forzar){
 var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
 if(res)res.innerHTML='';
-if(cont)cont.innerHTML='<div class="ges-ok"><i class="fa-solid fa-spinner fa-spin" style="font-size:22px"></i><div>Cargando el archivo de años calculados desde la carpeta Datos en Drive...</div></div>';
+if(cont)cont.innerHTML='';
 try{
 var snap=await cargarAniosCalculadosDrive(forzar);
 GES_ANIOS_SNAPSHOT=snap.anios;
@@ -12485,21 +12497,22 @@ return{eliminadas:eliminadas,errores:errores,total:backups.length};
    actualizar el alias backup-arbol.json de la carpeta raíz (usado por "Restaurar desde
    Drive" para cualquier usuario). Un fallo en la limpieza o en el alias, una vez la
    copia fechada ya está confirmada, se informa pero NO deshace ni borra la copia nueva. */
-async function subirCopiaADrive(){
+async function subirCopiaADrive(contenedorId){
+contenedorId=contenedorId||'subirCopiaProgresoWrap';
 if(!await exigirIdentidadGoogle())return;
 if(!esAdministrador()){toast('Solo el administrador puede subir copias a Drive',true);return;}
 if(!D.length){toast('No hay datos para subir',true);return;}
 if(subiendoCopiaDrive){toast('Ya hay una subida de copia en curso; espera a que termine',true);return;}
 if(!GOOGLE_CLIENT_ID||GOOGLE_CLIENT_ID.indexOf('TU_CLIENT_ID')===0){toast('Falta configurar el Client ID de Google en el código',true);return;}
 if(!driveRootFolderId){toast('No hay ninguna carpeta de Drive configurada',true);return;}
-mostrarProgresoDrive('Comprobando la conexión con Google Drive...','subirCopiaProgresoWrap');
+mostrarProgresoDrive('Comprobando la conexión con Google Drive...',contenedorId);
 if(!tokenDriveValido()){
-actualizarProgresoDrive('Conectando con Google Drive...','subirCopiaProgresoWrap');
-try{await conectarGoogleDrive();}catch(err){ocultarProgresoDrive('subirCopiaProgresoWrap');toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+actualizarProgresoDrive('Conectando con Google Drive...',contenedorId);
+try{await conectarGoogleDrive();}catch(err){ocultarProgresoDrive(contenedorId);toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
 }
 var carpetaArbolOficial;
-try{carpetaArbolOficial=await obtenerCarpetaArbolOficialId(true);}catch(err){ocultarProgresoDrive('subirCopiaProgresoWrap');toast('No se pudo preparar la carpeta ARBOL_OFICIAL: '+err.message,true);return;}
-if(!carpetaArbolOficial){ocultarProgresoDrive('subirCopiaProgresoWrap');toast('No se pudo preparar la carpeta ARBOL_OFICIAL',true);return;}
+try{carpetaArbolOficial=await obtenerCarpetaArbolOficialId(true);}catch(err){ocultarProgresoDrive(contenedorId);toast('No se pudo preparar la carpeta ARBOL_OFICIAL: '+err.message,true);return;}
+if(!carpetaArbolOficial){ocultarProgresoDrive(contenedorId);toast('No se pudo preparar la carpeta ARBOL_OFICIAL',true);return;}
 subiendoCopiaDrive=true;
 try{
 /* Datos y fotos van separados desde aquí (ver separarDatosYFotos): los datos
@@ -12515,21 +12528,21 @@ var nombreHoy=nombreBackupHistorico(fechaHoy);
 /* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
    representa una única copia independiente, punto 26) la copia fechada a la
    carpeta ARBOL_OFICIAL. */
-actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...','subirCopiaProgresoWrap');
+actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...',contenedorId);
 var existenteHoy;
 try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
-catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive('subirCopiaProgresoWrap');avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
-actualizarProgresoDrive('Subiendo los datos de hoy ('+sep.datos.length+' personas)...','subirCopiaProgresoWrap');
+catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive(contenedorId);avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
+actualizarProgresoDrive('Subiendo los datos de hoy ('+sep.datos.length+' personas)...',contenedorId);
 var rHistorico=await subirArchivoDrive(nombreHoy,contenido,'application/json',carpetaArbolOficial,existenteHoy?existenteHoy.id:null);
 /* 3) Verificación. Si falla aquí, se aborta sin tocar copias históricas ni el alias. */
 if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pudo crear la copia blindada de hoy (Drive respondió '+rHistorico.status+'): '+errTxt.slice(0,200));}
 /* 4) Limpieza: solo ahora que la copia nueva está confirmada. */
-actualizarProgresoDrive('Limpiando copias históricas antiguas...','subirCopiaProgresoWrap');
+actualizarProgresoDrive('Limpiando copias históricas antiguas...',contenedorId);
 var resultadoLimpieza=null;
 try{resultadoLimpieza=await limpiarBackupsHistoricosAntiguos();}
 catch(errLimpieza){console.warn('No se pudo completar la limpieza de copias antiguas (la copia nueva se conserva de todos modos):',errLimpieza.message);}
 /* 5) Alias de la carpeta ARBOL_OFICIAL, para restauración general (cualquier usuario). */
-actualizarProgresoDrive('Actualizando la copia general de restauración...','subirCopiaProgresoWrap');
+actualizarProgresoDrive('Actualizando la copia general de restauración...',contenedorId);
 var aliasOk=true,aliasError='';
 try{
 var existenteAlias=await buscarArchivoBackupDrive();
@@ -12538,7 +12551,7 @@ if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
 }catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
 /* 6) Fotos: alias aparte, sin histórico fechado. Un fallo aquí se avisa, pero
    nunca deshace ni bloquea la subida de los datos, que ya está confirmada. */
-actualizarProgresoDrive('Actualizando las fotos...','subirCopiaProgresoWrap');
+actualizarProgresoDrive('Actualizando las fotos...',contenedorId);
 var fotosOk=true,fotosError='';
 try{
 var existenteFotos=await buscarArchivoBackupFotosDrive();
@@ -12554,7 +12567,7 @@ toast(msg);
 if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
 if(!fotosOk)toast('Aviso: los datos se guardaron correctamente, pero no se pudieron actualizar las fotos ('+fotosError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
-finally{subiendoCopiaDrive=false;ocultarProgresoDrive('subirCopiaProgresoWrap');}
+finally{subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
 }
 /* ========== TAREA 6: COPIA LOCAL DE FOTOGRAFÍAS Y DOCUMENTOS ========== */
 /* ---------- Claves de configuración (CFG) ---------- */
@@ -14911,7 +14924,7 @@ async function ofrecerPublicarArbolOficial(){
 if(!esAdministrador())return;
 if(subiendoCopiaDrive)return;
 if(!(await confirmarApp('¿Quieres publicar ahora el árbol oficial en Google Drive para que el resto de la familia vea este cambio?',{titulo:'Publicar árbol oficial',textoAceptar:'Publicar ahora',textoCancelar:'Más tarde'})))return;
-await subirCopiaADrive();
+await subirCopiaADrive('progresoAccionWrap');
 }
 function eliminarTodosCambiosPendientes(){if(!esAdministrador()){toast('Solo el administrador puede eliminar cambios en bloque',true);return;}refrescarCambiosDesdeDrive().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se eliminarán '+pend.length+' registro(s) de cambios pendientes del archivo cambios-arbol.json de Drive (no afecta a los datos del árbol, que ya están guardados).')))return;var restantes=arr.filter(function(c){return c.estado!=='pendiente';});try{await guardarCambiosArbolCompleto(restantes);actualizarContadorCambios();mostrarCambios('pendientes');toast(pend.length+' registro(s) de cambios eliminados');}catch(err){toast('No se pudieron eliminar los registros: '+err.message,true);}}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 /* Vacía en bloque el historial de cambios YA RESUELTOS (conforme/rechazado/
