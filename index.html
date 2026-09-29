@@ -685,6 +685,10 @@ body{background:#fff}
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
 </div>
+<div id="progresoAccionWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:10000;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
+<div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
+<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
+</div>
 <div id="globalTrabajoWrap" role="status" aria-live="polite">
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
@@ -2244,6 +2248,40 @@ function ocultarProgresoDrive(contenedorId){
 var wrap=document.getElementById(contenedorId||'driveOpProgresoWrap');
 if(wrap)wrap.style.display='none';
 }
+/* ===== MEJORA: barra de progreso (con la abeja) para acciones LOCALES largas =====
+   Eliminar una ficha, dar conformidad a los cambios y las acciones del Gestor de datos
+   reescriben y reindexan el arbol entero (decenas de miles de fichas) y lo guardan en el
+   navegador: durante ese rato la pantalla parecia congelada. Estas funciones muestran la
+   barra ANTES del trabajo pesado y ceden el control al navegador (cederPantalla) para que
+   llegue a pintarse; sin ese "respiro" el JavaScript seguiria ocupando el hilo y la barra
+   no se veria hasta que todo hubiera terminado. Admite llamadas anidadas: la barra solo se
+   oculta cuando termina la ultima. Con porcentaje (0-100) la barra es real; sin el, indeterminada. */
+var progresoAccionNivel=0;
+function cederPantalla(){
+return new Promise(function(res){
+var hecho=false;function f(){if(!hecho){hecho=true;res();}}
+try{requestAnimationFrame(function(){setTimeout(f,0);});}catch(e){}
+setTimeout(f,80);
+});
+}
+function actualizarProgresoAccion(texto,pct){
+var w=document.getElementById('progresoAccionWrap');if(!w)return;
+var b=w.querySelector('.pf'),t=w.querySelector('.progreso-drive-texto');
+if(b){
+if(typeof pct==='number'){b.className='pf';b.style.width=Math.max(0,Math.min(100,Math.round(pct)))+'%';}
+else{b.className='pf indet';b.style.width='';}
+}
+if(t&&texto)t.textContent=texto;
+}
+function mostrarProgresoAccion(texto,pct){
+progresoAccionNivel++;
+actualizarProgresoAccion(texto,pct);
+var w=document.getElementById('progresoAccionWrap');if(w)w.style.display='block';
+}
+function ocultarProgresoAccion(){
+progresoAccionNivel=Math.max(0,progresoAccionNivel-1);
+if(progresoAccionNivel===0){var w=document.getElementById('progresoAccionWrap');if(w)w.style.display='none';}
+}
 /* ===== MEJORA: abeja aleteando en CUALQUIER barra de progreso =====
    Añade automáticamente, a toda .pb que esté visible en cada momento, una
    abejita (SVG) que aletea encima de la barra mientras dura el proceso.
@@ -2342,7 +2380,7 @@ if(typeof origFetch!=='function')return;
    duplicarla con esta. Lista explícita (en vez de un selector genérico por
    nombre) para no toparse con otros "*Wrap" del documento que no son
    barras de progreso, como el desplegable de más opciones del menú. */
-var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','zipSegProgresoWrap'];
+var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','zipSegProgresoWrap','progresoAccionWrap'];
 function otraBarraProgresoVisible(){
 for(var i=0;i<BARRAS_PROGRESO_NOMBRADAS.length;i++){
 var w=document.getElementById(BARRAS_PROGRESO_NOMBRADAS[i]);
@@ -5222,12 +5260,18 @@ if(edad>100)candidatos.push(p);
 });
 if(!candidatos.length){toast('No se encontraron personas vivas con más de 100 años',true);return;}
 if(!(await confirmarApp('Se marcarán como fallecidas '+candidatos.length+' persona(s) con más de 100 años (según su año de nacimiento o aproximado).')))return;
+mostrarProgresoAccion('Marcando '+candidatos.length+' persona(s) como fallecidas...');
+try{
+await cederPantalla();
 candidatos.forEach(function(p){p.FALLECIDO='1';});
 bIdx(D);
-sAll(D).then(function(){
+actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
+await cederPantalla();
+await sAll(D);
 rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
 toast(candidatos.length+' persona(s) marcada(s) como fallecidas');
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
 /* ===== INVESTIGACIÓN EXTERNA (gratuita) ===== */
 function actualizarInvExtPersonaActiva(){
@@ -8206,6 +8250,9 @@ var persona=PI[id];
 if(!persona){toast('Ficha no encontrada',true);return;}
 var antesCambioEliminar=mapaPersonas(D);
 if(!(await confirmarApp('Se eliminará la ficha de '+fn(persona)+'. Las relaciones con esta persona quedarán sin vincular.')))return;
+mostrarProgresoAccion('Eliminando la ficha de '+fn(persona)+'...');
+try{
+await cederPantalla();
 var nuevos=D.filter(function(p){return p.ID!==id;}).map(function(p){
 var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
 ['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(campo){if(copia[campo]===id)copia[campo]='';});
@@ -8216,11 +8263,17 @@ copia.AMIGOS=listaAm.filter(function(aid){return String(aid)!==String(id);});
 }
 return copia;
 });
-sAll(nuevos).then(function(){
+actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
+await cederPantalla();
+await sAll(nuevos);
 D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
 toast('Ficha eliminada correctamente');
-registrarCambiosDesdeSnapshots(antesCambioEliminar,nuevos,'eliminar');
-}).catch(function(err){toast('No se pudo eliminar la ficha: '+err.message,true);});
+try{
+actualizarProgresoAccion('Registrando el cambio...');
+await registrarCambiosDesdeSnapshots(antesCambioEliminar,nuevos,'eliminar');
+}catch(errReg){toast('La ficha se eliminó, pero no se pudo registrar el cambio: '+errReg.message,true);}
+}catch(err){toast('No se pudo eliminar la ficha: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
 function estimarNodoLocal(id){
 var p=PI[id];if(!p)return false;
@@ -9557,20 +9610,33 @@ var cat=null;
 (GES_CACHE||[]).some(function(c){if(c.id===id){cat=c;return true;}return false;});
 return cat;
 }
+/* Cola común de las acciones del Gestor: reindexa, guarda, registra y repinta el panel, con la
+barra de progreso (mostrarProgresoAccion) ya visible desde quien la llama. */
+async function gesGuardarYRefrescar(antes,tipoRegistro,textoOk){
+bIdx(D);
+actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
+await cederPantalla();
+await sAll(D);
+rStats();
+if(textoOk)toast(textoOk);
+try{actualizarProgresoAccion('Registrando el cambio...');await registrarCambiosDesdeSnapshots(antes,D,tipoRegistro);}catch(errReg){}
+actualizarProgresoAccion('Actualizando el Gestor de datos...');
+await cederPantalla();
+rGesLigero();
+}
 /* Correccion individual de una inconsistencia (mismo patron que solucionarInconsistenciaFicha) */
 async function gesAplicarItem(catId,idx){
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||typeof it.aplicar!=='function')return;
+mostrarProgresoAccion('Aplicando la corrección...');
+try{
+await cederPantalla();
 var antes=mapaPersonas(D);
 if(!it.aplicar())return;
-bIdx(D);
-sAll(D).then(function(){
-rStats();
-toast('Corrección aplicada');
-registrarCambiosDesdeSnapshots(antes,D,'vincular');
-rGesLigero();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+await gesGuardarYRefrescar(antes,'vincular','Corrección aplicada');
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
 /* Accion masiva por categoria: aplica .aplicar una a una, re-detectando en cada paso,
 y guarda/registra una sola vez al terminar (igual que hacia solucionarTodasInconsistencias). */
@@ -9578,28 +9644,32 @@ async function gesAccionMasiva(catId){
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
-if(cat.fuente==='fallecidos'){marcarFallecidosMayores100();rGesLigero();return;}
+if(cat.fuente==='fallecidos'){
+await marcarFallecidosMayores100();
+mostrarProgresoAccion('Actualizando el Gestor de datos...');
+try{await cederPantalla();rGesLigero();}finally{ocultarProgresoAccion();}
+return;
+}
 if(cat.fuente==='anocalc'){gesCalcularAnosGes();return;}
 if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
 if(cat.fuente==='integridad_ref'){
 var conSolucionInt=cat.items.filter(function(it){return typeof it.aplicar==='function';});
 if(!conSolucionInt.length)return;
 if(!(await confirmarApp('Se desvincularán automáticamente los '+conSolucionInt.length+' vínculo(s) que apuntan a un ID que ya no existe (el resto de cada ficha no se toca).')))return;
+mostrarProgresoAccion('Desvinculando los IDs inexistentes...');
+try{
+await cederPantalla();
 var antesInt=mapaPersonas(D);
 var aplicadasInt=0;
 conSolucionInt.forEach(function(it){if(it.aplicar())aplicadasInt++;});
 if(aplicadasInt){
-bIdx(D);
-sAll(D).then(function(){
-rStats();
-toast(aplicadasInt+' vínculo(s) corregido(s)');
-registrarCambiosDesdeSnapshots(antesInt,D,'vincular');
-rGesLigero();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGesLigero();});
+await gesGuardarYRefrescar(antesInt,'vincular',aplicadasInt+' vínculo(s) corregido(s)');
 }else{
 toast('No se pudo aplicar ninguna corrección automáticamente',true);
 rGesLigero();
 }
+}catch(err){toast('No se pudo guardar: '+err.message,true);try{rGesLigero();}catch(e2){}}
+finally{ocultarProgresoAccion();}
 return;
 }
 if(cat.fuente!=='inc'&&cat.fuente!=='apellidos')return;
@@ -9622,21 +9692,26 @@ var msgConfirma='Se aplicarán automáticamente las correcciones seguras de "'+c
 +(restantes?lote.length+' de '+aplicables.length+' caso(s): se hace en lotes de como mucho '+LOTE_MASIVA+' para no bloquear el navegador; pulsa el botón de nuevo después para seguir con el resto':lote.length+' caso(s)')
 +'). El resto de posibles inconsistencias no se toca: hay que revisarlas una a una.';
 if(!(await confirmarApp(msgConfirma)))return;
+mostrarProgresoAccion('Aplicando las correcciones (0 de '+lote.length+')...',0);
+try{
+await cederPantalla();
 var antes=mapaPersonas(D);
 var aplicadas=0;
-lote.forEach(function(it){if(it.aplicar())aplicadas++;});
+for(var iLote=0;iLote<lote.length;iLote++){
+if(lote[iLote].aplicar())aplicadas++;
+if((iLote+1)%20===0||iLote===lote.length-1){
+actualizarProgresoAccion('Aplicando las correcciones ('+(iLote+1)+' de '+lote.length+')...',(iLote+1)/lote.length*60);
+await cederPantalla();
+}
+}
 if(aplicadas){
-bIdx(D);
-sAll(D).then(function(){
-rStats();
-toast(aplicadas+' corrección(es) aplicada(s)'+(restantes?'. Quedan '+restantes+' más: pulsa "'+cat.accionMasiva.etiqueta+'" otra vez para seguir con el siguiente lote.':''));
-registrarCambiosDesdeSnapshots(antes,D,'vincular');
-rGesLigero();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);rGesLigero();});
+await gesGuardarYRefrescar(antes,'vincular',aplicadas+' corrección(es) aplicada(s)'+(restantes?'. Quedan '+restantes+' más: pulsa "'+cat.accionMasiva.etiqueta+'" otra vez para seguir con el siguiente lote.':''));
 }else{
 toast('No se pudo aplicar ninguna corrección automáticamente',true);
 rGesLigero();
 }
+}catch(err){toast('No se pudo guardar: '+err.message,true);try{rGesLigero();}catch(e2){}}
+finally{ocultarProgresoAccion();}
 }
 /* Fusion de duplicados desde el Gestor (mismo flujo que el antiguo modal, pareja a pareja) */
 async function gesFusionarDup(catId,idx,inverso){
@@ -9648,22 +9723,32 @@ var idEliminar=inverso?it.aId:it.bId;
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE){rGesLigero();return;}
 if(!(await confirmarApp('Se fusionarán las dos fichas en una sola.\nSe conservará: '+fn(pM)+' (ID '+idMantener+')\nSe eliminará: '+fn(pE)+' (ID '+idEliminar+')\nLos datos vacíos del registro conservado se rellenarán con los del eliminado, y todas sus relaciones (hijos, cónyuge...) pasarán al registro conservado. Esta acción no se puede deshacer.')))return;
+mostrarProgresoAccion('Fusionando las dos fichas...');
+try{
+await cederPantalla();
 var antesFusion=mapaPersonas(D);
 if(!(await fusionarPersonas(idMantener,idEliminar)))return;
-sAll(D).then(function(){
+actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
+await cederPantalla();
+await sAll(D);
 rStats();
 if(cid===idEliminar)cid=idMantener;
 toast('Fichas fusionadas correctamente');
-registrarCambiosDesdeSnapshots(antesFusion,D,'fusionar');
+try{actualizarProgresoAccion('Registrando el cambio...');await registrarCambiosDesdeSnapshots(antesFusion,D,'fusionar');}catch(errReg){}
+actualizarProgresoAccion('Actualizando el Gestor de datos...');
+await cederPantalla();
 rGesLigero();
-}).catch(function(err){toast('No se pudo guardar la fusión: '+err.message,true);});
+}catch(err){toast('No se pudo guardar la fusión: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
-function gesIgnorarDup(catId,idx){
+async function gesIgnorarDup(catId,idx){
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 DUP_IGNORADOS[it.aId+'|'+it.bId]=true;
 toast('Pareja marcada como no duplicada');
-rGesLigero();
+mostrarProgresoAccion('Actualizando el Gestor de datos...');
+try{await cederPantalla();rGesLigero();}
+finally{ocultarProgresoAccion();}
 }
 /* Años estimados desde el Gestor: reutiliza el motor por fases con barra de progreso propia */
 async function gesCalcularAnosGes(){
@@ -9672,23 +9757,30 @@ if(!(await confirmarApp('Se recalculará el año estimado de todas las personas 
 var btn=document.querySelector('[data-masiva="anios_estimados"]');
 var wrap=document.getElementById('gesPbAnocalc');
 var barra=wrap?wrap.querySelector('.pf'):null;
+mostrarProgresoAccion('Calculando los años estimados...',0);
+var barraAccionAbierta=true;
+function cerrarBarraAccion(){if(barraAccionAbierta){barraAccionAbierta=false;ocultarProgresoAccion();}}
 function fase(pct,texto){
+actualizarProgresoAccion(texto,typeof pct==='number'?pct:undefined);
 if(btn)btn.innerHTML='<i class="fa-solid fa-calculator"></i> '+esc(texto)+' ('+pct+'%)';
 if(wrap)wrap.style.display='block';
 if(barra)barra.style.width=pct+'%';
 }
+try{
 ejecutarFasesAnosEstimados({
 onFase:fase,
 onDone:function(cambios){
 rStats();
 toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
-rGesLigero();
+actualizarProgresoAccion('Actualizando el Gestor de datos...',100);
+setTimeout(function(){try{rGesLigero();}finally{cerrarBarraAccion();}},30);
 },
 onError:function(err){
 toast('No se pudo guardar los años estimados: '+err.message,true);
-rGesLigero();
+try{rGesLigero();}finally{cerrarBarraAccion();}
 }
 });
+}catch(errAnos){cerrarBarraAccion();toast('No se pudo calcular los años estimados: '+errAnos.message,true);}
 }
 /* Aplicar la unificacion de un grupo de lugares (siempre con confirmacion explicita) */
 async function gesAplicarLugar(clave,idxVariante){
@@ -9706,6 +9798,9 @@ var aviso=(g.nivel==='A')
 ?('¿Unificar '+nIds+' ficha(s) con la forma "'+forma+'"?')
 :('¿Reescribir '+nIds+' ficha(s) con la forma "'+forma+'"? Comprueba que todas las variantes son realmente el mismo lugar.');
 if(!(await confirmarApp(aviso)))return;
+mostrarProgresoAccion('Unificando los lugares en '+nIds+' ficha(s)...');
+try{
+await cederPantalla();
 var antes=mapaPersonas(D);
 g.variantes.forEach(function(v){
 v.personas.forEach(function(ref){
@@ -9713,13 +9808,9 @@ var p=PI[ref.id];
 if(p)p[ref.campo]=forma;
 });
 });
-bIdx(D);
-sAll(D).then(function(){
-rStats();
-registrarCambiosDesdeSnapshots(antes,D,'editar');
-toast('Lugares unificados: '+nIds+' ficha(s) ahora usan "'+forma+'"');
-rGesLigero();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+await gesGuardarYRefrescar(antes,'editar','Lugares unificados: '+nIds+' ficha(s) ahora usan "'+forma+'"');
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
 /* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
 unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vista previa y una
@@ -9737,6 +9828,9 @@ return '  · '+g.variantes.map(function(v){return '"'+v.txt+'"';}).join(' / ')+'
 grupos.slice(12).forEach(function(g){var ids={};g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});totalFichas+=Object.keys(ids).length;});
 var extra=grupos.length>12?('\n  … y '+(grupos.length-12)+' grupo(s) más'):'';
 if(!(await confirmarApp('Se unificarán '+grupos.length+' grupo(s) de Nivel A, afectando a '+totalFichas+' ficha(s) en total:\n\n'+preview+extra)))return;
+mostrarProgresoAccion('Unificando '+grupos.length+' grupo(s) de lugares...');
+try{
+await cederPantalla();
 var antes=mapaPersonas(D);
 var fichasTocadas={};
 grupos.forEach(function(g){
@@ -9747,13 +9841,9 @@ if(p){p[ref.campo]=g.canonica;fichasTocadas[ref.id]=true;}
 });
 });
 });
-bIdx(D);
-sAll(D).then(function(){
-rStats();
-registrarCambiosDesdeSnapshots(antes,D,'editar');
-toast('Lugares unificados: '+grupos.length+' grupo(s), '+Object.keys(fichasTocadas).length+' ficha(s) actualizada(s)');
-rGesLigero();
-}).catch(function(err){toast('No se pudo guardar: '+err.message,true);});
+await gesGuardarYRefrescar(antes,'editar','Lugares unificados: '+grupos.length+' grupo(s), '+Object.keys(fichasTocadas).length+' ficha(s) actualizada(s)');
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
 }
 /* --- Pintado del panel --- */
 /* Por defecto todas las categorías empiezan colapsadas; solo se abren si el
@@ -9944,6 +10034,11 @@ duplicados, lugares no homogéneos, completitud, huecos de ID— NO dependen de 
 siguen calculando igual: un fallo de Drive ya no bloquea toda la pantalla. */
 var GES_SNAPSHOT_ERROR=null;
 async function rGes(forzar){
+mostrarProgresoAccion('Cargando el Gestor de datos...');
+try{await rGesInterno(forzar);}
+finally{ocultarProgresoAccion();}
+}
+async function rGesInterno(forzar){
 var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
 if(res)res.innerHTML='';
 if(cont)cont.innerHTML='<div class="ges-ok"><i class="fa-solid fa-spinner fa-spin" style="font-size:22px"></i><div>Cargando el archivo de años calculados desde la carpeta Datos en Drive...</div></div>';
@@ -9957,6 +10052,8 @@ GES_ANIOS_SNAPSHOT=null;
 GES_ANIOS_SNAPSHOT_FECHA=null;
 GES_SNAPSHOT_ERROR=err.message;
 }
+actualizarProgresoAccion('Analizando el árbol (inconsistencias, duplicados, lugares...)');
+await cederPantalla();
 GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
 gesTrasRender();
@@ -14741,9 +14838,68 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    del todo del script) cada vez que se actualice la versión, o el número de versión
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
 function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(f){if(copia[f]===id)copia[f]='';});if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id])return true;/* la persona ya existe (p.ej. se creó directamente como administrador): el registro pendiente ya está aplicado en la práctica, así que se da por conforme en vez de quedar bloqueado para siempre */var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
-async function aprobarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c||c.estado!=='pendiente')return;if(!aplicarCambioALaBase(c)){toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();toast('Cambio aplicado y conforme.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}
+async function aprobarCambio(id){
+if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}
+var barra=true;
+mostrarProgresoAccion('Leyendo el registro de cambios...');
+function quitarBarra(){if(barra){barra=false;ocultarProgresoAccion();}}
+try{
+var arr=await refrescarCambiosDesdeDrive();
+var c=arr.find(function(x){return x.id===id;});
+if(!c||c.estado!=='pendiente'){quitarBarra();return;}
+actualizarProgresoAccion('Aplicando el cambio al árbol...');
+await cederPantalla();
+if(!aplicarCambioALaBase(c)){quitarBarra();toast('No se pudo aplicar: la persona ya no existe o el ID ya esta ocupado. Revisalo o rechazalo.',true);return;}
+c.estado='conforme';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;
+actualizarProgresoAccion('Guardando el registro de cambios en Drive...');
+await guardarCambiosArbolCompleto(arr);
+actualizarProgresoAccion('Guardando el árbol en este dispositivo...');
+await cederPantalla();
+await sAll(D);
+actualizarProgresoAccion('Actualizando la pantalla...');
+await cederPantalla();
+rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();
+quitarBarra();
+toast('Cambio aplicado y conforme.');
+await ofrecerPublicarArbolOficial();
+}catch(err){quitarBarra();toast('No se pudo guardar: '+err.message,true);}
+}
 async function rechazarCambio(id){if(!esAdministrador()){toast('Solo el administrador puede rechazar cambios',true);return;}try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c||c.estado!=='pendiente')return;c.estado='rechazado';c.resueltoPor=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Cambio rechazado (no se aplico al arbol)');}catch(err){toast('No se pudo rechazar: '+err.message,true);}}
-function aprobarTodosCambios(){if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}refrescarCambiosDesdeDrive().then(async function(arr){var pend=arr.filter(function(c){return c.estado==='pendiente';});if(!pend.length)return;if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;var aplicados=0,fallidos=0;var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';pend.forEach(function(c){if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;});try{await guardarCambiosArbolCompleto(arr);await sAll(D);rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'.');await ofrecerPublicarArbolOficial();}catch(err){toast('No se pudo guardar: '+err.message,true);}}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function aprobarTodosCambios(){
+if(!esAdministrador()){toast('Solo el administrador puede dar conformidad',true);return;}
+refrescarCambiosDesdeDrive().then(async function(arr){
+var pend=arr.filter(function(c){return c.estado==='pendiente';});
+if(!pend.length)return;
+if(!(await confirmarApp('Se aplicarán al árbol y se marcarán COMO CONFORME '+pend.length+' cambio(s).')))return;
+var aplicados=0,fallidos=0;
+var quien=(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||'Administrador';
+var barra=true;
+mostrarProgresoAccion('Aplicando los cambios al árbol...',0);
+function quitarBarra(){if(barra){barra=false;ocultarProgresoAccion();}}
+try{
+await cederPantalla();
+for(var i=0;i<pend.length;i++){
+var c=pend[i];
+if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;
+if((i+1)%3===0||i===pend.length-1){
+actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+pend.length+')...',(i+1)/pend.length*70);
+await cederPantalla();
+}
+}
+actualizarProgresoAccion('Guardando el registro de cambios en Drive...',75);
+await guardarCambiosArbolCompleto(arr);
+actualizarProgresoAccion('Guardando el árbol en este dispositivo...',90);
+await cederPantalla();
+await sAll(D);
+actualizarProgresoAccion('Actualizando la pantalla...',98);
+await cederPantalla();
+rStats();actualizarContadorCambios();mostrarCambios('pendientes');refrescarVistaTrasCambios();
+quitarBarra();
+toast('Conformidad a '+aplicados+' cambio(s)'+(fallidos?'; '+fallidos+' no aplicables siguen pendientes':'')+'.');
+await ofrecerPublicarArbolOficial();
+}catch(err){quitarBarra();toast('No se pudo guardar: '+err.message,true);}
+}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});
+}
 /* ===== Eslabón "Aceptada → publicar oficial" =====
    Dar conformidad a un cambio solo lo aplica a la copia local del
    administrador (IndexedDB de su dispositivo); backup-arbol.json en Drive no
