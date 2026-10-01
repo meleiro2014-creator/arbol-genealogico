@@ -1071,8 +1071,13 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.01.1';
+var APP_VERSION = '2026.10.01.2';
 var APP_CHANGELOG = [
+  { version:'2026.10.01.2', fecha:'2026-10-01', cambios:[
+    'Gestor de datos, duplicados: la puntuacion ahora detecta incompatibilidades (anos de nacimiento muy distintos, padres o conyuges distintos, fallecido antes de nacer la otra persona, distinto sexo, fichas sin nombre de pila) y las resta o descarta, para que hermanos con el mismo nombre ya no salgan como "muy probables". Los padres con el mismo nombre pero distinta ficha (padres tambien duplicados) cuentan como coincidencia. Un ano estimado (\u2248) puntua menos que uno real.',
+    'Gestor de datos, duplicados: nueva categoria "Duplicados seguros" (sin ninguna incompatibilidad y con ano real igual o mismo ID de FamilySearch) con boton "Arreglar": fusiona la pareja y, en cadena, a los progenitores que tambien estan duplicados. Tambien hay un boton para arreglar de golpe todos los seguros (en lotes de 100). Siempre pide confirmacion mostrando que ficha se conserva y cual se elimina.',
+    'Herramientas: "Copia local de backup-arbol.json" y "Cambiar carpeta de la copia local" pasan a estar justo debajo de "Subir copia a Drive".'
+  ]},
   { version:'2026.10.01.1', fecha:'2026-10-01', cambios:[
     'Nuevo (solo administrador, en Herramientas): "Copia local de backup-arbol.json" guarda en una carpeta del disco de este ordenador el archivo backup-arbol.json con TODOS los datos, sin pasar por Google Drive. La carpeta se recuerda para la proxima vez y se puede cambiar con "Cambiar carpeta".',
     'Gestor de datos, lugares con escritura no homogenea: en cada grupo hay ahora una opcion "Otra forma" donde puedes escribir tu propio lugar en vez de elegir una de las variantes detectadas; se aplica igual que las demas (con vista previa y confirmacion).'
@@ -9090,7 +9095,104 @@ if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1
 });
 return problemas;
 }
+/* ===== DUPLICADOS v2 =====
+   Antes: 50 puntos por nombre + sumas por ano/padres/lugar, sin restar nunca. Resultado: hermanos
+   con el mismo nombre (nombre reutilizado tras morir el primero) o fichas sin nombre de pila
+   llegaban a "Muy probable". Ahora tambien RESTA por incompatibilidades y DESCARTA lo imposible,
+   y marca como "seguro" solo lo que no tiene ninguna incompatibilidad y tiene un dato fuerte. */
+var DUP_STOP={de:1,del:1,la:1,las:1,los:1,y:1,e:1,da:1,do:1,das:1,dos:1,di:1,van:1,von:1};
+function dupTokens(txt){return normTxt(txt).split(' ').filter(function(t){return t&&!DUP_STOP[t];});}
+/* true = misma persona por nombre, false = nombres incompatibles, null = no se puede saber */
+function dupNombresCompatibles(pa,pb){
+if(!pa||!pb)return null;
+if(pa.ID===pb.ID)return true;
+var na=normTxt(fn(pa)),nb=normTxt(fn(pb));
+if(!na||!nb)return null;
+if(na===nb)return true;
+var ta=dupTokens(fn(pa)),tb=dupTokens(fn(pb));
+if(!ta.length||!tb.length)return null;
+if(ta[0]!==tb[0])return false;
+var sa=ta.slice(1),sb=tb.slice(1);
+if(!sa.length||!sb.length)return null;
+return sa.some(function(t){return t.length>2&&sb.indexOf(t)>=0;});
+}
+var __dupFsCache={};
+function dupFsId(p){
+if(Object.prototype.hasOwnProperty.call(__dupFsCache,p.ID))return __dupFsCache[p.ID];
+var m=/FamilySearch:\s*([A-Z0-9]{3,5}-[A-Z0-9]{2,5})/i.exec(String(p.OBSERVACIONES||''));
+var v=m?m[1].toUpperCase():'';
+__dupFsCache[p.ID]=v;
+return v;
+}
+function dupConyuges(p){var r=[];CAMPOS_CONYUGE.forEach(function(c){if(p[c]&&PI[p[c]])r.push(PI[p[c]]);});return r;}
+function dupLugarCompatible(la,lb){
+var sa=String(la||'').split(',').map(normTxt).filter(Boolean),sb=String(lb||'').split(',').map(normTxt).filter(Boolean);
+if(!sa.length||!sb.length)return false;
+return sa[0]===sb[0]&&sa[sa.length-1]===sb[sb.length-1];
+}
+/* Devuelve {descartado:true} si es imposible que sean la misma persona; si no, la puntuacion
+   completa con motivos, conflictos (incompatibilidades) y si es "seguro". */
+function dupEvaluarPar(a,b){
+if(a.SEXO&&b.SEXO&&a.SEXO!==b.SEXO)return{descartado:true};
+var ra=getYearReal(a),rb=getYearReal(b),ya=getYear(a),yb=getYear(b);
+var da=parseInt(a.DEFA,10),db=parseInt(b.DEFA,10);
+if(ra!==null&&!isNaN(db)&&db<ra)return{descartado:true};
+if(rb!==null&&!isNaN(da)&&da<rb)return{descartado:true};
+if(ra!==null&&rb!==null&&Math.abs(ra-rb)>20)return{descartado:true};
+var score=50,motivos=['Mismo nombre completo'],conflictos=[],evid=0,fuerte=false;
+if(ya!==null&&yb!==null){
+var estim=(ra===null||rb===null),dif=Math.abs(ya-yb);
+if(dif===0){
+if(estim){score+=10;motivos.push('Mismo año (estimado)');}
+else{score+=30;motivos.push('Mismo año de nacimiento');evid++;fuerte=true;}
+}else if(dif<=2){score+=estim?5:15;motivos.push('Años de nacimiento cercanos'+(estim?' (estimados)':''));}
+else if(!estim&&dif>5){score-=25;conflictos.push('Años de nacimiento distintos ('+ra+' y '+rb+')');}
+else if(!estim){score-=10;conflictos.push('Años de nacimiento algo distintos ('+ra+' y '+rb+')');}
+}else{score+=5;}
+if(!isNaN(da)&&!isNaN(db)){
+if(da===db){score+=10;motivos.push('Mismo año de defunción');evid++;}
+else if(Math.abs(da-db)>2){score-=20;conflictos.push('Años de defunción distintos ('+da+' y '+db+')');}
+}
+function cmpProg(campo,etq){
+var ia=a[campo],ib=b[campo];
+if(!ia||!ib)return;
+if(ia===ib){score+=15;motivos.push('Mismo '+etq);evid++;return;}
+var comp=dupNombresCompatibles(PI[ia],PI[ib]);
+if(comp===true){score+=15;motivos.push((etq==='padre'?'Padre':'Madre')+' con el mismo nombre (ficha distinta: también duplicado)');evid++;}
+else if(comp===false){score-=25;conflictos.push((etq==='padre'?'Padre':'Madre')+' distinto: '+fn(PI[ia]).trim()+' / '+fn(PI[ib]).trim());}
+}
+cmpProg('PADRE','padre');
+cmpProg('MADRE','madre');
+if(a.LUGARNAC&&b.LUGARNAC){
+if(normTxt(a.LUGARNAC)===normTxt(b.LUGARNAC)){score+=10;motivos.push('Mismo lugar de nacimiento');}
+else if(dupLugarCompatible(a.LUGARNAC,b.LUGARNAC)){score+=10;motivos.push('Lugar de nacimiento equivalente');}
+}
+var ca=dupConyuges(a),cb=dupConyuges(b);
+if(ca.length&&cb.length){
+var coinc=false,hayDuda=false;
+ca.forEach(function(x){cb.forEach(function(y){
+if(x.ID===y.ID){coinc=true;return;}
+var r=dupNombresCompatibles(x,y);
+if(r===true)coinc=true;else if(r===null)hayDuda=true;
+});});
+if(coinc){score+=10;motivos.push('Mismo cónyuge');evid++;}
+else if(!hayDuda){score-=25;conflictos.push('Cónyuges distintos');}
+}
+var fa=dupFsId(a),fb=dupFsId(b),mismoFS=false;
+if(fa&&fb){
+if(fa===fb){score+=30;motivos.push('Mismo ID de FamilySearch');evid++;fuerte=true;mismoFS=true;}
+else{score-=10;motivos.push('ID de FamilySearch distinto');}
+}
+var sinNa=!normTxt(a.NOMBRE),sinNb=!normTxt(b.NOMBRE);
+if((sinNa||sinNb)&&!mismoFS){
+conflictos.push(sinNa&&sinNb?'Ninguna de las dos fichas tiene nombre de pila: pueden ser hermanos':'Una de las fichas no tiene nombre de pila');
+score=Math.min(score,sinNa&&sinNb?60:75);
+}
+var seguro=conflictos.length===0&&score>=100&&evid>=2&&fuerte;
+return{descartado:false,score:score,motivos:motivos,conflictos:conflictos,seguro:seguro};
+}
 function detectarDuplicados(){
+__dupFsCache={};
 var grupos={};
 D.forEach(function(p){
 var key=normTxt(p.NOMBRE)+'|'+normTxt(p.APELLIDO1)+'|'+normTxt(p.APELLIDO2);
@@ -9104,22 +9206,46 @@ var arr=grupos[k];
 if(arr.length<2)return;
 for(var i=0;i<arr.length;i++){
 for(var j=i+1;j<arr.length;j++){
-var a=arr[i],b=arr[j];
-var score=50,motivos=['Mismo nombre completo'];
-var ya=getYear(a),yb=getYear(b);
-if(ya!==null&&yb!==null){
-if(ya===yb){score+=30;motivos.push('Mismo año de nacimiento');}
-else if(Math.abs(ya-yb)<=2){score+=15;motivos.push('Años de nacimiento cercanos');}
-}else{score+=5;}
-if(a.PADRE&&a.PADRE===b.PADRE){score+=15;motivos.push('Mismo padre');}
-if(a.MADRE&&a.MADRE===b.MADRE){score+=15;motivos.push('Misma madre');}
-if(a.LUGARNAC&&b.LUGARNAC&&normTxt(a.LUGARNAC)===normTxt(b.LUGARNAC)){score+=10;motivos.push('Mismo lugar de nacimiento');}
-pares.push({a:a,b:b,score:score,motivos:motivos});
+var ev=dupEvaluarPar(arr[i],arr[j]);
+if(ev.descartado)continue;
+pares.push({a:arr[i],b:arr[j],score:ev.score,motivos:ev.motivos,conflictos:ev.conflictos,seguro:ev.seguro});
 }
 }
 });
-pares.sort(function(x,y){return y.score-x.score;});
+pares.sort(function(x,y){return (y.seguro?1:0)-(x.seguro?1:0)||y.score-x.score;});
 return pares;
+}
+/* ----- Arreglar un duplicado: elegir ficha a conservar y planificar la fusion en cadena ----- */
+function dupRelleno(p){var n=0;['APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACA','DEFA','M1','FOTO'].forEach(function(c){if(p[c]!==''&&p[c]!==null&&p[c]!==undefined)n++;});return n;}
+/* Devuelve [conservar, eliminar]: la que tiene mas hijos, luego mas datos, luego el ID numerico menor */
+function dupElegirConservar(a,b){
+var ha=(HD[a.ID]||[]).length,hb=(HD[b.ID]||[]).length;
+if(ha!==hb)return ha>hb?[a,b]:[b,a];
+var ca=dupRelleno(a),cb=dupRelleno(b);
+if(ca!==cb)return ca>cb?[a,b]:[b,a];
+return (parseInt(a.ID,10)||0)<=(parseInt(b.ID,10)||0)?[a,b]:[b,a];
+}
+/* Lista ordenada de fusiones {k:conservar,e:eliminar,prog:bool}. Los progenitores van PRIMERO: si los
+   dos hijos son la misma persona, su padre (y su madre) con el mismo nombre tambien lo son. */
+function dupPlanFusion(pk,pe){
+var plan=[],visto={};
+function rec(k,e,esProg){
+if(!k||!e||k.ID===e.ID)return;
+var clave=k.ID+'|'+e.ID;if(visto[clave])return;visto[clave]=1;
+['PADRE','MADRE'].forEach(function(c){
+var ik=k[c],ie=e[c];
+if(!ik||!ie||ik===ie)return;
+var xk=PI[ik],xe=PI[ie];
+if(!xk||!xe)return;
+if(normTxt(fn(xk))!==normTxt(fn(xe)))return;
+if(dupEvaluarPar(xk,xe).descartado)return;
+var par=dupElegirConservar(xk,xe);
+rec(par[0],par[1],true);
+});
+plan.push({k:k,e:e,prog:!!esProg});
+}
+rec(pk,pe,false);
+return plan;
 }
 var DUP_IGNORADOS={};
 function fichaResumenDup(p){
@@ -9135,7 +9261,7 @@ partes.push(hijos+' hijo(s) registrado(s)');
 if(p.OBSERVACIONES)partes.push('Obs: '+p.OBSERVACIONES.slice(0,80)+(p.OBSERVACIONES.length>80?'…':''));
 return partes.join(' · ');
 }
-async function fusionarPersonas(idMantener,idEliminar){
+async function fusionarPersonas(idMantener,idEliminar,sinReindexar){
 if(!(await exigirIdentidadGoogle()))return false;
 var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE)return false;
@@ -9163,7 +9289,7 @@ if(x.MADRE===idEliminar)x.MADRE=idMantener;
 CAMPOS_CONYUGE.forEach(function(c){if(x[c]===idEliminar)x[c]=idMantener;});
 });
 D=D.filter(function(x){return x.ID!==idEliminar;});
-bIdx(D);
+if(!sinReindexar)bIdx(D);
 return true;
 }
 /* ===== GESTOR DE DATOS (pantalla de mantenimiento clasificado) =====
@@ -9555,19 +9681,20 @@ accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:nu
 var todos=detectarDuplicados();
 var pares=todos.filter(function(pr){return !DUP_IGNORADOS[pr.a.ID+'|'+pr.b.ID];}).slice(0,GES_CFG.LIMITE_DUPLICADOS);
 var niveles=[
+{id:'dup_seguro',titulo:'Duplicados seguros (se arreglan con un botón)',sev:'critica',min:-Infinity,max:Infinity,color:'#1e8449',soloSeguros:true},
 {id:'dup_muy_probable',titulo:'Duplicados muy probables',sev:'critica',min:90,max:Infinity,color:'#c0392b'},
 {id:'dup_posible',titulo:'Duplicados posibles',sev:'revision',min:65,max:90,color:'var(--blue)'},
 {id:'dup_baja_confianza',titulo:'Duplicados de baja confianza',sev:'info',min:-Infinity,max:65,color:'var(--muted)'}
 ];
 niveles.forEach(function(nv){
-var sub=pares.filter(function(pr){return pr.score>=nv.min&&pr.score<nv.max;});
+var sub=pares.filter(function(pr){if(nv.soloSeguros)return pr.seguro;if(pr.seguro)return false;return pr.score>=nv.min&&pr.score<nv.max;});
 if(!sub.length)return;
 cats.push({
 id:nv.id,fuente:'dup',grupo:'duplicados',titulo:nv.titulo,color:nv.color,
 icono:'fa-user-group',severidad:nv.sev,
-descripcion:'Se comparan personas con el mismo nombre y apellidos. La puntuación sube si además coincide el año, los padres o el lugar de nacimiento. Revisa cada pareja antes de fusionar: la acción no se puede deshacer.',
-items:sub.map(function(pr){return{tipo:'dup',aId:pr.a.ID,bId:pr.b.ID,score:pr.score,motivos:pr.motivos,resA:fichaResumenDup(pr.a),resB:fichaResumenDup(pr.b),nomA:fn(pr.a),nomB:fn(pr.b)};}),
-accionMasiva:null
+descripcion:nv.soloSeguros?'Parejas con el mismo nombre, año de nacimiento real (o mismo ID de FamilySearch) y ninguna incompatibilidad (padres, cónyuges, defunción, sexo). "Arreglar" fusiona la pareja y también a sus padres si están duplicados. Pide confirmación y no se puede deshacer.':'Se comparan personas con el mismo nombre y apellidos. La puntuación sube si coincide el año, los padres, el cónyuge o el lugar, y baja si hay incompatibilidades (se muestran en rojo). Revisa cada pareja antes de fusionar: la acción no se puede deshacer.',
+items:sub.map(function(pr){return{tipo:'dup',aId:pr.a.ID,bId:pr.b.ID,score:pr.score,motivos:pr.motivos,conflictos:pr.conflictos||[],seguro:!!pr.seguro,nExtra:(function(){try{var par=dupElegirConservar(pr.a,pr.b);return dupPlanFusion(par[0],par[1]).length-1;}catch(e){return 0;}})(),resA:fichaResumenDup(pr.a),resB:fichaResumenDup(pr.b),nomA:fn(pr.a),nomB:fn(pr.b)};}),
+accionMasiva:nv.soloSeguros?{etiqueta:'Arreglar los '+sub.length+' duplicados seguros'}:null
 });
 });
 /* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años,
@@ -9718,6 +9845,7 @@ mostrarProgresoAccion('Actualizando el Gestor de datos...');
 try{await cederPantalla();rGesLigero();}finally{ocultarProgresoAccion();}
 return;
 }
+if(cat.fuente==='dup'){await gesArreglarDuplicadosSeguros(cat);return;}
 if(cat.fuente==='anocalc'){gesCalcularAnosGes();return;}
 if(cat.fuente==='lugares'){gesUnificarTodosNivelA();return;}
 if(cat.fuente==='integridad_ref'){
@@ -9807,6 +9935,69 @@ actualizarProgresoAccion('Actualizando el Gestor de datos...');
 await cederPantalla();
 rGesLigero();
 }catch(err){toast('No se pudo guardar la fusión: '+err.message,true);}
+finally{ocultarProgresoAccion();}
+}
+
+/* Arreglar un duplicado "seguro": fusiona la pareja y, antes, a los progenitores que tambien estan duplicados */
+async function gesArreglarDup(catId,idx){
+if(!(await exigirIdentidadGoogle()))return;
+var cat=gesCatPorId(catId);if(!cat)return;
+var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
+var pa=PI[it.aId],pb=PI[it.bId];
+if(!pa||!pb){rGesLigero();return;}
+var par=dupElegirConservar(pa,pb);
+var plan=dupPlanFusion(par[0],par[1]);
+var lineas=plan.map(function(st){return '• '+(st.prog?'(progenitor) ':'')+'Se conserva '+fn(st.k).trim()+' (ID '+st.k.ID+') y se elimina el ID '+st.e.ID;});
+if(!(await confirmarApp('Se van a fusionar '+plan.length+' par(es) de fichas:\n'+lineas.join('\n')+'\nLos datos vacíos de la ficha conservada se rellenan con los de la eliminada, y sus relaciones (hijos, cónyuge...) pasan a la conservada. Esta acción no se puede deshacer.')))return;
+mostrarProgresoAccion('Fusionando las fichas duplicadas...');
+try{
+await cederPantalla();
+var antes=mapaPersonas(D);
+var n=0,elim={};
+for(var i=0;i<plan.length;i++){
+var st=plan[i];
+if(!PI[st.k.ID]||!PI[st.e.ID])continue;
+if(await fusionarPersonas(st.k.ID,st.e.ID)){n++;elim[st.e.ID]=st.k.ID;}
+}
+if(!n){toast('No se pudo fusionar ninguna pareja',true);rGesLigero();return;}
+var guard=0;while(cid&&elim[cid]&&guard++<50)cid=elim[cid];
+await gesGuardarYRefrescar(antes,'fusionar',n+' ficha(s) fusionada(s) correctamente');
+}catch(err){toast('No se pudo guardar la fusión: '+err.message,true);try{rGesLigero();}catch(e2){}}
+finally{ocultarProgresoAccion();}
+}
+/* Arreglar de golpe todos los duplicados seguros de la lista (por lotes para no bloquear el navegador) */
+async function gesArreglarDuplicadosSeguros(cat){
+if(!(await exigirIdentidadGoogle()))return;
+var items=cat.items.filter(function(it){return it.tipo==='dup'&&it.seguro;});
+if(!items.length)return;
+var LOTE=100,lote=items.slice(0,LOTE),restantes=items.length-lote.length;
+if(!(await confirmarApp('Se fusionarán automáticamente '+(restantes?lote.length+' de '+items.length:lote.length)+' pareja(s) de duplicados SEGUROS (sin incompatibilidades), junto con sus padres si también están duplicados. En cada pareja se conserva la ficha con más hijos y datos.'+(restantes?' Se hace en lotes de '+LOTE+': pulsa el botón de nuevo para seguir.':'')+'\nEsta acción no se puede deshacer. Si quieres, descarga antes una copia con Herramientas → Guardar copia.')))return;
+mostrarProgresoAccion('Fusionando duplicados seguros (0 de '+lote.length+')...',0);
+try{
+await cederPantalla();
+var antes=mapaPersonas(D);
+var n=0,elim={};
+for(var i=0;i<lote.length;i++){
+var it=lote[i];
+if(!elim[it.aId]&&!elim[it.bId]&&PI[it.aId]&&PI[it.bId]){
+var par=dupElegirConservar(PI[it.aId],PI[it.bId]);
+var plan=dupPlanFusion(par[0],par[1]);
+for(var j=0;j<plan.length;j++){
+var st=plan[j];
+if(elim[st.e.ID]||elim[st.k.ID])continue;
+if(await fusionarPersonas(st.k.ID,st.e.ID,true)){n++;elim[st.e.ID]=st.k.ID;}
+}
+}
+if((i+1)%5===0||i===lote.length-1){
+actualizarProgresoAccion('Fusionando duplicados seguros ('+(i+1)+' de '+lote.length+')...',(i+1)/lote.length*60);
+await cederPantalla();
+}
+}
+bIdx(D);
+if(!n){toast('No se pudo fusionar ninguna pareja',true);rGesLigero();return;}
+var guard=0;while(cid&&elim[cid]&&guard++<50)cid=elim[cid];
+await gesGuardarYRefrescar(antes,'fusionar',n+' ficha(s) fusionada(s)'+(restantes?'. Quedan '+restantes+' pareja(s) segura(s): pulsa el botón otra vez.':''));
+}catch(err){toast('No se pudo guardar: '+err.message,true);try{bIdx(D);rGesLigero();}catch(e2){}}
 finally{ocultarProgresoAccion();}
 }
 async function gesIgnorarDup(catId,idx){
@@ -9916,14 +10107,17 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(it.icon
 '</div></div></div>';
 }
 function gesRenderItemDup(c,it,idx){
-var nivel=it.score>=90?'Muy probable':(it.score>=65?'Posible':'Baja confianza');
+var nivel=it.seguro?'SEGURO':(it.score>=90?'Muy probable':(it.score>=65?'Posible':'Baja confianza'));
+var colorNivel=it.seguro?'#1e8449':(c.color||'var(--muted)');
+var htmlConflictos=(it.conflictos&&it.conflictos.length)?('<span style="color:#c0392b;font-size:11px"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(it.conflictos.join(' · '))+'</span><br>'):'';
+var btnArreglar=it.seguro?('<button class="ef-btn" style="padding:4px 10px;font-size:11px;background:#1e8449;border-color:#1e8449" onclick="gesArreglarDup(\''+c.id+'\','+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Arreglar'+(it.nExtra>0?' (+'+it.nExtra+' padre/madre)':'')+'</button>'):'';
 return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-user-group"></i></div>'+
-'<div class="inc-msg"><span class="inc-tag" style="color:'+(c.color||'var(--muted)')+'">'+esc(nivel)+' · '+it.score+' pts</span><br>'+
+'<div class="inc-msg"><span class="inc-tag" style="color:'+colorNivel+'">'+esc(nivel)+' · '+it.score+' pts</span><br>'+
 '<b>'+esc(it.nomA)+'</b> (ID '+esc(it.aId)+') vs <b>'+esc(it.nomB)+'</b> (ID '+esc(it.bId)+')<br>'+
-'<span style="color:var(--muted);font-size:11px">'+esc(it.motivos.join(' · '))+'</span><br>'+
+'<span style="color:var(--muted);font-size:11px">'+esc(it.motivos.join(' · '))+'</span><br>'+htmlConflictos+
 '<span style="color:var(--muted);font-size:11px">A: '+esc(it.resA)+'</span><br>'+
 '<span style="color:var(--muted);font-size:11px">B: '+esc(it.resB)+'</span>'+
-'<div class="inc-actions">'+
+'<div class="inc-actions">'+btnArreglar+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.aId)+'\')">Ver A</button>'+
@@ -15379,8 +15573,6 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Correo, nombre y fecha/hora de cada vez que un colaborador conecta su cuenta de Google</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(false)"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Copia local de backup-arbol.json</div><div class="herr-desc">Guarda backup-arbol.json en una carpeta de este ordenador (sin pasar por Drive). Solo administrador</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(true)"><div class="herr-icon"><i class="fa-solid fa-folder-tree"></i></div><div class="herr-text"><div class="herr-title">Cambiar carpeta de la copia local</div><div class="herr-desc">Elige otra carpeta del disco para backup-arbol.json y guarda la copia ahora</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
@@ -15397,12 +15589,14 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('FOTO')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: FOTO</div><div class="herr-desc" id="herrZipSeguridadEstadoFOTO">Copia de seguridad local en ZIP de FOTO: aún no configurada</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('DOCUMENTOS')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: DOCUMENTOS</div><div class="herr-desc" id="herrZipSeguridadEstadoDOCUMENTOS">Copia de seguridad local en ZIP de DOCUMENTOS: aún no configurada</div></div></button>
 <button class="herr-item" id="herrBtnOlvidarZipSeguridad" style="display:none" onclick="cerrarHerramientas();olvidarZipSeguridad()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpetas del ZIP</div><div class="herr-desc">Deja de usar esas 3 carpetas (FOTO, DOCUMENTOS y destino). NO borra los archivos ZIP ya creados</div></div></button>
-<div class="herr-subhead">Copia oficial en Drive (solo tú subes esta copia)</div>
+<div class="herr-subhead">Copias de seguridad: Drive y disco local (solo administrador)</div>
 <button class="herr-item herr-req-drive" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
+<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(false)"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Copia local de backup-arbol.json</div><div class="herr-desc">Guarda backup-arbol.json en una carpeta de este ordenador (sin pasar por Drive). Solo administrador</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(true)"><div class="herr-icon"><i class="fa-solid fa-folder-tree"></i></div><div class="herr-text"><div class="herr-title">Cambiar carpeta de la copia local</div><div class="herr-desc">Elige otra carpeta del disco para backup-arbol.json y guarda la copia ahora</div></div></button>
 <div class="herr-subhead">Exportación</div>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de antepasados</div><div class="herr-desc">Descarga un .ged solo con los antepasados de la persona activa (la de la barra "Viendo a")</div></div></button>
