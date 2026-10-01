@@ -645,6 +645,9 @@ body{background:#fff}
 .ges-lugar.sel{border-style:solid;border-color:var(--green);background:rgba(90,138,60,.07)}
 .ges-opt{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:8px;cursor:pointer;margin:1px 0}
 .ges-opt:hover{background:rgba(0,0,0,.04)}
+.ges-opt-propio{cursor:default}
+.ges-lug-propio{flex:1;min-width:120px;padding:5px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:inherit;font-family:inherit}
+.ges-lug-propio:focus{outline:none;border-color:var(--green)}
 .ges-opt input{margin:0;flex-shrink:0;width:16px;height:16px;accent-color:var(--green);cursor:pointer}
 .ges-lug-barra{position:sticky;top:58px;z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;margin:6px 0 10px;background:var(--card);border:1.5px solid var(--accent);border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.08)}
 .ges-lug-cuenta{font-size:12px;flex:1;min-width:170px;line-height:1.35}
@@ -1068,8 +1071,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.09.30.1';
+var APP_VERSION = '2026.10.01.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.01.1', fecha:'2026-10-01', cambios:[
+    'Nuevo (solo administrador, en Herramientas): "Copia local de backup-arbol.json" guarda en una carpeta del disco de este ordenador el archivo backup-arbol.json con TODOS los datos, sin pasar por Google Drive. La carpeta se recuerda para la proxima vez y se puede cambiar con "Cambiar carpeta".',
+    'Gestor de datos, lugares con escritura no homogenea: en cada grupo hay ahora una opcion "Otra forma" donde puedes escribir tu propio lugar en vez de elegir una de las variantes detectadas; se aplica igual que las demas (con vista previa y confirmacion).'
+  ]},
   { version:'2026.09.30.1', fecha:'2026-09-30', cambios:[
     'Pantalla Inicio: la barra de progreso mide ahora lo mismo que el titulo y la abeja ya no recorre todo el ancho de la pantalla, solo el de la barra.',
     'La abeja de las barras de progreso vuela de forma mas graciosa: va dibujando eses (sube y baja mientras avanza), se inclina siguiendo la curva y se da la vuelta al llegar al extremo.'
@@ -9172,7 +9179,7 @@ PAGINA_ITEMS:100,      /* patron "viendo N de M" en listados largos */
 LEV_MAX_DIST:2,        /* nivel C: distancia Levenshtein maxima */
 LEV_MIN_LEN:5          /* nivel C: longitud minima del topónimo */
 };
-var GES_UI={fuerza:{},pag:{},lugSel:{}};
+var GES_UI={fuerza:{},pag:{},lugSel:{},lugTxt:{}};
 var GES_LUG_RADIO_N=0;
 var GES_CACHE=null;
 /* ===== Snapshot de años calculados (ANOCALC) para el Gestor de datos =====
@@ -9943,8 +9950,44 @@ var esCan=(g.nivel==='A'&&v.txt===g.canonica);
 h+='<label class="ges-opt"><input type="radio" name="'+nombreRadio+'" data-forma="'+escAttr(v.txt)+'"'+(sel===v.txt?' checked':'')+' onclick="gesLugElegir(this)">'+
 '<span class="ges-var'+(esCan?' canonica':'')+'">“'+esc(v.txt)+'” <em>×'+v.count+'</em>'+(esCan?' <i class="fa-solid fa-check" style="color:var(--green)"></i> <em>recomendada</em>':'')+'</span></label>';
 });
-h+='</div><div class="ges-lug-ayuda">Marca la forma correcta ('+n+' ficha'+(n===1?'':'s')+' en el grupo). Vuelve a pulsarla para quitar la marca.</div></div>';
+/* Opción «Otra forma»: el usuario escribe su propio lugar. Se guarda en GES_UI.lugSel como cualquier otra forma elegida;
+   el texto escrito se recuerda aparte (GES_UI.lugTxt) para que no se pierda al repintar el panel. */
+var txtPropio=GES_UI.lugTxt[clave]||'';
+var propioMarcado=(sel!==undefined&&txtPropio!==''&&sel===txtPropio&&!g.variantes.some(function(v){return v.txt===sel;}));
+h+='<div class="ges-opt ges-opt-propio"><input type="radio" name="'+nombreRadio+'" data-propio="1"'+(propioMarcado?' checked':'')+' onclick="gesLugPropioClick(this)" aria-label="Otra forma (escribir mi propio lugar)">'+
+'<span class="ges-var">Otra forma:</span>'+
+'<input type="text" class="ges-lug-propio" maxlength="200" placeholder="Escribe tu propio lugar" value="'+escAttr(txtPropio)+'" oninput="gesLugPropioEscribir(this)" aria-label="Escribe tu propio lugar"></div>';
+h+='</div><div class="ges-lug-ayuda">Marca la forma correcta o escribe la tuya en «Otra forma» ('+n+' ficha'+(n===1?'':'s')+' en el grupo). Vuelve a pulsar la marcada para quitarla.</div></div>';
 return h;
+}
+function gesLugPropioNormalizar(t){return String(t||'').replace(/\s+/g,' ').trim();}
+function gesLugPropioClick(radio){
+var cont=radio.closest('.ges-lugar');if(!cont)return;
+var clave=cont.getAttribute('data-clave');
+var inp=cont.querySelector('.ges-lug-propio');
+var val=gesLugPropioNormalizar(inp?inp.value:'');
+if(!val){radio.checked=false;if(inp)inp.focus();return;}
+if(GES_UI.lugSel[clave]===val){delete GES_UI.lugSel[clave];radio.checked=false;}
+else{GES_UI.lugSel[clave]=val;GES_UI.lugTxt[clave]=val;}
+gesLugActualizarUI();
+}
+function gesLugPropioEscribir(inp){
+var cont=inp.closest('.ges-lugar');if(!cont)return;
+var clave=cont.getAttribute('data-clave');
+var radio=cont.querySelector('input[data-propio]');
+var val=gesLugPropioNormalizar(inp.value);
+var anterior=GES_UI.lugTxt[clave];
+if(val){
+GES_UI.lugTxt[clave]=val;
+GES_UI.lugSel[clave]=val;
+if(radio)radio.checked=true;
+}else{
+delete GES_UI.lugTxt[clave];
+/* Solo se quita la selección si lo elegido era el texto propio (no una variante detectada). */
+if(anterior!==undefined&&GES_UI.lugSel[clave]===anterior)delete GES_UI.lugSel[clave];
+if(radio)radio.checked=false;
+}
+gesLugActualizarUI();
 }
 /* ===== Selección múltiple de lugares: el usuario marca en cada grupo la forma que quiere
 conservar (GES_UI.lugSel[clave]=forma) y un único botón aplica todas las elegidas a la vez. ===== */
@@ -10010,6 +10053,7 @@ gesLugRepintar();
 }
 function gesLugLimpiar(){
 GES_UI.lugSel={};
+GES_UI.lugTxt={};
 gesLugRepintar();
 }
 /* Núcleo común: aplica una lista [{g:grupo,forma:texto}] de una sola vez. Una única confirmación,
@@ -10018,7 +10062,7 @@ registro de cambios, en vez de repetir todo eso (con reescritura completa de la 
 async function gesAplicarLugaresCore(elegidos){
 var cambios=[],idsVistos={},idsLista=[],resumen=[];
 elegidos.forEach(function(e){
-if(!e.g.variantes.some(function(v){return v.txt===e.forma;}))return;
+if(!e.forma||!String(e.forma).trim())return;
 var idsG={};
 e.g.variantes.forEach(function(v){
 if(v.txt===e.forma)return;
@@ -10052,7 +10096,7 @@ try{
 actualizarProgresoAccion('Registrando el cambio...');
 await registrarCambiosDesdeSnapshots(antes,idsLista.map(function(id){return PI[id];}),'editar');
 }catch(errReg){}
-resumen.forEach(function(r){delete GES_UI.lugSel[gesGrupoKey(r.g)];});
+resumen.forEach(function(r){var k=gesGrupoKey(r.g);delete GES_UI.lugSel[k];delete GES_UI.lugTxt[k];});
 actualizarProgresoAccion('Actualizando el Gestor de datos...');
 await cederPantalla();
 rGesLigero();
@@ -12449,6 +12493,51 @@ descargarJSONComoArchivo(copiaDatos,'copia-arbol-genealogico-'+fecha+'.json');
 descargarJSONComoArchivo(copiaFotos,'copia-arbol-genealogico-'+fecha+'-fotos.json');
 toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
 registrarUltimaCopia();
+}
+/* ===== Copia local de backup-arbol.json en el disco (solo administrador) =====
+   Escribe en una carpeta del ordenador el mismo contenido que se sube a Drive como backup-arbol.json
+   (todos los datos sin filtrar), sin pasar por Google Drive. La carpeta elegida se recuerda en CFG. */
+var CFG_BACKUP_LOCAL_HANDLE='backupArbolLocalDirHandle';
+var CFG_BACKUP_LOCAL_FECHA='backupArbolLocalUltimaFecha';
+var guardandoBackupLocal=false;
+async function guardarBackupArbolLocal(cambiarCarpeta){
+if(!(await exigirIdentidadGoogle()))return;
+if(!esAdministrador()){toast('La copia local de backup-arbol.json es exclusiva del administrador, porque contiene todos los datos sin filtrar',true);return;}
+if(!D.length){toast('No hay datos para guardar',true);return;}
+if(guardandoBackupLocal){toast('Ya hay una copia local en curso',true);return;}
+guardandoBackupLocal=true;
+try{
+var sep=separarDatosYFotos(D);
+var texto=JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos});
+if(!window.showDirectoryPicker){
+/* Navegadores sin acceso a carpetas (Firefox, Safari, móvil): descarga normal del archivo. */
+var blob=new Blob([texto],{type:'application/json;charset=utf-8'});
+var url=URL.createObjectURL(blob),a=document.createElement('a');
+a.href=url;a.download='backup-arbol.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+await guardarValorCFG(CFG_BACKUP_LOCAL_FECHA,new Date().toISOString());
+registrarUltimaCopia();
+toast('backup-arbol.json descargado ('+D.length+' personas). Para elegir carpeta usa Chrome o Edge en escritorio');
+return;
+}
+var handle=null;
+if(!cambiarCarpeta){
+try{handle=await leerValorCFG(CFG_BACKUP_LOCAL_HANDLE);}catch(e){handle=null;}
+if(handle&&!(await zipSegAsegurarPermiso(handle,'readwrite')))handle=null;
+}
+if(!handle){
+try{handle=await window.showDirectoryPicker({mode:'readwrite'});}
+catch(e){if(e&&e.name==='AbortError')return;throw e;}
+await guardarValorCFG(CFG_BACKUP_LOCAL_HANDLE,handle);
+}
+var fh=await handle.getFileHandle('backup-arbol.json',{create:true});
+var w=await fh.createWritable();
+await w.write(texto);
+await w.close();
+await guardarValorCFG(CFG_BACKUP_LOCAL_FECHA,new Date().toISOString());
+registrarUltimaCopia();
+toast('backup-arbol.json guardado en la carpeta "'+handle.name+'" ('+D.length+' personas)');
+}catch(err){toast('No se pudo guardar la copia local: '+err.message,true);}
+finally{guardandoBackupLocal=false;}
 }
 async function restaurarDesdeJSONTexto(texto,textoFotos,contenedorId){
 var copia;
@@ -15290,6 +15379,8 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Correo, nombre y fecha/hora de cada vez que un colaborador conecta su cuenta de Google</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(false)"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Copia local de backup-arbol.json</div><div class="herr-desc">Guarda backup-arbol.json en una carpeta de este ordenador (sin pasar por Drive). Solo administrador</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(true)"><div class="herr-icon"><i class="fa-solid fa-folder-tree"></i></div><div class="herr-text"><div class="herr-title">Cambiar carpeta de la copia local</div><div class="herr-desc">Elige otra carpeta del disco para backup-arbol.json y guarda la copia ahora</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
