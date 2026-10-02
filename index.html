@@ -7889,11 +7889,12 @@ if(res.modo==='cambiadas')h+='<span class="ges-pill">Sin cambios (omitidas): '+r
 h+='<span class="ges-pill">Sin persona coincidente: '+res.sinPersona.length+'</span>';
 h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: '+res.errores.length+'</span>';
 h+='</div>';
+if(res.pausa)h+='<div class="backup-warn" style="display:flex;max-width:none;margin-top:10px"><i class="fa-solid fa-triangle-exclamation"></i> Importación pausada: se han procesado '+res.pausa.hechas+' fotos (ya guardadas en este dispositivo) y quedan '+res.pausa.restantes+' por descargar, porque la conexión con Drive ha caducado o se ha cortado. Reconecta con Drive, pulsa de nuevo «Importar fotos» y elige «solo las que han cambiado» para continuar donde se quedó.</div>';
 if(res.modo==='cambiadas')h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">Modo "solo las que han cambiado": se han omitido los archivos cuya fecha de modificación no es más reciente que la de la foto ya guardada de esa persona.</p>';
 if(res.asociadas)h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">Si alguna de estas personas ya tenía una fotografía, se ha sustituido por la nueva.</p>';
 h+=renderDetalleImportFotos('Archivos sin persona coincidente (no se adivinan coincidencias aproximadas, por seguridad)',res.sinPersona);
 h+=renderDetalleImportFotos('Fotografías con errores',res.errores);
-if(res.reconocidas&&!res.sinPersona.length&&!res.errores.length)h+='<p style="font-size:12px;color:var(--green);margin-top:10px"><i class="fa-solid fa-circle-check"></i> Todas las fotografías reconocidas se han asociado correctamente.</p>';
+if(res.reconocidas&&!res.sinPersona.length&&!res.errores.length&&!res.pausa)h+='<p style="font-size:12px;color:var(--green);margin-top:10px"><i class="fa-solid fa-circle-check"></i> Todas las fotografías reconocidas se han asociado correctamente.</p>';
 cont.innerHTML=h;
 }
 function handleFotoSeleccionada(ev){
@@ -8154,6 +8155,79 @@ pageToken=d.nextPageToken||null;
 }while(pageToken);
 return archivos;
 }
+/* ===== IMPORTAR FOTOS DESDE DRIVE: robusta para miles de fotos =====
+   Problema: con ~3.200 fotos la importación tardaba más de una hora (el token
+   de Drive dura ~60 min), descargaba una a una y solo guardaba al final, así
+   que cualquier corte hacía perder todo lo anterior. Ahora:
+   1) Se guarda en IndexedDB cada TAM_BLOQUE_FOTOS fotos (solo esas fichas).
+   2) Es reanudable: lo ya guardado lleva FOTO_FECHA, así que en modo "solo las
+      que han cambiado" se omite al volver a lanzarla.
+   3) El token se renueva (en silencio) antes de caducar; si no se puede, la
+      importación se PAUSA limpiamente en vez de marcar todo como error.
+   4) Se descargan CONCURRENCIA_FOTOS fotos a la vez, con reintentos.
+   5) Se pide un Wake Lock para que la pantalla no se apague mientras dura. */
+var impFotosRenovando=null,impFotosNoReintentarHasta=0;
+function asegurarTokenDriveImport(){
+var resto=driveTokenExpira?driveTokenExpira-Date.now():0;
+if(driveAccessToken&&resto>120000)return Promise.resolve(true);
+if(impFotosRenovando)return impFotosRenovando;
+if(Date.now()<impFotosNoReintentarHasta)return Promise.resolve(tokenDriveValido());
+impFotosRenovando=Promise.race([
+conectarGoogleDrive(true).then(function(){return true;}),
+new Promise(function(r){setTimeout(function(){r(false);},25000);})
+]).catch(function(){return false;}).then(function(renovado){
+impFotosRenovando=null;
+if(!renovado)impFotosNoReintentarHasta=Date.now()+60000;
+return tokenDriveValido();
+});
+return impFotosRenovando;
+}
+async function descargarFotoDriveRobusta(fileId){
+var url='https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media';
+var i401=0,iLimite=0,iRed=0;
+while(true){
+if(!(await asegurarTokenDriveImport()))throw{pausa:true};
+var r;
+try{r=await fetch(url,{headers:{Authorization:'Bearer '+driveAccessToken}});}
+catch(eNet){if(++iRed>=3)throw{red:true};await esperarMs(1000*iRed);continue;}
+if(r.status===401){driveTokenExpira=0;if(++i401>=2)throw{pausa:true};continue;}
+if(r.status===429||r.status===403||r.status>=500){
+var maxR=(r.status===403)?2:4;
+if(++iLimite>=maxR)throw{descarga:true};
+await esperarMs(1500*iLimite);continue;
+}
+if(!r.ok)throw{descarga:true};
+try{return await r.blob();}
+catch(eBody){if(++iRed>=3)throw{red:true};await esperarMs(1000*iRed);}
+}
+}
+/* Guarda solo estas fichas en el almacén principal (transacción corta). No
+   reescribe las decenas de miles restantes ni la copia completa. */
+function guardarPersonasSoloAlmacen(ids){
+return new Promise(function(resolve,reject){
+var tx=db.transaction([ST],'readwrite'),st=tx.objectStore(ST);
+ids.forEach(function(id){var pe=PI[id];if(pe)st.put(pe);});
+tx.oncomplete=function(){resolve();};
+tx.onerror=function(){reject(tx.error);};
+tx.onabort=function(){reject(tx.error);};
+});
+}
+var impFotosWakeLock=null;
+async function pedirWakeLockFotos(){
+try{
+if(navigator.wakeLock&&!impFotosWakeLock){
+impFotosWakeLock=await navigator.wakeLock.request('screen');
+impFotosWakeLock.addEventListener('release',function(){impFotosWakeLock=null;});
+}
+}catch(e){impFotosWakeLock=null;}
+}
+function soltarWakeLockFotos(){
+try{if(impFotosWakeLock)impFotosWakeLock.release();}catch(e){}
+impFotosWakeLock=null;
+}
+document.addEventListener('visibilitychange',function(){
+if(document.visibilityState==='visible'&&importFotosEnCurso)pedirWakeLockFotos();
+});
 async function importarFotosDesdeDrive(){
 if(importFotosEnCurso){toast('Ya hay una importación de fotografías en curso; espera a que termine',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
@@ -8166,6 +8240,8 @@ try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Googl
 var modoDrive=await elegirModoImportFotos('desde Google Drive');
 if(!modoDrive)return;
 importFotosEnCurso=true;
+impFotosNoReintentarHasta=0;impFotosRenovando=null;
+pedirWakeLockFotos();
 fijarBotonesImportFotos(true);
 abrirModalImportFotos('Importando fotografías desde Google Drive'+(modoDrive==='cambiadas'?' (solo las que han cambiado)':''));
 actualizarProgresoImportFotos(0,1,'Buscando la carpeta FOTO en Drive');
@@ -8191,9 +8267,11 @@ if(!archivos.length){
 mostrarResumenImportFotos(res);
 return;
 }
+var TAM_BLOQUE_FOTOS=50,CONCURRENCIA_FOTOS=4;
+/* Paso 1: separar lo que no hay que descargar (sin persona / sin cambios). */
+var pendientes=[];
 for(var idx=0;idx<archivos.length;idx++){
 var f=archivos[idx];
-actualizarProgresoImportFotos(idx+1,archivos.length,'Descargando y procesando fotografías');
 /* Asociación SIEMPRE por coincidencia exacta del nombre (sin extensión) con el
    ID de persona; nunca se hacen coincidencias aproximadas. */
 var base=nombreSinExtensionImportado(f.name);
@@ -8206,40 +8284,58 @@ if(modoDrive==='cambiadas'&&fotoDebeOmitirsePorNoCambiar(persona,f.modifiedTime?
 res.sinCambios++;
 continue;
 }
-if(sesionCaducadaDurante){
-res.errores.push({nombre:f.name,motivo:'Tu conexión con Google Drive caducó antes de terminar la importación.'});
-continue;
+pendientes.push({f:f,id:base,persona:persona});
 }
-var blob;
+var hechos=archivos.length-pendientes.length,procesadas=0,siguiente=0,pausada=false,redFallos=0;
+var sinGuardar=[],colaGuardado=Promise.resolve();
+actualizarProgresoImportFotos(hechos,archivos.length,'Descargando y procesando fotografías');
+function volcarBloque(forzar){
+if(!sinGuardar.length||(!forzar&&sinGuardar.length<TAM_BLOQUE_FOTOS))return colaGuardado;
+var ids=sinGuardar.splice(0,sinGuardar.length);
+colaGuardado=colaGuardado.then(function(){return guardarPersonasSoloAlmacen(ids);}).catch(function(){
+res.errores.push({nombre:'(guardado de un bloque de fotos)',motivo:impFotosCategoriaTexto('almacenamiento')});
+});
+return colaGuardado;
+}
+async function trabajadorFotos(){
+while(!pausada){
+var i=siguiente++;
+if(i>=pendientes.length)return;
+var it=pendientes[i],blob;
 try{
-var rImg=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(rImg.status===401){driveAccessToken=null;sesionCaducadaDurante=true;res.errores.push({nombre:f.name,motivo:'Tu conexión con Google Drive caducó antes de terminar la importación.'});continue;}
-if(!rImg.ok){res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto('descarga')});continue;}
-blob=await rImg.blob();
-}catch(eDescarga){
-res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto('descarga')});
+blob=await descargarFotoDriveRobusta(it.f.id);
+redFallos=0;
+}catch(eD){
+if(eD&&eD.pausa){pausada=true;return;}
+if(eD&&eD.red){redFallos++;if(redFallos>=6){pausada=true;return;}}
+res.errores.push({nombre:it.f.name,motivo:impFotosCategoriaTexto('descarga')});
+procesadas++;hechos++;
+actualizarProgresoImportFotos(hechos,archivos.length,'Descargando y procesando fotografías');
 continue;
 }
 try{
 var dataUrl=await leerImagenImportadaConReintento(blob,600,0.85);
-persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
-persona.FOTO_FECHA=new Date().toISOString();
+it.persona.FOTO=dataUrl; /* sustituye la foto existente si la había */
+it.persona.FOTO_FECHA=new Date().toISOString();
 res.asociadas++;
+sinGuardar.push(it.id);
 }catch(eProceso){
-var cat=esExtensionImportadaExperimental(f.name)?'formato_no_compatible':'lectura';
-res.errores.push({nombre:f.name,motivo:impFotosCategoriaTexto(cat)+(eProceso&&eProceso.message?' ('+eProceso.message+')':'')});
+var cat=esExtensionImportadaExperimental(it.f.name)?'formato_no_compatible':'lectura';
+res.errores.push({nombre:it.f.name,motivo:impFotosCategoriaTexto(cat)+(eProceso&&eProceso.message?' ('+eProceso.message+')':'')});
+}
+blob=null;
+procesadas++;hechos++;
+actualizarProgresoImportFotos(hechos,archivos.length,'Descargando y procesando fotografías');
+if(sinGuardar.length>=TAM_BLOQUE_FOTOS)volcarBloque(false);
 }
 }
-if(res.asociadas){
-bIdx(D);
-try{
-await sAll(D);
-rStats();
-if(cid)rFic(cid);
-}catch(errGuardar){
-res.errores.push({nombre:'(guardado general)',motivo:impFotosCategoriaTexto('almacenamiento')});
-}
-}
+var trabajadores=[];
+for(var w=0;w<CONCURRENCIA_FOTOS;w++)trabajadores.push(trabajadorFotos());
+await Promise.all(trabajadores);
+await volcarBloque(true);
+await colaGuardado;
+if(res.asociadas){try{rStats();if(cid)rFic(cid);}catch(eUI){}}
+if(pausada)res.pausa={hechas:procesadas,restantes:pendientes.length-procesadas};
 mostrarResumenImportFotos(res);
 }catch(err){
 document.getElementById('impFotosProgresoWrap').style.display='none';
@@ -8248,7 +8344,7 @@ var cont=document.getElementById('impFotosResumen');
 cont.style.display='block';
 cont.innerHTML='<div class="backup-warn" style="display:flex;max-width:none"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(err.message)+'</div>';
 }finally{
-importFotosEnCurso=false;fijarBotonesImportFotos(false);
+importFotosEnCurso=false;fijarBotonesImportFotos(false);soltarWakeLockFotos();
 }
 }
 function leerCampo(idc){var el=document.getElementById(idc);return el?el.value.trim():'';}
