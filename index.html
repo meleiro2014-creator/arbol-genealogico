@@ -653,6 +653,10 @@ body{background:#fff}
 .ges-lug-cuenta{font-size:12px;flex:1;min-width:170px;line-height:1.35}
 .ges-lug-barra .ef-btn[disabled]{opacity:.45;cursor:not-allowed}
 .ges-lug-ayuda{font-size:11px;color:var(--muted);margin-top:5px}
+.ges-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;margin:8px 0}
+.ges-nav label{display:inline-flex;align-items:center;gap:5px}
+.ges-nav select{padding:4px 8px;font-size:12px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:inherit;font-family:inherit}
+.ges-nav .ef-btn[disabled]{opacity:.45;cursor:not-allowed}
 /* ===== Comparador de documentos (RAÍZ nuevo vs ANTERIOR archivado) ===== */
 .cmp-box{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
 .cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:rgba(196,101,58,.06);border:none;padding:12px 14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--accent);cursor:pointer;text-align:left}
@@ -1071,8 +1075,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.04.1';
+var APP_VERSION = '2026.10.04.2';
 var APP_CHANGELOG = [
+  { version:'2026.10.04.2', fecha:'2026-10-04', cambios:[
+    'Gestor de datos: las listas largas se pueden recorrer por tramos. Se elige el tamano (100, 200, 300 o 500) y se salta directamente a cualquier tramo (por ejemplo 301–600) sin volver a pasar por los ya revisados. Las selecciones de lugares y apellidos se conservan al cambiar de tramo.',
+    'Gestor de datos, apellidos: "Apellido distinto al del padre" y "...al primer apellido de la madre" pasan a llamarse "Primer apellido muy distinto al del padre" y "Segundo apellido muy distinto al primer apellido de la madre", y ahora solo muestran personas nacidas desde 1900 (siglos XX y XXI) con diferencias grandes (no tildes, mayusculas ni erratas pequenas, ni apellidos que uno contiene al otro). Cada caso tiene boton para abrir tambien la ficha del padre o la madre y avisa si los apellidos podrian estar en orden invertido.'
+  ]},
   { version:'2026.10.04.1', fecha:'2026-10-04', cambios:[
     'Gestor de datos: nueva categoria "Apellidos con escritura no homogenea" (como la de lugares): agrupa las grafias de un mismo apellido en Primer y Segundo apellido (Fernandez / Fernández, Duran / Durán, FERNANDEZ...) y las posibles erratas de una letra (Nivel C). En cada grupo se marca la forma correcta (o se escribe otra) y se aplican todas de una vez con vista previa y confirmacion. La forma recomendada tiene en cuenta cuantas fichas la usan y cómo la escribe el padre o la madre de quien la tiene distinta.'
   ]},
@@ -9111,6 +9119,18 @@ if(letras.length<2)return false;
 if(s.toUpperCase()===s.toLowerCase())return false; /* sin letras con caja distinta */
 return s===s.toUpperCase()||s===s.toLowerCase();
 }
+/* ¿Dos apellidos son MUY distintos? Se comparan sin tildes, mayúsculas, puntuación ni espacios. Se descartan
+las erratas y variantes: si uno contiene al otro (García / García López, Torre / De la Torre) o si la
+distancia de edición es pequeña (Fernadez / Fernández, Gonzalez / Gonzales, Garcia / Gracia). Solo cuenta como
+«muy distinto» con al menos APE_PROG_DIST_MIN ediciones Y APE_PROG_RATIO de la longitud del apellido más largo. */
+function apeMuyDistinto(propio,deProg){
+var a=normTxt(propio).replace(/ /g,''),b=normTxt(deProg).replace(/ /g,'');
+if(!a||!b||a===b)return false;
+var menor=a.length<=b.length?a:b,mayor=a.length<=b.length?b:a;
+if(menor.length>=3&&mayor.indexOf(menor)>=0)return false;
+var d=gesLev(a,b);
+return d>=GES_CFG.APE_PROG_DIST_MIN&&d/Math.max(a.length,b.length)>=GES_CFG.APE_PROG_RATIO;
+}
 function detectarDiscrepanciasApellidos(){
 var problemas=[];
 var RELLENO_EXACTO={'?':1,'??':1,'x':1,'xx':1,'xxx':1,'-':1,'--':1,'.':1,'...':1};
@@ -9185,16 +9205,28 @@ verId:p.ID,
 aplicar:(function(pp,camp,val){return function(){pp[camp]=val;return true;};})(p,campoPropio,deProg)
 });
 }else{
+/* Solo personas de los siglos XX y XXI (año de nacimiento real o calculado) y solo diferencias GRANDES:
+antes salía cualquier apellido distinto, de cualquier siglo, lo que llenaba la lista de falsos avisos
+(en siglos anteriores los apellidos no se heredaban de forma fija). Las tildes/mayúsculas ya las cubre la
+categoría «Posible errata...» y las erratas pequeñas las cubre «Apellidos con escritura no homogénea». */
+var anioP=getYearDesdeSnapshot(p);
+if(anioP===null||anioP<GES_CFG.APE_PROG_ANIO_MIN)return;
+if(!apeMuyDistinto(propio,deProg))return;
+var campoOtro=(campoPropio==='APELLIDO1')?'APELLIDO2':'APELLIDO1';
+var otro=p[campoOtro];
+var pista=(otro&&normTxt(otro)===normTxt(deProg))?(' Ojo: su '+etiquetaCampoApellido(campoOtro).toLowerCase()+' («'+esc(otro)+'») sí coincide con ese apellido de su '+rel+': ¿están los apellidos en orden invertido? (desde 2017 los padres pueden elegir el orden).'):'';
 problemas.push({
 icono:'fa-people-roof',
 etiqueta:etiquetaDistinto,
-mensaje:esc(fn(p))+' tiene «'+esc(propio)+'» en '+etiquetaCampoApellido(campoPropio)+', pero su '+rel+' '+esc(fn(prog))+' tiene «'+esc(deProg)+'». No tiene por qué ser un error (adopción, apellido legal distinto...), pero conviene revisarlo.',
-verId:p.ID
+mensaje:esc(fn(p))+' (n. '+esc(String(anioP))+') tiene «'+esc(propio)+'» en '+etiquetaCampoApellido(campoPropio)+', muy distinto de «'+esc(deProg)+'», el '+etiquetaCampoApellido(campoProg).toLowerCase()+' de su '+rel+' '+esc(fn(prog))+'.'+pista+' Puede ser legítimo (orden elegido por los padres, adopción, apellido legal distinto...), pero conviene revisarlo.',
+verId:p.ID,
+verId2:prog.ID,
+ver2:'Ver '+rel
 });
 }
 }
-if(p.PADRE&&PI[p.PADRE])compararConProgenitor('APELLIDO1',PI[p.PADRE],'APELLIDO1','padre','Apellido distinto al del padre');
-if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1','madre','Apellido distinto al primer apellido de la madre');
+if(p.PADRE&&PI[p.PADRE])compararConProgenitor('APELLIDO1',PI[p.PADRE],'APELLIDO1','padre','Primer apellido muy distinto al del padre (nacidos desde 1900)');
+if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1','madre','Segundo apellido muy distinto al primer apellido de la madre (nacidos desde 1900)');
 });
 return problemas;
 }
@@ -9410,9 +9442,12 @@ LEV_MIN_LEN:5,         /* nivel C: longitud minima del toponimo */
 APE_RARA_MAX:4,        /* apellidos nivel C: una grafia es 'rara' si aparece en como mucho este numero de fichas */
 APE_HUB_MIN:8,         /* apellidos nivel C: una grafia es 'frecuente' si aparece al menos en tantas fichas */
 APE_RATIO:4,           /* apellidos nivel C: la frecuente debe tener al menos tantas veces las fichas de la rara */
-APE_MIN_LEN:5          /* apellidos nivel C: longitud minima del apellido raro */
+APE_MIN_LEN:5,         /* apellidos nivel C: longitud minima del apellido raro */
+APE_PROG_ANIO_MIN:1900,/* apellido muy distinto al del padre/madre: solo personas nacidas desde este ano (siglos XX y XXI) */
+APE_PROG_DIST_MIN:3,   /* ...con al menos tantas ediciones de diferencia (Levenshtein, sin tildes ni espacios)... */
+APE_PROG_RATIO:0.4     /* ...y que esa diferencia sea al menos esta fraccion de la longitud del apellido mas largo */
 };
-var GES_UI={fuerza:{},pag:{},lugSel:{},lugTxt:{},apeSel:{},apeTxt:{}};
+var GES_UI={fuerza:{},pag:{},desde:{},tam:{},lugSel:{},lugTxt:{},apeSel:{},apeTxt:{}};
 var GES_LUG_RADIO_N=0;
 var GES_CACHE=null;
 /* ===== Snapshot de años calculados (ANOCALC) para el Gestor de datos =====
@@ -9880,8 +9915,8 @@ var apeMetaPorEtq={
 'Nombre o apellido con formato irregular':{sev:'info',icono:'fa-eraser'},
 'Nombre o apellido todo en mayúsculas o en minúsculas':{sev:'info',icono:'fa-text-height'},
 'Valor de relleno en vez de un dato real':{sev:'info',icono:'fa-ban'},
-'Apellido distinto al del padre':{sev:'revision',icono:'fa-people-roof'},
-'Apellido distinto al primer apellido de la madre':{sev:'revision',icono:'fa-people-roof'},
+'Primer apellido muy distinto al del padre (nacidos desde 1900)':{sev:'revision',icono:'fa-people-roof',desc:'Solo personas nacidas desde 1900 (año real o calculado) cuyo apellido se parece muy poco al del padre o la madre: se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo.'},
+'Segundo apellido muy distinto al primer apellido de la madre (nacidos desde 1900)':{sev:'revision',icono:'fa-people-roof',desc:'Solo personas nacidas desde 1900 (año real o calculado) cuyo apellido se parece muy poco al del padre o la madre: se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo.'},
 'Posible errata en apellido heredado de un progenitor':{sev:'revision',icono:'fa-spell-check'},
 'Nombre y primer apellido idénticos':{sev:'revision',icono:'fa-clone'},
 'Primer y segundo apellido idénticos':{sev:'revision',icono:'fa-clone'}
@@ -9900,8 +9935,8 @@ var todasAplicables=lista.every(function(x){return typeof x.aplicar==='function'
 cats.push({
 id:'ape_'+gesSlug(etq),fuente:'apellidos',grupo:'apellidos',
 titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
-descripcion:todasAplicables?'Corrección de formato segura y reversible: revisa antes de aplicar en masa.':'Se muestra como sugerencia para que decidas tú: nada se corrige sin tu confirmación.',
-items:lista.map(function(pr){return{verId:pr.verId,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar};}),
+descripcion:meta.desc||(todasAplicables?'Corrección de formato segura y reversible: revisa antes de aplicar en masa.':'Se muestra como sugerencia para que decidas tú: nada se corrige sin tu confirmación.'),
+items:lista.map(function(pr){return{verId:pr.verId,verId2:pr.verId2,ver2:pr.ver2,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar};}),
 accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:null
 });
 });
@@ -10380,9 +10415,49 @@ var abierta=!!(el&&el.classList.contains('abierta'));
 GES_UI.fuerza[id]=!abierta;
 gesRender();
 }
-function gesPaginar(id){
-GES_UI.pag[id]=(GES_UI.pag[id]||GES_CFG.PAGINA_ITEMS)+GES_CFG.PAGINA_ITEMS;
+/* ===== Navegación por tramos en los listados largos del Gestor =====
+Antes solo había «Mostrar más» (100 en 100, siempre desde el principio). Ahora se elige el tamaño del tramo
+(100, 200, 300 o 500) y se salta directamente a cualquier tramo (1–300, 301–600...) para no tener que
+volver a pasar por lo que ya se ha revisado. Cada categoría recuerda su propio tramo mientras se
+está en la pantalla; las selecciones de lugares/apellidos se conservan al cambiar de tramo. */
+var GES_TAMS=[100,200,300,500];
+function gesTam(id){return GES_UI.tam[id]||GES_CFG.PAGINA_ITEMS;}
+function gesDesde(id,total){
+var tam=gesTam(id),d=GES_UI.desde[id]||0;
+if(d>=total)d=Math.max(0,Math.floor((total-1)/tam)*tam);
+if(d<0)d=0;
+GES_UI.desde[id]=d;
+return d;
+}
+function gesNavHtml(c,desde,tam,total){
+if(total<=GES_CFG.PAGINA_ITEMS)return '';
+var id=c.id,hasta=Math.min(desde+tam,total);
+var h='<div class="ges-nav"><span>Mostrando <b>'+(desde+1)+'–'+hasta+'</b> de <b>'+total+'</b></span>';
+h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px"'+(desde<=0?' disabled':'')+' onclick="gesIrDesde(\''+id+'\','+Math.max(0,desde-tam)+')"><i class="fa-solid fa-chevron-left"></i> Anteriores</button>';
+h+='<label>Ir al tramo <select onchange="gesIrDesde(\''+id+'\',parseInt(this.value,10))" aria-label="Elegir tramo">';
+for(var k=0;k<total;k+=tam)h+='<option value="'+k+'"'+(k===Math.floor(desde/tam)*tam?' selected':'')+'>'+(k+1)+'–'+Math.min(k+tam,total)+'</option>';
+h+='</select></label>';
+h+='<label>de <select onchange="gesCambiarTam(\''+id+'\',parseInt(this.value,10))" aria-label="Tamaño del tramo">';
+GES_TAMS.forEach(function(t){h+='<option value="'+t+'"'+(t===tam?' selected':'')+'>'+t+'</option>';});
+h+='</select> en <b>'+tam+'</b></label>';
+h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px"'+(hasta>=total?' disabled':'')+' onclick="gesIrDesde(\''+id+'\','+(desde+tam)+')">Siguientes <i class="fa-solid fa-chevron-right"></i></button>';
+return h+'</div>';
+}
+function gesRepintarCat(id){
 gesRender();
+var el=document.querySelector('.ges-cat[data-id="'+id+'"]');
+if(el)window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-60));
+}
+function gesIrDesde(id,d){
+GES_UI.desde[id]=Math.max(0,d||0);
+gesRepintarCat(id);
+}
+function gesCambiarTam(id,t){
+if(GES_TAMS.indexOf(t)<0)return;
+var d=GES_UI.desde[id]||0;
+GES_UI.tam[id]=t;
+GES_UI.desde[id]=Math.floor(d/t)*t;
+gesRepintarCat(id);
 }
 function gesRenderItemInc(c,it,idx){
 var btnSolucionar=(typeof it.aplicar==='function')?('<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesAplicarItem(\''+c.id+'\','+idx+')"><i class="fa-solid fa-wand-magic-sparkles"></i> Solucionar</button>'):'';
@@ -10391,6 +10466,7 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(it.icon
 '<div class="inc-msg">'+tagCalc+it.mensaje+
 '<div class="inc-actions">'+btnSolucionar+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId)+'\')">Ver ficha</button>'+
+(it.verId2?'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId2)+'\')">'+esc(it.ver2||'Ver ficha relacionada')+'</button>':'')+
 '</div></div></div>';
 }
 function gesRenderItemDup(c,it,idx){
@@ -10795,10 +10871,14 @@ if(!grupos.length){toast('No hay grupos de Nivel A pendientes de unificar',true)
 await gesApeAplicarCore(grupos.map(function(g){return{g:g,forma:g.recomendada};}));
 }
 function gesRenderItems(c){
-var lim=GES_UI.pag[c.id]||GES_CFG.PAGINA_ITEMS;
-var vistos=c.items.slice(0,lim);
-var h=(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():''))+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
-vistos.forEach(function(it,i){
+var total=c.items.length;
+var tam=gesTam(c.id);
+var desde=gesDesde(c.id,total);
+var vistos=c.items.slice(desde,desde+tam);
+var nav=gesNavHtml(c,desde,tam,total);
+var h=(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():''))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
+vistos.forEach(function(it,j){
+var i=desde+j; /* indice ABSOLUTO dentro de c.items: los botones Solucionar/Fusionar lo usan */
 h+='<li>';
 if(it.tipo==='lugar')h+=gesRenderLugar(it.grupo);
 else if(it.tipo==='apellido')h+=gesRenderApellido(it.grupo);
@@ -10807,10 +10887,7 @@ else if(c.fuente==='inc'||c.fuente==='apellidos')h+=gesRenderItemInc(c,it,i);
 else h+=gesRenderItemDef(c,it);
 h+='</li>';
 });
-h+='</ul>';
-if(c.items.length>lim){
-h+='<div class="ges-mas"><button class="ef-btn ghost" style="font-size:11px" onclick="gesPaginar(\''+c.id+'\')">Mostrar más (viendo '+vistos.length+' de '+c.items.length+')</button></div>';
-}
+h+='</ul>'+nav;
 return h;
 }
 function gesRenderCat(c){
@@ -12701,7 +12778,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><div class="manual-warn">A diferencia del resto de la aplicacion, estos posteres todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Se corregira en una proxima actualizacion.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
-{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes), un nombre o apellido escrito enteramente en mayusculas o enteramente en minusculas (se propone la capitalizacion correcta, respetando particulas como "de", "del", "la" o "y"), un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real, o una posible errata en un apellido heredado de un progenitor (misma grafia con tildes o mayusculas distintas) -estos cuatro, con boton «Solucionar»-, y casos solo para revisar como un apellido distinto al del padre o al primer apellido de la madre, o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Apellidos con escritura no homogenea</strong>: agrupa las distintas formas de escribir un mismo apellido en Primer y Segundo apellido (por ejemplo «Fernandez» y «Fernández», o «Duran» y «Durán»). Nivel A: solo cambian mayusculas, tildes, puntuacion o espacios. Nivel C: posible errata de una letra en una grafia muy poco usada frente a otra frecuente (se muestran las fichas para comprobarlo). La forma recomendada es la mas usada, sumando las fichas con otra grafia cuyo padre o madre la tiene escrita asi. Marca en cada grupo la forma correcta (o escribe la tuya en «Otra forma») y aplica todas de una vez con «Aplicar selección»; solo el Nivel A se puede unificar automaticamente en bloque.</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite marcar en cada grupo la forma correcta y aplicar todas las elegidas de una sola vez con el botón «Aplicar selección» (el guardado solo toca las fichas afectadas, por lo que es rápido aunque sean muchos grupos).</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
+{titulo:'El Gestor de datos',soloAdmin:true,html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes), un nombre o apellido escrito enteramente en mayusculas o enteramente en minusculas (se propone la capitalizacion correcta, respetando particulas como "de", "del", "la" o "y"), un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real, o una posible errata en un apellido heredado de un progenitor (misma grafia con tildes o mayusculas distintas) -estos cuatro, con boton «Solucionar»-, y casos solo para revisar: primer apellido muy distinto al del padre o segundo apellido muy distinto al primer apellido de la madre (solo personas nacidas desde 1900 y con diferencias grandes, no tildes ni erratas pequenas; se muestra tambien la ficha del padre o la madre para compararlas), o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Apellidos con escritura no homogenea</strong>: agrupa las distintas formas de escribir un mismo apellido en Primer y Segundo apellido (por ejemplo «Fernandez» y «Fernández», o «Duran» y «Durán»). Nivel A: solo cambian mayusculas, tildes, puntuacion o espacios. Nivel C: posible errata de una letra en una grafia muy poco usada frente a otra frecuente (se muestran las fichas para comprobarlo). La forma recomendada es la mas usada, sumando las fichas con otra grafia cuyo padre o madre la tiene escrita asi. Marca en cada grupo la forma correcta (o escribe la tuya en «Otra forma») y aplica todas de una vez con «Aplicar selección»; solo el Nivel A se puede unificar automaticamente en bloque.</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite marcar en cada grupo la forma correcta y aplicar todas las elegidas de una sola vez con el botón «Aplicar selección» (el guardado solo toca las fichas afectadas, por lo que es rápido aunque sean muchos grupos).</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>En las listas largas (mas de 100 casos) puedes elegir el tamano del tramo (100, 200, 300 o 500) y saltar directamente a cualquier tramo, por ejemplo al 301–600, sin volver a pasar por los ya revisados; las selecciones de lugares y apellidos se conservan al cambiar de tramo.</p><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
 {titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En la pantalla principal hay un botón para restaurar el árbol oficial; las funciones de copia avanzada siguen en Herramientas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar árbol oficial</strong> (cualquier usuario): está disponible directamente debajo de la conexión con Google Drive en la pantalla principal; descarga la última copia que exista en la carpeta compartida de Drive y la carga en la aplicación. Requiere identidad de Google conectada. Restaura solo los datos, nunca las fotos: para traer las fotos hay un icono aparte («Importar fotos»), justo al lado, con su propia barra de progreso.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
