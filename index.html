@@ -1078,7 +1078,7 @@ var datosLocalesListos=false;
 var APP_VERSION = '2026.10.05.4';
 var APP_CHANGELOG = [
   { version:'2026.10.05.4', fecha:'2026-10-05', cambios:[
-    'Ficha, «Editar foto»: nuevo panel «Reparar esta foto con Gemini». Eliges qué corregir (ampliar encuadre hasta hombros y medio pecho, vestir de época, sombrero o tocado de época, fondo crema u otro, rasgos visibles, indicación libre) y la app te da el prompt listo para Gemini (con sexo, época y lugar de la ficha) y botones para abrir o copiar el enlace a la foto en Drive. Después subes o pegas la imagen nueva y guardas como siempre.'
+    'Ficha, «Editar foto»: nuevo panel «Reparar esta foto con Gemini». Eliges qué corregir (ampliar encuadre hasta hombros y medio pecho, vestir de época, sombrero o tocado de época, fondo crema u otro, rasgos visibles, indicación libre) y la app te da el prompt listo para Gemini (con sexo, época y lugar de la ficha) y un botón para abrir la foto en Drive. Después subes o pegas la imagen nueva y guardas como siempre.'
   ]},
   { version:'2026.10.05.3', fecha:'2026-10-05', cambios:[
     'Gestor de datos: «Ver ficha» / «Ver A» / «Ver B» abren la ficha en una segunda ventana que se REUTILIZA: la primera vez se abre la ventana, y las siguientes veces la ficha cambia al instante en esa misma ventana (sin abrir otra ni recargar la app). Si la ventana se cerró, se abre de nuevo. Si tenías algo sin guardar en esa ventana, pregunta antes de cambiar de ficha.'
@@ -7660,7 +7660,7 @@ var GEM_RASGOS=[
 var GEM_CHOQUE={bigote:['afeitado'],barba:['afeitado'],afeitado:['bigote','barba'],oscuro:['claro','canoso'],claro:['oscuro','canoso'],canoso:['oscuro','claro']};
 var GEM_ESTADO={};/* por persona: opciones elegidas (se conservan mientras no se recargue la app) */
 function gemEstado(id){
-if(!GEM_ESTADO[id])GEM_ESTADO[id]={encuadre:true,vestir:true,ropa:'',sombrero:false,sombreroTxt:'',fondo:'crema',rasgos:[],extra:''};
+if(!GEM_ESTADO[id])GEM_ESTADO[id]={encuadre:true,acercar:false,postura:false,bordes:false,fondoClaro:false,vestir:true,ropa:'',sombrero:false,sombreroTxt:'',fondo:'crema',rasgos:[],extra:''};
 return GEM_ESTADO[id];
 }
 function gemConstruirPrompt(id){
@@ -7673,7 +7673,7 @@ var epoca=anio!==null?('hacia '+anio+(aproximado?' (año aproximado)':'')):'';
 var fondo=GEM_FONDOS.filter(function(f){return f[0]===e.fondo;})[0]||GEM_FONDOS[0];
 var t='';
 t+='Edita y rehaz esta fotografía de retrato de una persona, manteniendo la identidad exacta de la persona representada y aplicando SOLO los cambios que se indican en «CAMBIOS A APLICAR». La imagen adjunta es un retrato ya restaurado de su ficha genealógica; úsala como referencia de la cara.\n\n';
-t+='REGLA FUNDAMENTAL: la identidad y los rasgos de la persona tienen prioridad absoluta. No embellecer, rejuvenecer, envejecer ni modificar rostro, expresión, complexión ni postura. La reconstrucción debe ser históricamente fiel a la persona y a su época; solo cambia lo que se pide abajo.\n\n';
+t+='REGLA FUNDAMENTAL: la identidad y los rasgos de la persona tienen prioridad absoluta. No embellecer, rejuvenecer, envejecer ni modificar rostro, expresión'+(e.postura?' ni complexión (la postura solo se corrige como se indica en «CAMBIOS A APLICAR»)':', complexión ni postura')+'. La reconstrucción debe ser históricamente fiel a la persona y a su época; solo cambia lo que se pide abajo.\n\n';
 t+='REGLA ANTI-INVENCIÓN: si un rasgo no se aprecia con claridad en la referencia, no lo inventes. No añadas barba, bigote, gafas ni arrugas que no se vean, y no sustituyas a la persona por un rostro genérico. Ante la duda conserva la forma de la cara, la línea del pelo, su color y la edad aparente de la referencia.\n\n';
 t+='DATOS DE LA PERSONA (de su ficha genealógica; solo orientan, la imagen de referencia manda):\n';
 t+='- Nombre: '+fn(p).trim()+'.\n';
@@ -7686,15 +7686,18 @@ t+=GEM_RASGOS.filter(function(r){return e.rasgos.indexOf(r[0])>=0;}).map(functio
 }
 t+='\nCAMBIOS A APLICAR:\n';
 var n=0;
-if(e.encuadre){n++;t+=n+'. ENCUADRE: la cara está demasiado cerca. Amplía el encuadre y completa cuello, ambos hombros y el pecho hasta aproximadamente la mitad del tórax, de forma anatómicamente natural y coherente con lo que ya aparece. El rostro sigue siendo el elemento principal, centrado y con la misma expresión y proporciones.\n';}
+if(e.encuadre){n++;t+=n+'. ENCUADRE: la referencia es un primer plano demasiado cerrado. Genera el cuello, AMBOS HOMBROS COMPLETOS y el pecho hasta la mitad del tórax (plano de medio busto, tipo carné ampliado), de forma anatómicamente natural y coherente con lo que ya aparece. No recortar por los hombros: ambos deben verse enteros dentro del cuadro. Para que todo quepa, la cara se hace más pequeña dentro del cuadro; el rostro sigue siendo el elemento principal, centrado y con la misma expresión y proporciones.\n';}
+if(e.acercar){n++;t+=n+'. ACERCAR EL ENCUADRE: la persona aparece demasiado lejos o pequeña dentro de la imagen, con mucho fondo sobrante. Acerca el encuadre y recorta el espacio sobrante para que la persona llene el cuadro como se indica en «ENCUADRE FINAL». Conserva la nitidez y el detalle del rostro (recupera la definición que se pierda al ampliar sin cambiar ningún rasgo) y no cortes la cabeza, el pelo ni los hombros.\n';}
+if(e.postura){n++;t+=n+'. POSTURA: corrige la postura para que sea natural y relajada: cabeza erguida y recta sobre el cuello, mirada al frente (o un ligero tres cuartos si ya lo tiene), hombros nivelados y relajados, y torso orientado de forma coherente con la cabeza. Cuello de longitud y grosor normales. Evita giros forzados, cabezas inclinadas de forma extraña, cuellos alargados y hombros asimétricos o desproporcionados. Mantén la identidad, la expresión y los rasgos.\n';}
 if(e.vestir){n++;t+=n+'. VESTIMENTA: viste a la persona con ropa de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+', sencilla, discreta y realista, adecuada a su condición social'+(e.ropa.trim()?'. Indicación concreta: '+e.ropa.trim():'')+'. Nunca una prenda moderna genérica. La persona siempre debe aparecer vestida.\n';}
 if(e.sombrero){n++;t+=n+'. TOCADO: añade un sombrero o tocado propio de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+(e.sombreroTxt.trim()?': '+e.sombreroTxt.trim():', acorde a su sexo y condición social')+'. Debe entrar ENTERO en la imagen, sin tapar la frente más de lo que correspondería a ese tocado ni deformar el pelo.\n';}
-n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.\n';
+n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.'+(e.fondoClaro?' El fondo debe ser CLARO y luminoso, con el color exacto indicado y nunca más oscuro: sin viñeteado, sin sombras ni oscurecimiento en las esquinas o los bordes, y con el mismo tono en el centro que en las esquinas. Si el fondo de la referencia es oscuro, sustitúyelo por completo.':'')+'\n';
+if(e.bordes){n++;t+=n+'. CORREGIR BORDES Y RAYAS: la imagen tiene una raya, línea o halo en el contorno de la persona o en los bordes de la imagen, producto de un mal recorte. Elimínala: rehaz el contorno de la persona (pelo, orejas, hombros y ropa) con un borde natural y limpio, sin halo claro ni oscuro, sin líneas ni restos del fondo anterior, y haz que el fondo llegue continuo hasta los cuatro bordes de la imagen, sin marcos ni franjas.\n';}
 if(e.extra.trim()){n++;t+=n+'. INDICACIÓN ADICIONAL: '+e.extra.trim()+'\n';}
-t+='\nENCUADRE FINAL — cuadrado 1:1 exacto, tipo foto de carné: de la parte superior de la cabeza hasta aproximadamente la mitad del pecho, con ambos hombros visibles. El 1:1 se consigue ajustando el encuadre del retrato en sí, nunca añadiendo espacio vacío alrededor.\n\n';
+t+='\nENCUADRE FINAL — cuadrado 1:1 exacto, plano de medio busto (tipo carné ampliado): desde un pequeño margen sobre la cabeza hasta la mitad del pecho, con el cuello y AMBOS HOMBROS COMPLETOS visibles, llegando casi a los márgenes laterales. La cabeza ocupa aproximadamente el 40-45 % de la altura de la imagen. No recortar por los hombros ni por el cuello bajo ningún concepto. '+(e.acercar?'El 1:1 se consigue acercando el encuadre y recortando el espacio sobrante del fondo, sin cortar la cabeza, el pelo ni los hombros.':'El 1:1 se consigue generando el cuerpo que falta y reduciendo la cara dentro del cuadro, nunca recortando hombros ni añadiendo bandas vacías alrededor.')+'\n\n';
 t+='COLOR Y ACABADO: imagen a todo color, con tonos naturales, realistas y discretos (nunca blanco y negro ni sepia). Acabado de fotografía de estudio real: iluminación uniforme y suave, nitidez natural, sin aspecto pictórico, de grabado ni de escultura.\n\n';
 t+='LÍNEA ROJA: la cabeza debe entrar entera, incluido el pelo y el sombrero en su caso. Respeta barba y bigote.\n\n';
-t+='VERIFICACIÓN FINAL: antes de dar el resultado por definitivo, comprobar que la imagen es verificablemente cuadrada (1:1), que se ven ambos hombros y el pecho, que la cabeza entra entera, que la cara conserva la identidad de la referencia, que el fondo es el indicado y sin discontinuidades, y que la persona está vestida. Si algo falla, repetir el ajuste hasta cumplirlo.';
+t+='VERIFICACIÓN FINAL: antes de dar el resultado por definitivo, comprobar que la imagen es verificablemente cuadrada (1:1), que se ven ambos hombros completos (sin recorte por los hombros) y el pecho, que la cabeza entra entera, que la cara conserva la identidad de la referencia, que el fondo es el indicado y sin discontinuidades, y que la persona está vestida'+(e.bordes?', que no queda ninguna raya, línea ni halo en el contorno de la persona ni en los bordes de la imagen':'')+(e.fondoClaro?', que el fondo es claro y del mismo tono en todo el cuadro':'')+(e.postura?', que la postura es natural':'')+'. Si algo falla, repetir el ajuste hasta cumplirlo.';
 return t;
 }
 function gemPanelHtml(id,p){
@@ -7704,12 +7707,16 @@ var h='<details id="gem-panel" style="margin-top:14px;border:1px solid var(--bor
 h+='<summary style="cursor:pointer;font-weight:700;font-size:13px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Reparar esta foto con Gemini (prompt + enlace a Drive)</summary>';
 h+='<div style="margin-top:10px;font-size:12px">';
 h+='<div style="display:flex;flex-direction:column;gap:6px">';
-h+='<label><input type="checkbox" id="gem-encuadre"'+(e.encuadre?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Ampliar el encuadre</b> (la cara está muy cerca: añadir cuello, hombros y medio pecho)</label>';
+h+='<label><input type="checkbox" id="gem-encuadre"'+(e.encuadre?' checked':'')+' onchange="gemActualizar(\''+sid+'\',\'encuadre\')"> <b>Ampliar el encuadre</b> (la cara está muy cerca: añadir cuello, hombros y medio pecho)</label>';
+h+='<label><input type="checkbox" id="gem-acercar"'+(e.acercar?' checked':'')+' onchange="gemActualizar(\''+sid+'\',\'acercar\')"> <b>Acercar el encuadre</b> (la persona sale lejos o pequeña: acercar y recortar el fondo sobrante)</label>';
+h+='<label><input type="checkbox" id="gem-postura"'+(e.postura?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Postura natural</b> (cabeza recta, hombros relajados y nivelados, sin giros ni cuello raro)</label>';
 h+='<label><input type="checkbox" id="gem-vestir"'+(e.vestir?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Vestir de época</b></label>';
 h+='<input class="ef-input" id="gem-ropa" placeholder="Ropa concreta (opcional): levita oscura con cuello alto, traje de aldeana gallega, uniforme militar..." value="'+escAttr(e.ropa)+'" oninput="gemActualizar(\''+sid+'\')">';
 h+='<label><input type="checkbox" id="gem-sombrero"'+(e.sombrero?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Poner sombrero o tocado de la época</b></label>';
 h+='<input class="ef-input" id="gem-sombrero-txt" placeholder="Cuál (opcional): chistera, bombín, boina, mantilla, toca..." value="'+escAttr(e.sombreroTxt)+'" oninput="gemActualizar(\''+sid+'\')">';
 h+='<label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>Fondo:</b> <select id="gem-fondo" class="ef-input" style="width:auto" onchange="gemActualizar(\''+sid+'\')">'+GEM_FONDOS.map(function(f){return'<option value="'+f[0]+'"'+(e.fondo===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';}).join('')+'</select></label>';
+h+='<label><input type="checkbox" id="gem-fondoclaro"'+(e.fondoClaro?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Fondo claro y del color exacto</b> (para cuando sale oscuro o con sombras en las esquinas)</label>';
+h+='<label><input type="checkbox" id="gem-bordes"'+(e.bordes?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Quitar la raya o el halo del recorte</b> (línea en el filo de la persona o en el borde de la imagen)</label>';
 h+='</div>';
 h+='<div style="margin:10px 0 4px;font-weight:700">Rasgos que ves en la foto (se exigen en el prompt)</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
 GEM_RASGOS.forEach(function(r){
@@ -7722,17 +7729,24 @@ h+='<textarea id="gem-prompt" readonly rows="7" style="width:100%;box-sizing:bor
 h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
 h+='<button type="button" class="ef-btn" onclick="gemCopiarPrompt()"><i class="fa-solid fa-copy"></i> Copiar prompt</button>';
 h+='<button type="button" class="ef-btn ghost" id="gem-btn-drive" onclick="gemAbrirFotoDrive(\''+sid+'\')"><i class="fa-brands fa-google-drive"></i> Abrir foto en Drive</button>';
-h+='<button type="button" class="ef-btn ghost" onclick="gemCopiarEnlaceDrive(\''+sid+'\')"><i class="fa-solid fa-link"></i> Copiar enlace</button>';
-h+='<a class="ef-btn ghost" href="https://gemini.google.com/app" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Gemini</a>';
 h+='</div>';
-h+='<p style="font-size:10px;color:var(--muted);margin:8px 0 0">Pasos: 1) abre la foto en Drive (o usa la de arriba), 2) súbela a Gemini y pega el prompt, 3) cuando te guste el resultado, vuelve aquí y usa «Subir foto» o «Pegar del portapapeles» y Guardar.</p>';
+h+='<p style="font-size:10px;color:var(--muted);margin:8px 0 0">Pasos: 1) pulsa «Abrir foto en Drive» y descárgala, 2) súbela a Gemini y pega el prompt, 3) cuando te guste el resultado, vuelve aquí y usa «Subir foto» o «Pegar del portapapeles» y Guardar.</p>';
 h+='</div></details>';
 return h;
 }
-function gemActualizar(id){
+function gemActualizar(id,cual){
 var e=gemEstado(id);
 var g=function(x){return document.getElementById(x);};
 if(g('gem-encuadre'))e.encuadre=g('gem-encuadre').checked;
+if(g('gem-acercar'))e.acercar=g('gem-acercar').checked;
+/* «Ampliar» y «Acercar» se excluyen: la última que se marca desactiva la otra */
+if(e.encuadre&&e.acercar){
+if(cual==='acercar'){e.encuadre=false;if(g('gem-encuadre'))g('gem-encuadre').checked=false;}
+else{e.acercar=false;if(g('gem-acercar'))g('gem-acercar').checked=false;}
+}
+if(g('gem-postura'))e.postura=g('gem-postura').checked;
+if(g('gem-fondoclaro'))e.fondoClaro=g('gem-fondoclaro').checked;
+if(g('gem-bordes'))e.bordes=g('gem-bordes').checked;
 if(g('gem-vestir'))e.vestir=g('gem-vestir').checked;
 if(g('gem-ropa'))e.ropa=g('gem-ropa').value;
 if(g('gem-sombrero'))e.sombrero=g('gem-sombrero').checked;
@@ -7787,12 +7801,6 @@ if(w)w.location.href=url;else window.open(url,'_blank');
 if(w)try{w.close();}catch(e){}
 toast(err.message,true);
 }
-}
-async function gemCopiarEnlaceDrive(id){
-try{
-var url=await gemObtenerEnlaceDrive(id);
-gemCopiarTexto(url,'Enlace a la foto en Drive copiado');
-}catch(err){toast(err.message,true);}
 }
 function htmlFotoEditForm(id,p){
 var h='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
