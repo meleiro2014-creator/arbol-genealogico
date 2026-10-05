@@ -4220,7 +4220,8 @@ host.innerHTML='<div style="display:flex;justify-content:space-between;align-ite
 '<input type="file" id="docExplorerCameraInput" accept="image/*" capture="environment" style="display:none" onchange="docExplorerHandleInputChange(event,\''+safeId(id)+'\')">'+
 '<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerFileInput\').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button> '+
 '<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'docExplorerCameraInput\').click()"><i class="fa-solid fa-camera"></i> Hacer foto</button>'+
-'<p style="font-size:11px;color:var(--muted);margin-top:8px">Los archivos normales se suben a Drive tal cual. «Hacer foto» abre la cámara del móvil y prepara una copia JPG optimizada antes de subirla directamente a DOCUMENTOS/<ID>; no se guarda como documento en el teléfono.</p>'+
+' <button type="button" class="ef-btn ghost" onclick="docExplorerPegarDelPortapapeles()"><i class="fa-solid fa-paste"></i> Pegar del portapapeles</button>'+
+'<p style="font-size:11px;color:var(--muted);margin-top:8px">Los archivos normales se suben a Drive tal cual. «Hacer foto» abre la cámara del móvil y prepara una copia JPG optimizada antes de subirla directamente a DOCUMENTOS/<ID>; no se guarda como documento en el teléfono. «Pegar del portapapeles» (o Ctrl+V en esta pantalla) crea un documento nuevo a partir de texto o de una imagen copiada: eliges el nombre y se guarda en esta carpeta.</p>'+
 '<div id="docExplorerProgreso" style="display:none;margin-top:10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="docExplorerProgresoBarra"></div></div><div id="docExplorerProgresoTexto" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>'+
 '</div>';
 }
@@ -4307,6 +4308,217 @@ var nombre='foto_'+ahora.getFullYear()+z(ahora.getMonth()+1)+z(ahora.getDate())+
 try{return new File([blob],nombre,{type:'image/jpeg',lastModified:Date.now()});}
 catch(e){blob.name=nombre;return blob;}
 }finally{URL.revokeObjectURL(url);}
+}
+
+/* ==========================================================================
+   PEGAR DEL PORTAPAPELES -> DOCUMENTO NUEVO EN DRIVE
+   --------------------------------------------------------------------------
+   Crea un documento a partir de lo que haya en el portapapeles: texto (se
+   guarda como .txt o .md) o imagen (.png/.jpg/.webp, tal cual se copió).
+   Se activa con el botón «Pegar del portapapeles» o con Ctrl+V sobre la
+   pantalla del Explorador. Antes de guardar se muestra una vista previa y un
+   campo «Nombre del documento» (la extensión se añade sola). Se guarda en
+   DOCUMENTOS/<ID de la persona>; si esa carpeta no existe, se crea. Si ya hay
+   un archivo con ese nombre, se añade (2), (3)... sin sobrescribir nada.
+   Opcionalmente crea la ficha básica (.json) para que el Explorador la muestre
+   con tipo y fecha, sin OCR. */
+var DOC_PEGADO=null;
+function docPegadoZ(n){return String(n).padStart(2,'0');}
+function docPegadoNombreSugerido(){
+var a=new Date();
+return 'documento_'+a.getFullYear()+'-'+docPegadoZ(a.getMonth()+1)+'-'+docPegadoZ(a.getDate())+'_'+docPegadoZ(a.getHours())+'h'+docPegadoZ(a.getMinutes());
+}
+function docPegadoExtImagen(mime){
+mime=String(mime||'').toLowerCase();
+if(mime==='image/jpeg'||mime==='image/jpg')return'.jpg';
+if(mime==='image/webp')return'.webp';
+if(mime==='image/gif')return'.gif';
+return'.png';
+}
+function docPegadoLimpiarNombre(s){
+s=String(s||'').replace(/[\\\/:*?"<>|\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim();
+s=s.replace(/\.(txt|md|png|jpe?g|webp|gif)$/i,'').replace(/[. ]+$/,'').trim();
+return s.slice(0,150);
+}
+async function docExplorerPegarDelPortapapeles(){
+if(!DOC_EXPLORER_PERSONA){toast('Selecciona primero una persona',true);return;}
+if(!navigator.clipboard||!navigator.clipboard.read){
+  /* Navegadores sin lectura directa (Firefox, Safari): se abre el cuadro vacío
+     y se pega dentro con Ctrl+V (admite texto e imagen). */
+  docPegadoAbrir({tipo:'texto',texto:''});
+  toast('Este navegador no permite leer el portapapeles con un botón. Pulsa Ctrl+V dentro del cuadro.',true);
+  return;
+}
+try{
+  var items=await navigator.clipboard.read();
+  var blob=null,texto='';
+  for(var i=0;i<items.length;i++){
+    var tImg=items[i].types.find(function(t){return t.indexOf('image/')===0;});
+    if(tImg&&!blob)blob=await items[i].getType(tImg);
+    if(items[i].types.indexOf('text/plain')>=0&&!texto){texto=await(await items[i].getType('text/plain')).text();}
+  }
+  if(blob)docPegadoAbrir({tipo:'imagen',blob:blob});
+  else if(texto&&texto.trim())docPegadoAbrir({tipo:'texto',texto:texto});
+  else toast('No hay texto ni imagen en el portapapeles. Copia algo e inténtalo de nuevo.',true);
+}catch(err){
+  if(err&&err.name==='NotAllowedError')toast('El navegador ha bloqueado el acceso al portapapeles. Vuelve a pulsar el botón y concede el permiso, o usa Ctrl+V.',true);
+  else toast('No se pudo leer el portapapeles: '+(err&&err.message),true);
+}
+}
+/* Ctrl+V directo sobre el Explorador (fuera de cuadros de texto) o dentro del cuadro de pegado. */
+function docPegadoDesdeEvento(ev){
+var cd=ev.clipboardData;
+if(!cd)return null;
+var img=null;
+if(cd.items){for(var i=0;i<cd.items.length;i++){if(cd.items[i].kind==='file'&&cd.items[i].type.indexOf('image/')===0){img=cd.items[i].getAsFile();break;}}}
+if(img)return{tipo:'imagen',blob:img};
+var t=cd.getData('text/plain');
+if(t&&t.trim())return{tipo:'texto',texto:t};
+return null;
+}
+document.addEventListener('paste',function(ev){
+var modal=document.getElementById('docPegadoModal');
+if(modal&&modal.style.display==='flex'){
+  var t=ev.target;
+  if(t&&t.id==='docPegadoTexto'&&!(ev.clipboardData&&Array.prototype.some.call(ev.clipboardData.items||[],function(x){return x.kind==='file'&&x.type.indexOf('image/')===0;})))return;
+  var dm=docPegadoDesdeEvento(ev);
+  if(dm){ev.preventDefault();docPegadoAbrir(dm,true);}
+  return;
+}
+if(!DOC_EXPLORER_PERSONA)return;
+var zona=document.getElementById('docExplorerDropZone');
+if(!zona||!zona.offsetParent)return;
+var tg=ev.target;
+if(tg&&(tg.tagName==='INPUT'||tg.tagName==='TEXTAREA'||tg.isContentEditable))return;
+var d=docPegadoDesdeEvento(ev);
+if(d){ev.preventDefault();docPegadoAbrir(d);}
+});
+function docPegadoAbrir(datos,mantenerNombre){
+var previo=DOC_PEGADO;
+if(DOC_PEGADO&&DOC_PEGADO.url){try{URL.revokeObjectURL(DOC_PEGADO.url);}catch(e){}}
+DOC_PEGADO={tipo:datos.tipo,blob:datos.blob||null,url:datos.blob?URL.createObjectURL(datos.blob):null,personaId:DOC_EXPLORER_PERSONA?DOC_EXPLORER_PERSONA.id:null,personaNombre:DOC_EXPLORER_PERSONA?DOC_EXPLORER_PERSONA.nombre:''};
+var nombrePrevio='';
+var m=document.getElementById('docPegadoModal');
+if(m&&mantenerNombre){var ni=document.getElementById('docPegadoNombre');if(ni)nombrePrevio=ni.value;}
+if(!m){
+  m=document.createElement('div');
+  m.id='docPegadoModal';
+  m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
+  m.style.cssText='display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:250;align-items:center;justify-content:center;padding:20px;';
+  document.body.appendChild(m);
+}
+var esImg=datos.tipo==='imagen';
+var vista=esImg
+  ?'<div style="text-align:center;background:var(--bg,#f5f5f5);border:1px solid var(--border);border-radius:8px;padding:8px"><img src="'+DOC_PEGADO.url+'" style="max-width:100%;max-height:320px;object-fit:contain"></div>'
+  :'<textarea id="docPegadoTexto" rows="10" placeholder="Pega aquí el texto (Ctrl+V) o escríbelo" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:8px;font:13px/1.4 inherit;resize:vertical;background:var(--card);color:inherit"></textarea>';
+/* el texto se inyecta después con .value, tal cual (sin escapar ni perder saltos de línea) */
+m.innerHTML='<div style="background:var(--card);color:inherit;border:1px solid var(--border);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px">'+
+'<h3 style="margin:0 0 4px"><i class="fa-solid fa-paste"></i> Crear documento desde el portapapeles</h3>'+
+'<p style="font-size:12px;color:var(--muted);margin:0 0 10px">Para: <strong>'+esc(DOC_PEGADO.personaNombre)+'</strong> · '+(esImg?'Imagen':'Texto')+'</p>'+
+vista+
+'<label style="display:block;font-size:12px;margin:12px 0 4px">Nombre del documento</label>'+
+'<div style="display:flex;gap:6px;align-items:center"><input id="docPegadoNombre" type="text" style="flex:1;min-width:0;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--card);color:inherit">'+
+(esImg?'<span id="docPegadoExt" style="font-size:13px;color:var(--muted)">'+docPegadoExtImagen(datos.blob&&datos.blob.type)+'</span>'
+:'<select id="docPegadoExt" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--card);color:inherit"><option value=".txt">.txt</option><option value=".md">.md</option></select>')+'</div>'+
+'<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-top:10px"><input type="checkbox" id="docPegadoFicha" checked> Crear también la ficha básica (tipo «documento», fecha de hoy, sin OCR)</label>'+
+'<p style="font-size:11px;color:var(--muted);margin:8px 0 0">Se guarda en la carpeta de Drive de esta persona (si no existe, se crea). Si ya hay un archivo con ese nombre se añade (2), (3)… sin sobrescribir.</p>'+
+'<div id="docPegadoEstado" style="font-size:12px;margin-top:8px;display:none"></div>'+
+'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button type="button" class="ef-btn ghost" onclick="docPegadoCerrar()">Cancelar</button><button type="button" class="ef-btn" id="docPegadoGuardarBtn" onclick="docPegadoGuardar()"><i class="fa-brands fa-google-drive"></i> Guardar en Drive</button></div>'+
+'</div>';
+var ta=document.getElementById('docPegadoTexto');
+if(ta)ta.value=datos.texto||'';
+document.getElementById('docPegadoNombre').value=nombrePrevio||docPegadoNombreSugerido();
+m.style.display='flex';
+setTimeout(function(){var n=document.getElementById('docPegadoNombre');if(n){n.focus();n.select();}},50);
+}
+function docPegadoCerrar(){
+if(docsSubidaEnCurso){toast('Espera a que termine el guardado en curso',true);return;}
+var m=document.getElementById('docPegadoModal');
+if(m)m.style.display='none';
+if(DOC_PEGADO&&DOC_PEGADO.url){try{URL.revokeObjectURL(DOC_PEGADO.url);}catch(e){}}
+DOC_PEGADO=null;
+}
+async function docPegadoNombreLibre(folderId,base,ext){
+async function existe(n){
+  var q="'"+folderId+"' in parents and name='"+n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"' and trashed=false";
+  var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+  if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+  if(!r.ok)throw new Error('Drive respondió '+r.status);
+  var d=await r.json();
+  return !!(d.files&&d.files.length);
+}
+var cand=base,k=1;
+while(k<500){
+  if(!(await existe(cand+ext))&&!(await existe(cand+'.json')))return cand;
+  k++;cand=base+' ('+k+')';
+}
+throw new Error('Demasiados archivos con ese nombre');
+}
+async function docPegadoGuardar(){
+if(!DOC_PEGADO)return;
+if(docsSubidaEnCurso){toast('Ya hay una subida de documentos en curso; espera a que termine',true);return;}
+var personaId=DOC_PEGADO.personaId;
+if(!personaId){toast('Selecciona primero una persona',true);return;}
+var base=docPegadoLimpiarNombre(document.getElementById('docPegadoNombre').value)||docPegadoNombreSugerido();
+var extEl=document.getElementById('docPegadoExt');
+var ext,blob,mime;
+if(DOC_PEGADO.tipo==='imagen'){
+  blob=DOC_PEGADO.blob;mime=blob.type||'image/png';ext=docPegadoExtImagen(mime);
+}else{
+  var texto=document.getElementById('docPegadoTexto').value;
+  if(!texto.trim()){toast('El texto está vacío',true);return;}
+  ext=(extEl&&extEl.value)||'.txt';
+  mime=ext==='.md'?'text/markdown':'text/plain';
+  blob=new Blob([texto],{type:mime+';charset=utf-8'});
+}
+var crearFicha=!!document.getElementById('docPegadoFicha').checked;
+if(!(await exigirIdentidadGoogle()))return;
+if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos" en Herramientas)',true);return;}
+if(!tokenDriveValido()){
+  try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
+}
+docsSubidaEnCurso=true;
+var btn=document.getElementById('docPegadoGuardarBtn'),est=document.getElementById('docPegadoEstado');
+if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';}
+if(est){est.style.display='block';est.textContent='Preparando la carpeta de Drive...';}
+var ok=false;
+try{
+  var folderId=await obtenerCarpetaPersonaDocumentos(personaId,true);
+  if(est)est.textContent='Comprobando el nombre...';
+  var nombreFinal=await docPegadoNombreLibre(folderId,base,ext);
+  var nombreArchivo=nombreFinal+ext;
+  if(est)est.textContent='Subiendo '+nombreArchivo+'...';
+  var fileId=await crearArchivoDriveVacioConMetadatos(nombreArchivo,mime,folderId,undefined);
+  await subirContenidoArchivoDrive(fileId,blob,mime);
+  if(crearFicha){
+    try{
+      var hoy=new Date().toISOString();
+      var contenido={
+        personaId:personaId,driveFileId:fileId,nombreOriginal:nombreArchivo,
+        esDocumento:true,tipo:'documento',fecha:hoy.slice(0,10),fechaEstimada:false,fuenteFecha:'pegado-portapapeles',
+        origen:'portapapeles',
+        archivoDrive:{tamano:blob.size||null,mimeType:mime,creadoDrive:hoy},
+        etiquetas:[],ocrProcesado:false,ocrConfianza:0,ocrTexto:'',sugerenciasGenealogicas:[]
+      };
+      var idSc=await crearArchivoDriveVacioConMetadatos(nombreFinal+'.json','application/json',folderId,undefined);
+      await subirContenidoArchivoDrive(idSc,new Blob([JSON.stringify(contenido,null,2)],{type:'application/json'}),'application/json');
+    }catch(eFicha){
+      console.warn('El documento se guardó, pero no se pudo crear su ficha:',eFicha.message);
+      toast('Documento guardado, pero no se pudo crear la ficha: '+eFicha.message,true);
+    }
+  }
+  ok=true;
+  toast('Documento «'+nombreArchivo+'» guardado en Drive'+(nombreFinal!==base?' (el nombre ya existía, se ha añadido un número)':''));
+}catch(err){
+  toast('No se pudo guardar el documento: '+err.message,true);
+}
+docsSubidaEnCurso=false;
+if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-brands fa-google-drive"></i> Guardar en Drive';}
+if(est)est.style.display='none';
+if(ok){
+  docPegadoCerrar();
+  if(DOC_EXPLORER_PERSONA&&DOC_EXPLORER_PERSONA.id===personaId)docExplorerRepasarCarpeta();
+}
 }
 
 async function docExplorerSubirArchivos(id,fileList){
