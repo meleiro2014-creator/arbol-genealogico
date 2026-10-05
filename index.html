@@ -1075,8 +1075,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.04.4';
+var APP_VERSION = '2026.10.05.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.05.1', fecha:'2026-10-05', cambios:[
+    'Documentos (Explorador): nuevo botón «Pegar del portapapeles» (también Ctrl+V en esa pantalla) para crear un documento nuevo a partir de texto (.txt/.md) o de una imagen copiada (.png/.jpg). Se elige el nombre antes de guardar, se guarda en la carpeta de Drive de la persona (se crea si no existe), los nombres repetidos reciben (2), (3)... y se puede crear la ficha básica.'
+  ]},
   { version:'2026.10.04.4', fecha:'2026-10-04', cambios:[
     'Gestor de datos, apellidos: «Primer apellido muy distinto al del padre» y «Segundo apellido muy distinto al primer apellido de la madre» ya no avisan de personas portuguesas o brasileñas (sus apellidos se forman al revés: primero el de la madre y al final el del padre) ni, en el caso de la madre, de personas de países anglosajones (Estados Unidos, Reino Unido, Irlanda, Canadá, Australia, Nueva Zelanda), que usan un solo apellido. Se considera de ese país a la persona cuyo lugar de nacimiento o defunción, o el lugar de nacimiento del progenitor comparado, esté en él.'
   ]},
