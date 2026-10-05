@@ -1075,8 +1075,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.05.1';
+var APP_VERSION = '2026.10.05.2';
 var APP_CHANGELOG = [
+  { version:'2026.10.05.2', fecha:'2026-10-05', cambios:[
+    'Gestor de datos: los botones «Ver ficha» (y «Ver A» / «Ver B») abren ahora la ficha en una pestaña nueva del navegador, para no perder el sitio donde estabas en el Gestor; se vuelve cerrando esa pestaña.',
+    'Gestor de datos, apellidos: títulos más cortos para que se vean bien en el móvil: «Apellido 1 ≠ padre» y «Apellido 2 ≠ madre» (la explicación completa sigue en la descripción de cada categoría).'
+  ]},
   { version:'2026.10.05.1', fecha:'2026-10-05', cambios:[
     'Documentos (Explorador): nuevo botón «Pegar del portapapeles» (también Ctrl+V en esa pantalla) para crear un documento nuevo a partir de texto (.txt/.md) o de una imagen copiada (.png/.jpg). Se elige el nombre antes de guardar, se guarda en la carpeta de Drive de la persona (se crea si no existe), los nombres repetidos reciben (2), (3)... y se puede crear la ficha básica.'
   ]},
@@ -7423,6 +7427,31 @@ var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
 }
 function irFicha(){editSec={};sv('fic');}
+/* Abre la ficha de una persona en una PESTAÑA NUEVA del navegador (usado por los botones
+   "Ver ficha" del Gestor de datos). Así la pestaña del Gestor se queda como estaba (misma
+   categoría, mismo tramo, misma posición) y se vuelve a ella con solo cerrar la pestaña de la
+   ficha. Se prefiere pestaña a "ventana paralela": en móvil las ventanas aparte no existen y en
+   ordenador una pestaña se puede arrastrar para separarla. La pestaña nueva se abre con
+   ?ficha=ID y al arrancar la app (ver cargarInicial) abre directamente esa ficha. Si el
+   navegador bloquea la pestaña nueva, se abre la ficha en la misma pestaña como antes. */
+function abrirFichaEnPestana(id){
+if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
+if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
+var url=location.origin+location.pathname+'?ficha='+encodeURIComponent(id);
+var w=null;
+try{w=window.open(url,'_blank');}catch(e){w=null;}
+if(!w){abrirFichaDesdeArbol(id);}
+}
+/* Al arrancar con ?ficha=ID (pestaña abierta desde el Gestor): abre esa ficha y limpia el parámetro. */
+function abrirFichaDesdeUrlInicial(){
+var id=null;
+try{id=new URLSearchParams(location.search).get('ficha');}catch(e){}
+if(!id)return;
+try{history.replaceState(history.state,'',location.pathname+'#fic');}catch(e){}
+if(!PI[id]){toast('La persona '+id+' no existe en esta base de datos',true);return;}
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
+cid=id;editSec={};sv('fic');
+}
 function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
 function rFic(id){
 rFicView(id);
@@ -9474,8 +9503,8 @@ ver2:'Ver '+rel
 });
 }
 }
-if(p.PADRE&&PI[p.PADRE])compararConProgenitor('APELLIDO1',PI[p.PADRE],'APELLIDO1','padre','Primer apellido muy distinto al del padre (nacidos desde 1900)');
-if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1','madre','Segundo apellido muy distinto al primer apellido de la madre (nacidos desde 1900)');
+if(p.PADRE&&PI[p.PADRE])compararConProgenitor('APELLIDO1',PI[p.PADRE],'APELLIDO1','padre','Apellido 1 ≠ padre');
+if(p.MADRE&&PI[p.MADRE])compararConProgenitor('APELLIDO2',PI[p.MADRE],'APELLIDO1','madre','Apellido 2 ≠ madre');
 });
 return problemas;
 }
@@ -10197,8 +10226,8 @@ var apeMetaPorEtq={
 'Nombre o apellido con formato irregular':{sev:'info',icono:'fa-eraser'},
 'Nombre o apellido todo en mayúsculas o en minúsculas':{sev:'info',icono:'fa-text-height'},
 'Valor de relleno en vez de un dato real':{sev:'info',icono:'fa-ban'},
-'Primer apellido muy distinto al del padre (nacidos desde 1900)':{sev:'revision',icono:'fa-people-roof',desc:'Solo personas nacidas desde 1900 (año real o calculado) cuyo apellido se parece muy poco al del padre o la madre: se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo. No se avisa de personas portuguesas o brasileñas (sus apellidos se forman al revés) ni, en el caso de la madre, de personas de países anglosajones (un solo apellido).'},
-'Segundo apellido muy distinto al primer apellido de la madre (nacidos desde 1900)':{sev:'revision',icono:'fa-people-roof',desc:'Solo personas nacidas desde 1900 (año real o calculado) cuyo apellido se parece muy poco al del padre o la madre: se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo. No se avisa de personas portuguesas o brasileñas (sus apellidos se forman al revés) ni, en el caso de la madre, de personas de países anglosajones (un solo apellido).'},
+'Apellido 1 ≠ padre':{sev:'revision',icono:'fa-people-roof',desc:'Primer apellido de la persona muy distinto al primer apellido de su padre. Solo personas nacidas desde 1900 (año real o calculado): se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo. No se avisa de personas portuguesas o brasileñas (sus apellidos se forman al revés) ni, en el caso de la madre, de personas de países anglosajones (un solo apellido).'},
+'Apellido 2 ≠ madre':{sev:'revision',icono:'fa-people-roof',desc:'Segundo apellido de la persona muy distinto al primer apellido de su madre. Solo personas nacidas desde 1900 (año real o calculado): se ignoran tildes, mayúsculas, erratas pequeñas y apellidos compuestos. Puede ser legítimo (orden de apellidos elegido por los padres, adopción...): abre la ficha de la persona y la de su padre o madre para comprobarlo. No se avisa de personas portuguesas o brasileñas (sus apellidos se forman al revés) ni, en el caso de la madre, de personas de países anglosajones (un solo apellido).'},
 'Posible errata en apellido heredado de un progenitor':{sev:'revision',icono:'fa-spell-check'},
 'Nombre y primer apellido idénticos':{sev:'revision',icono:'fa-clone'},
 'Primer y segundo apellido idénticos':{sev:'revision',icono:'fa-clone'}
@@ -10722,8 +10751,8 @@ var tagCalc=typeof it.calculado==='boolean'?(it.calculado?'<span class="inc-tag 
 return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid '+(it.icono||'fa-triangle-exclamation')+'"></i></div>'+
 '<div class="inc-msg">'+tagCalc+it.mensaje+
 '<div class="inc-actions">'+btnSolucionar+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId)+'\')">Ver ficha</button>'+
-(it.verId2?'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId2)+'\')">'+esc(it.ver2||'Ver ficha relacionada')+'</button>':'')+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.verId)+'\')">Ver ficha</button>'+
+(it.verId2?'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.verId2)+'\')">'+esc(it.ver2||'Ver ficha relacionada')+'</button>':'')+
 '</div></div></div>';
 }
 function gesRenderItemDup(c,it,idx){
@@ -10740,14 +10769,14 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-user-gr
 '<div class="inc-actions">'+btnArreglar+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.aId)+'\')">Ver A</button>'+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.bId)+'\')">Ver B</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.aId)+'\')">Ver A</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.bId)+'\')">Ver B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesIgnorarDup(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> No es duplicado</button>'+
 '</div></div></div>';
 }
 function gesRenderItemDef(c,it){
 return '<div class="inc-row"><div class="inc-msg">'+it.mensaje+
-'<div class="inc-actions"><button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaDesdeArbol(\''+safeId(it.verId)+'\')">Ver ficha</button></div>'+
+'<div class="inc-actions"><button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.verId)+'\')">Ver ficha</button></div>'+
 '</div></div>';
 }
 function gesRenderLugar(g){
@@ -10952,7 +10981,7 @@ if(vistos[ref.id]||ejemplos.length>=3)return;
 if(!puedeVerPersona(ref.id))return; /* persona viva fuera del alcance del perfil: no se muestra su nombre */
 vistos[ref.id]=1;
 var p=PI[ref.id];
-if(p)ejemplos.push('<button class="ef-btn ghost" style="padding:2px 8px;font-size:10px;margin:2px 4px 2px 0" onclick="abrirFichaDesdeArbol(\''+safeId(ref.id)+'\')">'+esc(fn(p).replace(/\s+/g,' ').trim())+' · ID '+esc(ref.id)+'</button>');
+if(p)ejemplos.push('<button class="ef-btn ghost" style="padding:2px 8px;font-size:10px;margin:2px 4px 2px 0" onclick="abrirFichaEnPestana(\''+safeId(ref.id)+'\')">'+esc(fn(p).replace(/\s+/g,' ').trim())+' · ID '+esc(ref.id)+'</button>');
 });
 if(ejemplos.length)h+='<div style="margin:0 0 2px 30px">'+ejemplos.join('')+'</div>';
 }
@@ -14909,7 +14938,7 @@ restaurarUsuariosCacheLocal();
 ['pagehide','beforeunload'].forEach(function(ev){window.addEventListener(ev,function(){borrarSoloTokenDrive();});});
 function cargarInicial(data){
 D=data;bIdx(data);datosLocalesListos=true;
-function continuar(){init();cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!haySeccionEditando())rFic(cid);
+function continuar(){init();try{abrirFichaDesdeUrlInicial();}catch(e){console.warn(e);}cargarCarpetaDocumentos().then(function(){actualizarDriveStatusPill();actualizarFechaArbolOficial();if(cid&&!haySeccionEditando())rFic(cid);
 /* A PETICIÓN DEL USUARIO: la app arranca siempre desconectada de Google
    Drive y ya NO intenta conectarse sola (ni en silencio) al abrirse; la
    conexión solo se produce cuando la persona toca explícitamente el punto
