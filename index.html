@@ -1075,8 +1075,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.05.2';
+var APP_VERSION = '2026.10.05.3';
 var APP_CHANGELOG = [
+  { version:'2026.10.05.3', fecha:'2026-10-05', cambios:[
+    'Gestor de datos: «Ver ficha» / «Ver A» / «Ver B» abren la ficha en una segunda ventana que se REUTILIZA: la primera vez se abre la ventana, y las siguientes veces la ficha cambia al instante en esa misma ventana (sin abrir otra ni recargar la app). Si la ventana se cerró, se abre de nuevo. Si tenías algo sin guardar en esa ventana, pregunta antes de cambiar de ficha.'
+  ]},
   { version:'2026.10.05.2', fecha:'2026-10-05', cambios:[
     'Gestor de datos: los botones «Ver ficha» (y «Ver A» / «Ver B») abren ahora la ficha en una pestaña nueva del navegador, para no perder el sitio donde estabas en el Gestor; se vuelve cerrando esa pestaña.',
     'Gestor de datos, apellidos: títulos más cortos para que se vean bien en el móvil: «Apellido 1 ≠ padre» y «Apellido 2 ≠ madre» (la explicación completa sigue en la descripción de cada categoría).'
@@ -7427,26 +7430,72 @@ var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
 if(r)r(null);
 }
 function irFicha(){editSec={};sv('fic');}
-/* Abre la ficha de una persona en una PESTAÑA NUEVA del navegador (usado por los botones
-   "Ver ficha" del Gestor de datos). Así la pestaña del Gestor se queda como estaba (misma
-   categoría, mismo tramo, misma posición) y se vuelve a ella con solo cerrar la pestaña de la
-   ficha. Se prefiere pestaña a "ventana paralela": en móvil las ventanas aparte no existen y en
-   ordenador una pestaña se puede arrastrar para separarla. La pestaña nueva se abre con
-   ?ficha=ID y al arrancar la app (ver cargarInicial) abre directamente esa ficha. Si el
-   navegador bloquea la pestaña nueva, se abre la ficha en la misma pestaña como antes. */
+/* ===== "Ver ficha" del Gestor en una SEGUNDA VENTANA REUTILIZABLE =====
+   Idea: en la ventana_0 (Gestor) se pulsa «Ver ficha» y la ficha se abre en la ventana_1. Al
+   pulsar «Ver ficha» de otra persona, NO se abre una ventana nueva ni se recarga la app (eso
+   tardaría): se manda un mensaje a la ventana_1 (BroadcastChannel) y esta cambia de ficha al
+   instante. Si la ventana_1 no existe (primera vez o cerrada), se abre con
+   window.open(url,'fichaAncestros'): al llevar nombre fijo, el navegador la reutiliza si ya
+   existe. La ventana_1 se abre con ?ficha=ID y al arrancar abre esa ficha (abrirFichaDesdeUrlInicial).
+   Si el navegador bloquea la ventana nueva, se abre la ficha en la misma ventana como antes. */
+var __CANAL_FICHA=null;
+try{if(typeof BroadcastChannel!=='undefined')__CANAL_FICHA=new BroadcastChannel('ancestros-ficha');}catch(e){__CANAL_FICHA=null;}
+var __esVentanaFicha=false;/* true solo en la ventana abierta desde el Gestor (?ficha=ID) */
+var __ventanaFichaRef=null;/* referencia a esa ventana, guardada en la ventana del Gestor */
+var __ackFichaPendientes={};
+if(__CANAL_FICHA){
+__CANAL_FICHA.onmessage=function(ev){
+var m=ev.data||{};
+if(m.t==='ack'){var f=__ackFichaPendientes[m.rid];if(f)f();return;}
+if(m.t==='abrir'&&__esVentanaFicha){
+__CANAL_FICHA.postMessage({t:'ack',rid:m.rid});
+recibirFichaDelGestor(String(m.id));
+}
+};
+}
+async function recibirFichaDelGestor(id){
+if(!PI[id]){toast('La persona '+id+' no existe en esta base de datos',true);return;}
+if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
+if(String(cid)===String(id)&&__vistaActual==='fic'){try{window.focus();}catch(e){}return;}
+if(haySeccionEditando()){
+var nom=fn(PI[id]).trim();
+if(!(await confirmarApp('Desde el Gestor piden abrir la ficha de '+nom+', pero tienes una sección en edición sin guardar en esta ventana. ¿Abrirla igualmente y descartar lo que estás editando?')))return;
+}
+cid=id;editSec={};sv('fic');
+try{window.focus();}catch(e){}
+}
 function abrirFichaEnPestana(id){
 if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
 var url=location.origin+location.pathname+'?ficha='+encodeURIComponent(id);
+function abrirVentana(){
 var w=null;
-try{w=window.open(url,'_blank');}catch(e){w=null;}
-if(!w){abrirFichaDesdeArbol(id);}
+try{w=window.open(url,'fichaAncestros');}catch(e){w=null;}
+if(!w){abrirFichaDesdeArbol(id);return;}
+__ventanaFichaRef=w;
+try{w.focus();}catch(e){}
 }
-/* Al arrancar con ?ficha=ID (pestaña abierta desde el Gestor): abre esa ficha y limpia el parámetro. */
+var viva=!!(__ventanaFichaRef&&!__ventanaFichaRef.closed);
+if(!viva||!__CANAL_FICHA){abrirVentana();return;}
+var rid=Date.now()+'-'+Math.random(),hecho=false;
+__ackFichaPendientes[rid]=function(){
+hecho=true;delete __ackFichaPendientes[rid];
+try{__ventanaFichaRef.focus();}catch(e){}
+toast('Ficha abierta en la otra ventana');
+};
+__CANAL_FICHA.postMessage({t:'abrir',id:id,rid:rid});
+setTimeout(function(){
+if(hecho)return;
+delete __ackFichaPendientes[rid];
+abrirVentana();/* la ventana_1 ya no respondía: se abre de nuevo */
+},700);
+}
+/* Al arrancar con ?ficha=ID (ventana abierta desde el Gestor): abre esa ficha y limpia el parámetro. */
 function abrirFichaDesdeUrlInicial(){
 var id=null;
 try{id=new URLSearchParams(location.search).get('ficha');}catch(e){}
 if(!id)return;
+__esVentanaFicha=true;
 try{history.replaceState(history.state,'',location.pathname+'#fic');}catch(e){}
 if(!PI[id]){toast('La persona '+id+' no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}
