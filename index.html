@@ -1075,8 +1075,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.05.3';
+var APP_VERSION = '2026.10.05.4';
 var APP_CHANGELOG = [
+  { version:'2026.10.05.4', fecha:'2026-10-05', cambios:[
+    'Ficha, «Editar foto»: nuevo panel «Reparar esta foto con Gemini». Eliges qué corregir (ampliar encuadre hasta hombros y medio pecho, vestir de época, sombrero o tocado de época, fondo crema u otro, rasgos visibles, indicación libre) y la app te da el prompt listo para Gemini (con sexo, época y lugar de la ficha) y botones para abrir o copiar el enlace a la foto en Drive. Después subes o pegas la imagen nueva y guardas como siempre.'
+  ]},
   { version:'2026.10.05.3', fecha:'2026-10-05', cambios:[
     'Gestor de datos: «Ver ficha» / «Ver A» / «Ver B» abren la ficha en una segunda ventana que se REUTILIZA: la primera vez se abre la ventana, y las siguientes veces la ficha cambia al instante en esa misma ventana (sin abrir otra ni recargar la app). Si la ventana se cerró, se abre de nuevo. Si tenías algo sin guardar en esa ventana, pregunta antes de cambiar de ficha.'
   ]},
@@ -7630,6 +7633,167 @@ h+='</div>';
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'datos\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionDatos(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
+/* ===== REPARAR LA FOTO CON GEMINI (dentro de «Editar foto» de la ficha) =====
+   Para fotos que hay que rehacer de forma más creativa: vestir a la persona de su época, ampliar el
+   encuadre cuando la cara está muy cerca (hombros y medio pecho), añadir un sombrero de época o
+   corregir el fondo (crema). El panel construye un prompt para Gemini (basado en el prompt fijo de
+   retratos de estudio de la app) y da un enlace a la foto actual en Drive para abrirla/descargarla y
+   subirla a Gemini. La imagen nueva se vuelve a poner con «Subir foto» o «Pegar del portapapeles». */
+var GEM_FONDOS=[
+['crema','Crema pálido #FBF7F0 (el de siempre)','liso y uniforme, color crema pálido #FBF7F0'],
+['gris','Gris claro de estudio','liso y uniforme, gris claro neutro #E6E6E6'],
+['azul','Azul grisáceo suave','liso y uniforme, azul grisáceo suave #CBD5DC'],
+['verde','Verde salvia suave','liso y uniforme, verde salvia suave #D5DDD0']
+];
+var GEM_RASGOS=[
+['bigote','Bigote','Tiene BIGOTE: hay que mantenerlo.'],
+['barba','Barba','Tiene BARBA: hay que mantenerla.'],
+['afeitado','Afeitado','Va completamente AFEITADO: sin barba, sin bigote y sin patillas largas. No añadir ningún vello facial.'],
+['gafas','Gafas','Lleva GAFAS.'],
+['oscuro','Pelo oscuro','Pelo OSCURO.'],
+['claro','Pelo claro','Pelo CLARO o rubio.'],
+['canoso','Canoso','Pelo CANOSO o BLANCO.'],
+['calvo','Calvo / entradas','CALVO o con grandes entradas.'],
+['largo','Pelo largo','Pelo LARGO o recogido.'],
+['mayor','Edad avanzada','Es de EDAD AVANZADA: arrugas visibles.']
+];
+var GEM_CHOQUE={bigote:['afeitado'],barba:['afeitado'],afeitado:['bigote','barba'],oscuro:['claro','canoso'],claro:['oscuro','canoso'],canoso:['oscuro','claro']};
+var GEM_ESTADO={};/* por persona: opciones elegidas (se conservan mientras no se recargue la app) */
+function gemEstado(id){
+if(!GEM_ESTADO[id])GEM_ESTADO[id]={encuadre:true,vestir:true,ropa:'',sombrero:false,sombreroTxt:'',fondo:'crema',rasgos:[],extra:''};
+return GEM_ESTADO[id];
+}
+function gemConstruirPrompt(id){
+var p=PI[id];if(!p)return'';
+var e=gemEstado(id);
+var sexo=p.SEXO==='Hombre'?'hombre':(p.SEXO==='Mujer'?'mujer':'');
+var anio=getYear(p);
+var aproximado=!(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='');
+var epoca=anio!==null?('hacia '+anio+(aproximado?' (año aproximado)':'')):'';
+var fondo=GEM_FONDOS.filter(function(f){return f[0]===e.fondo;})[0]||GEM_FONDOS[0];
+var t='';
+t+='Edita y rehaz esta fotografía de retrato de una persona, manteniendo la identidad exacta de la persona representada y aplicando SOLO los cambios que se indican en «CAMBIOS A APLICAR». La imagen adjunta es un retrato ya restaurado de su ficha genealógica; úsala como referencia de la cara.\n\n';
+t+='REGLA FUNDAMENTAL: la identidad y los rasgos de la persona tienen prioridad absoluta. No embellecer, rejuvenecer, envejecer ni modificar rostro, expresión, complexión ni postura. La reconstrucción debe ser históricamente fiel a la persona y a su época; solo cambia lo que se pide abajo.\n\n';
+t+='REGLA ANTI-INVENCIÓN: si un rasgo no se aprecia con claridad en la referencia, no lo inventes. No añadas barba, bigote, gafas ni arrugas que no se vean, y no sustituyas a la persona por un rostro genérico. Ante la duda conserva la forma de la cara, la línea del pelo, su color y la edad aparente de la referencia.\n\n';
+t+='DATOS DE LA PERSONA (de su ficha genealógica; solo orientan, la imagen de referencia manda):\n';
+t+='- Nombre: '+fn(p).trim()+'.\n';
+if(sexo)t+='- Sexo: '+sexo+'.\n';
+if(epoca)t+='- Nacimiento: '+epoca+'.\n';
+if(p.LUGARNAC)t+='- Lugar de nacimiento: '+p.LUGARNAC+' (orienta el tipo de ropa y tocado regional y de condición social).\n';
+if(e.rasgos.length){
+t+='\nRASGOS CONFIRMADOS A SIMPLE VISTA POR UNA PERSONA (obligatorios; prevalecen sobre cualquier suposición):\n';
+t+=GEM_RASGOS.filter(function(r){return e.rasgos.indexOf(r[0])>=0;}).map(function(r){return'- '+r[2];}).join('\n')+'\n';
+}
+t+='\nCAMBIOS A APLICAR:\n';
+var n=0;
+if(e.encuadre){n++;t+=n+'. ENCUADRE: la cara está demasiado cerca. Amplía el encuadre y completa cuello, ambos hombros y el pecho hasta aproximadamente la mitad del tórax, de forma anatómicamente natural y coherente con lo que ya aparece. El rostro sigue siendo el elemento principal, centrado y con la misma expresión y proporciones.\n';}
+if(e.vestir){n++;t+=n+'. VESTIMENTA: viste a la persona con ropa de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+', sencilla, discreta y realista, adecuada a su condición social'+(e.ropa.trim()?'. Indicación concreta: '+e.ropa.trim():'')+'. Nunca una prenda moderna genérica. La persona siempre debe aparecer vestida.\n';}
+if(e.sombrero){n++;t+=n+'. TOCADO: añade un sombrero o tocado propio de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+(e.sombreroTxt.trim()?': '+e.sombreroTxt.trim():', acorde a su sexo y condición social')+'. Debe entrar ENTERO en la imagen, sin tapar la frente más de lo que correspondería a ese tocado ni deformar el pelo.\n';}
+n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.\n';
+if(e.extra.trim()){n++;t+=n+'. INDICACIÓN ADICIONAL: '+e.extra.trim()+'\n';}
+t+='\nENCUADRE FINAL — cuadrado 1:1 exacto, tipo foto de carné: de la parte superior de la cabeza hasta aproximadamente la mitad del pecho, con ambos hombros visibles. El 1:1 se consigue ajustando el encuadre del retrato en sí, nunca añadiendo espacio vacío alrededor.\n\n';
+t+='COLOR Y ACABADO: imagen a todo color, con tonos naturales, realistas y discretos (nunca blanco y negro ni sepia). Acabado de fotografía de estudio real: iluminación uniforme y suave, nitidez natural, sin aspecto pictórico, de grabado ni de escultura.\n\n';
+t+='LÍNEA ROJA: la cabeza debe entrar entera, incluido el pelo y el sombrero en su caso. Respeta barba y bigote.\n\n';
+t+='VERIFICACIÓN FINAL: antes de dar el resultado por definitivo, comprobar que la imagen es verificablemente cuadrada (1:1), que se ven ambos hombros y el pecho, que la cabeza entra entera, que la cara conserva la identidad de la referencia, que el fondo es el indicado y sin discontinuidades, y que la persona está vestida. Si algo falla, repetir el ajuste hasta cumplirlo.';
+return t;
+}
+function gemPanelHtml(id,p){
+var e=gemEstado(id);
+var sid=safeId(id);
+var h='<details id="gem-panel" style="margin-top:14px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--card)"'+(GEM_ESTADO[id]&&GEM_ESTADO[id]._abierto?' open':'')+' ontoggle="gemEstado(\''+sid+'\')._abierto=this.open">';
+h+='<summary style="cursor:pointer;font-weight:700;font-size:13px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Reparar esta foto con Gemini (prompt + enlace a Drive)</summary>';
+h+='<div style="margin-top:10px;font-size:12px">';
+h+='<div style="display:flex;flex-direction:column;gap:6px">';
+h+='<label><input type="checkbox" id="gem-encuadre"'+(e.encuadre?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Ampliar el encuadre</b> (la cara está muy cerca: añadir cuello, hombros y medio pecho)</label>';
+h+='<label><input type="checkbox" id="gem-vestir"'+(e.vestir?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Vestir de época</b></label>';
+h+='<input class="ef-input" id="gem-ropa" placeholder="Ropa concreta (opcional): levita oscura con cuello alto, traje de aldeana gallega, uniforme militar..." value="'+escAttr(e.ropa)+'" oninput="gemActualizar(\''+sid+'\')">';
+h+='<label><input type="checkbox" id="gem-sombrero"'+(e.sombrero?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Poner sombrero o tocado de la época</b></label>';
+h+='<input class="ef-input" id="gem-sombrero-txt" placeholder="Cuál (opcional): chistera, bombín, boina, mantilla, toca..." value="'+escAttr(e.sombreroTxt)+'" oninput="gemActualizar(\''+sid+'\')">';
+h+='<label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>Fondo:</b> <select id="gem-fondo" class="ef-input" style="width:auto" onchange="gemActualizar(\''+sid+'\')">'+GEM_FONDOS.map(function(f){return'<option value="'+f[0]+'"'+(e.fondo===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';}).join('')+'</select></label>';
+h+='</div>';
+h+='<div style="margin:10px 0 4px;font-weight:700">Rasgos que ves en la foto (se exigen en el prompt)</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+GEM_RASGOS.forEach(function(r){
+h+='<button type="button" class="gem-rasgo" data-r="'+r[0]+'" aria-pressed="'+(e.rasgos.indexOf(r[0])>=0)+'" onclick="gemRasgo(\''+sid+'\',\''+r[0]+'\')" style="font-size:11px;padding:3px 9px;border:1px solid var(--border);border-radius:999px;cursor:pointer;background:'+(e.rasgos.indexOf(r[0])>=0?'var(--accent)':'transparent')+';color:'+(e.rasgos.indexOf(r[0])>=0?'#fff':'inherit')+'">'+esc(r[1])+'</button>';
+});
+h+='</div>';
+h+='<textarea class="ef-input" id="gem-extra" rows="2" placeholder="Algo más, más creativo (opcional): p. ej. «que parezca un retrato de estudio de 1920», «con corbata de lazo»..." style="margin-top:10px;width:100%;box-sizing:border-box" oninput="gemActualizar(\''+sid+'\')">'+esc(e.extra)+'</textarea>';
+h+='<div style="margin:10px 0 4px;font-weight:700">Prompt para Gemini</div>';
+h+='<textarea id="gem-prompt" readonly rows="7" style="width:100%;box-sizing:border-box;font-size:11px;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg,transparent);color:inherit">'+gemConstruirPrompt(id).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</textarea>';
+h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
+h+='<button type="button" class="ef-btn" onclick="gemCopiarPrompt()"><i class="fa-solid fa-copy"></i> Copiar prompt</button>';
+h+='<button type="button" class="ef-btn ghost" id="gem-btn-drive" onclick="gemAbrirFotoDrive(\''+sid+'\')"><i class="fa-brands fa-google-drive"></i> Abrir foto en Drive</button>';
+h+='<button type="button" class="ef-btn ghost" onclick="gemCopiarEnlaceDrive(\''+sid+'\')"><i class="fa-solid fa-link"></i> Copiar enlace</button>';
+h+='<a class="ef-btn ghost" href="https://gemini.google.com/app" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Gemini</a>';
+h+='</div>';
+h+='<p style="font-size:10px;color:var(--muted);margin:8px 0 0">Pasos: 1) abre la foto en Drive (o usa la de arriba), 2) súbela a Gemini y pega el prompt, 3) cuando te guste el resultado, vuelve aquí y usa «Subir foto» o «Pegar del portapapeles» y Guardar.</p>';
+h+='</div></details>';
+return h;
+}
+function gemActualizar(id){
+var e=gemEstado(id);
+var g=function(x){return document.getElementById(x);};
+if(g('gem-encuadre'))e.encuadre=g('gem-encuadre').checked;
+if(g('gem-vestir'))e.vestir=g('gem-vestir').checked;
+if(g('gem-ropa'))e.ropa=g('gem-ropa').value;
+if(g('gem-sombrero'))e.sombrero=g('gem-sombrero').checked;
+if(g('gem-sombrero-txt'))e.sombreroTxt=g('gem-sombrero-txt').value;
+if(g('gem-fondo'))e.fondo=g('gem-fondo').value;
+if(g('gem-extra'))e.extra=g('gem-extra').value;
+var ta=g('gem-prompt');
+if(ta)ta.value=gemConstruirPrompt(id);
+}
+function gemRasgo(id,clave){
+var e=gemEstado(id);
+var i=e.rasgos.indexOf(clave);
+if(i>=0)e.rasgos.splice(i,1);
+else{
+e.rasgos.push(clave);
+(GEM_CHOQUE[clave]||[]).forEach(function(c){var j=e.rasgos.indexOf(c);if(j>=0)e.rasgos.splice(j,1);});
+}
+document.querySelectorAll('.gem-rasgo').forEach(function(b){
+var on=e.rasgos.indexOf(b.getAttribute('data-r'))>=0;
+b.setAttribute('aria-pressed',on);b.style.background=on?'var(--accent)':'transparent';b.style.color=on?'#fff':'inherit';
+});
+gemActualizar(id);
+}
+function gemCopiarTexto(texto,msgOk){
+if(navigator.clipboard&&navigator.clipboard.writeText){
+navigator.clipboard.writeText(texto).then(function(){toast(msgOk);}).catch(function(){toast('No se pudo copiar automáticamente: selecciona el texto y copia con Ctrl+C.',true);});
+}else{toast('Este navegador no permite copiar con el botón: selecciona el texto y copia con Ctrl+C.',true);}
+}
+function gemCopiarPrompt(){
+var ta=document.getElementById('gem-prompt');
+if(!ta)return;
+if(!ta.value)gemActualizar(cid);
+gemCopiarTexto(ta.value,'Prompt copiado. Pégalo en Gemini junto con la foto.');
+}
+async function gemObtenerEnlaceDrive(id){
+if(!driveRootFolderId||!tokenDriveValido())throw new Error('Conecta primero con Google Drive');
+var folderId=await obtenerCarpetaFotoId(false);
+if(!folderId)throw new Error('Todavía no existe la carpeta de fotos en Drive');
+var f=await buscarArchivoFotoDrivePorId(String(id)+'.jpg',folderId);
+if(!f)throw new Error('La foto de esta persona aún no está en Drive (se sube al guardar la ficha con la foto)');
+return'https://drive.google.com/file/d/'+f.id+'/view';
+}
+async function gemAbrirFotoDrive(id){
+var btn=document.getElementById('gem-btn-drive');
+var w=null;
+/* la pestaña se abre ya, dentro del clic, para que el navegador no la bloquee mientras se busca el archivo */
+try{w=window.open('about:blank','_blank');}catch(e){w=null;}
+try{
+var url=await gemObtenerEnlaceDrive(id);
+if(w)w.location.href=url;else window.open(url,'_blank');
+}catch(err){
+if(w)try{w.close();}catch(e){}
+toast(err.message,true);
+}
+}
+async function gemCopiarEnlaceDrive(id){
+try{
+var url=await gemObtenerEnlaceDrive(id);
+gemCopiarTexto(url,'Enlace a la foto en Drive copiado');
+}catch(err){toast(err.message,true);}
+}
 function htmlFotoEditForm(id,p){
 var h='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
 h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
@@ -7641,6 +7805,7 @@ h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapape
 if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
 h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
 h+='</div></div>';
+h+=gemPanelHtml(id,p);
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'foto\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFoto(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
