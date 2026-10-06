@@ -971,6 +971,19 @@ body{background:#fff}
 </div>
 </div>
 </div>
+<div class="inf-card" id="invWikidataCard" style="margin-top:14px">
+<h3><i class="fa-solid fa-database"></i> Wikidata y más: personas, lugares, familias, parejas, acontecimientos</h3>
+<p>Wikidata cubre bien realeza, nobleza y lugares; apenas familias corrientes ni aldeas. Solo muestra y copia: no modifica nada salvo «Añadir a Observaciones», con confirmación. Cuidado con los homónimos.</p>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+<button type="button" id="wdT_p" class="ef-btn" onclick="wdTab('p')">Persona</button><button type="button" id="wdT_l" class="ef-btn ghost" onclick="wdTab('l')">Lugar</button><button type="button" id="wdT_f" class="ef-btn ghost" onclick="wdTab('f')">Familia / linaje</button><button type="button" id="wdT_c" class="ef-btn ghost" onclick="wdTab('c')">Pareja</button><button type="button" id="wdT_a" class="ef-btn ghost" onclick="wdTab('a')">Acontecimientos</button></div>
+<div id="wdP_p"><div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="wdPersonaQ" class="ef-input" style="flex:1;min-width:150px" autocomplete="off" onkeydown="if(event.key==='Enter')wdBuscarPersona()"><button type="button" class="ef-btn" onclick="wdBuscarPersona()"><i class="fa-solid fa-magnifying-glass"></i> Buscar persona</button></div><div id="wdPersonasRes"></div></div>
+<div id="wdP_l" style="display:none"><div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="wdLugarQ" class="ef-input" style="flex:1;min-width:150px" autocomplete="off" onkeydown="if(event.key==='Enter')wdBuscarLugar()"><button type="button" class="ef-btn" onclick="wdBuscarLugar()"><i class="fa-solid fa-location-dot"></i> Buscar lugar</button></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn ghost" onclick="wdLugarDesde('nac')">Nacimiento de la ficha</button><button type="button" class="ef-btn ghost" onclick="wdLugarDesde('def')">Defunción de la ficha</button><button type="button" class="ef-btn ghost" onclick="wdLugarExterno('pares')">PARES</button><button type="button" class="ef-btn ghost" onclick="wdLugarExterno('osm')">Mapa</button><button type="button" class="ef-btn ghost" onclick="wdLugarExterno('wiki')">Wikipedia</button></div><div id="wdLugaresRes"></div></div>
+<div id="wdP_f" style="display:none"><div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="wdFamQ" class="ef-input" style="flex:1;min-width:150px" autocomplete="off" placeholder="Apellido o «Casa de …»" onkeydown="if(event.key==='Enter')wdFamBuscar()"><button type="button" class="ef-btn" onclick="wdFamBuscar()"><i class="fa-solid fa-people-roof"></i> Buscar casa o familia</button><button type="button" class="ef-btn ghost" onclick="wdFamPrompt()"><i class="fa-solid fa-robot"></i> Copiar prompt para IA</button></div><div id="wdFamLocal"></div><div id="wdFamRes"></div></div>
+<div id="wdP_c" style="display:none"><select id="wdParejaSel" class="ef-input" style="width:100%"></select>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn ghost" onclick="wdParejaEnlaces('fs')">FamilySearch</button><button type="button" class="ef-btn ghost" onclick="wdParejaEnlaces('google')">Google</button><button type="button" class="ef-btn ghost" onclick="wdParejaEnlaces('ia')"><i class="fa-solid fa-robot"></i> Copiar prompt para IA</button></div><p style="font-size:11px;color:var(--muted)">Usa los cónyuges y el lugar y fecha del matrimonio de la persona activa.</p></div>
+<div id="wdP_a" style="display:none"><div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="wdEvLugar" class="ef-input" style="flex:1;min-width:150px" placeholder="Lugar"><input type="number" id="wdEvDesde" class="ef-input" style="width:90px" placeholder="Desde"><input type="number" id="wdEvHasta" class="ef-input" style="width:90px" placeholder="Hasta"><button type="button" class="ef-btn" onclick="wdEvBuscar()"><i class="fa-solid fa-landmark-flag"></i> Buscar acontecimientos</button></div><div id="wdEvRes"></div></div>
+</div>
 <div class="inf-card" id="invParientesCard" style="display:none;margin-top:14px">
 <h3><i class="fa-solid fa-people-group"></i> Parientes cercanos (hasta 3.º grado)</h3>
 <p>Pulsa sobre un familiar para convertirlo en la persona activa y buscarle su foto más arriba. El icono indica si ya tiene foto guardada.</p>
@@ -5644,6 +5657,9 @@ var fotoCard=document.getElementById('invFotoCard');
 if(fotoCard)fotoCard.style.display=hay?'block':'none';
 var parCard=document.getElementById('invParientesCard');
 if(parCard)parCard.style.display=hay?'block':'none';
+var wdCard=document.getElementById('invWikidataCard');
+if(wdCard)wdCard.style.display='block';
+if(typeof wdReiniciar==='function'){wdReiniciar();wdPrefill();}
 invFotoPegadaDataUrl=null;
 var pegBox=document.getElementById('invFotoPegarBox');
 if(pegBox)pegBox.innerHTML='Sin foto pegada';
@@ -5708,14 +5724,29 @@ if(!p)return[];
    porque "id" no cambia en el bucle. Con árboles grandes eso repetía miles
    de veces el mismo recorrido de antepasados. Ahora se calcula una única
    vez aquí y se pasa ya hecho. */
-var ancActivo=mapaAncestros(id);
+var ancActivo=mapaAncestros(id,maxGrado);
 var out=[],vistos={};
-D.forEach(function(otro){
-if(!otro||otro.ID===id)return;
-var info=etiquetaParienteRespectoActivo(id,otro.ID,ancActivo);
+/* Sin recorrer todo el árbol: solo se evalúan los descendientes (hasta 3 niveles) de los
+   antepasados hasta el 3.º grado, únicos que pueden ser parientes cercanos. */
+var hijos={};
+D.forEach(function(x){if(!x)return;[x.PADRE,x.MADRE].forEach(function(q){if(q){(hijos[q]=hijos[q]||[]).push(x.ID);}});});
+var cand={};
+Object.keys(ancActivo).forEach(function(anc){
+var dA=ancActivo[anc];
+cand[anc]=1;
+var nivel=[anc];
+for(var n=1;n<=maxGrado-dA&&nivel.length;n++){
+var sig=[];
+nivel.forEach(function(q){(hijos[q]||[]).forEach(function(h){cand[h]=1;sig.push(h);});});
+nivel=sig;
+}
+});
+Object.keys(cand).forEach(function(oid){
+if(oid===id||!PI[oid])return;
+var info=etiquetaParienteRespectoActivo(id,oid,ancActivo);
 if(!info||info.grado<1||info.grado>maxGrado)return;
-out.push({id:otro.ID,grado:info.grado,etiqueta:info.etiqueta});
-vistos[otro.ID]=true;
+out.push({id:oid,grado:info.grado,etiqueta:info.etiqueta});
+vistos[oid]=true;
 });
 [p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].forEach(function(mid){
 if(mid&&PI[mid]&&!vistos[mid]){
@@ -5919,6 +5950,312 @@ toast('No se pudo copiar automáticamente: el texto ha quedado seleccionado, cop
 ta.focus();ta.select();
 toast('Selecciona y copia el texto con Ctrl+C.',true);
 }
+}
+/* ===== WIKIDATA EN INVESTIGACIÓN =====
+   Cuarta fuente de Investigación: busca en Wikidata a la persona activa (candidatos con
+   nacimiento, defunción, padres y enlaces a Wikipedia, Genealogics P1819 y FamilySearch P2889)
+   y su lugar de nacimiento/defunción (jerarquía administrativa y coordenadas).
+   REGLA: nunca fusiona ni modifica datos por sí sola. Solo muestra, copia y, a petición expresa,
+   añade una línea "Wikidata: Qxxx" a OBSERVACIONES de la persona activa (con el flujo normal de
+   guardado y de registro de cambios). Los homónimos son el riesgo principal: cada candidato
+   muestra si el año de nacimiento coincide con el de la ficha, pero decide siempre el usuario.
+   Cobertura: buena en realeza, nobleza y lugares; floja en familias corrientes y aldeas. */
+var WD_API='https://www.wikidata.org/w/api.php';
+var WD_CACHE_RES={};
+function wdLlamar(params){
+var qs=Object.keys(params).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);}).join('&');
+var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+var t=ctl?setTimeout(function(){ctl.abort();},15000):null;
+return fetch(WD_API+'?format=json&origin=*&'+qs,ctl?{signal:ctl.signal}:{}).then(function(r){
+if(t)clearTimeout(t);
+if(!r.ok)throw new Error('HTTP '+r.status);
+return r.json();
+});
+}
+function wdBuscarIds(texto,limite){
+return wdLlamar({action:'wbsearchentities',search:texto,language:'es',uselang:'es',type:'item',limit:limite||10}).then(function(j){
+return (j.search||[]).map(function(x){return x.id;});
+});
+}
+function wdEntidades(ids,props,sitefilter){
+if(!ids.length)return Promise.resolve({});
+var q={action:'wbgetentities',ids:ids.join('|'),props:props,languages:'es|en|fr|pt|gl',languagefallback:1};
+if(sitefilter)q.sitefilter=sitefilter;
+return wdLlamar(q).then(function(j){return j.entities||{};});
+}
+function wdValores(ent,prop){
+var cl=(ent&&ent.claims&&ent.claims[prop])||[];
+var pref=cl.filter(function(c){return c.rank==='preferred';});
+var usar=(pref.length?pref:cl).filter(function(c){return c.rank!=='deprecated'&&c.mainsnak&&c.mainsnak.datavalue;});
+return usar.map(function(c){return c.mainsnak.datavalue.value;});
+}
+function wdEtiqueta(ent){
+if(!ent||!ent.labels)return '';
+var l=ent.labels;
+return (l.es||l.en||l.gl||l.pt||l.fr||{}).value||'';
+}
+function wdDescripcion(ent){
+var d=ent&&ent.descriptions;
+if(!d)return '';
+return (d.es||d.en||d.gl||d.pt||d.fr||{}).value||'';
+}
+function wdIdsDe(ent,prop){
+return wdValores(ent,prop).map(function(v){return v&&v.id;}).filter(Boolean);
+}
+function wdFecha(v){
+if(!v||!v.time)return {txt:'',anio:null};
+var m=/^([+-])(\d+)-(\d\d)-(\d\d)/.exec(v.time);
+if(!m)return {txt:'',anio:null};
+var anio=(m[1]==='-'?-1:1)*parseInt(m[2],10);
+var prec=v.precision||9;
+var txt;
+if(prec>=11)txt=parseInt(m[4],10)+'/'+parseInt(m[3],10)+'/'+anio;
+else if(prec===10)txt=parseInt(m[3],10)+'/'+anio;
+else if(prec===9)txt=String(anio);
+else if(prec===8)txt='década de '+anio;
+else txt='siglo ('+anio+')';
+return {txt:txt,anio:anio};
+}
+function wdNormalizar(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function wdReiniciar(){
+var a=document.getElementById('wdPersonasRes'),b=document.getElementById('wdLugaresRes');
+if(a)a.innerHTML='';if(b)b.innerHTML='';
+var ip=document.getElementById('wdPersonaQ'),il=document.getElementById('wdLugarQ');
+var p=(cid&&PI[cid])?PI[cid]:null;
+if(ip)ip.value=p?fn(p).trim():'';
+if(il)il.value=p?String(p.LUGARNAC||'').split(',')[0].trim():'';
+WD_CACHE_RES={};
+}
+async function wdBuscarPersona(){
+var cont=document.getElementById('wdPersonasRes');
+var q=(document.getElementById('wdPersonaQ').value||'').trim();
+if(!q){toast('Escribe un nombre para buscar',true);return;}
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando en Wikidata…</p>';
+try{
+var ids=await wdBuscarIds(q,12);
+if(!ids.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin resultados en Wikidata para «'+esc(q)+'». Es normal en familias corrientes; prueba sin apellidos secundarios o con la forma histórica del nombre.</p>';return;}
+var ents=await wdEntidades(ids,'labels|descriptions|claims|sitelinks','eswiki|enwiki|glwiki');
+var personas=ids.filter(function(id){return ents[id]&&wdIdsDe(ents[id],'P31').indexOf('Q5')>=0;});
+if(!personas.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Wikidata devolvió resultados, pero ninguno es una persona. Prueba con otra forma del nombre.</p>';return;}
+var rel={};
+personas.forEach(function(id){['P22','P25','P19','P20'].forEach(function(pr){wdIdsDe(ents[id],pr).forEach(function(x){rel[x]=1;});});});
+var relEnts=await wdEntidades(Object.keys(rel).slice(0,50),'labels');
+cont.innerHTML=personas.map(function(id){return wdTarjetaPersona(id,ents[id],relEnts);}).join('');
+}catch(err){
+cont.innerHTML='<p style="font-size:12px;color:var(--danger,#b00020)">No se pudo consultar Wikidata ('+esc(err.message||err)+'). Comprueba la conexión e inténtalo de nuevo.</p>';
+}
+}
+function wdTarjetaPersona(id,ent,relEnts){
+var p=PI[cid];
+var nac=wdFecha(wdValores(ent,'P569')[0]),def=wdFecha(wdValores(ent,'P570')[0]);
+var lbl=wdEtiqueta(ent),desc=wdDescripcion(ent);
+function nom(prop){return wdIdsDe(ent,prop).map(function(x){return wdEtiqueta(relEnts[x])||x;}).join(', ');}
+var padre=nom('P22'),madre=nom('P25'),lugN=nom('P19'),lugD=nom('P20');
+var gid=(wdValores(ent,'P1819')[0]||'');
+var fsid=(wdValores(ent,'P2889')[0]||'');
+var img=(wdValores(ent,'P18')[0]||'');
+var sl=ent.sitelinks||{};
+var enlaces=['<a href="https://www.wikidata.org/wiki/'+id+'" target="_blank" rel="noopener">Wikidata '+id+'</a>'];
+if(sl.eswiki)enlaces.push('<a href="https://es.wikipedia.org/wiki/'+encodeURIComponent(sl.eswiki.title.replace(/ /g,'_'))+'" target="_blank" rel="noopener">Wikipedia (es)</a>');
+else if(sl.enwiki)enlaces.push('<a href="https://en.wikipedia.org/wiki/'+encodeURIComponent(sl.enwiki.title.replace(/ /g,'_'))+'" target="_blank" rel="noopener">Wikipedia (en)</a>');
+if(gid)enlaces.push('<a href="https://www.genealogics.org/getperson.php?personID='+encodeURIComponent(gid)+'&tree=LEO" target="_blank" rel="noopener">Genealogics '+esc(gid)+'</a>');
+if(fsid)enlaces.push('<a href="https://www.familysearch.org/tree/person/details/'+encodeURIComponent(fsid)+'" target="_blank" rel="noopener">FamilySearch '+esc(fsid)+'</a>');
+var yFicha=getYear(p),aviso='';
+if(nac.anio!==null&&yFicha!==null){
+var d=Math.abs(nac.anio-yFicha);
+aviso=d<=2?'<span style="color:#2e7d32;font-weight:700">Año de nacimiento coincide con la ficha ('+yFicha+')</span>':'<span style="color:#b26a00;font-weight:700">Año distinto al de la ficha ('+yFicha+'): posible homónimo</span>';
+}else if(nac.anio===null){aviso='<span style="color:var(--muted)">Sin fecha de nacimiento en Wikidata: no se puede contrastar</span>';}
+var imgHtml=img?'<img src="https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(String(img).replace(/ /g,'_'))+'?width=90" alt="" style="width:64px;height:80px;object-fit:cover;border-radius:8px;flex:none" loading="lazy" onerror="this.style.display=\'none\'">':'';
+var linea='Wikidata: '+id+(gid?' · Genealogics: '+gid:'')+(fsid?' · FamilySearch: '+fsid:'');
+WD_CACHE_RES[id]=linea;
+var h='<div style="display:flex;gap:10px;border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:10px">'+imgHtml+'<div style="min-width:0;flex:1">';
+h+='<div style="font-weight:700">'+esc(lbl)+'</div>';
+if(desc)h+='<div style="font-size:12px;color:var(--muted)">'+esc(desc)+'</div>';
+h+='<div style="font-size:12px;margin-top:4px">';
+h+='Nac.: '+esc(nac.txt||'—')+(lugN?' · '+esc(lugN):'')+'<br>Def.: '+esc(def.txt||'—')+(lugD?' · '+esc(lugD):'');
+if(padre)h+='<br>Padre: '+esc(padre);
+if(madre)h+='<br>Madre: '+esc(madre);
+h+='</div>';
+if(aviso)h+='<div style="font-size:11px;margin-top:4px">'+aviso+'</div>';
+h+='<div style="font-size:11px;margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">'+enlaces.join('')+'</div>';
+h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">';
+h+='<button type="button" class="ef-btn ghost" onclick="wdCopiar(\''+id+'\')"><i class="fa-solid fa-copy"></i> Copiar identificadores</button>';
+h+='<button type="button" class="ef-btn ghost" onclick="wdGuardarEnObservaciones(\''+id+'\',this)"><i class="fa-solid fa-note-sticky"></i> Añadir a Observaciones</button>';
+h+='</div></div></div>';
+return h;
+}
+function wdCopiar(clave,textoDirecto){
+var t=textoDirecto||WD_CACHE_RES[clave]||'';
+if(!t)return;
+if(navigator.clipboard&&navigator.clipboard.writeText){
+navigator.clipboard.writeText(t).then(function(){toast('Copiado: '+t);}).catch(function(){window.prompt('Copia este texto:',t);});
+}else{window.prompt('Copia este texto:',t);}
+}
+async function wdGuardarEnObservaciones(id,btn){
+if(!/^Q\d+$/.test(id))return;
+var linea=WD_CACHE_RES[id];
+if(!linea||!cid||!PI[cid])return;
+var p=PI[cid];
+if(String(p.OBSERVACIONES||'').indexOf('Wikidata: '+id)>=0){toast('Esta ficha ya tiene anotado '+id+' en Observaciones');return;}
+if(!window.confirm('Se añadirá esta línea al final de Observaciones de '+fn(p).trim()+':\n\n'+linea+'\n\nComprueba antes que no es un homónimo. ¿Continuar?'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+try{
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var antesCambio=clonarPersona(p);
+var antesParcial=mapaPersonas(D);
+p.OBSERVACIONES=(p.OBSERVACIONES?String(p.OBSERVACIONES).replace(/\s+$/,'')+'\n':'')+linea;
+var hoy=new Date();
+p.FechaEdicion=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+bIdx(D);
+await sDesdeSnapshot(antesParcial);
+toast('Anotado en Observaciones');
+registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+}catch(err){toast('Error al guardar: '+err.message,true);}
+finally{finOperacionFicha(btn);}
+}
+async function wdBuscarLugar(){
+var cont=document.getElementById('wdLugaresRes');
+var q=(document.getElementById('wdLugarQ').value||'').trim();
+if(!q){toast('Escribe un lugar para buscar',true);return;}
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando en Wikidata…</p>';
+try{
+var ids=await wdBuscarIds(q,6);
+if(!ids.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin resultados para «'+esc(q)+'». Las aldeas pequeñas suelen faltar; prueba con la parroquia o el municipio.</p>';return;}
+var ents=await wdEntidades(ids,'labels|descriptions|claims');
+var cadenas={},frontera={};
+ids.forEach(function(id){cadenas[id]=[id];var s=wdIdsDe(ents[id],'P131')[0];if(s)frontera[id]=s;});
+var todos=Object.assign({},ents);
+for(var nivel=0;nivel<6;nivel++){
+var pend=Object.keys(frontera).map(function(k){return frontera[k];}).filter(function(x,i,a){return a.indexOf(x)===i&&!todos[x];});
+if(pend.length){var nuevos=await wdEntidades(pend,'labels|claims');Object.assign(todos,nuevos);}
+var sig={};
+Object.keys(frontera).forEach(function(k){
+var e=frontera[k];
+if(cadenas[k].indexOf(e)>=0)return;
+cadenas[k].push(e);
+var s=todos[e]?wdIdsDe(todos[e],'P131')[0]:null;
+if(s)sig[k]=s;
+});
+frontera=sig;
+if(!Object.keys(frontera).length)break;
+}
+var paises={};ids.forEach(function(id){var c=cadenas[id];var ult=todos[c[c.length-1]];wdIdsDe(ult,'P17').forEach(function(x){if(!todos[x])paises[x]=1;});wdIdsDe(ents[id],'P17').forEach(function(x){if(!todos[x])paises[x]=1;});});
+if(Object.keys(paises).length)Object.assign(todos,await wdEntidades(Object.keys(paises),'labels'));
+cont.innerHTML=ids.map(function(id){
+var e=ents[id];
+var cadena=cadenas[id].map(function(x){return wdEtiqueta(todos[x])||x;});
+var pais=wdIdsDe(e,'P17')[0];
+var ultima=todos[cadenas[id][cadenas[id].length-1]];
+var paisId=pais||wdIdsDe(ultima,'P17')[0];
+if(paisId&&todos[paisId]){var pl=wdEtiqueta(todos[paisId]);if(pl&&cadena.indexOf(pl)<0)cadena.push(pl);}
+var coord=wdValores(e,'P625')[0];
+var coordTxt=coord?(coord.latitude.toFixed(4)+', '+coord.longitude.toFixed(4)):'';
+var normal=cadena.join(', ');
+WD_CACHE_RES['L'+id]=normal;
+var h='<div style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:10px">';
+h+='<div style="font-weight:700">'+esc(wdEtiqueta(e))+' <span style="font-weight:400;font-size:12px;color:var(--muted)">'+esc(wdDescripcion(e))+'</span></div>';
+h+='<div style="font-size:12px;margin-top:4px">Jerarquía: '+esc(cadena.join(' › '))+'</div>';
+if(coordTxt)h+='<div style="font-size:12px">Coordenadas: '+esc(coordTxt)+'</div>';
+h+='<div style="font-size:11px;margin-top:6px"><a href="https://www.wikidata.org/wiki/'+id+'" target="_blank" rel="noopener">Wikidata '+id+'</a></div>';
+h+='<div style="margin-top:8px"><button type="button" class="ef-btn ghost" onclick="wdCopiar(\'L'+id+'\')"><i class="fa-solid fa-copy"></i> Copiar nombre normalizado</button></div></div>';
+return h;
+}).join('');
+}catch(err){
+cont.innerHTML='<p style="font-size:12px;color:var(--danger,#b00020)">No se pudo consultar Wikidata ('+esc(err.message||err)+').</p>';
+}
+}
+/* ===== INVESTIGACIÓN: LUGARES, FAMILIAS, PAREJAS Y ACONTECIMIENTOS (Wikidata y enlaces) =====
+   Misma regla: solo muestra y copia, nunca modifica el árbol. Funciona sin persona activa. */
+function wdTab(n){
+['p','l','f','c','a'].forEach(function(k){
+var s=document.getElementById('wdP_'+k),b=document.getElementById('wdT_'+k);
+if(s)s.style.display=(k===n)?'block':'none';
+if(b)b.className='ef-btn'+(k===n?'':' ghost');
+});
+}
+function wdVal(id){var e=document.getElementById(id);return e?(e.value||'').trim():'';}
+function wdAbrir(url){window.open(url,'_blank','noopener');}
+function wdPrefill(){
+var p=(cid&&PI[cid])?PI[cid]:null;
+var fam=document.getElementById('wdFamQ');
+if(fam&&p){var et=String(p.ETIQUETAS||'').split(/[;,|]/).map(function(x){return x.trim();}).filter(function(x){return /^casa de /i.test(x);})[0];fam.value=et||p.APELLIDO1||'';}
+var sel=document.getElementById('wdParejaSel');
+if(sel){
+var h='';
+if(p)['M1','M2','M3','M4','M5','M6'].forEach(function(c,i){var q=p[c]&&PI[p[c]];if(q)h+='<option value="'+(i+1)+'">'+esc(fn(q).trim())+(p['MF'+(i+1)]?' ('+esc(p['MF'+(i+1)])+')':'')+'</option>';});
+sel.innerHTML=h||'<option value="">La persona activa no tiene cónyuges</option>';
+}
+var ev=document.getElementById('wdEvLugar');
+if(ev&&p){ev.value=String(p.LUGARNAC||'').split(',')[0].trim();var y=getYear(p);var d=document.getElementById('wdEvDesde'),h2=document.getElementById('wdEvHasta');if(y!==null){if(d)d.value=y;if(h2)h2.value=(p.DEFA?parseInt(p.DEFA,10):y+70)||y+70;}}
+}
+function wdLugarDesde(t){
+var p=(cid&&PI[cid])?PI[cid]:null;if(!p){toast('Selecciona primero una persona',true);return;}
+document.getElementById('wdLugarQ').value=String(t==='def'?p.LUGARDEF:p.LUGARNAC||'').split(',')[0].trim();
+}
+function wdLugarExterno(t){
+var q=wdVal('wdLugarQ');if(!q){toast('Escribe un lugar',true);return;}
+var e=encodeURIComponent(q);
+wdAbrir(t==='pares'?'https://pares.mcu.es/ParesBusquedas20/catalogo/search?nm=&lugar='+e:t==='osm'?'https://www.openstreetmap.org/search?query='+e:'https://es.wikipedia.org/w/index.php?search='+e);
+}
+async function wdFamBuscar(){
+var cont=document.getElementById('wdFamRes'),q=wdVal('wdFamQ');
+if(!q){toast('Escribe un apellido o una casa',true);return;}
+wdFamLocal(q);
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando en Wikidata…</p>';
+try{
+var ids=await wdBuscarIds(q,10);
+var ents=await wdEntidades(ids,'labels|descriptions|claims');
+var lista=ids.filter(function(id){return ents[id]&&wdIdsDe(ents[id],'P31').indexOf('Q5')<0;});
+if(!lista.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin casas o familias en Wikidata para «'+esc(q)+'». Prueba la forma inglesa («House of …») o el apellido solo.</p>';return;}
+cont.innerHTML=lista.map(function(id){
+var e=ents[id];WD_CACHE_RES['S'+id]=wdSparqlCasa(id);
+return '<div style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:10px"><div style="font-weight:700">'+esc(wdEtiqueta(e))+'</div><div style="font-size:12px;color:var(--muted)">'+esc(wdDescripcion(e))+'</div><div style="font-size:11px;margin-top:6px"><a href="https://www.wikidata.org/wiki/'+id+'" target="_blank" rel="noopener">Wikidata '+id+'</a></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn ghost" onclick="wdAbrir(\'https://query.wikidata.org/#\'+encodeURIComponent(WD_CACHE_RES[\'S'+id+'\']))"><i class="fa-solid fa-up-right-from-square"></i> Miembros en query.wikidata.org</button><button type="button" class="ef-btn ghost" onclick="wdCopiar(\'S'+id+'\')"><i class="fa-solid fa-copy"></i> Copiar consulta SPARQL</button></div></div>';
+}).join('');
+}catch(err){cont.innerHTML='<p style="font-size:12px;color:var(--danger,#b00020)">No se pudo consultar Wikidata ('+esc(err.message||err)+').</p>';}
+}
+function wdSparqlCasa(q){
+return 'SELECT ?p (SAMPLE(?pLabel) AS ?nombre) (MIN(?b) AS ?nac) (MIN(?d) AS ?def) (SAMPLE(?g) AS ?genealogics) (SAMPLE(?fLabel) AS ?padre) (SAMPLE(?mLabel) AS ?madre) WHERE {\n  ?p wdt:P53 wd:'+q+' .\n  OPTIONAL { ?p wdt:P569 ?b }\n  OPTIONAL { ?p wdt:P570 ?d }\n  OPTIONAL { ?p wdt:P1819 ?g }\n  OPTIONAL { ?p wdt:P22 ?f }\n  OPTIONAL { ?p wdt:P25 ?m }\n  SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en,fr,pt". }\n} GROUP BY ?p LIMIT 500';
+}
+function wdFamLocal(q){
+var cont=document.getElementById('wdFamLocal');if(!cont)return;
+var n=wdNormalizar(q),uno=n.indexOf(' ')<0,ids=[];
+D.forEach(function(x){if(!x||!puedeVerPersona(x.ID))return;
+if(wdNormalizar(x.ETIQUETAS).indexOf(n)>=0||(uno&&(wdNormalizar(x.APELLIDO1)===n||wdNormalizar(x.APELLIDO2)===n)))ids.push(x.ID);});
+var sinP=ids.filter(function(i){return !PI[i].PADRE||!PI[i].MADRE;});
+var h='<div style="font-size:12px;margin-top:10px"><b>En tu árbol:</b> '+ids.length+' personas con «'+esc(q)+'» (etiqueta o apellido); '+sinP.length+' sin padre o sin madre.</div>';
+if(sinP.length)h+='<div style="font-size:12px;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+sinP.slice(0,15).map(function(i){return '<a style="cursor:pointer;color:var(--accent)" onclick="seleccionarParienteInv(\''+safeId(i)+'\')">'+esc(fn(PI[i]).trim())+'</a>';}).join(' · ')+(sinP.length>15?' …':'')+'</div>';
+cont.innerHTML=h;
+}
+function wdFamPrompt(){
+var q=wdVal('wdFamQ');if(!q){toast('Escribe un apellido o una casa',true);return;}
+var t='Actúa como genealogista e historiador. Investiga el linaje o familia «'+q+'»'+((cid&&PI[cid]&&PI[cid].LUGARNAC)?' con presencia en '+PI[cid].LUGARNAC:'')+'. Indica orígenes, ramas principales, lugares, fechas y fuentes verificables (archivos, genealogías publicadas). NUNCA inventes datos: separa lo documentado de lo tradicional y cita fuente para cada afirmación.';
+wdCopiar('',t);
+}
+function wdParejaEnlaces(t){
+var p=(cid&&PI[cid])?PI[cid]:null,i=wdVal('wdParejaSel');
+if(!p||!i||!p['M'+i]||!PI[p['M'+i]]){toast('Selecciona una persona con cónyuge',true);return;}
+var c=PI[p['M'+i]],lug=p['ML'+i]||'',fec=p['MF'+i]||'';
+if(t==='fs')wdAbrir('https://www.familysearch.org/search/record/results?givenname='+encodeURIComponent(p.NOMBRE||'')+'&surname='+encodeURIComponent(((p.APELLIDO1||'')+' '+(p.APELLIDO2||'')).trim())+'&spouse_givenname='+encodeURIComponent(c.NOMBRE||'')+'&spouse_surname='+encodeURIComponent(((c.APELLIDO1||'')+' '+(c.APELLIDO2||'')).trim())+'&marriage_place='+encodeURIComponent(lug));
+else if(t==='google')wdAbrir('https://www.google.com/search?q='+encodeURIComponent('"'+fn(p).trim()+'" "'+fn(c).trim()+'" matrimonio '+lug+' '+fec));
+else wdCopiar('','Actúa como genealogista. Busca registros del matrimonio de '+fn(p).trim()+' con '+fn(c).trim()+(fec?' (hacia '+fec+')':'')+(lug?' en '+lug:'')+'. Devuelve solo datos documentados con fuente; si no hay nada seguro, dilo. NUNCA inventes.');
+}
+async function wdEvBuscar(){
+var cont=document.getElementById('wdEvRes'),lugar=wdVal('wdEvLugar'),a=parseInt(wdVal('wdEvDesde'),10),b=parseInt(wdVal('wdEvHasta'),10);
+if(!lugar||isNaN(a)||isNaN(b)||b<a){toast('Indica un lugar y un rango de años válido',true);return;}
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Buscando acontecimientos…</p>';
+try{
+var ids=await wdBuscarIds(lugar,3),ents=await wdEntidades(ids,'labels|claims'),pais='';
+for(var k=0;k<ids.length&&!pais;k++){var c=wdIdsDe(ents[ids[k]],'P17')[0];if(c)pais=c;}
+if(!pais){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">No he podido determinar el país de «'+esc(lugar)+'» en Wikidata. Prueba con el municipio.</p>';return;}
+var sq='SELECT ?e ?eLabel ?f WHERE { VALUES ?t { wd:Q178561 wd:Q198 wd:Q131569 wd:Q44512 wd:Q124734 wd:Q168247 } ?e wdt:P31 ?t ; wdt:P17 wd:'+pais+' . ?e wdt:P585|wdt:P580 ?f . FILTER(YEAR(?f)>='+a+' && YEAR(?f)<='+b+') SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en". } } ORDER BY ?f LIMIT 60';
+var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort();},25000);
+var r=await fetch('https://query.wikidata.org/sparql?format=json&query='+encodeURIComponent(sq),{signal:ctl.signal,headers:{Accept:'application/sparql-results+json'}});
+clearTimeout(tm);
+if(!r.ok)throw new Error('HTTP '+r.status);
+var rows=(await r.json()).results.bindings;
+if(!rows.length){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin acontecimientos (guerras, batallas, tratados, epidemias, hambrunas, rebeliones) de ese país entre '+a+' y '+b+' en Wikidata.</p>';return;}
+cont.innerHTML='<p style="font-size:11px;color:var(--muted);margin-top:10px">Contexto a nivel de país, no de la aldea concreta.</p>'+rows.map(function(x){var f=wdFecha({time:x.f.value.replace(/^(-?\d)/,'+$1'),precision:11});return '<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)"><b>'+esc(f.txt)+'</b> · <a href="'+esc(x.e.value)+'" target="_blank" rel="noopener">'+esc(x.eLabel.value)+'</a></div>';}).join('');
+}catch(err){cont.innerHTML='<p style="font-size:12px;color:var(--danger,#b00020)">No se pudo consultar Wikidata ('+esc(err.message||err)+').</p>';}
 }
 function investigarConIA(destino){
 if(!cid||!PI[cid]){toast('Selecciona primero una persona en Buscar o en el Árbol',true);return;}
