@@ -743,7 +743,7 @@ body{background:#fff}
 <div class="quick-search-backdrop" id="quickSearchOverlay" role="dialog" aria-modal="true" aria-label="Buscar una persona" onclick="if(event.target===this)cerrarBusquedaRapida()">
 <div class="quick-search-panel">
 <div class="quick-search-head">
-<div class="search-box" style="margin:0;flex:1"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="quickSearchInput" class="sr-only">Buscar personas por nombre, apellido o lugar</label><input type="text" id="quickSearchInput" placeholder="Nombre, apellido, lugar, ID..." autocomplete="off"></div>
+<div class="search-box" style="margin:0;flex:1"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="quickSearchInput" class="sr-only">Buscar personas por nombre y apellidos</label><input type="text" id="quickSearchInput" placeholder="Nombre y apellidos..." autocomplete="off"></div>
 <button type="button" class="nav-hist-btn" onclick="cerrarBusquedaRapida()" title="Cerrar" aria-label="Cerrar búsqueda"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
 </div>
 <div id="quickSearchResults" class="quick-search-results"></div>
@@ -790,13 +790,17 @@ body{background:#fff}
 <button type="button" class="pbus-pill" id="pbusPillJuego" onclick="seleccionarPantallaBusqueda('juego')" aria-pressed="false"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Juego</button>
 </div>
 <div class="search-row">
-<div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre, apellido, lugar u observaciones</label><input type="text" id="si" placeholder="Buscar por nombre, apellido, lugar, ID u observaciones..." autocomplete="off"></div>
+<div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre y apellidos</label><input type="text" id="si" placeholder="Buscar por nombre y apellidos..." autocomplete="off"></div>
 <button class="hero-icon-btn" id="busFiltrosBtn" onclick="alternarFiltrosBusqueda()" title="Filtros avanzados" aria-label="Filtros avanzados de búsqueda" aria-expanded="false" aria-controls="busFiltrosPanel"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
 </div>
 <div class="bus-filtros" id="busFiltrosPanel">
 <div class="bus-filtros-row">
 <div class="ef-field"><label class="ef-label" for="busFLugar">Lugar (nac. o def.)</label><input class="ef-input" id="busFLugar" placeholder="Ej: Sevilla" autocomplete="off"></div>
 <div class="ef-field"><label class="ef-label" for="busFEtiqueta">Etiqueta</label><input class="ef-input" id="busFEtiqueta" list="dlEtiquetasGlobal" placeholder="Ej: Migrante" autocomplete="off"></div>
+</div>
+<div class="bus-filtros-row">
+<div class="ef-field"><label class="ef-label" for="busFID">ID (exacto; varios separados por coma)</label><input class="ef-input" id="busFID" placeholder="Ej: 16453" autocomplete="off"></div>
+<div class="ef-field"><label class="ef-label" for="busFObs">Observaciones contienen</label><input class="ef-input" id="busFObs" placeholder="Ej: católica" autocomplete="off"></div>
 </div>
 <div class="bus-filtros-row">
 <div class="ef-field"><label class="ef-label" for="busFAnioDesde">Año desde</label><input class="ef-input" id="busFAnioDesde" type="number" placeholder="1800"></div>
@@ -1075,8 +1079,13 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.05.4';
+var APP_VERSION = '2026.10.06.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.06.1', fecha:'2026-10-06', cambios:[
+    'Buscador rehecho: el cuadro de busqueda de Inicio y la lupa del cabecero buscan ahora solo por nombre y apellidos, con el mismo motor, y ordenan por relevancia en vez de alfabeticamente (antes "Isabel I de Castilla" quedaba en el puesto 258 y no se veia). Se ignoran palabras como «de» o «la», y los numerales romanos se tratan como palabra completa.',
+    'Filtros de busqueda: nuevos filtros ID (exacto) y «Observaciones contienen» (con fragmento del texto); Lugar y Etiqueta ya no distinguen tildes; las etiquetas se separan tambien por «;». Boton «Ver mas» en las listas largas.',
+    'La copia de seguridad ya no guarda campos internos de busqueda (pesaban cerca de una cuarta parte del archivo). Los apellidos se ordenan separados por espacio y los ordinales «º/ª» o los nombres en otros alfabetos ya no desaparecen al buscar.'
+  ]},
   { version:'2026.10.05.4', fecha:'2026-10-05', cambios:[
     'Ficha, «Editar foto»: nuevo panel «Reparar esta foto con Gemini». Eliges qué corregir (ampliar encuadre hasta hombros y medio pecho, vestir de época, sombrero o tocado de época, fondo crema u otro, rasgos visibles, indicación libre) y la app te da el prompt listo para Gemini (con sexo, época y lugar de la ficha) y un botón para abrir la foto en Drive. Después subes o pegas la imagen nueva y guardas como siempre.'
   ]},
@@ -5143,10 +5152,10 @@ HERM_PM[key].push(p.ID);
    persona en CADA tecla pulsada en cualquier buscador; ahora ese trabajo
    se hace una sola vez por persona, aquí, que ya se ejecuta en cada
    guardado. */
-var an=String(pdAnioTexto(p)||'').toLowerCase();
-var comunes=sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+an+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase();
-p._buscableRapida=normTxt(comunes);
-p._buscable=normTxt(comunes+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase());
+/* Texto de busqueda de la persona: SOLO nombre y apellidos (con espacios), ya normalizado.
+   ID, lugares, anos, observaciones y etiquetas se buscan desde el panel de Filtros. */
+p._nombreBusq=normTxt(String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||''));
+p._nombreTokens=p._nombreBusq?p._nombreBusq.split(' '):[];
 /* ===== OPTIMIZACIÓN (caché de componentes conexos / rama de amigo):
    calcularComponentesConexos() y personasVisiblesAmigo() ya tenían su
    propia caché, pero invalidarCachePersonasVisibles() se llamaba sin
@@ -5192,7 +5201,7 @@ function fDateGed(d,m,a){if(!a)return'';if(!d||!m)return a;var ms=['','JAN','FEB
 function fFechaMatrimonio(v){return String(v||'').replace(/(?:\s|T)0{1,2}:0{2}(?::0{2})?(?:\.0+)?Z?$/,'');}
 function safeId(sid){return String(sid).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function fn(p){return String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||'');}
-function sn(p){return String(p.APELLIDO1||'')+String(p.APELLIDO2||'')+', '+String(p.NOMBRE||'');}
+function sn(p){return (String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||'')).trim()+', '+String(p.NOMBRE||'');}
 /* Nombre genealógico encadenado, siguiendo el orden tradicional español de
    apellidos por generaciones (ver p.ej. tataranietos.com/2015/12/22/cual-es-
    el-orden-de-tus-apellidos): 1º apellido del padre, 2º primer apellido de
@@ -5265,7 +5274,7 @@ return '<div class="'+cls+(al?'al':'de')+'">'+ini(p)+'</div>';
 }
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
 separado por "|" (evita conflictos con comas en nombres de etiqueta). */
-function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split('|').map(function(s){return s.trim();}).filter(Boolean);}
+function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split(/[|;]/).map(function(s){return s.trim();}).filter(Boolean);}
 function etiquetasTexto(p){return etiquetasArray(p).join(', ');}
 function todasLasEtiquetas(){var set={};D.forEach(function(p){etiquetasArray(p).forEach(function(t){set[t]=(set[t]||0)+1;});});return set;}
 function actualizarDatalistEtiquetas(){
@@ -7105,7 +7114,7 @@ if(callback)callback();
 }
 });
 }
-var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true,etiqueta:''};
+var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true,etiqueta:'',ids:[],obs:''};
 function alternarFiltrosBusqueda(){
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
 var abierto=panel.classList.toggle('abierto');
@@ -7120,22 +7129,112 @@ document.getElementById('busFAnioHasta').value='';
 document.getElementById('busFVivos').checked=true;
 document.getElementById('busFFallecidos').checked=true;
 document.getElementById('busFEtiqueta').value='';
+var eId=document.getElementById('busFID');if(eId)eId.value='';
+var eObs=document.getElementById('busFObs');if(eObs)eObs.value='';
 leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function leerFiltrosBusqueda(){
+var eId=document.getElementById('busFID'),eObs=document.getElementById('busFObs');
 busFiltros={
-lugar:(document.getElementById('busFLugar').value||'').trim().toLowerCase(),
+lugar:normTxt(document.getElementById('busFLugar').value||''),
 anioDesde:(document.getElementById('busFAnioDesde').value||'').trim(),
 anioHasta:(document.getElementById('busFAnioHasta').value||'').trim(),
 vivos:document.getElementById('busFVivos').checked,
 fallecidos:document.getElementById('busFFallecidos').checked,
-etiqueta:(document.getElementById('busFEtiqueta').value||'').trim().toLowerCase()
+etiqueta:normTxt(document.getElementById('busFEtiqueta').value||''),
+ids:eId?String(eId.value||'').split(/[\s,;]+/).map(function(x){return x.trim();}).filter(Boolean):[],
+obs:eObs?normTxt(eObs.value||''):''
 };
 }
 function busFiltrosActivos(){
 var f=busFiltros;
-return !!(f.lugar||f.anioDesde||f.anioHasta||!f.vivos||!f.fallecidos||f.etiqueta);
+return !!(f.lugar||f.anioDesde||f.anioHasta||!f.vivos||!f.fallecidos||f.etiqueta||(f.ids&&f.ids.length)||f.obs);
+}
+/* ===== Motor unico de busqueda por NOMBRE Y APELLIDOS (busqueda normal y lupa) =====
+   - Solo mira nombre y apellidos (p._nombreTokens, calculado en bIdx).
+   - Palabras vacias (de, del, la, las, el, los, y, e) se ignoran en la consulta.
+   - Cada palabra debe ser prefijo de alguna palabra del nombre; las palabras sueltas
+     de una letra y los numerales romanos (i, ii, iii...) que no son la ultima que se
+     esta escribiendo deben coincidir con la palabra COMPLETA (asi "i" no casa con "Isabel").
+   - Orden por relevancia (no alfabetico): frase exacta > empieza por la frase >
+     frase desde inicio de palabra > palabras en orden > palabras en cualquier orden. */
+var BUS_VACIAS={de:1,del:1,la:1,las:1,el:1,los:1,y:1,e:1};
+var BUS_ROMANOS={i:1,ii:1,iii:1,iv:1,v:1,vi:1,vii:1,viii:1,ix:1,x:1,xi:1,xii:1,xiii:1,xiv:1,xv:1,xvi:1,xvii:1,xviii:1,xix:1,xx:1};
+function prepararConsultaNombre(q){
+var full=normTxt(q);
+var todas=full?full.split(' '):[];
+var toks=todas.filter(function(w){return !BUS_VACIAS[w];});
+if(!toks.length)toks=todas;
+var exactas=toks.map(function(w,i){return i<toks.length-1&&(w.length===1||!!BUS_ROMANOS[w]);});
+return {full:full,toks:toks,exactas:exactas};
+}
+function puntuarNombre(p,c){
+if(p._nombreTokens===undefined){p._nombreBusq=normTxt(String(p.NOMBRE||'')+' '+String(p.APELLIDO1||'')+' '+String(p.APELLIDO2||''));p._nombreTokens=p._nombreBusq?p._nombreBusq.split(' '):[];}
+var nt=p._nombreTokens;
+if(!nt||!nt.length)return -1;
+var pos=-1,enOrden=true,nExactas=0;
+for(var i=0;i<c.toks.length;i++){
+var w=c.toks[i],ex=c.exactas[i],j=-1,k;
+for(k=pos+1;k<nt.length;k++){if(ex?nt[k]===w:nt[k].indexOf(w)===0){j=k;break;}}
+if(j<0){
+enOrden=false;
+for(k=0;k<nt.length;k++){if(ex?nt[k]===w:nt[k].indexOf(w)===0){j=k;break;}}
+if(j<0)return -1;
+}else pos=j;
+if(nt[j]===w)nExactas++;
+}
+var full=p._nombreBusq,sc;
+if(full===c.full)sc=1000;
+else if(full.indexOf(c.full)===0)sc=600;
+else if((' '+full).indexOf(' '+c.full)>=0)sc=300;
+else sc=enOrden?100:0;
+return sc+nExactas*10-nt.length;
+}
+/* Devuelve la lista completa de personas que cumplen (nombre + predicado 'aceptar'),
+   ya ordenada por relevancia. Sin consulta de nombre: orden alfabetico por apellidos. */
+function buscarPorNombre(q,aceptar){
+var c=prepararConsultaNombre(q);
+var out=[],i,p;
+if(!c.toks.length){
+for(i=0;i<D.length;i++){p=D[i];if(aceptar(p))out.push(p);}
+out.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+return out;
+}
+var res=[],sc;
+for(i=0;i<D.length;i++){
+p=D[i];
+sc=puntuarNombre(p,c);
+if(sc<0)continue;
+if(!aceptar(p))continue;
+res.push({p:p,s:sc});
+}
+res.sort(function(a,b){return (b.s-a.s)||(a.p._nombreBusq<b.p._nombreBusq?-1:(a.p._nombreBusq>b.p._nombreBusq?1:0));});
+return res.map(function(x){return x.p;});
+}
+function esConsultaSoloNumero(q){return /^\d+$/.test(String(q||'').trim());}
+var busLimite=80,busClaveAnterior='';
+function busVerMas(){busLimite+=80;doSrch(document.getElementById('si').value);}
+function pasarNumeroAFiltroId(){
+var si=document.getElementById('si'),n=String(si.value||'').trim();
+si.value='';
+var panel=document.getElementById('busFiltrosPanel');
+if(panel&&!panel.classList.contains('abierto'))alternarFiltrosBusqueda();
+var eId=document.getElementById('busFID');if(eId)eId.value=n;
+leerFiltrosBusqueda();
+doSrch('');
+}
+/* Fragmento de OBSERVACIONES alrededor de la primera palabra buscada (solo con el filtro Observaciones). */
+function fragmentoObservaciones(p,obsNorm){
+var o=String(p.OBSERVACIONES||'');
+if(!o||!obsNorm)return '';
+var folded='';
+for(var i=0;i<o.length;i++){var ch=o.charAt(i).toLowerCase();var f=ch.normalize('NFD').replace(/\p{M}/gu,'');folded+=f.length===1?f:ch;}
+var palabras=obsNorm.split(' ').filter(Boolean),idx=-1;
+for(var k=0;k<palabras.length;k++){idx=folded.indexOf(palabras[k]);if(idx>=0)break;}
+if(idx<0)return '';
+var ini=Math.max(0,idx-30),fin=Math.min(o.length,idx+60);
+return (ini>0?'\u2026':'')+o.slice(ini,fin).replace(/\s+/g,' ')+(fin<o.length?'\u2026':'');
 }
 function doSrch(q){
 q=(q||'').toLowerCase().trim();
@@ -7166,50 +7265,58 @@ document.getElementById('rl').innerHTML='<p style="text-align:center;color:var(-
 if(cEl)cEl.textContent='';
 return;
 }
-/* Sin conexión a Google se sigue pudiendo buscar: puedeVerPersona() deja
+/* Sin conexion a Google se sigue pudiendo buscar: puedeVerPersona() deja
    pasar a las personas fallecidas para cualquiera, y oculta a las vivas
-   hasta que quien busca conecte una cuenta con alcance sobre ellas (ver
-   comentario de puedeVerPersona más arriba). Por eso ya no se bloquea toda
-   la búsqueda solo por no haber identidad de Google. */
-var f=D.filter(function(p){
+   hasta que quien busca conecte una cuenta con alcance sobre ellas. */
+var clave=q+'|'+JSON.stringify(busFiltros);
+if(clave!==busClaveAnterior){busLimite=80;busClaveAnterior=clave;}
+if(q&&esConsultaSoloNumero(q)){
+document.getElementById('rl').innerHTML='<p style="text-align:center;color:var(--muted);padding:20px;font-size:13px">Este cuadro busca por <b>nombre y apellidos</b>. Para buscar por ID usa el filtro <b>ID</b>.<br><button class="ef-btn" style="margin-top:10px" onclick="pasarNumeroAFiltroId()"><i class="fa-solid fa-filter" aria-hidden="true"></i> Buscar el ID '+esc(q)+'</button></p>';
+if(cEl)cEl.textContent='';
+return;
+}
+var fl=busFiltros;
+var idsSet=null;
+if(fl.ids&&fl.ids.length){idsSet={};fl.ids.forEach(function(x){idsSet[x]=true;});}
+var obsPalabras=fl.obs?fl.obs.split(' ').filter(Boolean):null;
+var aceptar=function(p){
 if(!puedeVerPersona(p.ID))return false;
-if(q){
-/* El texto de búsqueda (incluye el ID, para permitir "búsqueda inversa")
-   ya viene pre-normalizado desde bIdx() en p._buscable -- ver ahí el
-   porqué -- así que aquí solo se compara, sin reconstruirlo. */
-var texto=p._buscable!==undefined?p._buscable:normTxt(sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+String(pdAnioTexto(p)||'').toLowerCase()+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase()+' '+String(p.OBSERVACIONES||'').toLowerCase()+' '+etiquetasTexto(p).toLowerCase());
-if(!coincideBusquedaNormalizado(texto,q))return false;
-}
-if(busFiltros.lugar){
-var lugares=(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||'')).toLowerCase();
-if(lugares.indexOf(busFiltros.lugar)<0)return false;
-}
-if(busFiltros.etiqueta){
-var etqs=etiquetasArray(p).map(function(t){return t.toLowerCase();});
-if(!etqs.some(function(t){return t.indexOf(busFiltros.etiqueta)>=0;}))return false;
-}
+if(idsSet&&!idsSet[String(p.ID)])return false;
 var al=isAl(p);
-if(al&&!busFiltros.vivos)return false;
-if(!al&&!busFiltros.fallecidos)return false;
-if(busFiltros.anioDesde||busFiltros.anioHasta){
+if(al&&!fl.vivos)return false;
+if(!al&&!fl.fallecidos)return false;
+if(fl.anioDesde||fl.anioHasta){
 var y=getYear(p);
 if(y===null)return false;
-if(busFiltros.anioDesde&&y<parseInt(busFiltros.anioDesde,10))return false;
-if(busFiltros.anioHasta&&y>parseInt(busFiltros.anioHasta,10))return false;
+if(fl.anioDesde&&y<parseInt(fl.anioDesde,10))return false;
+if(fl.anioHasta&&y>parseInt(fl.anioHasta,10))return false;
+}
+if(fl.lugar){
+var lug=normTxt(String(p.LUGARNAC||'')+' '+String(p.LUGARDEF||''));
+if(lug.indexOf(fl.lugar)<0)return false;
+}
+if(fl.etiqueta){
+if(!etiquetasArray(p).some(function(t){return normTxt(t).indexOf(fl.etiqueta)>=0;}))return false;
+}
+if(obsPalabras){
+var oStr=String(p.OBSERVACIONES||'');
+if(p._obsF!==oStr||p._obsN===undefined){p._obsF=oStr;p._obsN=normTxt(oStr);}
+for(var w=0;w<obsPalabras.length;w++){if(p._obsN.indexOf(obsPalabras[w])<0)return false;}
 }
 return true;
-});
-f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+};
+var f=buscarPorNombre(q,aceptar);
 var total=f.length;
 if(cEl)cEl.textContent=activos?(total+' resultado(s) con los filtros activos'):'';
-f=f.slice(0,80);
+f=f.slice(0,busLimite);
 var h='';
 f.forEach(function(p){
 var al=isAl(p),y=pdAnioTexto(p);
-h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
+var frag=fl.obs?fragmentoObservaciones(p,fl.obs):'';
+h+='<div class="ri" onclick="selP(\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div>'+(frag?'<div style="color:var(--muted);font-size:11px;margin-top:2px;white-space:normal">'+esc(frag)+'</div>':'')+'</div></div>';
 });
 if(!f.length) h='<p style="text-align:center;color:var(--muted);padding:20px">Sin resultados</p>';
-else if(total>80) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando 80 de '+total+' resultados. Afina tu busqueda para ver más.</p>';
+else if(total>busLimite) h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:8px">Mostrando '+busLimite+' de '+total+' resultados, ordenados por relevancia.<br><button class="ef-btn ghost" style="margin-top:6px" onclick="busVerMas()">Ver más</button></p>';
 document.getElementById('rl').innerHTML=h;
 }
 /* ===== Búsqueda rápida flotante (icono de lupa del cabecero) =====
@@ -7231,29 +7338,27 @@ function busquedaRapidaEstaAbierta(){
 var ov=document.getElementById('quickSearchOverlay');
 return !!(ov&&ov.classList.contains('open'));
 }
+var rapLimite=40,rapClaveAnterior='';
+function rapVerMas(){rapLimite+=40;doSrchRapida(document.getElementById('quickSearchInput').value);}
 function doSrchRapida(q){
-q=(q||'').toLowerCase().trim();
+q=(q||'').trim();
 var cont=document.getElementById('quickSearchResults');
 if(!cont)return;
 if(!q){cont.innerHTML='';return;}
 if(!datosLocalesListos){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px"><i class="fa-solid fa-spinner fa-spin"></i> Cargando tu base de datos guardada en este dispositivo...</p>';return;}
-var f=D.filter(function(p){
-if(!puedeVerPersona(p.ID))return false;
-/* Igual que en doSrch: el ID entra en el texto buscable para la búsqueda
-   inversa (ID → nombre); el texto ya viene pre-normalizado de bIdx(). */
-var texto=p._buscableRapida!==undefined?p._buscableRapida:normTxt(sn(p).toLowerCase()+' '+fn(p).toLowerCase()+' '+String(p.ID||'').toLowerCase()+' '+String(p.NACA||'')+' '+String(p.ANOCALC||'')+' '+String(pdAnioTexto(p)||'').toLowerCase()+' '+String(p.LUGARNAC||'').toLowerCase()+' '+String(p.LUGARDEF||'').toLowerCase());
-return coincideBusquedaNormalizado(texto,q);
-});
-f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+if(q!==rapClaveAnterior){rapLimite=40;rapClaveAnterior=q;}
+if(esConsultaSoloNumero(q)){cont.innerHTML='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px">Esta busqueda es por <b>nombre y apellidos</b>. Para buscar por ID usa Buscar \u2192 Filtros \u2192 ID.</p>';return;}
+/* Mismo motor que la busqueda normal (solo nombre y apellidos, orden por relevancia). */
+var f=buscarPorNombre(q,function(p){return puedeVerPersona(p.ID);});
 var total=f.length;
-f=f.slice(0,40);
+f=f.slice(0,rapLimite);
 var h='';
 f.forEach(function(p){
 var al=isAl(p),y=pdAnioTexto(p);
 h+='<div class="ri" onclick="elegirPersonaBusquedaRapida(\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry'+(esAnioEstimado(p)?' anocalc-tag':'')+'">'+esc(String(y))+'</div></div></div>';
 });
 if(!f.length)h='<p style="text-align:center;color:var(--muted);padding:14px;font-size:12px">Sin resultados</p>';
-else if(total>40)h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px">Mostrando 40 de '+total+' resultados. Afina tu búsqueda para ver más.</p>';
+else if(total>rapLimite)h+='<p style="text-align:center;color:var(--muted);font-size:11px;padding:6px">Mostrando '+rapLimite+' de '+total+' resultados, ordenados por relevancia.<br><button class="ef-btn ghost" style="margin-top:6px" onclick="rapVerMas()">Ver más</button></p>';
 cont.innerHTML=h;
 }
 function elegirPersonaBusquedaRapida(id){
@@ -9514,7 +9619,7 @@ h+='</div>';
 return h;
 }
 /* ===== POSIBLES DUPLICADOS ===== */
-function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+function normTxt(s){return String(s||'').toLowerCase().normalize('NFD').replace(/\p{M}/gu,'').replace(/[\u00aa\u00ba]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();}
 /* ===== MEJORA: búsqueda de personas más flexible en todos los buscadores de
    la app. Antes se exigía que lo escrito apareciera tal cual, letra por
    letra y en ese mismo orden, dentro del texto de la persona (nombre,
@@ -13294,7 +13399,7 @@ var MANUAL_EMBLEMA_SVG = '<svg width="140" height="140" viewBox="0 0 140 140" xm
 '</svg>';
 var MANUAL_CONTENIDO=[
 {titulo:'Bienvenida y primeros pasos',soloAdmin:false,html:'<p>El Libro de los Ancestros es la aplicacion de genealogia de la familia: reune en un unico arbol los datos, fotografias, documentos y observaciones de mas de 15.000 personas. Funciona enteramente en el navegador, sin instalacion previa, y guarda los datos en el propio dispositivo, mientras usa Google Drive como almacen compartido de fotos, documentos, copias de seguridad y el registro de cambios entre colaboradores.</p><p>Para entrar basta con abrir la direccion web de la aplicacion. La primera vez que se carga en un dispositivo nuevo puede tardar unos segundos mientras descarga la base de datos y calcula los anos estimados pendientes; una barra de progreso bajo el buscador informa de este proceso.</p><p>Hay dos niveles de uso muy distintos:</p><ul><li><strong>Consultar</strong> (buscar personas, ver fichas, navegar el arbol, generar informes): las personas fallecidas se pueden consultar sin conectar ninguna cuenta, ya que son el contenido historico del arbol. Las personas <strong>vivas</strong> solo son visibles para quien tiene alcance sobre ellas segun su perfil (el administrador ve todo; un colaborador ve el arbol principal y sus propias ramas vinculadas; un amigo ve su propia rama completa) — fuera de ese alcance, una persona viva aparece oculta.</li><li><strong>Modificar</strong> (editar una ficha, crear una persona, fusionar duplicados, subir documentos...) exige tener conectada una cuenta de Google, para poder atribuir cada cambio a quien lo hizo.</li></ul><div class="manual-tip">Si solo vas a consultar el arbol, no hace falta que conectes tu cuenta de Google en ningun momento.</div><div class="manual-tip">Si es la primera vez que un familiar se conecta con Google Drive en un dispositivo nuevo, es mejor seguir la «Guia de primer acceso» (Herramientas → Ayuda), pensada paso a paso para ese momento concreto; este manual cubre el resto del uso habitual de la aplicacion.</div><p>La aplicacion puede instalarse como una app independiente en el ordenador o el movil (vease la seccion «Limpiar cache e instalar como aplicacion»), lo que permite abrirla con un icono propio, igual que cualquier otra aplicacion.</p>'},
-{titulo:'Buscar una persona',soloAdmin:false,html:'<p>La pantalla Inicio (el icono con forma de casa) es la puerta de entrada al arbol. Escribe en el cuadro de busqueda un nombre, uno o varios apellidos, un lugar de nacimiento o defuncion, o incluso un fragmento de las observaciones de la ficha: los resultados aparecen al instante, sin necesidad de pulsar ningun boton.</p><p>Cada resultado muestra un circulo de color (azul si la persona esta viva, marron oscuro si ha fallecido), su nombre completo y su ano de nacimiento; si ese ano es una estimacion automatica del motor ANOCALC, aparece en cursiva y con el simbolo ≈ delante.</p><p>El icono del embudo, junto al buscador, abre el panel de <strong>filtros avanzados</strong>, que se pueden combinar libremente con el texto de busqueda:</p><ul><li><strong>Lugar</strong>: filtra por lugar de nacimiento o de defuncion.</li><li><strong>Etiqueta</strong>: muestra solo las personas que llevan una etiqueta concreta.</li><li><strong>Ano desde / hasta</strong>: acota por rango de ano de nacimiento, real o estimado.</li><li><strong>Vivos / Fallecidos</strong>: permite mostrar solo un grupo o el otro.</li></ul><p>El contador junto a «Limpiar filtros» indica cuantas personas cumplen los criterios activos. Si la busqueda devuelve mas de 80 resultados, la aplicacion solo muestra los 80 primeros por orden alfabetico de apellidos; conviene afinar la busqueda o los filtros para localizar a la persona exacta.</p><p>Pulsando sobre cualquier persona de la lista se abre directamente su posicion en el arbol genealogico.</p>'},
+{titulo:'Buscar una persona',soloAdmin:false,html:'<p>La pantalla Inicio (el icono con forma de casa) es la puerta de entrada al arbol. Escribe en el cuadro de busqueda un nombre y/o apellidos (en cualquier orden; no hace falta escribir «de», «la»...): los resultados aparecen al instante, ordenados por relevancia. Este cuadro, igual que la lupa del cabecero, busca solo por nombre y apellidos; para buscar por ID, por texto de las observaciones, por lugar o por etiqueta usa el panel de filtros.</p><p>Cada resultado muestra un circulo de color (azul si la persona esta viva, marron oscuro si ha fallecido), su nombre completo y su ano de nacimiento; si ese ano es una estimacion automatica del motor ANOCALC, aparece en cursiva y con el simbolo ≈ delante.</p><p>El icono del embudo, junto al buscador, abre el panel de <strong>filtros avanzados</strong>, que se pueden combinar libremente con el texto de busqueda:</p><ul><li><strong>Lugar</strong>: filtra por lugar de nacimiento o de defuncion.</li><li><strong>Etiqueta</strong>: muestra solo las personas que llevan una etiqueta concreta.</li><li><strong>ID</strong>: busca por numero de ID exacto (puedes poner varios separados por coma).</li><li><strong>Observaciones contienen</strong>: busca palabras dentro de las observaciones de la ficha (sin importar tildes) y muestra un fragmento del texto.</li><li><strong>Ano desde / hasta</strong>: acota por rango de ano de nacimiento, real o estimado.</li><li><strong>Vivos / Fallecidos</strong>: permite mostrar solo un grupo o el otro.</li></ul><p>El contador junto a «Limpiar filtros» indica cuantas personas cumplen los criterios activos. Si la busqueda devuelve mas de 80 resultados, la aplicacion muestra los 80 mas relevantes y un boton «Ver mas» para seguir.</p><p>Pulsando sobre cualquier persona de la lista se abre directamente su posicion en el arbol genealogico.</p>'},
 {titulo:'La ficha de una persona',soloAdmin:false,html:'<p>La ficha es la vista central de cada persona: reune todo lo que la aplicacion sabe de ella. Se abre pulsando sobre un resultado de busqueda, sobre cualquier casilla del arbol, o sobre el icono de identificacion de cada casilla.</p><p>La ficha se organiza en bloques:</p><ul><li><strong>Cabecera</strong>: fotografia (o inicial de su nombre si no tiene), nombre completo, ID interno, sexo, fecha de nacimiento y de defuncion.</li><li><strong>Datos</strong>: nombre, apellidos, nacimiento (con lugar) y defuncion (con lugar).</li><li><strong>Ano estimado automaticamente</strong>: solo aparece si la persona no tiene ningun ano propio; muestra el ano calculado (≈) y el boton «Ver calculo».</li><li><strong>Familia</strong>: padre, madre y hasta dos conyuges, con su fecha y lugar de matrimonio si constan.</li><li><strong>Hermanos</strong> e <strong>Hijos</strong>, ordenados por edad (los de ano desconocido, al final).</li><li><strong>Documentos</strong>: archivos guardados en Google Drive asociados a esta persona.</li><li><strong>Observaciones</strong>: notas libres.</li></ul><p>Si el motor de consistencia detecta algo raro en esta ficha (por ejemplo, una edad de progenitor imposible, o un matrimonio posterior a una defuncion), aparece un recuadro rojo «Posible error» en la parte superior, con un boton «Solucionar» cuando la correccion es segura y reversible, o «Revisar en el Gestor» para los casos que requieren juicio humano. La aplicacion nunca corrige nada por si sola: siempre presenta el hallazgo como una sugerencia.</p><div class="manual-tip">Desde la ficha puedes saltar directamente a la Cronologia de la persona o calcular su Parentesco con cualquier otra, con los botones de la barra superior.</div>'},
 {titulo:'El arbol genealogico interactivo',soloAdmin:false,html:'<p>La pantalla Arbol dibuja, alrededor de la persona seleccionada, hasta cuatro generaciones de antepasados (padres, abuelos, bisabuelos y tatarabuelos) a la derecha, y sus descendientes directos (hijos y nietos) a la izquierda.</p><p>Herramientas disponibles en la parte superior:</p><ul><li><strong>Zoom (− / +)</strong>: aleja o acerca la vista en pasos del 10%, entre el 60% y el 140%.</li><li><strong>Centrar</strong>: vuelve a situar en el centro de la pantalla a la persona principal.</li><li><strong>Ver 2/4 generaciones</strong>: alterna entre una vista compacta y la vista completa.</li></ul><p>Cada casilla del arbol muestra el nombre, el ano de nacimiento (o el ano estimado con ≈) y, si consta, el lugar de nacimiento. Las casillas de las personas vivas se pintan en azul. El icono de ficha en la esquina de cada casilla abre directamente su ficha completa sin cambiar de posicion en el arbol.</p><p>Los nietos se muestran como pequenas etiquetas bajo cada hijo, en lugar de casillas completas, para no saturar la vista; un clic sobre cualquiera de ellas navega el arbol hasta esa persona.</p><div class="manual-tip">Si una rama no tiene padre o madre registrados, la aplicacion muestra una casilla vacia con un signo de interrogacion en su lugar: es la senal de que ahi falta investigar.</div>'},
 {titulo:'Editar una ficha, paso a paso',soloAdmin:false,html:'<p>Para editar cualquier ficha, abrela y pulsa el boton <strong>Editar</strong> en la parte superior. Se convierte en un formulario con los mismos bloques que la vista de solo lectura, mas algunos controles adicionales.</p><ul><li><strong>Foto</strong>: «Subir foto» abre el selector de archivos de tu dispositivo; «Pegar del portapapeles» usa una imagen ya copiada (p.ej. clic derecho → Copiar imagen en el navegador), igual que en Investigacion; la imagen se redimensiona automaticamente antes de guardarse. «Quitar» elimina la foto actual.</li><li><strong>Datos personales</strong>: apellidos, nombre, sexo, fecha de nacimiento y de defuncion. Marca o desmarca la casilla «Fallecido» para revelar u ocultar los campos de defuncion.</li><li><strong>Etiquetas</strong>: anade o quita etiquetas libres.</li><li><strong>Familia</strong>: enlaces a padre, madre y hasta dos conyuges, con sus botones de vincular, crear o desvincular.</li><li><strong>Descendientes</strong>: lista de hijos ya registrados, con acceso rapido para editarlos, y botones para anadir un descendiente nuevo (con o sin pareja).</li><li><strong>Observaciones</strong>: un cuadro de texto libre para cualquier anotacion.</li></ul><p>Al pulsar <strong>Guardar</strong>, la aplicacion exige tener conectada una identidad de Google: si aun no lo esta, se abrira automaticamente la ventana de conexion de Google antes de completar el guardado. Sin esa identidad, ningun cambio se guarda: no existe un modo de edicion anonimo.</p><div class="manual-warn">Salir de una ficha en modo edicion sin pulsar Guardar descarta todos los cambios realizados en el formulario.</div><p>Al guardar, la aplicacion tambien aplica dos ayudas automaticas: si has cambiado la fecha o el lugar del matrimonio con un conyuge, refleja el mismo dato en la ficha reciproca de esa persona; y si has cambiado el primer apellido, te ofrece propagarlo a los descendientes que lo llevan heredado, siguiendo la convencion espanola de apellidos.</p>'},
@@ -13715,7 +13820,7 @@ var datos=[],fotos={};
 for(var i=0;i<personas.length;i++){
 var p=personas[i];
 var copia={};
-for(var k in p){if(k!=='FOTO'&&k!=='FOTO_FECHA')copia[k]=p[k];}
+for(var k in p){if(k!=='FOTO'&&k!=='FOTO_FECHA'&&k.charAt(0)!=='_')copia[k]=p[k];}
 datos.push(copia);
 /* Cada foto lleva su propio modifiedTime (FOTO_FECHA, puesto por la app en
    cuanto se añade/cambia/quita una foto, en cualquiera de sus vías: pegar
@@ -16320,7 +16425,7 @@ srchTimerRapida=setTimeout(function(){doSrchRapida(val);},150);
 });
 })();
 (function(){
-var ids=['busFLugar','busFEtiqueta','busFAnioDesde','busFAnioHasta','busFVivos','busFFallecidos'];
+var ids=['busFLugar','busFEtiqueta','busFID','busFObs','busFAnioDesde','busFAnioHasta','busFVivos','busFFallecidos'];
 var srchTimerF=null;
 ids.forEach(function(id){
 var el=document.getElementById(id);
