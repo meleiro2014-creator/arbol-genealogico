@@ -930,7 +930,7 @@ body{background:#fff}
 <div class="hero">
 <h1>Investigación</h1>
 <p>Búsqueda externa de registros históricos para ampliar tu árbol</p>
-<p style="font-size:12px;margin-top:8px">El mantenimiento de los datos (inconsistencias, duplicados, años estimados, lugares...) está en el <a onclick="sv('ges')" style="color:var(--accent);cursor:pointer;font-weight:700">Gestor de datos</a>.</p>
+<p style="font-size:12px;margin-top:8px">El mantenimiento de los datos (inconsistencias, duplicados, años estimados, lugares...) está en el <a onclick="sv('ges')" style="color:var(--accent);cursor:pointer;font-weight:700">Gestor de datos</a>. Las etiquetas están agrupadas en <a onclick="abrirFamilias()" style="color:var(--accent);cursor:pointer;font-weight:700">Familias</a>.</p>
 </div>
 <div class="inf-sel" style="max-width:640px">
 <div class="inf-card">
@@ -5288,6 +5288,32 @@ var set=todasLasEtiquetas();
 var tags=Object.keys(set).sort(function(a,b){return a.localeCompare(b,'es');});
 dl.innerHTML=tags.map(function(t){return '<option value="'+escAttr(t)+'">';}).join('');
 }
+/* ===== MÓDULO FAMILIAS (fase 1, solo lectura) ===== Lista de las etiquetas del campo ETIQUETAS como familias, con estadísticas y aviso de bloques sin conexión. */
+var FAMS=[];
+function famAnio(p){var k=['NACA','APROX','ANOCALC'];for(var i=0;i<k.length;i++){var v=parseInt(p[k[i]],10);if(!isNaN(v))return v;}return null;}
+function famBloques(ids){var s={},par={};ids.forEach(function(i){s[i]=1;par[i]=i;});function f(x){while(par[x]!==x){par[x]=par[par[x]];x=par[x];}return x;}
+ids.forEach(function(i){var p=PI[i];['PADRE','MADRE','M1','M2','M3','M4','M5','M6'].forEach(function(k){var v=p&&p[k];if(v&&s[v])par[f(i)]=f(v);});});
+var r={};ids.forEach(function(i){r[f(i)]=1;});return Object.keys(r).length;}
+function famCalcular(){var m={};D.forEach(function(p){etiquetasArray(p).forEach(function(t){(m[t]=m[t]||[]).push(String(p.ID));});});
+FAMS=Object.keys(m).map(function(n){var ids=m[n],h=0,mu=0,v=0,a=null,b=null,sp=0;
+ids.forEach(function(i){var p=PI[i];if(p.SEXO==='Hombre')h++;else if(p.SEXO==='Mujer')mu++;if(isAl(p))v++;var y=famAnio(p);if(y!==null){if(a===null||y<a)a=y;if(b===null||y>b)b=y;}if(!p.PADRE&&!p.MADRE)sp++;});
+return{n:n,ids:ids,t:ids.length,h:h,m:mu,v:v,f:ids.length-v,a:a,b:b,sp:sp,bl:famBloques(ids)};});
+var cols=['#8a5a2b','#2f6f8f','#5b3f8f','#a03a3a','#3d7a4f','#8f6b1f','#2f4f6f','#7a3f6a'];
+FAMS.forEach(function(f){var h=0;for(var i=0;i<f.n.length;i++)h=(h*31+f.n.charCodeAt(i))>>>0;f.col=cols[h%cols.length];f.ini=f.n.replace(/^(Familia|Casa) (de |del )?/,'').slice(0,2).toUpperCase();});}
+function famOrden(c){FAMS.sort(function(x,y){return c==='n'?x.n.localeCompare(y.n,'es'):c==='bl'?(y.bl-x.bl)||(y.t-x.t):(y.t-x.t);});}
+function abrirFamilias(){famCalcular();famOrden('t');var o=document.getElementById('famOv');if(o)o.remove();o=document.createElement('div');o.id='famOv';
+o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
+o.innerHTML='<div style="max-width:980px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Familias</h1><button class="ef-btn ghost" onclick="document.getElementById(\'famOv\').remove()">Cerrar</button></div><p style="color:var(--muted);font-size:13px;margin:4px 0 10px">Cada etiqueta del campo Etiquetas es una familia. Aquí ves cuántas personas tiene y si sus fichas están conectadas entre sí.</p><div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input class="ef-input" id="famQ" placeholder="Buscar familia" oninput="famPintar()" style="flex:1;min-width:140px"><select class="ef-input" id="famS" onchange="famOrden(this.value);famPintar()" style="width:auto"><option value="t">Más personas</option><option value="n">Nombre</option><option value="bl">Más bloques sueltos</option></select></div><div id="famL"></div><div id="famF" style="margin-top:12px"></div></div>';
+document.body.appendChild(o);famPintar();}
+function famPintar(){var q=(document.getElementById('famQ').value||'').toLowerCase(),h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);font-size:14px"><tr style="color:var(--muted);font-size:12px;text-align:left"><th style="padding:8px">Familia</th><th>Personas</th><th>H / M</th><th>Vivos / fallecidos</th><th>Bloques</th></tr>';
+FAMS.forEach(function(f,i){if(q&&f.n.toLowerCase().indexOf(q)<0)return;var pv=f.t?Math.round(f.v*100/f.t):0;
+h+='<tr data-i="'+i+'" onclick="famFicha('+i+')" style="cursor:pointer;border-top:1px solid var(--border)"><td style="padding:8px;white-space:nowrap"><span style="display:inline-flex;width:32px;height:32px;border-radius:8px;background:'+f.col+';color:#fff;font-weight:700;font-size:12px;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle">'+esc(f.ini)+'</span>'+esc(f.n)+'</td><td>'+f.t+'</td><td>'+f.h+' / '+f.m+'</td><td style="white-space:nowrap"><span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--dead);opacity:.55;vertical-align:middle;overflow:hidden"><i style="display:block;height:100%;width:'+pv+'%;background:var(--green)"></i></span> '+f.v+' / '+f.f+'</td><td style="color:'+(f.bl>1?'#b3402f':'var(--green)')+';font-weight:600">'+(f.bl>1?f.bl+' sueltos':'unido')+'</td></tr>';});
+document.getElementById('famL').innerHTML=h+'</table></div>';}
+function famFicha(i){var f=FAMS[i],k=[['Personas',f.t],['Hombres',f.h],['Mujeres',f.m],['Vivos',f.v],['Fallecidos',f.f],['Año más antiguo',f.a===null?'—':f.a],['Año más reciente',f.b===null?'—':f.b],['Sin padres',f.sp]];
+var h='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px"><span style="display:inline-flex;width:48px;height:48px;border-radius:10px;background:'+f.col+';color:#fff;font-weight:700;align-items:center;justify-content:center;margin-right:10px;vertical-align:middle">'+esc(f.ini)+'</span><b style="font-size:18px">'+esc(f.n)+'</b><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:12px 0">'+k.map(function(x){return'<div style="border:1px solid var(--border);border-radius:8px;padding:8px"><b style="font-size:18px;display:block">'+x[1]+'</b><span style="font-size:12px;color:var(--muted)">'+x[0]+'</span></div>';}).join('')+'</div>'+
+(f.bl>1?'<div style="padding:8px 10px;border-radius:8px;background:rgba(179,64,47,.12);color:#b3402f;font-size:13px">⚠ La familia está partida en '+f.bl+' bloques sin conexión entre sí. Conviene unirlos con una ficha puente o revisar la pertenencia.</div>':'<div style="padding:8px 10px;border-radius:8px;background:rgba(90,138,60,.14);color:var(--green);font-size:13px">✓ Todas las fichas forman un único bloque conectado.</div>')+
+'<p style="margin:10px 0 0"><button class="ef-btn" onclick="document.getElementById(\'famOv\').remove();verFichasConEtiqueta(FAMS['+i+'].n)">Ver fichas</button></p></div>';
+var el=document.getElementById('famF');el.innerHTML=h;el.scrollIntoView({behavior:'smooth'});}
 function verFichasConEtiqueta(tag){
 sv('bus');
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
