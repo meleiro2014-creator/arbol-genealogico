@@ -1079,8 +1079,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.06.1';
+var APP_VERSION = '2026.10.06.2';
 var APP_CHANGELOG = [
+  { version:'2026.10.06.2', fecha:'2026-10-06', cambios:[
+    'Ficha, «Editar foto» → «Reparar esta foto con Gemini»: nuevo selector «Imagen de partida». Con «Retrato histórico» el prompt convierte una pintura, miniatura, efigie, grabado o fotografía antigua en un retrato fotográfico realista de la misma persona (formato 1:1, mismo fondo de siempre, ropa e insignias de la referencia, encuadre algo más suelto), usando los datos de la ficha (nombre, años, linaje). Se puede elegir el tipo de referencia.',
+    'Nueva casilla «Conservar el objeto que aparece en la imagen» (espada, libro, copa, cetro...), con campo opcional para indicar cuál; activa por defecto en modo histórico y disponible también para fotos normales.'
+  ]},
   { version:'2026.10.06.1', fecha:'2026-10-06', cambios:[
     'Buscador rehecho: el cuadro de busqueda de Inicio y la lupa del cabecero buscan ahora solo por nombre y apellidos, con el mismo motor, y ordenan por relevancia en vez de alfabeticamente (antes "Isabel I de Castilla" quedaba en el puesto 258 y no se veia). Se ignoran palabras como «de» o «la», y los numerales romanos se tratan como palabra completa.',
     'Filtros de busqueda: nuevos filtros ID (exacto) y «Observaciones contienen» (con fragmento del texto); Lugar y Etiqueta ya no distinguen tildes; las etiquetas se separan tambien por «;». Boton «Ver mas» en las listas largas.',
@@ -7765,8 +7769,67 @@ var GEM_RASGOS=[
 var GEM_CHOQUE={bigote:['afeitado'],barba:['afeitado'],afeitado:['bigote','barba'],oscuro:['claro','canoso'],claro:['oscuro','canoso'],canoso:['oscuro','claro']};
 var GEM_ESTADO={};/* por persona: opciones elegidas (se conservan mientras no se recargue la app) */
 function gemEstado(id){
-if(!GEM_ESTADO[id])GEM_ESTADO[id]={encuadre:true,acercar:false,postura:false,bordes:false,fondoClaro:false,vestir:true,ropa:'',ropaActual:'',sombrero:false,sombreroTxt:'',fondo:'crema',rasgos:[],extra:''};
+if(!GEM_ESTADO[id])GEM_ESTADO[id]={modo:'foto',fuente:'auto',objetoOn:false,objeto:'',_objetoManual:false,encuadre:true,acercar:false,postura:false,bordes:false,fondoClaro:false,vestir:true,ropa:'',ropaActual:'',sombrero:false,sombreroTxt:'',fondo:'crema',rasgos:[],extra:''};
 return GEM_ESTADO[id];
+}
+var GEM_FUENTES=[
+['auto','Detectar automáticamente'],
+['pintura','Pintura / retrato al óleo'],
+['miniatura','Miniatura o manuscrito iluminado'],
+['escultura','Escultura, efigie o sarcófago'],
+['grabado','Grabado o dibujo'],
+['foto','Fotografía antigua']
+];
+var GEM_FUENTE_TXT={
+auto:'TIPO DE REFERENCIA: identifícalo tú (pintura, miniatura o manuscrito, escultura o efigie, grabado, fotografía antigua) y elimina de la imagen final todo rastro de ese medio: pinceladas, lienzo, craquelado, pergamino, trazo de grabado, piedra, mármol, madera o metal. Convierte lo representado en piel, cabello, tejidos, metal y joyas reales. Si la referencia es una escultura sin color, usa tonos de piel, cabello y ropa sobrios y verosímiles para la época.',
+pintura:'TIPO DE REFERENCIA — PINTURA: elimina por completo pinceladas, textura de lienzo, craquelado y aspecto de óleo; convierte lo pintado en piel humana real, cabello real, tejidos reales, metal y joyas reales. No copies la apariencia pictórica, pero conserva postura, dirección de la mirada, expresión, vestimenta, peinado y proporciones.',
+miniatura:'TIPO DE REFERENCIA — MINIATURA O MANUSCRITO ILUMINADO: la figura suele estar muy estilizada o simplificada; reconstruye la anatomía de forma natural y creíble sin inventar una identidad distinta, conservando colores, tocados, vestimenta, postura y atributos. Elimina el aspecto de pergamino, el dorado plano y el trazo de tinta.',
+escultura:'TIPO DE REFERENCIA — ESCULTURA, EFIGIE O SARCÓFAGO: usa la escultura como referencia de rasgos, edad aparente, peinado, postura, vestimenta y atributos. Elimina por completo la apariencia de piedra, mármol, madera o metal y conviértela en piel humana con textura, poros y volumen natural. Mantén los rasgos reconocibles de la escultura (no los sustituyas por una cara moderna genérica); si está idealizada, conserva algo de esa dignidad pero con anatomía humana creíble. Como la escultura no tiene color, usa tonos de piel, cabello y ropa sobrios y verosímiles para la época, sin colores llamativos.',
+grabado:'TIPO DE REFERENCIA — GRABADO O DIBUJO: elimina el trazo, el sombreado y el aspecto de papel; reconstruye volumen, piel y tejidos reales y deduce los colores de forma sobria y verosímil para la época.',
+foto:'TIPO DE REFERENCIA — FOTOGRAFÍA ANTIGUA: restaura nitidez y detalle sin cambiar ningún rasgo; añade color natural y discreto; conserva la ropa y el peinado reales de la foto.'
+};
+function gemTextoObjeto(e){
+var o=(e.objeto||'').trim();
+if(!e.objetoOn)return '';
+if(o)return 'OBJETO SIGNIFICATIVO: la referencia muestra '+o+'. Consérvalo(s) en la nueva imagen como objeto físico real (metal, madera, papel, vidrio, tela...), con su forma, su posición en la mano o junto a la persona y su proporción respecto al cuerpo. Suele representar la personalidad o la dignidad del retratado, así que debe verse reconocible. Si es largo (espada, cetro, lanza), basta con que se vea su parte principal (empuñadura y hoja, cabeza del cetro...). No inventes ningún otro objeto.';
+return 'OBJETO SIGNIFICATIVO: si en la referencia la persona sostiene o lleva consigo algún objeto (espada, libro, copa, cetro, rosario, pluma, flor, instrumento...), consérvalo en la nueva imagen como objeto físico real, con su forma, su posición y su proporción respecto al cuerpo; suele representar la personalidad o la dignidad del retratado y debe verse reconocible. Si es largo, basta con que se vea su parte principal. Si no hay ningún objeto en la referencia, no inventes ninguno.';
+}
+function gemConstruirPromptHistorico(id,p,e,sexo,fondo){
+var t='';
+t+='Usa la imagen adjunta como referencia principal. Identifica visualmente la época, el tipo de representación y los rasgos distintivos de la persona antes de reconstruirla. No inventes una persona diferente. La transformación debe ser una reconstrucción fotográfica realista de esta misma persona.\n\n';
+t+='OBJETIVO: convierte a la persona representada en la imagen de referencia en un retrato fotográfico fotorrealista que transmita «así habría sido esta persona si la hubieran fotografiado de forma realista en su propia época». No es una persona moderna disfrazada: su edad, fisonomía, cabello, vestimenta y elementos distintivos deben pertenecer claramente a su periodo histórico.\n\n';
+t+=(GEM_FUENTE_TXT[e.fuente]||GEM_FUENTE_TXT.auto)+'\n\n';
+t+='DATOS DE LA PERSONA (de su ficha genealógica; solo orientan, la imagen de referencia manda):\n';
+t+='- Nombre: '+fn(p).trim()+'.\n';
+if(sexo)t+='- Sexo: '+sexo+'.\n';
+var anio=getYear(p),nacReal=(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='');
+if(anio!==null)t+='- Nacimiento: '+(nacReal?'':'hacia ')+anio+(nacReal?'':' (año aproximado)')+'.\n';
+if(p.DEFA!==undefined&&p.DEFA!==null&&p.DEFA!=='')t+='- Fallecimiento: '+p.DEFA+'.\n';
+var casas=etiquetasArray(p).filter(function(x){return /^(casa|familia)\s/i.test(x);});
+if(casas.length)t+='- Linaje: '+casas.join(', ')+' (solo orienta el rango; no añadas coronas, insignias ni joyas que no aparezcan en la referencia).\n';
+if(p.LUGARNAC)t+='- Lugar de nacimiento: '+p.LUGARNAC+'.\n';
+if(e.rasgos.length){
+t+='\nRASGOS CONFIRMADOS A SIMPLE VISTA POR UNA PERSONA (obligatorios; prevalecen sobre cualquier suposición):\n';
+t+=GEM_RASGOS.filter(function(r){return e.rasgos.indexOf(r[0])>=0;}).map(function(r){return'- '+r[2];}).join('\n')+'\n';
+}
+t+='\nCAMBIOS Y REGLAS A APLICAR:\n';
+var n=0;
+n++;t+=n+'. IDENTIDAD (prioridad absoluta): conserva forma de la cabeza, frente, cejas, forma y separación de los ojos, nariz, pómulos, labios, mandíbula, barbilla, orejas, línea del cabello, edad aparente y expresión característica. Si la fuente está estilizada, reconstruye la anatomía de forma natural sin inventar una identidad distinta. No embellezcas, rejuvenezcas ni envejezcas; mantén asimetrías, arrugas y particularidades. Piel con textura humana real (poros sutiles, variaciones de tono, signos de edad): nada de piel de porcelana, de retoque de belleza ni de cara de modelo o de IA.\n';
+n++;t+=n+'. CABELLO Y VELLO FACIAL: peinado histórico de la referencia (longitud, forma, raya, volumen, color, línea capilar), con mechones individuales e irregularidades naturales; mantén barba, bigote o ausencia de vello facial tal como están. Nada de peinados ni cortes modernos.\n';
+n++;t+=n+'. VESTIMENTA E INSIGNIAS: conserva exactamente la ropa de la referencia (corte, silueta, tejidos, colores, bordados, encajes, pieles, mantos, armadura, uniforme) y sus joyas, tocado, corona, velo, insignias y elementos religiosos o ceremoniales, como materiales reales fotografiados, con textura física y pequeñas irregularidades. No cambies la ropa por otra de época inventada y no añadas accesorios, rango ni joyas que no estén en la referencia.\n';
+var ob=gemTextoObjeto(e);
+n++;t+=n+'. '+(ob||'OBJETOS: no añadas ni conserves objetos en la mano; solo la persona y su indumentaria.')+'\n';
+n++;t+=n+'. ÉPOCA: la época debe ser evidente (moda, peluquería y materiales de su periodo). La fotografía solo es moderna en su realismo, nunca en la apariencia de la persona.\n';
+n++;t+=n+'. DIGNIDAD Y EXPRESIÓN: si es rey, noble, militar o figura religiosa, transmite autoridad con la postura, la expresión, la vestimenta y las insignias que ya aparezcan, sin convertirla en un personaje épico, heroico, cinematográfico o de fantasía. Mantén la expresión y la mirada de la referencia; si no puede reconstruirse, usa una expresión serena, natural, sobria y digna, sin sonrisa moderna ni dramatismo.\n';
+n++;t+=n+'. ILUMINACIÓN: fotografía de retrato de archivo cuidadosamente realizada, con luz suave, natural y realista (lateral o frontal) que dé volumen a rostro, cabello, cuello y tejidos; sin iluminación espectacular, halos ni brillos artificiales.\n';
+n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.'+(e.fondoClaro?' El fondo debe ser CLARO y luminoso, con el color exacto indicado y nunca más oscuro: sin viñeteado ni sombras en las esquinas o los bordes.':'')+' No recrees el escenario de la referencia: ni castillos, palacios, iglesias, columnas, paisajes, interiores, muebles, tronos ni arquitectura'+(ob?' (el objeto de la persona indicado arriba sí se conserva delante del fondo)':'')+'.\n';
+if(e.extra.trim()){n++;t+=n+'. INDICACIÓN ADICIONAL: '+e.extra.trim()+'\n';}
+t+='\nENCUADRE FINAL — cuadrado 1:1 exacto, persona centrada, con la cámara a distancia natural, perspectiva fotográfica normal, sin gran angular ni deformación. Al ser un retrato histórico y casi una alegoría, no hace falta un primer plano: puede verse algo más lejos (busto largo o medio cuerpo), con la cabeza ocupando alrededor del 20-30 % de la altura, para que quepan la cabeza entera con su corona o tocado, ambos hombros completos'+(e.objetoOn?', el objeto significativo':'')+' y algo de aire alrededor. No cortes la cabeza, los hombros'+(e.objetoOn?' ni el objeto':'')+'. El personaje debe destacar claramente del fondo.\n\n';
+t+='ESTILO Y ACABADO: fotografía fotorrealista de alta calidad, aspecto documental e histórico, óptica de retrato, enfoque preciso en ojos y rostro, microtexturas naturales; a todo color, con tonos naturales y discretos. Nada de CGI, ilustración, pintura, render 3D ni fantasía. Sin texto, nombres, fechas, marcos, escudos añadidos ni elementos gráficos.\n\n';
+t+='PRIORIDADES (si dos cosas chocan): 1.º la identidad; 2.º la fidelidad a la época y a la referencia (antes que hacer la imagen más atractiva o más moderna); 3.º el resto.\n\n';
+t+='EVITAR: apariencia moderna, disfraz o cosplay, estética de película histórica o de videojuego, belleza de modelo o influencer, piel de porcelana o retocada, cara genérica o distinta de la referencia, aspecto de óleo, de piedra o de cera, iluminación dramática, gran angular, texto o marcos.\n\n';
+t+='VERIFICACIÓN FINAL: antes de dar el resultado por definitivo, comprobar que la imagen es verificablemente cuadrada (1:1), que la cabeza entra entera con su corona o tocado, que se ven ambos hombros completos'+(e.objetoOn?', que el objeto significativo (si la referencia lo tiene) es reconocible y no está cortado':'')+', que la cara conserva la identidad de la referencia, que la ropa y las insignias son las de la referencia, que no queda ningún rastro del medio original (pincelada, piedra, trazo) y que el fondo es el indicado y continuo. Si algo falla, repetir el ajuste hasta cumplirlo.';
+return t;
 }
 function gemConstruirPrompt(id){
 var p=PI[id];if(!p)return'';
@@ -7776,6 +7839,7 @@ var anio=getYear(p);
 var aproximado=!(p.NACA!==undefined&&p.NACA!==null&&p.NACA!=='');
 var epoca=anio!==null?('hacia '+anio+(aproximado?' (año aproximado)':'')):'';
 var fondo=GEM_FONDOS.filter(function(f){return f[0]===e.fondo;})[0]||GEM_FONDOS[0];
+if(e.modo==='historica')return gemConstruirPromptHistorico(id,p,e,sexo,fondo);
 var t='';
 t+='Edita y rehaz esta fotografía de retrato de una persona, manteniendo la identidad exacta de la persona representada y aplicando SOLO los cambios que se indican en «CAMBIOS A APLICAR». La imagen adjunta es un retrato ya restaurado de su ficha genealógica; úsala como referencia de la cara.\n\n';
 t+='REGLA FUNDAMENTAL: la identidad y los rasgos de la persona tienen prioridad absoluta. No embellecer, rejuvenecer, envejecer ni modificar rostro, expresión'+(e.postura?' ni complexión (la postura solo se corrige como se indica en «CAMBIOS A APLICAR»)':', complexión ni postura')+'. La reconstrucción debe ser históricamente fiel a la persona y a su época; solo cambia lo que se pide abajo.\n\n';
@@ -7798,7 +7862,8 @@ if(e.postura){n++;t+=n+'. POSTURA: corrige la postura para que sea natural y rel
 if(e.vestir){n++;t+=n+'. VESTIMENTA: viste a la persona con ropa de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+', sencilla, discreta y realista, adecuada a su condición social'+(e.ropa.trim()?'. Indicación concreta: '+e.ropa.trim():'')+'. Nunca una prenda moderna genérica. La persona siempre debe aparecer vestida.\n';}
 else{n++;var ra=(e.ropaActual||'').trim();t+=n+'. VESTIMENTA — CONSERVARLA: NO cambies la ropa ni la pases a ropa de época. Conserva EXACTAMENTE la ropa que la persona ya lleva en la referencia'+(ra?' ('+ra+')':'')+': misma prenda, color, tejido, cuello y complementos. No añadas ni quites chaqueta, corbata, pajarita ni adornos, y no la modernices ni la hagas más formal. Solo se extiende, de forma anatómicamente natural y realista, hacia los lados y hacia abajo hasta que ambos hombros completos y el pecho queden cubiertos por esa misma ropa. Si la referencia no deja ver ninguna prenda, completa con una prenda sencilla, lisa y neutra de cuello normal, sin traje, sin chaqueta y sin corbata. La persona siempre debe aparecer vestida.\n';}
 if(e.sombrero){n++;t+=n+'. TOCADO: añade un sombrero o tocado propio de su época'+(epoca?' ('+epoca.replace(' (año aproximado)','')+')':'')+(e.sombreroTxt.trim()?': '+e.sombreroTxt.trim():', acorde a su sexo y condición social')+'. Debe entrar ENTERO en la imagen, sin tapar la frente más de lo que correspondería a ese tocado ni deformar el pelo.\n';}
-n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.'+(e.fondoClaro?' El fondo debe ser CLARO y luminoso, con el color exacto indicado y nunca más oscuro: sin viñeteado, sin sombras ni oscurecimiento en las esquinas o los bordes, y con el mismo tono en el centro que en las esquinas. Si el fondo de la referencia es oscuro, sustitúyelo por completo.':'')+'\n';
+var obF=gemTextoObjeto(e);if(obF){n++;t+=n+'. '+obF+'\n';}
+n++;t+=n+'. FONDO: '+fondo[2]+', un único color continuo, sin texturas, costuras, degradados, decoración ni objetos.'+(e.objetoOn?' (Esto se refiere solo al fondo: el objeto de la persona indicado arriba sí se conserva delante del fondo.)':'')+(e.fondoClaro?' El fondo debe ser CLARO y luminoso, con el color exacto indicado y nunca más oscuro: sin viñeteado, sin sombras ni oscurecimiento en las esquinas o los bordes, y con el mismo tono en el centro que en las esquinas. Si el fondo de la referencia es oscuro, sustitúyelo por completo.':'')+'\n';
 if(e.bordes){n++;t+=n+'. CORREGIR BORDES Y RAYAS: la imagen tiene una raya, línea o halo en el contorno de la persona o en los bordes de la imagen, producto de un mal recorte. Elimínala: rehaz el contorno de la persona (pelo, orejas, hombros y ropa) con un borde natural y limpio, sin halo claro ni oscuro, sin líneas ni restos del fondo anterior, y haz que el fondo llegue continuo hasta los cuatro bordes de la imagen, sin marcos ni franjas.\n';}
 if(e.extra.trim()){n++;t+=n+'. INDICACIÓN ADICIONAL: '+e.extra.trim()+'\n';}
 t+='\nENCUADRE FINAL — cuadrado 1:1 exacto, plano de medio busto amplio (tipo carné ampliado): desde un pequeño margen sobre la cabeza hasta la mitad del pecho, con el cuello y AMBOS HOMBROS COMPLETOS de lado a lado, dejando algo de aire a cada lado de los hombros para que la ropa quede entera, sin cortes laterales. La cabeza (de la coronilla a la barbilla) ocupa solo el 30-35 % de la altura de la imagen. Si hay conflicto entre el tamaño de la cara y la visibilidad de los hombros, GANAN LOS HOMBROS: se reduce la cara. No recortar por los hombros ni por el cuello bajo ningún concepto. '+(e.acercar?'El 1:1 se consigue acercando el encuadre y recortando el espacio sobrante del fondo, sin cortar la cabeza, el pelo ni los hombros.':'El 1:1 se consigue generando el cuerpo que falta y reduciendo la cara dentro del cuadro, nunca recortando hombros ni añadiendo bandas vacías alrededor.')+'\n\n';
@@ -7814,6 +7879,8 @@ var h='<details id="gem-panel" style="margin-top:14px;border:1px solid var(--bor
 h+='<summary style="cursor:pointer;font-weight:700;font-size:13px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Reparar esta foto con Gemini (prompt + enlace a Drive)</summary>';
 h+='<div style="margin-top:10px;font-size:12px">';
 h+='<div style="display:flex;flex-direction:column;gap:6px">';
+h+='<label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>Imagen de partida:</b> <select id="gem-modo" class="ef-input" style="width:auto;max-width:100%" onchange="gemActualizar(\''+sid+'\',\'modo\')"><option value="foto"'+(e.modo==='foto'?' selected':'')+'>Foto de la persona (restaurar, ampliar encuadre...)</option><option value="historica"'+(e.modo==='historica'?' selected':'')+'>Retrato histórico: pintura, miniatura, efigie... (reconstrucción fotográfica)</option></select></label>';
+h+='<div id="gem-grp-foto" style="display:'+(e.modo==='foto'?'flex':'none')+';flex-direction:column;gap:6px">';
 h+='<label><input type="checkbox" id="gem-encuadre"'+(e.encuadre?' checked':'')+' onchange="gemActualizar(\''+sid+'\',\'encuadre\')"> <b>Ampliar el encuadre</b> (la cara está muy cerca: añadir cuello, hombros y medio pecho)</label>';
 h+='<label><input type="checkbox" id="gem-acercar"'+(e.acercar?' checked':'')+' onchange="gemActualizar(\''+sid+'\',\'acercar\')"> <b>Acercar el encuadre</b> (la persona sale lejos o pequeña: acercar y recortar el fondo sobrante)</label>';
 h+='<label><input type="checkbox" id="gem-postura"'+(e.postura?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Postura natural</b> (cabeza recta, hombros relajados y nivelados, sin giros ni cuello raro)</label>';
@@ -7822,9 +7889,12 @@ h+='<input class="ef-input" id="gem-ropa" style="display:'+(e.vestir?'':'none')+
 h+='<input class="ef-input" id="gem-ropaactual" style="display:'+(e.vestir?'none':'')+'" placeholder="Ropa que lleva en la foto, para que la conserve (opcional): traje azul marino, camisa gris claro y corbata negra..." value="'+escAttr(e.ropaActual||'')+'" oninput="gemActualizar(\''+sid+'\')">';
 h+='<label><input type="checkbox" id="gem-sombrero"'+(e.sombrero?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Poner sombrero o tocado de la época</b></label>';
 h+='<input class="ef-input" id="gem-sombrero-txt" placeholder="Cuál (opcional): chistera, bombín, boina, mantilla, toca..." value="'+escAttr(e.sombreroTxt)+'" oninput="gemActualizar(\''+sid+'\')">';
+h+='</div>';
+h+='<div id="gem-grp-hist" style="display:'+(e.modo==='historica'?'flex':'none')+';flex-direction:column;gap:6px"><label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>Tipo de referencia:</b> <select id="gem-fuente" class="ef-input" style="width:auto;max-width:100%" onchange="gemActualizar(\''+sid+'\')">'+GEM_FUENTES.map(function(f){return'<option value="'+f[0]+'"'+(e.fuente===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';}).join('')+'</select></label><span style="font-size:10px;color:var(--muted)">Conserva la ropa, el peinado, las insignias y el objeto de la imagen original (no viste de época: lo que sale en la referencia manda). Encuadre 1:1, algo más suelto para que quepan los hombros y el objeto. Adjunta a Gemini la pintura, miniatura o efigie como referencia.</span></div>';
 h+='<label style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>Fondo:</b> <select id="gem-fondo" class="ef-input" style="width:auto" onchange="gemActualizar(\''+sid+'\')">'+GEM_FONDOS.map(function(f){return'<option value="'+f[0]+'"'+(e.fondo===f[0]?' selected':'')+'>'+esc(f[1])+'</option>';}).join('')+'</select></label>';
 h+='<label><input type="checkbox" id="gem-fondoclaro"'+(e.fondoClaro?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Fondo claro y del color exacto</b> (para cuando sale oscuro o con sombras en las esquinas)</label>';
-h+='<label><input type="checkbox" id="gem-bordes"'+(e.bordes?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Quitar la raya o el halo del recorte</b> (línea en el filo de la persona o en el borde de la imagen)</label>';
+h+='<label style="display:flex;flex-direction:column;gap:4px"><span><input type="checkbox" id="gem-objeto-on"'+(e.objetoOn?' checked':'')+' onchange="gemActualizar(\''+sid+'\',\'objeto\')"> <b>Conservar el objeto que aparece en la imagen</b> (espada, libro, copa, cetro...: suele reflejar su personalidad)</span><input class="ef-input" id="gem-objeto" placeholder="Cuál (opcional): una espada, un libro abierto, una copa de plata..." value="'+escAttr(e.objeto)+'" oninput="gemActualizar(\''+sid+'\',\'objeto\')"></label>';
+h+='<label id="gem-lbl-bordes" style="display:'+(e.modo==='foto'?'':'none')+'"><input type="checkbox" id="gem-bordes"'+(e.bordes?' checked':'')+' onchange="gemActualizar(\''+sid+'\')"> <b>Quitar la raya o el halo del recorte</b> (línea en el filo de la persona o en el borde de la imagen)</label>';
 h+='</div>';
 h+='<div style="margin:10px 0 4px;font-weight:700">Rasgos que ves en la foto (se exigen en el prompt)</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
 GEM_RASGOS.forEach(function(r){
@@ -7838,7 +7908,7 @@ h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">';
 h+='<button type="button" class="ef-btn" onclick="gemCopiarPrompt()"><i class="fa-solid fa-copy"></i> Copiar prompt</button>';
 h+='<button type="button" class="ef-btn ghost" id="gem-btn-drive" onclick="gemAbrirFotoDrive(\''+sid+'\')"><i class="fa-brands fa-google-drive"></i> Abrir foto en Drive</button>';
 h+='</div>';
-h+='<p style="font-size:10px;color:var(--muted);margin:8px 0 0">Pasos: 1) pulsa «Abrir foto en Drive» y descárgala, 2) súbela a Gemini y pega el prompt, 3) cuando te guste el resultado, vuelve aquí y usa «Subir foto» o «Pegar del portapapeles» y Guardar.</p>';
+h+='<p style="font-size:10px;color:var(--muted);margin:8px 0 0">Pasos: 1) pulsa «Abrir foto en Drive» y descárgala (en modo histórico, usa mejor la pintura, miniatura o efigie original), 2) súbela a Gemini y pega el prompt, 3) cuando te guste el resultado, vuelve aquí y usa «Subir foto» o «Pegar del portapapeles» y Guardar.</p>';
 h+='</div></details>';
 return h;
 }
@@ -7864,6 +7934,18 @@ if(g('gem-sombrero'))e.sombrero=g('gem-sombrero').checked;
 if(g('gem-sombrero-txt'))e.sombreroTxt=g('gem-sombrero-txt').value;
 if(g('gem-fondo'))e.fondo=g('gem-fondo').value;
 if(g('gem-extra'))e.extra=g('gem-extra').value;
+if(g('gem-fuente'))e.fuente=g('gem-fuente').value;
+if(g('gem-modo')&&g('gem-modo').value!==e.modo){
+e.modo=g('gem-modo').value;
+/* al cambiar de modo, el objeto se activa solo en el histórico, salvo que ya lo hayas tocado a mano */
+if(!e._objetoManual){e.objetoOn=(e.modo==='historica');if(g('gem-objeto-on'))g('gem-objeto-on').checked=e.objetoOn;}
+if(g('gem-grp-foto'))g('gem-grp-foto').style.display=(e.modo==='foto')?'flex':'none';
+if(g('gem-grp-hist'))g('gem-grp-hist').style.display=(e.modo==='historica')?'flex':'none';
+if(g('gem-lbl-bordes'))g('gem-lbl-bordes').style.display=(e.modo==='foto')?'':'none';
+}
+if(cual==='objeto')e._objetoManual=true;
+if(g('gem-objeto-on'))e.objetoOn=g('gem-objeto-on').checked;
+if(g('gem-objeto'))e.objeto=g('gem-objeto').value;
 var ta=g('gem-prompt');
 if(ta)ta.value=gemConstruirPrompt(id);
 }
