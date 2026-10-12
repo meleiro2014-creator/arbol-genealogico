@@ -243,6 +243,7 @@ main{max-width:100%;margin:0 auto;padding:14px}
    "anfitrión" .pb-bee-host alrededor de cada .pb visible, con una abejita en
    SVG (cuerpo + 2 alas) justo encima de la barra. Las alas tienen su propia
    animación rápida (aleteo) independiente del vuelo/rebote del cuerpo. */
+.ra.foto{position:relative}.foto-recon{position:absolute;right:0;bottom:0;width:16px;height:16px;border-radius:50%;background:#7a3f6a;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px var(--card)}.ra.mini .foto-recon{width:11px;height:11px;font-size:6px}
 .pb-bee-host{position:relative;display:block}
 .pb-bee{position:absolute;top:-16px;left:0;width:26px;height:18px;pointer-events:none;transform:translateX(-50%);transition:left .25s linear;animation:pbBeeEses 1.2s ease-in-out infinite}
 /* Barra indeterminada: la abeja va y viene de extremo a extremo de la barra dibujando eses
@@ -2823,7 +2824,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{await refrescarCambiosDesdeDrive();var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -5286,7 +5287,7 @@ function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function avatarHTML(p,mini){
 var al=isAl(p);
 var cls='ra'+(mini?' mini':'')+' ';
-if(p.FOTO)return '<div class="'+cls+'foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy"></div>';
+if(p.FOTO)return '<div class="'+cls+'foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy">'+(p.FOTO_RECON?'<span class="foto-recon" title="Imagen reconstruida: no es una fotografía real"><i class="fa-solid fa-wand-magic-sparkles"></i></span>':'')+'</div>';
 return '<div class="'+cls+(al?'al':'de')+'">'+ini(p)+'</div>';
 }
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
@@ -5317,7 +5318,7 @@ function famB(t,f,c){return '<button type="button" class="ef-btn'+(c?' '+c:'')+'
 function famPorId(id){return FAM_CAT.familias.filter(function(f){return f.id===id;})[0];}
 function famIndice(){var m={},sin=[];FAM_HIJOS={};D.forEach(function(p){if(!p)return;var id=String(p.ID),e=etiquetasArray(p);if(!e.length)sin.push(id);e.forEach(function(t){(m[t]=m[t]||[]).push(id);});[p.PADRE,p.MADRE].forEach(function(q){if(q)(FAM_HIJOS[q]=FAM_HIJOS[q]||[]).push(id);});});FAM_IDX={m:m,sin:sin};}
 function famNuevoId(){var mx=0;FAM_CAT.familias.forEach(function(f){var n=parseInt(String(f.id).replace(/\D/g,''),10);if(n>mx)mx=n;});return 'F'+String(mx+1).padStart(4,'0');}
-function famNuevaEntrada(n,tipo,ancla,por){return{id:famNuevoId(),nombre:n,tipo:tipo||(/^casa\b/i.test(n)?'casa':'familia'),descripcion:'',color:famColor(n),imagen:'',ancla:ancla||null,excluir:[],incluir:[],creada:famHoy(),creadaPor:por||'Administrador'};}
+function famNuevaEntrada(n,tipo,ancla,por){return{id:famNuevoId(),nombre:n,tipo:tipo||(/^casa\b/i.test(n)?'casa':'familia'),descripcion:'',color:famColor(n),imagen:'',escudo:null,ancla:ancla||null,excluir:[],incluir:[],creada:famHoy(),creadaPor:por||'Administrador'};}
 function famMigrar(){var ex={},n=0;FAM_CAT.familias.forEach(function(f){ex[f.nombre]=1;(f.antiguos||[]).forEach(function(a){ex[a]=1;});});Object.keys(FAM_IDX.m).sort(function(a,b){return a.localeCompare(b,'es');}).forEach(function(t){if(!ex[t]){FAM_CAT.familias.push(famNuevaEntrada(t,null,null,'Migración automática'));n++;}});return n;}
 async function famDriveFile(){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+FAM_FILE+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return{f:d.files&&d.files.length?d.files[0]:null,folderId:folderId};}
 async function famCatCargar(){FAM_CAT={formato:'Libro de los Ancestros - catalogo de familias',version:1,familias:[]};FAM_AVISO='';FAM_LECTURA_OK=false;if(driveRootFolderId&&tokenDriveValido()){try{var x=await famDriveFile();FAM_LECTURA_OK=true;if(x.f){var r=await fetch('https://www.googleapis.com/drive/v3/files/'+x.f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.ok){var j=await r.json();if(j&&Array.isArray(j.familias))FAM_CAT.familias=j.familias;}else FAM_LECTURA_OK=false;}}catch(e){FAM_LECTURA_OK=false;FAM_AVISO='No se pudo leer familias.json de Drive ('+e.message+'): el catálogo es temporal.';}}else FAM_AVISO='Sin conexión con Drive: el catálogo es temporal y no se guarda.';}
@@ -5364,6 +5365,92 @@ var act=await refrescarCambiosDesdeDrive();await guardarCambiosArbolCompleto(act
 if(typeof actualizarContadorCambios==='function')actualizarContadorCambios();
 toast(ops.length+' cambios pendientes creados. Aplícalos desde Cambios.');return true;}
 catch(e){toast('No se pudieron crear los cambios: '+e.message,true);return false;}}
+/* ===== FOTOS SIN COPIA EN DRIVE: fichas con foto local que no están en FOTO/<ID>.jpg ===== */
+var FSD={falta:[],enCurso:false};
+async function abrirFotosSinDrive(){var o=document.getElementById('fsdOv');if(o)o.remove();
+o=document.createElement('div');o.id='fsdOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
+o.innerHTML='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Fotos sin copia en Drive</h1><button class="ef-btn ghost" onclick="document.getElementById(\'fsdOv\').remove()">Cerrar</button></div><p style="font-size:13px;color:var(--muted)">Compara las fichas que tienen foto en este dispositivo con los archivos ID.jpg de la carpeta FOTO de Drive y lista las que faltan.</p><div id="fsdMain"></div></div>';
+document.body.appendChild(o);await fsdComprobar();}
+async function fsdComprobar(){var m=document.getElementById('fsdMain');if(!m)return;
+if(!driveRootFolderId){m.innerHTML='<p>Configura primero la carpeta raíz de Drive.</p>';return;}
+try{if(!tokenDriveValido())await conectarGoogleDrive();m.innerHTML='<p>Comprobando la carpeta FOTO de Drive…</p>';
+var fid=await obtenerCarpetaFotoId(false),set={},n=0;
+if(fid)(await listarTodosArchivosDrive("'"+fid+"' in parents and trashed=false",'id,name')).forEach(function(a){var x=/^(.+)\.jpe?g$/i.exec(a.name);if(x)set[x[1]]=1;});
+var falta=[];D.forEach(function(p){if(!p||!p.FOTO||!puedeVerPersona(String(p.ID)))return;n++;if(!set[String(p.ID)])falta.push(String(p.ID));});FSD.falta=falta;
+var h='<div style="font-size:14px;margin:8px 0 12px"><b>'+n+'</b> fichas con foto · <b>'+(n-falta.length)+'</b> ya están en Drive · <b style="color:'+(falta.length?'#b3402f':'var(--green)')+'">'+falta.length+'</b> faltan</div>';
+if(falta.length){h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+famB('Subir las '+falta.length+' a Drive','fsdSubir()')+famB('Copiar lista de IDs','navigator.clipboard.writeText(FSD.falta.join(\'\\n\')).then(function(){toast(\'IDs copiados\')})','ghost')+famB('Volver a comprobar','fsdComprobar()','ghost')+'</div><table style="width:100%;font-size:13px;border-collapse:collapse">'+falta.slice(0,300).map(function(id){var p=PI[id];return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px;width:44px"><img src="'+escAttr(p.FOTO)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px"></td><td style="white-space:nowrap">'+esc(id)+'</td><td><a style="cursor:pointer;color:var(--accent)" onclick="document.getElementById(\'fsdOv\').remove();cid=\''+safeId(id)+'\';sv(\'fic\')">'+esc(fn(p).trim())+'</a></td><td style="text-align:right;color:var(--muted)">'+Math.round(p.FOTO.length*0.75/1024)+' KB</td></tr>';}).join('')+'</table>'+(falta.length>300?'<p style="font-size:12px;color:var(--muted)">Se muestran las 300 primeras; «Subir» procesa todas.</p>':'');}
+else h+='<p style="color:var(--green)">✓ Todas las fichas con foto tienen su copia en Drive.</p>'+famB('Volver a comprobar','fsdComprobar()','ghost');
+m.innerHTML=h;}catch(e){m.innerHTML='<p style="color:#b3402f">No se pudo comprobar: '+esc(e.message)+'</p>'+famB('Reintentar','fsdComprobar()');}}
+async function fsdSubir(){if(FSD.enCurso)return;var l=FSD.falta.slice(),ok=0,err=[],fid;if(!l.length)return;FSD.enCurso=true;
+try{fid=await obtenerCarpetaFotoId(true);}catch(e){FSD.enCurso=false;toast('No se pudo abrir la carpeta FOTO: '+e.message,true);return;}
+for(var i=0;i<l.length;i++){var id=l[i],p=PI[id],m=document.getElementById('fsdMain');if(!p||!p.FOTO)continue;if(!m)break;
+m.innerHTML='<p>Subiendo '+(i+1)+' de '+l.length+'… no cierres esta pantalla.</p><div style="height:8px;border-radius:4px;background:var(--dead);overflow:hidden"><i style="display:block;height:100%;width:'+Math.round(i*100/l.length)+'%;background:var(--green)"></i></div>';
+var hecho=false;for(var t=0;t<2&&!hecho;t++){try{if(!(await asegurarTokenDriveImport()))throw new Error('la sesión de Drive ha caducado');
+var nom=id+'.jpg',ex=await buscarArchivoFotoDrivePorId(nom,fid),fi=ex?ex.id:await crearArchivoDriveVacio(nom,'image/jpeg',fid),r=await subirArchivoDrive(nom,dataURLABlob(p.FOTO),'image/jpeg',fid,fi);
+if(!r.ok)throw new Error('Drive respondió '+r.status);hecho=true;ok++;}catch(e){if(t===1)err.push(id+' ('+e.message+')');else await new Promise(function(r){setTimeout(r,800);});}}
+if(err.length>=5&&!ok)break;}
+FSD.enCurso=false;await fsdComprobar();var b=document.getElementById('fsdMain');
+if(b&&err.length)b.insertAdjacentHTML('afterbegin','<div style="padding:8px 10px;border-radius:8px;background:rgba(179,64,47,.12);color:#b3402f;font-size:13px;margin-bottom:8px">Subidas: '+ok+'. Fallaron '+err.length+': '+esc(err.slice(0,10).join(' · '))+'</div>');else toast(ok+' fotos subidas a Drive');}
+/* ===== FOTOS DUDOSAS: fichas con foto de personas nacidas antes de 1850 sin marcar como reconstruidas ===== */
+function abrirFotosDudosas(){var o=document.getElementById('dudOv');if(o)o.remove();o=document.createElement('div');o.id='dudOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
+var l=[];D.forEach(function(p){if(!p||!p.FOTO||p.FOTO_RECON||!puedeVerPersona(String(p.ID)))return;var y=famAnio(p);if(y!==null&&y<1850)l.push(p);});l.sort(function(a,b){return famAnio(a)-famAnio(b);});
+var h='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Fotos dudosas</h1><button class="ef-btn ghost" onclick="document.getElementById(\'dudOv\').remove()">Cerrar</button></div><p style="font-size:13px;color:var(--muted)">Fichas con foto de personas nacidas antes de 1850, cuando la fotografía casi no existía, que aún no están marcadas como «imagen reconstruida». Desmarca las que sean auténticas (por ejemplo, un retrato pintado de la propia persona).</p>';
+if(!l.length)h+='<p style="color:var(--green)">✓ No hay fotos dudosas sin marcar.</p>';
+else h+='<div style="margin-bottom:10px">'+famB('Marcar las seleccionadas como reconstruidas','dudMarcar()')+'</div><table style="width:100%;font-size:13px;border-collapse:collapse">'+l.slice(0,400).map(function(p){var id=String(p.ID);return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px;width:30px"><input type="checkbox" class="dudCk" value="'+escAttr(id)+'" checked></td><td style="width:44px"><img src="'+escAttr(p.FOTO)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px"></td><td>'+esc(fn(p).trim())+' <span style="color:var(--muted)">'+esc(id)+'</span></td><td style="text-align:right;color:var(--muted)">'+famAnio(p)+'</td></tr>';}).join('')+'</table>'+(l.length>400?'<p style="font-size:12px;color:var(--muted)">Se muestran las 400 primeras; al terminar vuelve a abrir la pantalla para ver las siguientes.</p>':'');
+o.innerHTML=h+'</div>';document.body.appendChild(o);}
+async function dudMarcar(){var ids=Array.prototype.map.call(document.querySelectorAll('#dudOv .dudCk:checked'),function(c){return c.value;});if(!ids.length)return;if(!(await exigirIdentidadGoogle()))return;
+var antes=ids.map(function(i){return clonarPersona(PI[i]);});ids.forEach(function(i){PI[i].FOTO_RECON='1';});bIdx(D);
+try{await sPersonas(ids);registrarCambiosDesdeSnapshots(antes,ids.map(function(i){return PI[i];}),'editar');toast(ids.length+' fotos marcadas como reconstruidas');}catch(e){toast('Error al guardar: '+e.message,true);}
+abrirFotosDudosas();}
+/* ===== ESCUDO DE FAMILIA (Drive: DATOS/ESCUDOS/<ID>.png; miniatura incrustada en familias.json) ===== */
+var FAM_ESC_CACHE={},driveEscudosFolderId=null;
+function famEscudoHtml(f){var m=f.escudo&&f.escudo.mini||'',u=m||f.imagen||'';if(!u)return esc(famIni(f.nombre));return '<img class="famEsc" data-fid="'+escAttr(f.id)+'" title="'+escAttr(f.escudo&&f.escudo.credito||'')+'" src="'+escAttr(u)+'" style="width:100%;height:100%;object-fit:contain;padding:2px;box-sizing:border-box" onerror="this.style.display=\'none\'">';}
+async function obtenerCarpetaEscudosId(crear){if(driveEscudosFolderId)return driveEscudosFolderId;var pad=await obtenerCarpetaDatosId(crear);if(!pad)return null;
+var q="'"+pad+"' in parents and name='ESCUDOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();if(d.files&&d.files.length){driveEscudosFolderId=d.files[0].id;return driveEscudosFolderId;}
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'ESCUDOS',parents:[pad],mimeType:'application/vnd.google-apps.folder'})});
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear ESCUDOS');
+driveEscudosFolderId=(await rc.json()).id;return driveEscudosFolderId;}
+function famLeerImg(blob){return(window.createImageBitmap?createImageBitmap(blob):Promise.reject()).catch(function(){return new Promise(function(ok,ko){var u=URL.createObjectURL(blob),i=new Image();i.onload=function(){URL.revokeObjectURL(u);if(!i.width)i.width=512;if(!i.height)i.height=512;ok(i);};i.onerror=function(){URL.revokeObjectURL(u);ko(new Error('imagen no legible'));};i.src=u;});});}
+function famEscudoProcesar(blob){return famLeerImg(blob).then(function(b){function dib(m,t,q){var k=Math.min(1,m/Math.max(b.width,b.height)),w=Math.max(1,Math.round(b.width*k)),h=Math.max(1,Math.round(b.height*k)),c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(b,0,0,w,h);return new Promise(function(ok){c.toBlob(ok,t,q);});}
+return Promise.all([dib(512,'image/png'),dib(96,'image/webp',0.8)]).then(function(r){if(b.close)b.close();return{full:r[0],mini:r[1]};});});}
+function famBlobUrl(b){return new Promise(function(ok,ko){var r=new FileReader();r.onload=function(){ok(r.result);};r.onerror=ko;r.readAsDataURL(b);});}
+async function famCatGuardarFamilia(id,campos){var f=famPorId(id);Object.assign(f,campos);if(!esAdministrador()||!driveRootFolderId||!tokenDriveValido())return false;if(!FAM_LECTURA_OK){toast('No se guarda familias.json porque no se pudo leer antes: se evita sobrescribirlo',true);return false;}
+try{var x=await famDriveFile(),act=null;if(x.f){var r=await fetch('https://www.googleapis.com/drive/v3/files/'+x.f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)throw new Error('Drive respondió '+r.status);act=await r.json();}
+if(!act||!Array.isArray(act.familias))return await famCatGuardar();
+var g=act.familias.filter(function(y){return y.id===id;})[0];if(g)Object.assign(g,campos);else act.familias.push(f);act.fecha=new Date().toISOString();
+var s=await subirArchivoDrive(FAM_FILE,JSON.stringify(act),'application/json',x.folderId,x.f.id);if(!s.ok)throw new Error('Drive respondió '+s.status);return true;}
+catch(e){toast('No se pudo guardar familias.json: '+e.message,true);return false;}}
+async function famEscudoGuardar(id,blob,meta){var f=famPorId(id);if(!f||!esAdministrador())return;if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta con Drive para guardar el escudo',true);return;}
+try{toast('Guardando escudo…');var p=await famEscudoProcesar(blob),mini=await famBlobUrl(p.mini),nom=id+'.png',fid=await obtenerCarpetaEscudosId(true),ex=await buscarArchivoFotoDrivePorId(nom,fid),fileId=ex?ex.id:await crearArchivoDriveVacio(nom,'image/png',fid),r=await subirArchivoDrive(nom,p.full,'image/png',fid,fileId);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var e={fileId:fileId,nombre:nom,mime:'image/png',v:((f.escudo&&f.escudo.v)||0)+1,fecha:famHoy(),mini:mini,origen:meta.origen||'subida',fuente:meta.fuente||'',credito:meta.credito||''};
+if(await famCatGuardarFamilia(id,{escudo:e})){FAM_ESC_CACHE={};toast('Escudo guardado');}famVista('ficha');}
+catch(e){toast('No se pudo guardar el escudo: '+e.message,true);}}
+async function famEscudoMejorar(){var f=famPorId(FAM_ST.id);if(!f||!f.escudo||!f.escudo.fileId||!tokenDriveValido())return;var k=f.escudo.fileId+'|'+f.escudo.v,u=FAM_ESC_CACHE[k];
+try{if(!u){var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.escudo.fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)return;u=FAM_ESC_CACHE[k]=URL.createObjectURL(await r.blob());}
+var im=document.querySelector('#famMain img.famEsc');if(im&&im.dataset.fid===f.id)im.src=u;}catch(e){}}
+function famHEscudo(f){var e=f.escudo;return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Escudo</b><p style="font-size:12px;color:var(--muted);margin:4px 0 8px">'+(e?'Guardado en Drive (DATOS/ESCUDOS/'+esc(e.nombre)+')'+(e.credito?' · '+esc(e.credito):''):(f.imagen?'Usa una URL externa: guárdalo en Drive con «Guardar URL en Drive».':'Sin escudo.'))+'</p><div tabindex="0" style="border:2px dashed var(--border);border-radius:10px;padding:12px;text-align:center;font-size:13px" ondragover="event.preventDefault()" ondrop="famEscDrop(event,\''+f.id+'\')" onpaste="famEscPaste(event,\''+f.id+'\')">Suelta aquí una imagen, o haz clic y pega (Ctrl+V)</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><input type="file" id="famEscF" accept="image/*" style="display:none" onchange="famEscFile(this,\''+f.id+'\')">'+famB('Buscar escudo','famEscBuscar(\''+f.id+'\')')+famB('Elegir archivo','document.getElementById(\'famEscF\').click()','ghost')+(f.imagen&&!e?famB('Guardar URL en Drive','famEscDeUrl(\''+f.id+'\')','ghost'):'')+(e?famB('Quitar escudo','famEscQuitar(\''+f.id+'\')','ghost'):'')+'</div><div id="famEscRes"></div></div>';}
+function famEscDrop(ev,id){ev.preventDefault();var fl=ev.dataTransfer&&ev.dataTransfer.files[0];if(fl)famEscudoGuardar(id,fl,{origen:'subida'});}
+function famEscPaste(ev,id){var it=ev.clipboardData&&Array.prototype.filter.call(ev.clipboardData.items,function(i){return i.type.indexOf('image/')===0;})[0];if(it){ev.preventDefault();famEscudoGuardar(id,it.getAsFile(),{origen:'pegado'});}}
+function famEscFile(inp,id){if(inp.files[0])famEscudoGuardar(id,inp.files[0],{origen:'subida'});inp.value='';}
+async function famEscDeUrl(id){var f=famPorId(id);try{var r=await fetch(f.imagen);if(!r.ok)throw new Error('HTTP '+r.status);await famEscudoGuardar(id,await r.blob(),{origen:'url',fuente:f.imagen});}catch(e){toast('No se pudo descargar la URL (el sitio no lo permite): descarga el archivo y arrástralo aquí',true);}}
+async function famEscQuitar(id){var f=famPorId(id);if(!(await confirmarApp('¿Quitar el escudo de «'+f.nombre+'»? El archivo de Drive no se borra.')))return;if(await famCatGuardarFamilia(id,{escudo:null}))toast('Escudo quitado');famVista('ficha');}
+async function famEscBuscar(id){var f=famPorId(id),q=f.nombre.replace(/^(Familia|Casa|Linaje) (de |del )?/i,''),c=document.getElementById('famEscRes'),res=[],W='https://www.wikidata.org/w/api.php?format=json&origin=*&',C='https://commons.wikimedia.org/w/api.php?format=json&origin=*&';c.innerHTML='<p style="font-size:12px">Buscando en Wikidata y Commons…</p>';
+try{var w=await(await fetch(W+'action=wbsearchentities&language=es&uselang=es&limit=8&search='+encodeURIComponent(q))).json(),ids=(w.search||[]).map(function(x){return x.id;});
+if(ids.length){var e=await(await fetch(W+'action=wbgetentities&props=claims|labels&languages=es|en&ids='+ids.join('|'))).json();ids.forEach(function(i){var en=e.entities[i],p=en&&en.claims&&en.claims.P94;if(p&&p[0].mainsnak.datavalue)res.push({f:p[0].mainsnak.datavalue.value,n:(en.labels.es||en.labels.en||{}).value||i});});}
+var m=await(await fetch(C+'action=query&list=search&srnamespace=6&srlimit=10&srsearch='+encodeURIComponent(q+' escudo coat of arms'))).json();
+((m.query&&m.query.search)||[]).forEach(function(s){var n=s.title.replace(/^File:/,'');if(!res.some(function(r){return r.f===n;}))res.push({f:n,n:n});});}
+catch(er){c.innerHTML='<p style="color:#b3402f;font-size:12px">No se pudo buscar: '+esc(er.message)+'</p>';return;}
+if(!res.length){c.innerHTML='<p style="font-size:12px;color:var(--muted)">Sin resultados para «'+esc(q)+'». Prueba con el apellido solo, o arrastra un archivo.</p>';return;}
+c.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:10px">'+res.map(function(r){return '<div style="cursor:pointer;text-align:center;font-size:10px" title="'+escAttr(r.n)+'" onclick="famEscElegir(\''+id+'\',this.dataset.f)" data-f="'+escAttr(r.f)+'"><img src="https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(r.f.replace(/ /g,'_'))+'?width=90" style="width:100%;height:84px;object-fit:contain;border:1px solid var(--border);border-radius:8px" loading="lazy" onerror="this.style.opacity=.2"></div>';}).join('')+'</div><p style="font-size:11px;color:var(--muted)">Pulsa un escudo para guardarlo en Drive con su autor y licencia.</p>';}
+async function famEscElegir(id,nombre){try{toast('Descargando escudo…');var r=await fetch('https://commons.wikimedia.org/wiki/Special:FilePath/'+encodeURIComponent(nombre.replace(/ /g,'_'))+'?width=512');if(!r.ok)throw new Error('HTTP '+r.status);var b=await r.blob(),cr='';
+try{var ii=await(await fetch('https://commons.wikimedia.org/w/api.php?format=json&origin=*&action=query&prop=imageinfo&iiprop=extmetadata&titles='+encodeURIComponent('File:'+nombre))).json(),md=(Object.values(ii.query.pages)[0].imageinfo||[{}])[0].extmetadata||{};cr=((md.Artist&&md.Artist.value||'').replace(/<[^>]+>/g,'').trim()||'Autor desconocido')+' · '+((md.LicenseShortName&&md.LicenseShortName.value)||'ver licencia en Commons');}catch(e2){cr='Wikimedia Commons';}
+await famEscudoGuardar(id,b,{origen:'commons',fuente:'https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(nombre.replace(/ /g,'_')),credito:cr});}
+catch(e){toast('No se pudo descargar ese escudo ('+e.message+'). Ábrelo en Commons, descárgalo y arrástralo aquí',true);}}
 async function abrirFamilias(){
 var o=document.getElementById('famOv');if(o)o.remove();
 o=document.createElement('div');o.id='famOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
@@ -5375,7 +5462,7 @@ if(famMigrar()&&esAdministrador())await famCatGuardar();
 famVista('lista');}
 function famVista(v,arg){FAM_ST.v=v;if(arg!==undefined)FAM_ST.id=arg;var m=document.getElementById('famMain');if(!m)return;
 try{m.innerHTML=({lista:famHLista,ficha:famHFicha,asis:famHAsis,cola:famHCola})[v]();}catch(e){m.innerHTML='<p style="color:#b3402f">Error: '+esc(e.message)+'</p>'+famB('Volver','famVista(\'lista\')');}
-window.scrollTo(0,0);var ov=document.getElementById('famOv');if(ov)ov.scrollTop=0;}
+if(v==='ficha')famEscudoMejorar();window.scrollTo(0,0);var ov=document.getElementById('famOv');if(ov)ov.scrollTop=0;}
 function famFiltro(){FAM_ST.q=document.getElementById('famQ').value;FAM_ST.tipo=document.getElementById('famTp').value;FAM_ST.orden=document.getElementById('famS').value;famVista('lista');}
 function famHLista(){var adm=esAdministrador(),q=famNorm(FAM_ST.q),tot=D.length,sin=FAM_IDX.sin.length;
 var rows=FAM_CAT.familias.map(function(f){var ids=FAM_IDX.m[f.nombre]||[],h=0,m=0,v=0;ids.forEach(function(i){var p=PI[i];if(p.SEXO==='Hombre')h++;else if(p.SEXO==='Mujer')m++;if(isAl(p))v++;});return{f:f,t:ids.length,h:h,m:m,v:v};}).filter(function(r){return(!q||famNorm(r.f.nombre).indexOf(q)>=0)&&(!FAM_ST.tipo||r.f.tipo===FAM_ST.tipo);});
@@ -5387,22 +5474,22 @@ if(FAM_AVISO)h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(
 if(dups.length)h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(200,150,30,.15);font-size:13px;margin-bottom:8px">Posibles nombres duplicados: '+dups.map(function(k){return g[k].map(function(f){return '<a style="cursor:pointer;color:var(--accent)" onclick="famVista(\'ficha\',\''+f.id+'\')">'+esc(f.nombre)+'</a>';}).join(' ≈ ');}).join(' · ')+'. Ábrelos y usa «Fusionar» para unificarlos.</div>';
 h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input class="ef-input" id="famQ" placeholder="Buscar familia" value="'+escAttr(FAM_ST.q)+'" oninput="clearTimeout(window.__fq);window.__fq=setTimeout(famFiltro,250)" style="flex:1;min-width:140px"><select class="ef-input" id="famTp" onchange="famFiltro()" style="width:auto"><option value="">Todos los tipos</option><option value="casa"'+(FAM_ST.tipo==='casa'?' selected':'')+'>Casa</option><option value="familia"'+(FAM_ST.tipo==='familia'?' selected':'')+'>Familia</option><option value="linaje"'+(FAM_ST.tipo==='linaje'?' selected':'')+'>Linaje</option></select><select class="ef-input" id="famS" onchange="famFiltro()" style="width:auto"><option value="t">Más personas</option><option value="n"'+(FAM_ST.orden==='n'?' selected':'')+'>Nombre</option></select>'+famB('Sin etiquetar','famVista(\'cola\')','ghost')+(adm?famB('Nueva familia desde una persona','famAsisInit()')+famB('Revertir desde archivo','document.getElementById(\'famRev\').click()','ghost')+'<input type="file" id="famRev" accept=".json" style="display:none" onchange="famRevertir(this)">':'')+'</div>';
 h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);font-size:14px"><tr style="color:var(--muted);font-size:12px;text-align:left"><th style="padding:8px">Familia</th><th>Tipo</th><th>Personas</th><th>H / M</th><th>Vivos / fallecidos</th></tr>';
-rows.forEach(function(r){var f=r.f,pv=r.t?Math.round(r.v*100/r.t):0;h+='<tr onclick="famVista(\'ficha\',\''+f.id+'\')" style="cursor:pointer;border-top:1px solid var(--border)"><td style="padding:8px;white-space:nowrap"><span style="display:inline-flex;width:32px;height:32px;border-radius:8px;background:'+escAttr(f.color||'#888')+';color:#fff;font-weight:700;font-size:12px;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;overflow:hidden">'+(f.imagen?'<img src="'+escAttr(f.imagen)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':esc(famIni(f.nombre)))+'</span>'+esc(f.nombre)+' <span style="color:var(--muted);font-size:11px">'+esc(f.id)+'</span></td><td>'+esc(f.tipo)+'</td><td>'+r.t+'</td><td>'+r.h+' / '+r.m+'</td><td style="white-space:nowrap"><span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--dead);opacity:.55;vertical-align:middle;overflow:hidden"><i style="display:block;height:100%;width:'+pv+'%;background:var(--green)"></i></span> '+r.v+' / '+(r.t-r.v)+'</td></tr>';});
+rows.forEach(function(r){var f=r.f,pv=r.t?Math.round(r.v*100/r.t):0;h+='<tr onclick="famVista(\'ficha\',\''+f.id+'\')" style="cursor:pointer;border-top:1px solid var(--border)"><td style="padding:8px;white-space:nowrap"><span style="display:inline-flex;width:32px;height:32px;border-radius:8px;background:'+((f.escudo&&f.escudo.mini)||f.imagen?'transparent':escAttr(f.color||'#888'))+';color:#fff;font-weight:700;font-size:12px;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;overflow:hidden">'+famEscudoHtml(f)+'</span>'+esc(f.nombre)+' <span style="color:var(--muted);font-size:11px">'+esc(f.id)+'</span></td><td>'+esc(f.tipo)+'</td><td>'+r.t+'</td><td>'+r.h+' / '+r.m+'</td><td style="white-space:nowrap"><span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--dead);opacity:.55;vertical-align:middle;overflow:hidden"><i style="display:block;height:100%;width:'+pv+'%;background:var(--green)"></i></span> '+r.v+' / '+(r.t-r.v)+'</td></tr>';});
 return h+'</table></div>';}
 function famLinkP(i){if(!puedeVerPersona(i))return '<i style="color:var(--muted)">(ficha no visible)</i>';return '<a style="cursor:pointer;color:var(--accent)" onclick="document.getElementById(\'famOv\').remove();cid=\''+safeId(i)+'\';sv(\'fic\')">'+esc(fn(PI[i]).trim())+'</a>';}
 function famHFicha(){var f=famPorId(FAM_ST.id);if(!f)return famB('← Volver','famVista(\'lista\')','ghost')+'<p>Familia no encontrada</p>';
 var adm=esAdministrador(),s=famStats(f),ids=FAM_IDX.m[f.nombre]||[];
 var k=[['Personas',s.t],['Hombres',s.h],['Mujeres',s.m],['Sin sexo',s.sx],['Vivos',s.v],['Fallecidos',s.f],['Año más antiguo',s.a===null?'—':s.a],['Año más reciente',s.b===null?'—':s.b],['Generaciones',s.gen],['Con foto',s.fo],['Sin foto',s.t-s.fo],['Sin padres',s.sp]];
-var h='<p>'+famB('← Volver','famVista(\'lista\')','ghost')+'</p><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px"><span style="display:inline-flex;width:56px;height:56px;border-radius:10px;background:'+escAttr(f.color||'#888')+';color:#fff;font-weight:700;align-items:center;justify-content:center;margin-right:10px;vertical-align:middle;overflow:hidden">'+(f.imagen?'<img src="'+escAttr(f.imagen)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">':esc(famIni(f.nombre)))+'</span><b style="font-size:18px">'+esc(f.nombre)+'</b> <span style="color:var(--muted);font-size:12px">'+esc(f.id)+' · '+esc(f.tipo)+'</span>'+(f.descripcion?'<p style="font-size:13px;margin:8px 0 0">'+esc(f.descripcion)+'</p>':'')+
+var h='<p>'+famB('← Volver','famVista(\'lista\')','ghost')+'</p><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px"><span style="display:inline-flex;width:56px;height:56px;border-radius:10px;background:'+((f.escudo&&f.escudo.mini)||f.imagen?'transparent':escAttr(f.color||'#888'))+';color:#fff;font-weight:700;align-items:center;justify-content:center;margin-right:10px;vertical-align:middle;overflow:hidden">'+famEscudoHtml(f)+'</span><b style="font-size:18px">'+esc(f.nombre)+'</b> <span style="color:var(--muted);font-size:12px">'+esc(f.id)+' · '+esc(f.tipo)+'</span>'+(f.descripcion?'<p style="font-size:13px;margin:8px 0 0">'+esc(f.descripcion)+'</p>':'')+
 '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:12px 0">'+k.map(function(x){return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px"><b style="font-size:18px;display:block">'+x[1]+'</b><span style="font-size:12px;color:var(--muted)">'+x[0]+'</span></div>';}).join('')+'</div>'+
 '<div style="font-size:13px;line-height:1.6"><b>Apellidos:</b> '+esc(s.ap)+'<br><b>Lugares:</b> '+esc(s.lu)+'<br><b>Comparte fichas con:</b> '+esc(s.sol)+'</div>'+
 (s.bl>1?'<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(179,64,47,.12);color:#b3402f;font-size:13px">⚠ Partida en '+s.bl+' bloques sin conexión. Fichas sueltas (algunas): '+s.sueltas.map(famLinkP).join(', ')+'</div>':(s.t?'<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(90,138,60,.14);color:var(--green);font-size:13px">✓ Todas las fichas forman un único bloque conectado.</div>':'<div style="margin-top:10px;font-size:13px;color:var(--muted)">Sin personas todavía (¿cambios pendientes de aplicar?).</div>'))+
 (s.dup.length?'<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(200,150,30,.15);font-size:13px">Posibles duplicados dentro de la familia: '+s.dup.map(function(d){return famLinkP(d[0])+' / '+famLinkP(d[1]);}).join(' · ')+'</div>':'')+
 '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+famB('Ver fichas','document.getElementById(\'famOv\').remove();verFichasConEtiqueta(famPorId(\''+f.id+'\').nombre)')+famB('Ver en el árbol','famVerArbol(\''+f.id+'\')','ghost')+famB('Exportar CSV','famCsv(\''+f.id+'\')','ghost')+famB('Buscar escudo en Commons','window.open(\'https://commons.wikimedia.org/w/index.php?search=\'+encodeURIComponent(famPorId(\''+f.id+'\').nombre+\' escudo\'),\'_blank\')','ghost')+'</div></div>';
-if(adm){h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Datos de la familia</b><div style="display:grid;gap:8px;margin-top:8px"><select id="famEt" class="ef-input"><option value="casa"'+(f.tipo==='casa'?' selected':'')+'>Casa</option><option value="familia"'+(f.tipo==='familia'?' selected':'')+'>Familia</option><option value="linaje"'+(f.tipo==='linaje'?' selected':'')+'>Linaje</option></select><textarea id="famEd" class="ef-input" rows="2" placeholder="Descripción">'+esc(f.descripcion)+'</textarea><div style="display:flex;gap:8px"><input type="color" id="famEc" value="'+escAttr(f.color||'#888888')+'"><input id="famEi" class="ef-input" style="flex:1" placeholder="URL de la imagen o escudo (Wikimedia Commons)" value="'+escAttr(f.imagen||'')+'"></div>'+famB('Guardar datos','famGuardarDatos(\''+f.id+'\')')+'</div></div>'+
+if(adm){h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Datos de la familia</b><div style="display:grid;gap:8px;margin-top:8px"><select id="famEt" class="ef-input"><option value="casa"'+(f.tipo==='casa'?' selected':'')+'>Casa</option><option value="familia"'+(f.tipo==='familia'?' selected':'')+'>Familia</option><option value="linaje"'+(f.tipo==='linaje'?' selected':'')+'>Linaje</option></select><textarea id="famEd" class="ef-input" rows="2" placeholder="Descripción">'+esc(f.descripcion)+'</textarea><div style="display:flex;gap:8px"><input type="color" id="famEc" value="'+escAttr(f.color||'#888888')+'"><span style="flex:1"></span></div>'+famB('Guardar datos','famGuardarDatos(\''+f.id+'\')')+'</div></div>'+famHEscudo(f)+
 '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Gestión de miembros</b><p style="font-size:12px;color:var(--muted);margin:4px 0 8px">'+(f.ancla?'Ancla: '+famLinkP(f.ancla.personaIds[0])+' · regla '+esc(f.ancla.regla):'Sin ancla ni regla (creada por migración).')+'</p><div style="display:flex;gap:6px;flex-wrap:wrap">'+(f.ancla?famB('Recalcular por regla','famRecalc(\''+f.id+'\')','ghost'):'')+famB('Renombrar','famRenombrar(\''+f.id+'\')','ghost')+famB('Fusionar con otra…','famFusionar(\''+f.id+'\')','ghost')+famB('Quitar de todas las fichas','famQuitarTodas(\''+f.id+'\')','ghost')+'</div><div id="famRec"></div></div>';}
 return h;}
-async function famGuardarDatos(id){var f=famPorId(id);f.tipo=document.getElementById('famEt').value;f.descripcion=document.getElementById('famEd').value.trim();f.color=document.getElementById('famEc').value;f.imagen=document.getElementById('famEi').value.trim();if(await famCatGuardar())toast('Datos guardados');famVista('ficha');}
+async function famGuardarDatos(id){var f=famPorId(id);f.tipo=document.getElementById('famEt').value;f.descripcion=document.getElementById('famEd').value.trim();f.color=document.getElementById('famEc').value;if(await famCatGuardar())toast('Datos guardados');famVista('ficha');}
 function famVerArbol(id){var f=famPorId(id),pid=(f.ancla&&f.ancla.personaIds[0])||(FAM_IDX.m[f.nombre]||[])[0];if(!pid){toast('La familia no tiene personas',true);return;}document.getElementById('famOv').remove();cid=String(pid);sv('arb');}
 function famCsv(id){var f=famPorId(id),L=[['ID','Nombre','Apellido1','Apellido2','Sexo','Nacimiento','Defuncion','LugarNac','Padre','Madre']];(FAM_IDX.m[f.nombre]||[]).forEach(function(i){var p=PI[i];L.push([p.ID,p.NOMBRE,p.APELLIDO1,p.APELLIDO2,p.SEXO,p.NACA||p.ANOCALC||'',p.DEFA||'',p.LUGARNAC,p.PADRE,p.MADRE]);});
 var csv=L.map(function(r){return r.map(function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
@@ -5410,7 +5497,7 @@ var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+
 async function famRenombrar(id){var f=famPorId(id),n=(window.prompt('Nuevo nombre de la familia:',f.nombre)||'').trim();if(!n||n===f.nombre)return;if(FAM_CAT.familias.some(function(x){return x.nombre===n;})){toast('Ya existe una familia con ese nombre: usa «Fusionar»',true);return;}
 var ant=f.nombre;if(await famAplicarOps(famOps(FAM_IDX.m[ant]||[],function(t){return famEtqRen(t,ant,n);},{r:[ant,n]}),'Renombrar «'+ant+'» → «'+n+'»')){f.antiguos=(f.antiguos||[]).concat(ant);f.nombre=n;await famCatGuardar();famVista('lista');}}
 async function famFusionar(id){var f=famPorId(id),n=(window.prompt('Nombre EXACTO de la familia con la que fusionar «'+f.nombre+'» (se conservará esa):','')||'').trim(),d=FAM_CAT.familias.filter(function(x){return x.nombre===n&&x.id!==id;})[0];if(!n)return;if(!d){toast('No existe una familia con ese nombre',true);return;}
-var ant=f.nombre;if(await famAplicarOps(famOps(FAM_IDX.m[ant]||[],function(t){return famEtqRen(t,ant,n);},{r:[ant,n]}),'Fusionar «'+ant+'» en «'+n+'»')){d.antiguos=(d.antiguos||[]).concat(ant,f.antiguos||[]);FAM_CAT.familias=FAM_CAT.familias.filter(function(x){return x.id!==id;});await famCatGuardar();famVista('lista');}}
+var ant=f.nombre;if(await famAplicarOps(famOps(FAM_IDX.m[ant]||[],function(t){return famEtqRen(t,ant,n);},{r:[ant,n]}),'Fusionar «'+ant+'» en «'+n+'»')){if(!d.escudo&&f.escudo)d.escudo=f.escudo;if(!d.escudo&&!d.imagen&&f.imagen)d.imagen=f.imagen;d.antiguos=(d.antiguos||[]).concat(ant,f.antiguos||[]);FAM_CAT.familias=FAM_CAT.familias.filter(function(x){return x.id!==id;});await famCatGuardar();famVista('lista');}}
 async function famQuitarTodas(id){var f=famPorId(id),ant=f.nombre;if(await famAplicarOps(famOps(FAM_IDX.m[ant]||[],function(t){return famEtqDel(t,ant);},{d:[ant]}),'Quitar «'+ant+'» de todas las fichas'))toast('Cuando apliques los cambios, la familia quedará vacía; puedes borrarla del catálogo editando familias.json');}
 function famRecalc(id){var f=famPorId(id),set=famMiembros(Object.keys(FAM_REGLAS).filter(function(k){return FAM_REGLAS[k]===f.ancla.regla;})[0]||'1',f.ancla.personaIds[0],f.incluir,f.excluir,true,f.ancla.maxG),act={};(FAM_IDX.m[f.nombre]||[]).forEach(function(i){act[i]=1;});var sm={};set.forEach(function(i){sm[i]=1;});
 var falta=set.filter(function(i){return !act[i];}),sobra=Object.keys(act).filter(function(i){return !sm[i];});
@@ -6210,7 +6297,7 @@ if(!linea||!cid||!PI[cid])return;
 var p=PI[cid];
 if(String(p.OBSERVACIONES||'').indexOf('Wikidata: '+id)>=0){toast('Esta ficha ya tiene anotado '+id+' en Observaciones');return;}
 if(!window.confirm('Se añadirá esta línea al final de Observaciones de '+fn(p).trim()+':\n\n'+linea+'\n\nComprueba antes que no es un homónimo. ¿Continuar?'))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 try{
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesCambio=clonarPersona(p);
@@ -8481,6 +8568,7 @@ h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapape
 if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
 h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
 h+='</div></div>';
+h+='<label class="ef-check" style="margin-top:10px"><input type="checkbox" id="ef-foto-recon" '+(p.FOTO_RECON?'checked':'')+'> Imagen reconstruida (no es una fotografía real: deducida de la época, de familiares o creada digitalmente)</label>';
 h+=gemPanelHtml(id,p);
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'foto\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFoto(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
@@ -8540,7 +8628,7 @@ return false;
 }
 async function guardarSeccionDatos(id,btn){
 if(!exigirSexoFichaNueva(id,true))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
@@ -8580,19 +8668,23 @@ if(nPropagados)registrarCambiosDesdeSnapshots(antesPropagacion,D,'editar');
 }
 async function guardarSeccionFoto(id,btn){
 if(!exigirSexoFichaNueva(id,false))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
-if(fotoPendiente===undefined){editSec.foto=false;rFic(id);finOperacionFicha(btn);return;}
+var cbR=document.getElementById('ef-foto-recon'),recon=cbR?(cbR.checked?'1':''):(p.FOTO_RECON||'');
+if(fotoPendiente===undefined&&recon===(p.FOTO_RECON||'')){editSec.foto=false;rFic(id);finOperacionFicha(btn);return;}
 var antesCambio=clonarPersona(p);
 var antesGuardadoParcial=mapaPersonas(D);
+if(fotoPendiente!==undefined){
 p.FOTO=fotoPendiente;
 p.FOTO_FECHA=new Date().toISOString();
 var fotoParaDrive=fotoPendiente,idParaDrive=id;
 fotoPendiente=undefined;
 if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
 else eliminarFotoPersonaDeDrive(idParaDrive);
+}
+p.FOTO_RECON=p.FOTO?recon:'';
 bIdx(D);
 sDesdeSnapshot(antesGuardadoParcial).then(function(){
 editSec.foto=false;
@@ -8605,7 +8697,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }
 async function guardarSeccionEtiquetas(id,btn){
 if(!exigirSexoFichaNueva(id,false))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
@@ -8628,7 +8720,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }
 async function guardarSeccionFamilia(id,btn){
 if(!exigirSexoFichaNueva(id,false))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
@@ -8654,7 +8746,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }
 async function guardarSeccionObservaciones(id,btn){
 if(!exigirSexoFichaNueva(id,false))return;
-if(!iniciarOperacionFicha(btn,'Guardando...'))return;
+if(!iniciarOperacionFicha(btn,'Guardando...'))return;await cederPintado();
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
@@ -8706,7 +8798,7 @@ var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
 h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
-if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
+if(p.FOTO&&p.FOTO_RECON)h+='<div style="font-size:12px;font-weight:700;color:#7a3f6a;margin:-8px 0 12px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Imagen reconstruida: no es una fotografía real de la persona.</div>';else if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
 h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
@@ -9178,7 +9270,7 @@ var fileId=existente?existente.id:await crearArchivoDriveVacio(nombre,'image/jpe
 var resp=await subirArchivoDrive(nombre,blob,'image/jpeg',folderId,fileId);
 if(!resp.ok)throw new Error('Drive respondio '+resp.status);
 }catch(err){
-console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);
+console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);toast('La foto de la ficha '+id+' no se subió a Drive. Usa Herramientas → Fotos sin copia en Drive.',true);
 }
 }
 async function eliminarFotoPersonaDeDrive(id){
@@ -9755,6 +9847,8 @@ var operacionFichaEnCurso=false;
    cuando hay texto de carga (textoCarga no vacío); las operaciones silenciosas
    (textoCarga='') siguen igual que antes. */
 var operacionFichaProgresoMostrado=false;
+/* Deja que el navegador pinte el spinner y la barra con la abeja ANTES del trabajo pesado (copias de todo el árbol). */
+function cederPintado(){return new Promise(function(r){requestAnimationFrame(function(){setTimeout(r,0);});});}
 function iniciarOperacionFicha(btn,textoCarga){
 if(operacionFichaEnCurso){toast('Espera, ya se está guardando…',true);return false;}
 operacionFichaEnCurso=true;
@@ -17325,6 +17419,8 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Investigación</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();sv('inv')"><div class="herr-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div><div class="herr-text"><div class="herr-title">Investigación</div><div class="herr-desc">Busca en archivos y hemerotecas externas, y encuentra fotos para la persona activa</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFamilias()"><div class="herr-icon"><i class="fa-solid fa-people-roof"></i></div><div class="herr-text"><div class="herr-title">Familias</div><div class="herr-desc">Catálogo de familias y linajes (etiquetas): fichas, estadísticas y, para el administrador, gestión</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosSinDrive()"><div class="herr-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div><div class="herr-text"><div class="herr-title">Fotos sin copia en Drive</div><div class="herr-desc">Fichas con foto en este dispositivo que no están en la carpeta FOTO de Drive: ver cuáles son y subirlas</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosDudosas()"><div class="herr-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="herr-text"><div class="herr-title">Fotos dudosas</div><div class="herr-desc">Fotos de personas anteriores a 1850 sin marcar como «imagen reconstruida»: revisarlas y marcarlas en bloque</div></div></button>
 <div id="herrGestorColabGroup" style="display:none">
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Revisa y unifica apellidos y lugares escritos de formas distintas. Tus correcciones quedan registradas para que las apruebe el administrador</div></div></button>
