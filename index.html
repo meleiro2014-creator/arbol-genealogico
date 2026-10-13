@@ -14466,6 +14466,15 @@ document.getElementById('fi').click();
    dos archivos. Los históricos fechados (backup-arbol-AAAA-MM-DD.json) siguen
    existiendo SOLO para los datos: las fotos cambian poco y duplicar 5 copias
    fechadas de un archivo pesado no compensa. */
+/* Serializa los datos SIN fotos ni campos internos (_x) sin duplicar las ~100.000 fichas en memoria
+   (antes: separarDatosYFotos creaba una copia de cada ficha + el mapa de fotos). */
+function jsonDatosCopia(personas){return JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:personas},function(k,v){if(k==='FOTO'||k==='FOTO_FECHA'||(k.length&&k.charAt(0)==='_'))return undefined;return v;});}
+/* Sube un Blob sin concatenarlo en un multipart de texto: crea el archivo vacío (si no existe) y lo rellena
+   con PATCH. Si falla la subida de un archivo recién creado, lo manda a la papelera para no dejar uno vacío. */
+async function subirArchivoDriveBlob(nombre,blob,mime,folderId,fileId){var nuevo=false;if(!fileId){fileId=await crearArchivoDriveVacio(nombre,mime,folderId);nuevo=true;}
+function papelera(){if(nuevo)fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})}).catch(function(){});}
+var r;try{r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mime},body:blob});}catch(e){papelera();throw e;}
+if(!r.ok)papelera();return r;}
 function separarDatosYFotos(personas){
 var datos=[],fotos={};
 for(var i=0;i<personas.length;i++){
@@ -14552,8 +14561,7 @@ if(!D.length){toast('No hay datos para guardar',true);return;}
 if(guardandoBackupLocal){toast('Ya hay una copia local en curso',true);return;}
 guardandoBackupLocal=true;
 try{
-var sep=separarDatosYFotos(D);
-var texto=JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos});
+var texto=jsonDatosCopia(D);
 if(!window.showDirectoryPicker){
 /* Navegadores sin acceso a carpetas (Firefox, Safari, móvil): descarga normal del archivo. */
 var blob=new Blob([texto],{type:'application/json;charset=utf-8'});
@@ -14791,11 +14799,7 @@ try{
 /* Datos y fotos van separados desde aquí (ver separarDatosYFotos): los datos
    siguen el mismo circuito de siempre (histórico fechado + alias), las fotos
    solo se suben como alias "actual", sin histórico. */
-var sep=separarDatosYFotos(D);
-var copiaDatos={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos};
-var contenido=JSON.stringify(copiaDatos);
-var copiaFotos={formato:'Libro de los Ancestros - Fotos',version:1,fecha:new Date().toISOString(),fotos:sep.fotos};
-var contenidoFotos=JSON.stringify(copiaFotos);
+var blobDatos=new Blob([jsonDatosCopia(D)],{type:'application/json'});
 var fechaHoy=formatoFechaBackup(new Date());
 var nombreHoy=nombreBackupHistorico(fechaHoy);
 /* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
@@ -14805,8 +14809,8 @@ actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...',contenedo
 var existenteHoy;
 try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
 catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive(contenedorId);avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
-actualizarProgresoDrive('Subiendo los datos de hoy ('+sep.datos.length+' personas)...',contenedorId);
-var rHistorico=await subirArchivoDrive(nombreHoy,contenido,'application/json',carpetaArbolOficial,existenteHoy?existenteHoy.id:null);
+actualizarProgresoDrive('Subiendo los datos de hoy ('+D.length+' personas)...',contenedorId);
+var rHistorico=await subirArchivoDriveBlob(nombreHoy,blobDatos,'application/json',carpetaArbolOficial,existenteHoy?existenteHoy.id:null);
 /* 3) Verificación. Si falla aquí, se aborta sin tocar copias históricas ni el alias. */
 if(!rHistorico.ok){var errTxt=await rHistorico.text();throw new Error('No se pudo crear la copia blindada de hoy (Drive respondió '+rHistorico.status+'): '+errTxt.slice(0,200));}
 /* 4) Limpieza: solo ahora que la copia nueva está confirmada. */
@@ -14819,18 +14823,10 @@ actualizarProgresoDrive('Actualizando la copia general de restauración...',cont
 var aliasOk=true,aliasError='';
 try{
 var existenteAlias=await buscarArchivoBackupDrive();
-var rAlias=await subirArchivoDrive(DRIVE_BACKUP_FILENAME,contenido,'application/json',carpetaArbolOficial,existenteAlias?existenteAlias.id:null);
+var rAlias=await subirArchivoDriveBlob(DRIVE_BACKUP_FILENAME,blobDatos,'application/json',carpetaArbolOficial,existenteAlias?existenteAlias.id:null);
 if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
 }catch(errAlias){aliasOk=false;aliasError=errAlias.message;}
-/* 6) Fotos: alias aparte, sin histórico fechado. Un fallo aquí se avisa, pero
-   nunca deshace ni bloquea la subida de los datos, que ya está confirmada. */
-actualizarProgresoDrive('Actualizando las fotos...',contenedorId);
-var fotosOk=true,fotosError='';
-try{
-var existenteFotos=await buscarArchivoBackupFotosDrive();
-var rFotos=await subirArchivoDrive(DRIVE_BACKUP_FOTOS_FILENAME,contenidoFotos,'application/json',carpetaArbolOficial,existenteFotos?existenteFotos.id:null);
-if(!rFotos.ok){fotosOk=false;fotosError='Drive respondió '+rFotos.status;}
-}catch(errFotos){fotosOk=false;fotosError=errFotos.message;}
+/* backup-fotos.json ya no se genera ni se sube: nada lo lee (restaurar el árbol oficial es solo datos y las fotos están una a una en FOTO). */
 registrarUltimaCopia();
 registrarSincronizacionDrive();
 actualizarFechaArbolOficial();
@@ -14838,7 +14834,6 @@ var msg='Copia blindada subida a Drive ('+D.length+' personas) · '+nombreHoy;
 if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resultadoLimpieza.eliminadas+' copia(s) histórica(s) más antigua(s)';
 toast(msg);
 if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
-if(!fotosOk)toast('Aviso: los datos se guardaron correctamente, pero no se pudieron actualizar las fotos ('+fotosError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 finally{subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
 }
