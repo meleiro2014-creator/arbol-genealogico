@@ -5402,6 +5402,27 @@ async function dudMarcar(){var ids=Array.prototype.map.call(document.querySelect
 var antes=ids.map(function(i){return clonarPersona(PI[i]);});ids.forEach(function(i){PI[i].FOTO_RECON='1';});bIdx(D);
 try{await sPersonas(ids);registrarCambiosDesdeSnapshots(antes,ids.map(function(i){return PI[i];}),'editar');toast(ids.length+' fotos marcadas como reconstruidas');}catch(e){toast('Error al guardar: '+e.message,true);}
 abrirFotosDudosas();}
+/* ===== DIAGNÓSTICO DE MEMORIA: qué ocupa más en la pestaña (fotos y campos de texto gigantes) ===== */
+function bajarBlobComoArchivo(blob,nombre){var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(u);},15000);}
+function abrirDiagnosticoMemoria(){var o=document.getElementById('memOv');if(o)o.remove();
+var n=0,cf=0,tf=0,gr=0,pc={},top=[];
+D.forEach(function(p){if(!p)return;n++;for(var k in p){var v=p[k];if(typeof v!=='string'||!v.length)continue;var L=v.length,c=pc[k]||(pc[k]={t:0,m:0});c.t+=L;if(L>c.m)c.m=L;if(k==='FOTO'){cf++;tf+=L;if(L>250000)gr++;}if(L>100000)top.push({id:String(p.ID),k:k,L:L});}});
+top.sort(function(a,b){return b.L-a.L;});top=top.slice(0,10);
+var campos=Object.keys(pc).map(function(k){return{k:k,t:pc[k].t,m:pc[k].m};}).sort(function(a,b){return b.t-a.t;}).slice(0,8),pm=window.performance&&performance.memory,MB=function(x){return (x/1048576).toFixed(1)+' MB';};
+var h='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Diagnóstico de memoria</h1><button class="ef-btn ghost" onclick="document.getElementById(\'memOv\').remove()">Cerrar</button></div>';
+h+='<p style="font-size:14px"><b>Pestaña:</b> '+(pm?MB(pm.usedJSHeapSize)+' usados de '+MB(pm.jsHeapSizeLimit)+' ('+Math.round(pm.usedJSHeapSize*100/pm.jsHeapSizeLimit)+'%)':'este navegador no informa del uso (usa Chrome o Edge)')+'<br><b>Fichas:</b> '+n+' · <b>con foto:</b> '+cf+' · <b>fotos en memoria:</b> '+MB(tf)+(cf?' (media '+Math.round(tf/cf/1024)+' KB)':'')+' · <b>fotos &gt; 250 KB:</b> '+gr+'</p>';
+if(gr)h+='<div style="margin-bottom:10px">'+famB('Reducir las '+gr+' fotos grandes a 600 px','memReducirFotos()')+'</div>';
+h+='<b>Campos que más ocupan</b><table style="width:100%;font-size:13px;border-collapse:collapse;margin:6px 0 14px">'+campos.map(function(c){return '<tr style="border-top:1px solid var(--border)"><td style="padding:5px">'+esc(c.k)+'</td><td style="text-align:right">'+MB(c.t)+'</td><td style="text-align:right;color:var(--muted)">máx. '+Math.round(c.m/1024)+' KB</td></tr>';}).join('')+'</table>';
+h+='<b>Valores más grandes (&gt; 100 KB)</b>'+(top.length?'<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:6px">'+top.map(function(t){var p=PI[t.id];return '<tr style="border-top:1px solid var(--border)"><td style="padding:5px;white-space:nowrap">'+esc(t.id)+'</td><td><a style="cursor:pointer;color:var(--accent)" onclick="document.getElementById(\'memOv\').remove();cid=\''+safeId(t.id)+'\';sv(\'fic\')">'+esc(p?fn(p).trim():'')+'</a></td><td>'+esc(t.k)+'</td><td style="text-align:right">'+Math.round(t.L/1024)+' KB</td></tr>';}).join('')+'</table>':'<p style="color:var(--muted);font-size:13px">Ninguno.</p>')+'</div>';
+o=document.createElement('div');o.id='memOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';o.innerHTML=h;document.body.appendChild(o);}
+async function memReducirFotos(){var l=D.filter(function(p){return p&&p.FOTO&&p.FOTO.length>250000;});if(!l.length)return;
+if(!(await confirmarApp('Se van a reducir '+l.length+' fotos grandes a 600 px (y se vuelven a subir a Drive si hay sesión). ¿Continuar?')))return;
+mostrarProgresoAccion('Reduciendo fotos…');var ok=0,ids=[];
+try{for(var i=0;i<l.length;i++){var p=l[i];actualizarProgresoAccion('Reduciendo foto '+(i+1)+' de '+l.length+'…',Math.round(i*100/l.length));
+try{var nd=await resizeImageToDataURL(dataURLABlob(p.FOTO),600,0.8);if(nd&&nd.length<p.FOTO.length){p.FOTO=nd;p.FOTO_FECHA=new Date().toISOString();ids.push(String(p.ID));ok++;if(tokenDriveValido())await subirFotoPersonaADrive(p.ID,nd);}}catch(e){}
+if(ids.length>=20)await sPersonas(ids.splice(0));}
+if(ids.length)await sPersonas(ids);}catch(e){toast('Error al reducir fotos: '+e.message,true);}finally{ocultarProgresoAccion();}
+toast(ok+' fotos reducidas');abrirDiagnosticoMemoria();}
 /* ===== ESCUDO DE FAMILIA (Drive: DATOS/ESCUDOS/<ID>.png; miniatura incrustada en familias.json) ===== */
 var FAM_ESC_CACHE={},driveEscudosFolderId=null;
 function famEscudoHtml(f){var m=f.escudo&&f.escudo.mini||'',u=m||f.imagen||'';if(!u)return esc(famIni(f.nombre));return '<img class="famEsc" data-fid="'+escAttr(f.id)+'" title="'+escAttr(f.escudo&&f.escudo.credito||'')+'" src="'+escAttr(u)+'" style="width:100%;height:100%;object-fit:contain;padding:2px;box-sizing:border-box" onerror="this.style.display=\'none\'">';}
@@ -14539,12 +14560,11 @@ a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();docum
 function exportarCopia(){
 if(!esAdministrador()){toast('Guardar copia contiene todos los datos sin filtrar, por eso es exclusivo del administrador. Pide a la persona administradora que te pase una copia si la necesitas.',true);return;}
 if(!D.length){toast('No hay datos para guardar',true);return;}
-var sep=separarDatosYFotos(D);
 var fecha=new Date().toISOString().slice(0,10);
-var copiaDatos={formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:sep.datos};
-var copiaFotos={formato:'Libro de los Ancestros - Fotos',version:1,fecha:new Date().toISOString(),fotos:sep.fotos};
-descargarJSONComoArchivo(copiaDatos,'copia-arbol-genealogico-'+fecha+'.json');
-descargarJSONComoArchivo(copiaFotos,'copia-arbol-genealogico-'+fecha+'-fotos.json');
+var partes=['{"formato":"Libro de los Ancestros - Fotos","version":1,"fecha":"'+new Date().toISOString()+'","fotos":{'],primero=true;
+D.forEach(function(p){if(p&&p.FOTO){partes.push((primero?'':',')+JSON.stringify(String(p.ID))+':'+JSON.stringify({foto:p.FOTO,modifiedTime:p.FOTO_FECHA||''}));primero=false;}});partes.push('}}');
+bajarBlobComoArchivo(new Blob([jsonDatosCopia(D)],{type:'application/json'}),'copia-arbol-genealogico-'+fecha+'.json');
+bajarBlobComoArchivo(new Blob(partes,{type:'application/json'}),'copia-arbol-genealogico-'+fecha+'-fotos.json');
 toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
 registrarUltimaCopia();
 }
@@ -17416,6 +17436,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFamilias()"><div class="herr-icon"><i class="fa-solid fa-people-roof"></i></div><div class="herr-text"><div class="herr-title">Familias</div><div class="herr-desc">Catálogo de familias y linajes (etiquetas): fichas, estadísticas y, para el administrador, gestión</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosSinDrive()"><div class="herr-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div><div class="herr-text"><div class="herr-title">Fotos sin copia en Drive</div><div class="herr-desc">Fichas con foto en este dispositivo que no están en la carpeta FOTO de Drive: ver cuáles son y subirlas</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosDudosas()"><div class="herr-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="herr-text"><div class="herr-title">Fotos dudosas</div><div class="herr-desc">Fotos de personas anteriores a 1850 sin marcar como «imagen reconstruida»: revisarlas y marcarlas en bloque</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirDiagnosticoMemoria()"><div class="herr-icon"><i class="fa-solid fa-memory"></i></div><div class="herr-text"><div class="herr-title">Diagnóstico de memoria</div><div class="herr-desc">Qué ocupa más en la pestaña (fotos y textos gigantes) cuando la app se queda sin memoria al hacer copias</div></div></button>
 <div id="herrGestorColabGroup" style="display:none">
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Revisa y unifica apellidos y lugares escritos de formas distintas. Tus correcciones quedan registradas para que las apruebe el administrador</div></div></button>
