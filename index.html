@@ -5402,9 +5402,11 @@ async function dudMarcar(){var ids=Array.prototype.map.call(document.querySelect
 var antes=ids.map(function(i){return clonarPersona(PI[i]);});ids.forEach(function(i){PI[i].FOTO_RECON='1';});bIdx(D);
 try{await sPersonas(ids);registrarCambiosDesdeSnapshots(antes,ids.map(function(i){return PI[i];}),'editar');toast(ids.length+' fotos marcadas como reconstruidas');}catch(e){toast('Error al guardar: '+e.message,true);}
 abrirFotosDudosas();}
+function memMiga(p){try{localStorage.setItem('memProbe',JSON.stringify({paso:p,heap:memHeap()}));}catch(e){}}
+function memMigaFin(){try{localStorage.removeItem('memProbe');}catch(e){}}
 function memHeap(){var m=window.performance&&performance.memory;return m?m.usedJSHeapSize:0;}
 function memProbeHtml(){var u='';try{u=localStorage.getItem('memProbe')||'';}catch(e){}var x=null;try{x=u?JSON.parse(u):null;}catch(e){}
-return (x?'<p style="font-size:13px;color:#b3402f">La última prueba se interrumpió en el paso «'+esc(x.paso)+'» con '+Math.round(x.heap/1048576)+' MB usados: ahí se acaba la memoria.</p>':'')+'<div style="margin:8px 0 14px">'+famB('Probar la copia paso a paso','memProbarCopia()','ghost')+'<div id="memProbeRes"></div></div>';}
+return (x?'<p style="font-size:13px;color:#b3402f">La última operación (prueba, copia local o subida a Drive) se interrumpió en el paso «'+esc(x.paso)+'» con '+Math.round(x.heap/1048576)+' MB usados: ahí se acaba la memoria.</p>':'')+'<div style="margin:8px 0 14px">'+famB('Probar la copia paso a paso','memProbarCopia()','ghost')+'<div id="memProbeRes"></div></div>';}
 async function memProbarCopia(){var c=document.getElementById('memProbeRes'),r=[],mb=function(x){return Math.round(x/1048576)+' MB';};
 function paso(n){try{localStorage.setItem('memProbe',JSON.stringify({paso:n,heap:memHeap()}));}catch(e){}}
 function fila(n,a,b,t){r.push('<tr style="border-top:1px solid var(--border)"><td style="padding:5px">'+esc(n)+'</td><td style="text-align:right">'+esc(a)+'</td><td style="text-align:right">'+esc(b)+'</td><td style="text-align:right;color:var(--muted)">'+t+' s</td></tr>');}
@@ -14598,7 +14600,9 @@ if(!D.length){toast('No hay datos para guardar',true);return;}
 if(guardandoBackupLocal){toast('Ya hay una copia local en curso',true);return;}
 guardandoBackupLocal=true;
 try{
+memMiga('Copia local · preparar los datos');
 var blobDatos=await blobDatosCopia(D);
+memMiga('Copia local · escribir el archivo');
 if(!window.showDirectoryPicker){
 /* Navegadores sin acceso a carpetas (Firefox, Safari, móvil): descarga normal del archivo. */
 var blob=blobDatos;
@@ -14627,7 +14631,7 @@ await guardarValorCFG(CFG_BACKUP_LOCAL_FECHA,new Date().toISOString());
 registrarUltimaCopia();
 toast('backup-arbol.json guardado en la carpeta "'+handle.name+'" ('+D.length+' personas)');
 }catch(err){toast('No se pudo guardar la copia local: '+err.message,true);}
-finally{guardandoBackupLocal=false;}
+finally{memMigaFin();guardandoBackupLocal=false;}
 }
 async function restaurarDesdeJSONTexto(texto,textoFotos,contenedorId){
 var copia;
@@ -14833,6 +14837,7 @@ try{carpetaArbolOficial=await obtenerCarpetaArbolOficialId(true);}catch(err){ocu
 if(!carpetaArbolOficial){ocultarProgresoDrive(contenedorId);toast('No se pudo preparar la carpeta ARBOL_OFICIAL',true);return;}
 subiendoCopiaDrive=true;
 try{
+memMiga('Subida a Drive · preparar los datos');
 /* Datos y fotos van separados desde aquí (ver separarDatosYFotos): los datos
    siguen el mismo circuito de siempre (histórico fechado + alias), las fotos
    solo se suben como alias "actual", sin histórico. */
@@ -14843,6 +14848,7 @@ var nombreHoy=nombreBackupHistorico(fechaHoy);
    representa una única copia independiente, punto 26) la copia fechada a la
    carpeta ARBOL_OFICIAL. */
 actualizarProgresoDrive('Comprobando si ya existe una copia de hoy...',contenedorId);
+memMiga('Subida a Drive · subir la copia fechada');
 var existenteHoy;
 try{existenteHoy=await buscarBackupHistoricoPorNombre(nombreHoy);}
 catch(e){if(e.message==='sesion_caducada'){ocultarProgresoDrive(contenedorId);avisarSesionDriveCaducada();subiendoCopiaDrive=false;return;}throw e;}
@@ -14859,6 +14865,7 @@ catch(errLimpieza){console.warn('No se pudo completar la limpieza de copias anti
 actualizarProgresoDrive('Actualizando la copia general de restauración...',contenedorId);
 var aliasOk=true,aliasError='';
 try{
+memMiga('Subida a Drive · subir el alias backup-arbol.json');
 var existenteAlias=await buscarArchivoBackupDrive();
 var rAlias=await subirArchivoDriveBlob(DRIVE_BACKUP_FILENAME,blobDatos,'application/json',carpetaArbolOficial,existenteAlias?existenteAlias.id:null);
 if(!rAlias.ok){aliasOk=false;aliasError='Drive respondió '+rAlias.status;}
@@ -14872,7 +14879,7 @@ if(resultadoLimpieza&&resultadoLimpieza.eliminadas)msg+=' · eliminada(s) '+resu
 toast(msg);
 if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se pudo actualizar el alias '+DRIVE_BACKUP_FILENAME+' ('+aliasError+')',true);
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
-finally{subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
+finally{memMigaFin();subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
 }
 /* ========== TAREA 6: COPIA LOCAL DE FOTOGRAFÍAS Y DOCUMENTOS ========== */
 /* ---------- Claves de configuración (CFG) ---------- */
