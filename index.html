@@ -5402,6 +5402,17 @@ async function dudMarcar(){var ids=Array.prototype.map.call(document.querySelect
 var antes=ids.map(function(i){return clonarPersona(PI[i]);});ids.forEach(function(i){PI[i].FOTO_RECON='1';});bIdx(D);
 try{await sPersonas(ids);registrarCambiosDesdeSnapshots(antes,ids.map(function(i){return PI[i];}),'editar');toast(ids.length+' fotos marcadas como reconstruidas');}catch(e){toast('Error al guardar: '+e.message,true);}
 abrirFotosDudosas();}
+function memHeap(){var m=window.performance&&performance.memory;return m?m.usedJSHeapSize:0;}
+function memProbeHtml(){var u='';try{u=localStorage.getItem('memProbe')||'';}catch(e){}var x=null;try{x=u?JSON.parse(u):null;}catch(e){}
+return (x?'<p style="font-size:13px;color:#b3402f">La última prueba se interrumpió en el paso «'+esc(x.paso)+'» con '+Math.round(x.heap/1048576)+' MB usados: ahí se acaba la memoria.</p>':'')+'<div style="margin:8px 0 14px">'+famB('Probar la copia paso a paso','memProbarCopia()','ghost')+'<div id="memProbeRes"></div></div>';}
+async function memProbarCopia(){var c=document.getElementById('memProbeRes'),r=[],mb=function(x){return Math.round(x/1048576)+' MB';};
+function paso(n){try{localStorage.setItem('memProbe',JSON.stringify({paso:n,heap:memHeap()}));}catch(e){}}
+function fila(n,a,b,t){r.push('<tr style="border-top:1px solid var(--border)"><td style="padding:5px">'+esc(n)+'</td><td style="text-align:right">'+esc(a)+'</td><td style="text-align:right">'+esc(b)+'</td><td style="text-align:right;color:var(--muted)">'+t+' s</td></tr>');}
+c.innerHTML='<p style="font-size:12px">Midiendo… si la pestaña se cae, al recargar y abrir esta pantalla se indicará en qué paso.</p>';await new Promise(function(x){setTimeout(x,50);});
+var h=memHeap(),t=Date.now();paso('1 · construir el JSON de datos');var b=await blobDatosCopia(D);fila('Construir el JSON de datos',mb(b.size),'+'+mb(memHeap()-h)+' de heap',((Date.now()-t)/1000).toFixed(1));b=null;
+h=memHeap();t=Date.now();paso('2 · duplicar todas las fichas (lo que hace cada guardado)');var m=mapaPersonas(D);fila('Duplicar todas las fichas','','+'+mb(memHeap()-h)+' de heap',((Date.now()-t)/1000).toFixed(1));m=null;
+try{localStorage.removeItem('memProbe');}catch(e){}
+c.innerHTML='<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px"><tr><th style="text-align:left">Paso</th><th style="text-align:right">Tamaño</th><th style="text-align:right">Memoria</th><th></th></tr>'+r.join('')+'</table><p style="font-size:12px;color:var(--muted)">Heap actual: '+mb(memHeap())+'.</p>';}
 /* ===== DIAGNÓSTICO DE MEMORIA: qué ocupa más en la pestaña (fotos y campos de texto gigantes) ===== */
 function bajarBlobComoArchivo(blob,nombre){var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(u);},15000);}
 function abrirDiagnosticoMemoria(){var o=document.getElementById('memOv');if(o)o.remove();
@@ -5412,7 +5423,7 @@ var campos=Object.keys(pc).map(function(k){return{k:k,t:pc[k].t,m:pc[k].m};}).so
 var h='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Diagnóstico de memoria</h1><button class="ef-btn ghost" onclick="document.getElementById(\'memOv\').remove()">Cerrar</button></div>';
 h+='<p style="font-size:14px"><b>Pestaña:</b> '+(pm?MB(pm.usedJSHeapSize)+' usados de '+MB(pm.jsHeapSizeLimit)+' ('+Math.round(pm.usedJSHeapSize*100/pm.jsHeapSizeLimit)+'%)':'este navegador no informa del uso (usa Chrome o Edge)')+'<br><b>Fichas:</b> '+n+' · <b>con foto:</b> '+cf+' · <b>fotos en memoria:</b> '+MB(tf)+(cf?' (media '+Math.round(tf/cf/1024)+' KB)':'')+' · <b>fotos &gt; 250 KB:</b> '+gr+'</p>';
 if(gr)h+='<div style="margin-bottom:10px">'+famB('Reducir las '+gr+' fotos grandes a 600 px','memReducirFotos()')+'</div>';
-h+='<b>Campos que más ocupan</b><table style="width:100%;font-size:13px;border-collapse:collapse;margin:6px 0 14px">'+campos.map(function(c){return '<tr style="border-top:1px solid var(--border)"><td style="padding:5px">'+esc(c.k)+'</td><td style="text-align:right">'+MB(c.t)+'</td><td style="text-align:right;color:var(--muted)">máx. '+Math.round(c.m/1024)+' KB</td></tr>';}).join('')+'</table>';
+h+=memProbeHtml()+'<b>Campos que más ocupan</b><table style="width:100%;font-size:13px;border-collapse:collapse;margin:6px 0 14px">'+campos.map(function(c){return '<tr style="border-top:1px solid var(--border)"><td style="padding:5px">'+esc(c.k)+'</td><td style="text-align:right">'+MB(c.t)+'</td><td style="text-align:right;color:var(--muted)">máx. '+Math.round(c.m/1024)+' KB</td></tr>';}).join('')+'</table>';
 h+='<b>Valores más grandes (&gt; 100 KB)</b>'+(top.length?'<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:6px">'+top.map(function(t){var p=PI[t.id];return '<tr style="border-top:1px solid var(--border)"><td style="padding:5px;white-space:nowrap">'+esc(t.id)+'</td><td><a style="cursor:pointer;color:var(--accent)" onclick="document.getElementById(\'memOv\').remove();cid=\''+safeId(t.id)+'\';sv(\'fic\')">'+esc(p?fn(p).trim():'')+'</a></td><td>'+esc(t.k)+'</td><td style="text-align:right">'+Math.round(t.L/1024)+' KB</td></tr>';}).join('')+'</table>':'<p style="color:var(--muted);font-size:13px">Ninguno.</p>')+'</div>';
 o=document.createElement('div');o.id='memOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';o.innerHTML=h;document.body.appendChild(o);}
 async function memReducirFotos(){var l=D.filter(function(p){return p&&p.FOTO&&p.FOTO.length>250000;});if(!l.length)return;
@@ -14489,6 +14500,12 @@ document.getElementById('fi').click();
    fechadas de un archivo pesado no compensa. */
 /* Serializa los datos SIN fotos ni campos internos (_x) sin duplicar las ~100.000 fichas en memoria
    (antes: separarDatosYFotos creaba una copia de cada ficha + el mapa de fotos). */
+/* Reemplazo común: quita fotos y campos internos (_x). */
+function reemplazoCopia(k,v){if(k==='FOTO'||k==='FOTO_FECHA'||(k.length&&k.charAt(0)==='_'))return undefined;return v;}
+/* Construye el JSON de datos por trozos de 1.000 fichas (sin un único texto gigante) y devuelve un Blob. */
+async function blobDatosCopia(personas,alProgreso){var cab=JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString()}),partes=[cab.slice(0,-1)+',"personas":['],N=1000;
+for(var i=0;i<personas.length;i+=N){var s=JSON.stringify(personas.slice(i,i+N),reemplazoCopia);partes.push((i?',':'')+s.slice(1,-1));if(alProgreso)alProgreso(i,personas.length);await new Promise(function(r){setTimeout(r,0);});}
+partes.push(']}');return new Blob(partes,{type:'application/json'});}
 function jsonDatosCopia(personas){return JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:personas},function(k,v){if(k==='FOTO'||k==='FOTO_FECHA'||(k.length&&k.charAt(0)==='_'))return undefined;return v;});}
 /* Sube un Blob sin concatenarlo en un multipart de texto: crea el archivo vacío (si no existe) y lo rellena
    con PATCH. Si falla la subida de un archivo recién creado, lo manda a la papelera para no dejar uno vacío. */
@@ -14557,13 +14574,13 @@ var blob=new Blob([JSON.stringify(obj)],{type:'application/json;charset=utf-8'})
 var url=URL.createObjectURL(blob),a=document.createElement('a');
 a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
-function exportarCopia(){
+async function exportarCopia(){
 if(!esAdministrador()){toast('Guardar copia contiene todos los datos sin filtrar, por eso es exclusivo del administrador. Pide a la persona administradora que te pase una copia si la necesitas.',true);return;}
 if(!D.length){toast('No hay datos para guardar',true);return;}
 var fecha=new Date().toISOString().slice(0,10);
 var partes=['{"formato":"Libro de los Ancestros - Fotos","version":1,"fecha":"'+new Date().toISOString()+'","fotos":{'],primero=true;
 D.forEach(function(p){if(p&&p.FOTO){partes.push((primero?'':',')+JSON.stringify(String(p.ID))+':'+JSON.stringify({foto:p.FOTO,modifiedTime:p.FOTO_FECHA||''}));primero=false;}});partes.push('}}');
-bajarBlobComoArchivo(new Blob([jsonDatosCopia(D)],{type:'application/json'}),'copia-arbol-genealogico-'+fecha+'.json');
+bajarBlobComoArchivo(await blobDatosCopia(D),'copia-arbol-genealogico-'+fecha+'.json');
 bajarBlobComoArchivo(new Blob(partes,{type:'application/json'}),'copia-arbol-genealogico-'+fecha+'-fotos.json');
 toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
 registrarUltimaCopia();
@@ -14581,10 +14598,10 @@ if(!D.length){toast('No hay datos para guardar',true);return;}
 if(guardandoBackupLocal){toast('Ya hay una copia local en curso',true);return;}
 guardandoBackupLocal=true;
 try{
-var texto=jsonDatosCopia(D);
+var blobDatos=await blobDatosCopia(D);
 if(!window.showDirectoryPicker){
 /* Navegadores sin acceso a carpetas (Firefox, Safari, móvil): descarga normal del archivo. */
-var blob=new Blob([texto],{type:'application/json;charset=utf-8'});
+var blob=blobDatos;
 var url=URL.createObjectURL(blob),a=document.createElement('a');
 a.href=url;a.download='backup-arbol.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 await guardarValorCFG(CFG_BACKUP_LOCAL_FECHA,new Date().toISOString());
@@ -14604,7 +14621,7 @@ await guardarValorCFG(CFG_BACKUP_LOCAL_HANDLE,handle);
 }
 var fh=await handle.getFileHandle('backup-arbol.json',{create:true});
 var w=await fh.createWritable();
-await w.write(texto);
+await w.write(blobDatos);
 await w.close();
 await guardarValorCFG(CFG_BACKUP_LOCAL_FECHA,new Date().toISOString());
 registrarUltimaCopia();
@@ -14819,7 +14836,7 @@ try{
 /* Datos y fotos van separados desde aquí (ver separarDatosYFotos): los datos
    siguen el mismo circuito de siempre (histórico fechado + alias), las fotos
    solo se suben como alias "actual", sin histórico. */
-var blobDatos=new Blob([jsonDatosCopia(D)],{type:'application/json'});
+var blobDatos=await blobDatosCopia(D,function(i,n){actualizarProgresoDrive('Preparando los datos ('+i+' de '+n+')...',contenedorId);});
 var fechaHoy=formatoFechaBackup(new Date());
 var nombreHoy=nombreBackupHistorico(fechaHoy);
 /* 1-2) Subir (o, si ya existe una copia de hoy, sobrescribir esa misma: cada fecha
