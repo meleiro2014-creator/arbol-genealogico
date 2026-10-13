@@ -18,7 +18,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 <style>
 :root{--bg:#FBF7F0;--card:#fff;--text:#3D2C1E;--muted:#7A6754;--accent:#C4653A;--green:#5A8A3C;--blue:#2C5F8A;--border:#E8DFD4;--dead:#3D2C1E;--alive:#2C5F8A}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -339,17 +338,6 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .progreso-drive-cancelar{flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .progreso-drive-cancelar:hover{border-color:#c0392b;color:#c0392b;background:rgba(192,57,43,.08)}
 .backup-warn{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:5px 12px;border-radius:999px;border:1.5px solid #e0a95c;background:rgba(224,169,92,.12);font-size:11px;font-weight:700;color:#8a5a1a}
-.zipseg-fondo{position:fixed;right:12px;bottom:12px;z-index:9998;width:290px;max-width:calc(100vw - 24px);background:var(--card);border:2px solid var(--accent);border-radius:14px;padding:12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.18);font-size:12px;color:var(--text);pointer-events:auto}
-.zipseg-fondo-head{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:6px}
-.zipseg-fondo-titulo{flex:1}
-.zipseg-fondo-x{background:none;border:0;font-size:16px;line-height:1;cursor:pointer;color:var(--muted);padding:0}
-.zipseg-fondo-x:hover{color:var(--text)}
-.zipseg-fondo-texto{color:var(--muted);margin-bottom:8px}
-.zipseg-fondo-resumen{margin-bottom:8px}
-.zipseg-fondo-acciones{display:flex;justify-content:flex-end;gap:8px}
-.zipseg-fondo-fila+.zipseg-fondo-fila{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
-.zipseg-fondo-fila-head{display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:4px}
-.zipseg-fondo-fila-head span{flex:1}
 .bus-filtros{max-width:460px;margin:10px auto 0;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 14px;text-align:left;display:none}
 .bus-filtros.abierto{display:block}
 .bus-filtros-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
@@ -688,23 +676,6 @@ body{background:#fff}
 <body>
 <a href="#mainContent" class="skip-link">Saltar al contenido principal</a>
 <div class="toast-c" id="toastC" role="status" aria-live="polite" aria-atomic="false"></div>
-<div id="zipSegFondo" class="zipseg-fondo" style="display:none" role="status" aria-live="polite">
-<div class="zipseg-fondo-head"><i class="fa-solid fa-file-zipper"></i><span class="zipseg-fondo-titulo">Copia de seguridad en ZIP</span></div>
-<div id="zipSegFilaFOTO" class="zipseg-fondo-fila" style="display:none">
-<div class="zipseg-fondo-fila-head"><span>FOTO</span><button type="button" class="zipseg-fondo-x" id="zipSegCerrarFOTO" onclick="cerrarFondoZipSeguridad('FOTO')" aria-label="Cerrar" style="display:none">×</button></div>
-<div class="zipseg-fondo-texto" id="zipSegTextoFOTO">Preparando...</div>
-<div class="pb" id="zipSegBarraWrapFOTO" style="display:none"><div class="pf" id="zipSegBarraFOTO"></div></div>
-<div class="zipseg-fondo-resumen" id="zipSegResumenFOTO" style="display:none"></div>
-<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegCancelarFOTO" onclick="cancelarZipSeguridad('FOTO')">Cancelar</button></div>
-</div>
-<div id="zipSegFilaDOCUMENTOS" class="zipseg-fondo-fila" style="display:none">
-<div class="zipseg-fondo-fila-head"><span>DOCUMENTOS</span><button type="button" class="zipseg-fondo-x" id="zipSegCerrarDOCUMENTOS" onclick="cerrarFondoZipSeguridad('DOCUMENTOS')" aria-label="Cerrar" style="display:none">×</button></div>
-<div class="zipseg-fondo-texto" id="zipSegTextoDOCUMENTOS">Preparando...</div>
-<div class="pb" id="zipSegBarraWrapDOCUMENTOS" style="display:none"><div class="pf" id="zipSegBarraDOCUMENTOS"></div></div>
-<div class="zipseg-fondo-resumen" id="zipSegResumenDOCUMENTOS" style="display:none"></div>
-<div class="zipseg-fondo-acciones"><button type="button" class="ef-btn ghost" id="zipSegCancelarDOCUMENTOS" onclick="cancelarZipSeguridad('DOCUMENTOS')">Cancelar</button></div>
-</div>
-</div>
 <div id="progresoCrearPersonaWrap" role="status" aria-live="polite" style="display:none;position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9998;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:240px;max-width:90vw;box-sizing:border-box">
 <div class="pb" style="margin:0 0 6px;display:block"><div class="pf indet"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);text-align:center">Trabajando...</div>
@@ -996,6 +967,7 @@ body{background:#fff}
 <div class="hero">
 <h1>Gestor de datos</h1>
 <p id="gesSubtitulo">Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0</p>
+<button type="button" id="gesBtnLimpiarIA" class="ef-btn ghost" style="display:none;margin:8px 0 4px" onclick="mostrarPromptLimpiezaIA()"><i class="fa-solid fa-broom" aria-hidden="true"></i> Limpiar árbol con IA (generar prompt)</button>
 <div id="gesResumen" class="ges-resumen"></div>
 </div>
 <div id="gesPanel"></div>
@@ -2482,7 +2454,7 @@ if(typeof origFetch!=='function')return;
    duplicarla con esta. Lista explícita (en vez de un selector genérico por
    nombre) para no toparse con otros "*Wrap" del documento que no son
    barras de progreso, como el desplegable de más opciones del menú. */
-var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','zipSegProgresoWrap','progresoAccionWrap'];
+var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','progresoAccionWrap'];
 function otraBarraProgresoVisible(){
 for(var i=0;i<BARRAS_PROGRESO_NOMBRADAS.length;i++){
 var w=document.getElementById(BARRAS_PROGRESO_NOMBRADAS[i]);
@@ -5365,32 +5337,6 @@ var act=await refrescarCambiosDesdeDrive();await guardarCambiosArbolCompleto(act
 if(typeof actualizarContadorCambios==='function')actualizarContadorCambios();
 toast(ops.length+' cambios pendientes creados. Aplícalos desde Cambios.');return true;}
 catch(e){toast('No se pudieron crear los cambios: '+e.message,true);return false;}}
-/* ===== FOTOS SIN COPIA EN DRIVE: fichas con foto local que no están en FOTO/<ID>.jpg ===== */
-var FSD={falta:[],enCurso:false};
-async function abrirFotosSinDrive(){var o=document.getElementById('fsdOv');if(o)o.remove();
-o=document.createElement('div');o.id='fsdOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
-o.innerHTML='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Fotos sin copia en Drive</h1><button class="ef-btn ghost" onclick="document.getElementById(\'fsdOv\').remove()">Cerrar</button></div><p style="font-size:13px;color:var(--muted)">Compara las fichas que tienen foto en este dispositivo con los archivos ID.jpg de la carpeta FOTO de Drive y lista las que faltan.</p><div id="fsdMain"></div></div>';
-document.body.appendChild(o);await fsdComprobar();}
-async function fsdComprobar(){var m=document.getElementById('fsdMain');if(!m)return;
-if(!driveRootFolderId){m.innerHTML='<p>Configura primero la carpeta raíz de Drive.</p>';return;}
-try{if(!tokenDriveValido())await conectarGoogleDrive();m.innerHTML='<p>Comprobando la carpeta FOTO de Drive…</p>';
-var fid=await obtenerCarpetaFotoId(false),set={},n=0;
-if(fid)(await listarTodosArchivosDrive("'"+fid+"' in parents and trashed=false",'id,name')).forEach(function(a){var x=/^(.+)\.jpe?g$/i.exec(a.name);if(x)set[x[1]]=1;});
-var falta=[];D.forEach(function(p){if(!p||!p.FOTO||!puedeVerPersona(String(p.ID)))return;n++;if(!set[String(p.ID)])falta.push(String(p.ID));});FSD.falta=falta;
-var h='<div style="font-size:14px;margin:8px 0 12px"><b>'+n+'</b> fichas con foto · <b>'+(n-falta.length)+'</b> ya están en Drive · <b style="color:'+(falta.length?'#b3402f':'var(--green)')+'">'+falta.length+'</b> faltan</div>';
-if(falta.length){h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+famB('Subir las '+falta.length+' a Drive','fsdSubir()')+famB('Copiar lista de IDs','navigator.clipboard.writeText(FSD.falta.join(\'\\n\')).then(function(){toast(\'IDs copiados\')})','ghost')+famB('Volver a comprobar','fsdComprobar()','ghost')+'</div><table style="width:100%;font-size:13px;border-collapse:collapse">'+falta.slice(0,300).map(function(id){var p=PI[id];return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px;width:44px"><img src="'+escAttr(p.FOTO)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px"></td><td style="white-space:nowrap">'+esc(id)+'</td><td><a style="cursor:pointer;color:var(--accent)" onclick="document.getElementById(\'fsdOv\').remove();cid=\''+safeId(id)+'\';sv(\'fic\')">'+esc(fn(p).trim())+'</a></td><td style="text-align:right;color:var(--muted)">'+Math.round(p.FOTO.length*0.75/1024)+' KB</td></tr>';}).join('')+'</table>'+(falta.length>300?'<p style="font-size:12px;color:var(--muted)">Se muestran las 300 primeras; «Subir» procesa todas.</p>':'');}
-else h+='<p style="color:var(--green)">✓ Todas las fichas con foto tienen su copia en Drive.</p>'+famB('Volver a comprobar','fsdComprobar()','ghost');
-m.innerHTML=h;}catch(e){m.innerHTML='<p style="color:#b3402f">No se pudo comprobar: '+esc(e.message)+'</p>'+famB('Reintentar','fsdComprobar()');}}
-async function fsdSubir(){if(FSD.enCurso)return;var l=FSD.falta.slice(),ok=0,err=[],fid;if(!l.length)return;FSD.enCurso=true;
-try{fid=await obtenerCarpetaFotoId(true);}catch(e){FSD.enCurso=false;toast('No se pudo abrir la carpeta FOTO: '+e.message,true);return;}
-for(var i=0;i<l.length;i++){var id=l[i],p=PI[id],m=document.getElementById('fsdMain');if(!p||!p.FOTO)continue;if(!m)break;
-m.innerHTML='<p>Subiendo '+(i+1)+' de '+l.length+'… no cierres esta pantalla.</p><div style="height:8px;border-radius:4px;background:var(--dead);overflow:hidden"><i style="display:block;height:100%;width:'+Math.round(i*100/l.length)+'%;background:var(--green)"></i></div>';
-var hecho=false;for(var t=0;t<2&&!hecho;t++){try{if(!(await asegurarTokenDriveImport()))throw new Error('la sesión de Drive ha caducado');
-var nom=id+'.jpg',ex=await buscarArchivoFotoDrivePorId(nom,fid),fi=ex?ex.id:await crearArchivoDriveVacio(nom,'image/jpeg',fid),r=await subirArchivoDrive(nom,dataURLABlob(p.FOTO),'image/jpeg',fid,fi);
-if(!r.ok)throw new Error('Drive respondió '+r.status);hecho=true;ok++;}catch(e){if(t===1)err.push(id+' ('+e.message+')');else await new Promise(function(r){setTimeout(r,800);});}}
-if(err.length>=5&&!ok)break;}
-FSD.enCurso=false;await fsdComprobar();var b=document.getElementById('fsdMain');
-if(b&&err.length)b.insertAdjacentHTML('afterbegin','<div style="padding:8px 10px;border-radius:8px;background:rgba(179,64,47,.12);color:#b3402f;font-size:13px;margin-bottom:8px">Subidas: '+ok+'. Fallaron '+err.length+': '+esc(err.slice(0,10).join(' · '))+'</div>');else toast(ok+' fotos subidas a Drive');}
 /* ===== FOTOS DUDOSAS: fichas con foto de personas nacidas antes de 1850 sin marcar como reconstruidas ===== */
 function abrirFotosDudosas(){var o=document.getElementById('dudOv');if(o)o.remove();o=document.createElement('div');o.id='dudOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
 var l=[];D.forEach(function(p){if(!p||!p.FOTO||p.FOTO_RECON||!puedeVerPersona(String(p.ID)))return;var y=famAnio(p);if(y!==null&&y<1850)l.push(p);});l.sort(function(a,b){return famAnio(a)-famAnio(b);});
@@ -5761,16 +5707,11 @@ mostrarVersionEnHerramientas();
 document.getElementById('modalHerramientas').style.display='flex';
 refrescarGrupoAdminHerramientas();
 mostrarEstadoCopiaLocalDriveEnHerramientas();
-mostrarEstadoZipSeguridadEnHerramientas();
 actualizarVisibilidadHerramientasDrive();
 }
 function actualizarVisibilidadHerramientasDrive(){
 var conectado=tokenDriveValido();
 document.querySelectorAll('.herr-req-drive').forEach(function(el){
-if(el.id==='herrBtnOlvidarCopiaLocal'){
-if(!conectado)el.style.display='none';
-return;
-}
 el.style.display=conectado?'':'none';
 });
 actualizarVisibilidadGestorColaborador();
@@ -5804,6 +5745,10 @@ function mostrarVersionEnHerramientas(){
 var el=document.getElementById('appVersionTag');
 if(el)el.textContent='v'+APP_VERSION;
 }
+function abrirModalEstimaciones(){var m=document.getElementById('modalEstimaciones');if(m)m.style.display='flex';}
+function cerrarModalEstimaciones(){var m=document.getElementById('modalEstimaciones');if(m)m.style.display='none';}
+function abrirModalAyuda(){var m=document.getElementById('modalAyuda');if(m)m.style.display='flex';}
+function cerrarModalAyuda(){var m=document.getElementById('modalAyuda');if(m)m.style.display='none';}
 function abrirNovedades(){
 var cont=document.getElementById('novedadesLista');
 if(!cont)return;
@@ -12235,6 +12180,7 @@ var res=document.getElementById('gesResumen');
 if(!cont)return;
 var subGes=document.getElementById('gesSubtitulo');
 if(subGes)subGes.textContent=esAdministrador()?'Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0':'Apellidos y lugares escritos de formas distintas: marca la forma correcta y aplica. Tus correcciones quedan registradas para que las apruebe el administrador';
+var btnLimpIA=document.getElementById('gesBtnLimpiarIA');if(btnLimpIA)btnLimpIA.style.display=esAdministrador()?'':'none';
 var cats=(GES_CACHE||[]).slice();
 /* §5: se ordena primero por GRUPO (Integridad > Inconsistencias > Duplicados > Completitud >
 Lugares > Otros), de lo más urgente/factual a lo más informativo, y dentro de cada grupo,
@@ -14486,11 +14432,6 @@ async function exportarCSVAccess(){
     toast('Algún carácter no representable en Windows-1252 fue sustituido por "?".',true);
   }
 }
-async function impCSV(){
-if(!(await exigirIdentidadGoogle()))return;
-if(!esAdministrador()){toast('Solo el administrador puede importar CSV',true);return;}
-document.getElementById('fi').click();
-}
 /* ===== TAREA: SEPARAR DATOS Y FOTOS EN DOS ARCHIVOS DE BACKUP =====
    El campo FOTO (dataURL en base64) es lo que hace crecer el backup sin control.
    A partir de ahora se separa siempre en dos archivos, de forma transparente para
@@ -14575,17 +14516,6 @@ function descargarJSONComoArchivo(obj,nombreArchivo){
 var blob=new Blob([JSON.stringify(obj)],{type:'application/json;charset=utf-8'});
 var url=URL.createObjectURL(blob),a=document.createElement('a');
 a.href=url;a.download=nombreArchivo;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-async function exportarCopia(){
-if(!esAdministrador()){toast('Guardar copia contiene todos los datos sin filtrar, por eso es exclusivo del administrador. Pide a la persona administradora que te pase una copia si la necesitas.',true);return;}
-if(!D.length){toast('No hay datos para guardar',true);return;}
-var fecha=new Date().toISOString().slice(0,10);
-var partes=['{"formato":"Libro de los Ancestros - Fotos","version":1,"fecha":"'+new Date().toISOString()+'","fotos":{'],primero=true;
-D.forEach(function(p){if(p&&p.FOTO){partes.push((primero?'':',')+JSON.stringify(String(p.ID))+':'+JSON.stringify({foto:p.FOTO,modifiedTime:p.FOTO_FECHA||''}));primero=false;}});partes.push('}}');
-bajarBlobComoArchivo(await blobDatosCopia(D),'copia-arbol-genealogico-'+fecha+'.json');
-bajarBlobComoArchivo(new Blob(partes,{type:'application/json'}),'copia-arbol-genealogico-'+fecha+'-fotos.json');
-toast('Copia descargada con '+D.length+' personas y sus fotos (dos archivos)');
-registrarUltimaCopia();
 }
 /* ===== Copia local de backup-arbol.json en el disco (solo administrador) =====
    Escribe en una carpeta del ordenador el mismo contenido que se sube a Drive como backup-arbol.json
@@ -15190,11 +15120,9 @@ async function obtenerEstadoCopiaLocalDrive() {
 
 async function mostrarEstadoCopiaLocalDriveEnHerramientas() {
   var el = document.getElementById('herrCopiaLocalDriveEstado');
-  var btnOlvidar = document.getElementById('herrBtnOlvidarCopiaLocal');
   if (!el) return;
   try {
     var estado = await obtenerEstadoCopiaLocalDrive();
-    if (btnOlvidar) btnOlvidar.style.display = (estado.configurada && tokenDriveValido()) ? '' : 'none';
     if (!estado.configurada) {
       el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada. Toca para configurarla.';
       return;
@@ -15210,7 +15138,6 @@ async function mostrarEstadoCopiaLocalDriveEnHerramientas() {
     txt += ' · toca para actualizar ahora';
     el.textContent = txt;
   } catch (e) {
-    if (btnOlvidar) btnOlvidar.style.display = 'none';
     el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada. Toca para configurarla.';
   }
 }
@@ -15229,11 +15156,6 @@ function configurarCopiaLocalDriveUI() {
   });
 }
 
-function desactivarCopiaLocalDriveUI() {
-  desconfigurarCopiaLocalDrive().then(function () {
-    mostrarHerramientas();
-  });
-}
 
 function abrirModalCopiaLocalDrive() {
   document.getElementById('copiaLocalDriveTitulo').textContent = 'Copiando fotografías y documentos';
@@ -15375,28 +15297,7 @@ return '<div class="cambio-card"><div class="cambio-head"><div>'+quien+'</div><d
 }
 /* ========== FIN REGISTRO DE CONEXIONES ========== */
 
-/* ========== COPIA DE SEGURIDAD LOCAL EN ZIP (FOTO y DOCUMENTOS, solo administrador) ==========
-   A diferencia de la copia local de la TAREA 6 (que descarga FOTO/DOCUMENTOS
-   desde Google Drive), esta es una copia puramente LOCAL A LOCAL: comprime
-   dos carpetas que ya existen en el disco duro (por ejemplo, E:\Genealogia\FOTO
-   y E:\Genealogia\DOCUMENTOS) en sendos archivos ZIP fechados, guardados en
-   una tercera carpeta de destino (por ejemplo, E:\SEGURIDAD GENEALOGIA), sin
-   tocar Google Drive para nada. Requiere un navegador con File System Access
-   API (Chrome/Edge de escritorio) y la librería JSZip (cargada por CDN). */
-var CFG_ZIPSEG_FOTO_HANDLE='zipSegFotoDirHandle';
-var CFG_ZIPSEG_DOCS_HANDLE='zipSegDocsDirHandle';
-var CFG_ZIPSEG_DEST_HANDLE='zipSegDestDirHandle';
-/* Fecha y resumen de la última copia, guardados por separado para FOTO y
-   DOCUMENTOS ahora que cada una se ejecuta de forma independiente. */
-var CFG_ZIPSEG_ULTIMA_FECHA_FOTO='zipSegUltimaFechaFoto';
-var CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO='zipSegUltimoResumenFoto';
-var CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS='zipSegUltimaFechaDocumentos';
-var CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS='zipSegUltimoResumenDocumentos';
-/* Un estado de "en curso" y "cancelar" por tipo (FOTO / DOCUMENTOS), para que
-   cada copia se pueda lanzar, seguir y cancelar de forma independiente. */
-var zipSeguridadEnCurso={FOTO:false,DOCUMENTOS:false};
-var zipSeguridadCancelar={FOTO:false,DOCUMENTOS:false};
-
+/* Pide/comprueba permiso sobre una carpeta local (lo usa la copia local del árbol) */
 async function zipSegAsegurarPermiso(handle,modo){
 if(!handle)return false;
 try{
@@ -15405,326 +15306,6 @@ if(permiso!=='granted')permiso=await handle.requestPermission({mode:modo});
 return permiso==='granted';
 }catch(e){return false;}
 }
-/* Añade recursivamente el contenido de una carpeta local dentro de una
-   carpeta del ZIP en construcción. contador.n se incrementa según se añaden
-   archivos, para poder informar del progreso sin recorrer la carpeta dos veces. */
-async function zipSegAnadirCarpeta(dirHandle,carpetaZip,contador,onProgreso,tipo){
-for await (var entry of dirHandle.values()){
-if(zipSeguridadCancelar[tipo])return;
-if(entry.kind==='directory'){
-await zipSegAnadirCarpeta(entry,carpetaZip.folder(entry.name),contador,onProgreso,tipo);
-}else{
-try{
-var file=await entry.getFile();
-carpetaZip.file(entry.name,file);
-contador.n++;
-if(onProgreso)onProgreso(contador.n);
-}catch(eArchivo){
-contador.errores.push(entry.name);
-}
-}
-}
-}
-function zipSegNombreFechado(prefijo){
-var d=new Date();
-function dosDig(n){return String(n).padStart(2,'0');}
-var fecha=d.getFullYear()+'-'+dosDig(d.getMonth()+1)+'-'+dosDig(d.getDate());
-var hora=dosDig(d.getHours())+'h'+dosDig(d.getMinutes());
-return prefijo+'_'+fecha+'_'+hora+'.zip';
-}
-async function zipSegComprimirYGuardar(dirOrigen,destHandle,tipo,onFase){
-var contador={n:0,errores:[]};
-var zip=new JSZip();
-onFase('Preparando '+tipo+'...',null);
-await zipSegAnadirCarpeta(dirOrigen,zip,contador,function(n){
-onFase('Comprimiendo '+tipo+': '+n+' archivo(s) añadido(s)...',null);
-},tipo);
-if(zipSeguridadCancelar[tipo])return null;
-/* FOTO ya viene comprimida de fábrica (JPG/HEIC/etc.): comprimir otra vez con
-   DEFLATE apenas ahorra espacio y consume mucho tiempo de CPU, así que para
-   FOTO se usa STORE (empaquetar sin comprimir). DOCUMENTOS sí puede tener
-   texto/PDF donde DEFLATE aporta algo, así que mantiene compresión nivel 6. */
-var esFoto=(tipo==='FOTO');
-var opcionesZip=esFoto?{type:'uint8array',compression:'STORE'}:{type:'uint8array',compression:'DEFLATE',compressionOptions:{level:6}};
-var nombre=zipSegNombreFechado(tipo);
-var fileHandle=await destHandle.getFileHandle(nombre,{create:true});
-var writable=await fileHandle.createWritable();
-/* En vez de zip.generateAsync (que monta el ZIP entero como un único blob en
-   memoria y solo despues se escribe en disco), se usa el flujo interno de
-   JSZip (generateInternalStream) para ir escribiendo cada trozo comprimido
-   directamente en el archivo de destino según se va generando. Con carpetas
-   de varios GB (mas de 1000 fotos restauradas, por ejemplo), montar todo el
-   ZIP en memoria antes de escribir un solo byte podia tardar muchisimo o
-   colgar la pestaña, dejando el aviso clavado en "100%" sin que la carpeta
-   de destino recibiera nada. Ahora la escritura en disco avanza en paralelo
-   con la compresión, trozo a trozo (NO se acumulan los trozos en un array en
-   memoria: eso consumiría tanta RAM como generar el ZIP entero de golpe). */
-var bytesEscritos=0;
-try{
-await new Promise(function(resolve,reject){
-var streamHelper=zip.generateInternalStream(opcionesZip);
-streamHelper.on('data',function(data,metadata){
-streamHelper.pause();
-var chunk=(data instanceof Uint8Array)?data:new Uint8Array(data);
-writable.write(chunk).then(function(){
-bytesEscritos+=chunk.byteLength;
-if(zipSeguridadCancelar[tipo]){reject(new Error('CANCELADO'));return;}
-var pct=Math.max(0,Math.min(100,Math.round(metadata.percent||0)));
-onFase('Generando y guardando el ZIP de '+tipo+': '+pct+'% ('+zipSegFormatoMB(bytesEscritos)+')',pct);
-streamHelper.resume();
-}).catch(reject);
-})
-.on('error',reject)
-.on('end',resolve)
-.resume();
-});
-}catch(eStream){
-try{await writable.close();}catch(eClose){}
-try{await destHandle.removeEntry(nombre);}catch(eDel){}
-if(eStream&&eStream.message==='CANCELADO')return null;
-throw eStream;
-}
-await writable.close();
-return {nombre:nombre,archivos:contador.n,errores:contador.errores};
-}
-function zipSegFormatoMB(bytes){
-return (bytes/(1024*1024)).toFixed(1)+' MB';
-}
-/* ---------- Configuración (elige las 3 carpetas, una detrás de otra) ---------- */
-async function configurarZipSeguridad(){
-if(!(await exigirIdentidadGoogle()))return false;
-if(!esAdministrador()){toast('Solo el administrador puede configurar la copia de seguridad en ZIP',true);return false;}
-if(!window.showDirectoryPicker){toast('Tu navegador no permite elegir carpetas del disco para esto (usa Chrome o Edge en escritorio).',true);return false;}
-try{
-toast('Elige la carpeta FOTO de origen (por ejemplo E:\\Genealogia\\FOTO)');
-var hFoto=await window.showDirectoryPicker();
-if(!(await zipSegAsegurarPermiso(hFoto,'read'))){toast('No se concedió permiso de lectura sobre la carpeta FOTO',true);return false;}
-toast('Ahora elige la carpeta DOCUMENTOS de origen (por ejemplo E:\\Genealogia\\DOCUMENTOS)');
-var hDocs=await window.showDirectoryPicker();
-if(!(await zipSegAsegurarPermiso(hDocs,'read'))){toast('No se concedió permiso de lectura sobre la carpeta DOCUMENTOS',true);return false;}
-toast('Por último, elige la carpeta de destino donde se guardarán los ZIP (por ejemplo E:\\SEGURIDAD GENEALOGIA)');
-var hDest=await window.showDirectoryPicker({mode:'readwrite'});
-if(!(await zipSegAsegurarPermiso(hDest,'readwrite'))){toast('No se concedió permiso de escritura sobre la carpeta de destino',true);return false;}
-await guardarValorCFG(CFG_ZIPSEG_FOTO_HANDLE,hFoto);
-await guardarValorCFG(CFG_ZIPSEG_DOCS_HANDLE,hDocs);
-await guardarValorCFG(CFG_ZIPSEG_DEST_HANDLE,hDest);
-toast('Copia de seguridad en ZIP configurada: FOTO="'+hFoto.name+'", DOCUMENTOS="'+hDocs.name+'" → destino "'+hDest.name+'"');
-return true;
-}catch(err){
-if(err&&err.name!=='AbortError')toast('No se pudo configurar la copia de seguridad en ZIP: '+err.message,true);
-return false;
-}
-}
-async function olvidarZipSeguridad(){
-if(!(await exigirIdentidadGoogle()))return;
-if(!esAdministrador()){toast('Solo el administrador puede olvidar esta configuración',true);return;}
-await guardarValorCFG(CFG_ZIPSEG_FOTO_HANDLE,null);
-await guardarValorCFG(CFG_ZIPSEG_DOCS_HANDLE,null);
-await guardarValorCFG(CFG_ZIPSEG_DEST_HANDLE,null);
-toast('Se ha olvidado la configuración de la copia de seguridad en ZIP. Los archivos ZIP ya creados NO se han borrado.');
-mostrarHerramientas();
-}
-async function obtenerEstadoZipSeguridad(){
-var hFoto=await leerValorCFG(CFG_ZIPSEG_FOTO_HANDLE);
-var hDocs=await leerValorCFG(CFG_ZIPSEG_DOCS_HANDLE);
-var hDest=await leerValorCFG(CFG_ZIPSEG_DEST_HANDLE);
-var fechaFoto=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA_FOTO);
-var resumenFoto=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO);
-var fechaDocs=await leerValorCFG(CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS);
-var resumenDocs=await leerValorCFG(CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS);
-return {configurada:!!(hFoto&&hDocs&&hDest),foto:hFoto,documentos:hDocs,destino:hDest,
-fechaFoto:fechaFoto,resumenFoto:resumenFoto,fechaDocumentos:fechaDocs,resumenDocumentos:resumenDocs};
-}
-function zipSegTextoEstadoTipo(configurada,fecha,resumen){
-if(!configurada)return'aún no configurada. Toca para configurarla.';
-var txt;
-if(fecha){
-txt='Última copia realizada el '+new Date(fecha).toLocaleString('es-ES');
-if(resumen&&resumen.errores)txt+=' (con incidencias)';
-}else{
-txt='Carpetas configuradas · todavía no se ha ejecutado ninguna copia';
-}
-return txt+' · toca para actualizar ahora';
-}
-async function mostrarEstadoZipSeguridadEnHerramientas(){
-var elFoto=document.getElementById('herrZipSeguridadEstadoFOTO');
-var elDocs=document.getElementById('herrZipSeguridadEstadoDOCUMENTOS');
-var btnOlvidar=document.getElementById('herrBtnOlvidarZipSeguridad');
-if(!elFoto||!elDocs)return;
-try{
-var estado=await obtenerEstadoZipSeguridad();
-if(btnOlvidar)btnOlvidar.style.display=estado.configurada?'':'none';
-elFoto.textContent='Copia de seguridad local en ZIP de FOTO: '+zipSegTextoEstadoTipo(estado.configurada,estado.fechaFoto,estado.resumenFoto);
-elDocs.textContent='Copia de seguridad local en ZIP de DOCUMENTOS: '+zipSegTextoEstadoTipo(estado.configurada,estado.fechaDocumentos,estado.resumenDocumentos);
-}catch(e){
-elFoto.textContent='Copia de seguridad local en ZIP de FOTO: aún no configurada. Toca para configurarla.';
-elDocs.textContent='Copia de seguridad local en ZIP de DOCUMENTOS: aún no configurada. Toca para configurarla.';
-}
-}
-/* tipo: 'FOTO' o 'DOCUMENTOS'. Cada botón de Herramientas lanza solo su
-   propia copia, sin tocar la otra. Si las 3 carpetas aún no están
-   configuradas, primero se pide configurarlas (las 3 juntas, como antes) y
-   después se lanza automáticamente la copia que el usuario pidió. */
-function accionZipSeguridadUI(tipo){
-obtenerEstadoZipSeguridad().then(function(estado){
-if(estado.configurada)ejecutarZipSeguridadUI(tipo);
-else configurarZipSeguridad().then(function(ok){if(ok)ejecutarZipSeguridadUI(tipo);mostrarHerramientas();});
-}).catch(function(){configurarZipSeguridad().then(function(ok){if(ok)ejecutarZipSeguridadUI(tipo);mostrarHerramientas();});});
-}
-async function ejecutarZipSeguridadUI(tipo){
-if(zipSeguridadEnCurso[tipo]){toast('Ya hay una copia de seguridad en ZIP de '+tipo+' en curso; espera a que termine',true);return;}
-if(!(await exigirIdentidadGoogle()))return;
-if(!esAdministrador()){toast('Solo el administrador puede actualizar la copia de seguridad en ZIP',true);return;}
-if(typeof JSZip==='undefined'){toast('No se pudo cargar la librería de compresión ZIP. Comprueba tu conexión a internet e inténtalo de nuevo.',true);return;}
-var estado=await obtenerEstadoZipSeguridad();
-if(!estado.configurada){toast('Configura primero las 3 carpetas (FOTO, DOCUMENTOS y destino)',true);return;}
-var dirOrigen=(tipo==='FOTO')?estado.foto:estado.documentos;
-var okOrigen=await zipSegAsegurarPermiso(dirOrigen,'read');
-var okDest=await zipSegAsegurarPermiso(estado.destino,'readwrite');
-if(!okOrigen||!okDest){toast('No se pudo obtener permiso sobre alguna de las carpetas configuradas. Vuelve a configurarlas.',true);return;}
-zipSeguridadEnCurso[tipo]=true;
-zipSeguridadCancelar[tipo]=false;
-abrirFondoZipSeguridad(tipo);
-toast('Copia de seguridad en ZIP de '+tipo+' iniciada en segundo plano; puedes seguir navegando');
-try{
-var res=await zipSegComprimirYGuardar(dirOrigen,estado.destino,tipo,function(t,pct){actualizarTextoFondoZipSeguridad(tipo,t,pct);});
-if(zipSeguridadCancelar[tipo])throw {cancelado:true};
-var resumenGuardable={fecha:new Date().toISOString(),zip:res.nombre,archivos:res.archivos,errores:res.errores.length};
-var claveFecha=(tipo==='FOTO')?CFG_ZIPSEG_ULTIMA_FECHA_FOTO:CFG_ZIPSEG_ULTIMA_FECHA_DOCUMENTOS;
-var claveResumen=(tipo==='FOTO')?CFG_ZIPSEG_ULTIMO_RESUMEN_FOTO:CFG_ZIPSEG_ULTIMO_RESUMEN_DOCUMENTOS;
-await guardarValorCFG(claveFecha,resumenGuardable.fecha);
-await guardarValorCFG(claveResumen,resumenGuardable);
-mostrarResumenFondoZipSeguridad(tipo,resumenGuardable);
-if(resumenGuardable.errores===0)toast('Copia de seguridad en ZIP de '+tipo+' completada: '+res.nombre);
-else toast('Copia de seguridad en ZIP de '+tipo+' completada con '+resumenGuardable.errores+' error(es) de lectura',true);
-}catch(err){
-if(err&&err.cancelado){
-toast('Copia de seguridad en ZIP de '+tipo+' cancelada',true);
-cerrarFondoZipSeguridadConError(tipo);
-}else{
-toast('No se pudo completar la copia de seguridad en ZIP de '+tipo+': '+(err&&err.message?err.message:'error desconocido'),true);
-cerrarFondoZipSeguridadConError(tipo);
-}
-}finally{
-zipSeguridadEnCurso[tipo]=false;
-zipSeguridadCancelar[tipo]=false;
-mostrarEstadoZipSeguridadEnHerramientas();
-}
-}
-function cancelarZipSeguridad(tipo){
-if(!tipo||!zipSeguridadEnCurso[tipo])return;
-zipSeguridadCancelar[tipo]=true;
-toast('Cancelando la copia de '+tipo+'... se detendrá tras terminar el archivo en curso');
-}
-/* ---- Panel flotante NO bloqueante (permite seguir navegando por la app) ----
-   FOTO y DOCUMENTOS tienen cada una su propia fila dentro del mismo panel,
-   así que pueden ejecutarse y cancelarse una independientemente de la otra. */
-function abrirFondoZipSeguridad(tipo){
-var el=document.getElementById('zipSegFondo');
-var fila=document.getElementById('zipSegFila'+tipo);
-if(!el||!fila)return;
-document.getElementById('zipSegTexto'+tipo).textContent='Preparando...';
-var barraWrap=document.getElementById('zipSegBarraWrap'+tipo);
-var barra=document.getElementById('zipSegBarra'+tipo);
-barraWrap.style.display='none';
-barra.classList.remove('indet');
-barra.style.width='0%';
-document.getElementById('zipSegResumen'+tipo).style.display='none';
-document.getElementById('zipSegResumen'+tipo).innerHTML='';
-document.getElementById('zipSegCerrar'+tipo).style.display='none';
-document.getElementById('zipSegCancelar'+tipo).style.display='inline-flex';
-fila.style.display='block';
-el.style.display='block';
-}
-/* pct: null/undefined durante las fases sin porcentaje conocido (preparar,
-   añadir archivos) → barra indeterminada; número 0-100 durante la fase de
-   generación real del ZIP, que es la que puede tardar largo rato. */
-function actualizarTextoFondoZipSeguridad(tipo,t,pct){
-var el=document.getElementById('zipSegTexto'+tipo);
-if(el)el.textContent=t;
-var barraWrap=document.getElementById('zipSegBarraWrap'+tipo);
-var barra=document.getElementById('zipSegBarra'+tipo);
-if(!barraWrap||!barra)return;
-barraWrap.style.display='block';
-if(pct===null||pct===undefined){
-barra.classList.add('indet');
-}else{
-barra.classList.remove('indet');
-barra.style.width=pct+'%';
-}
-}
-function mostrarResumenFondoZipSeguridad(tipo,r){
-document.getElementById('zipSegCancelar'+tipo).style.display='none';
-document.getElementById('zipSegCerrar'+tipo).style.display='inline-flex';
-document.getElementById('zipSegTexto'+tipo).textContent='Copia completada';
-document.getElementById('zipSegBarraWrap'+tipo).style.display='none';
-var cont=document.getElementById('zipSegResumen'+tipo);
-cont.style.display='block';
-var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
-h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zip)+': '+r.archivos+' archivo(s)</span>';
-if(r.errores)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: '+r.errores+'</span>';
-h+='</div>';
-cont.innerHTML=h;
-}
-function cerrarFondoZipSeguridadConError(tipo){
-document.getElementById('zipSegCancelar'+tipo).style.display='none';
-document.getElementById('zipSegCerrar'+tipo).style.display='inline-flex';
-document.getElementById('zipSegBarraWrap'+tipo).style.display='none';
-}
-function cerrarFondoZipSeguridad(tipo){
-if(zipSeguridadEnCurso[tipo])return;
-var fila=document.getElementById('zipSegFila'+tipo);
-if(fila)fila.style.display='none';
-if(!zipSeguridadEnCurso.FOTO&&!zipSeguridadEnCurso.DOCUMENTOS){
-var filaFoto=document.getElementById('zipSegFilaFOTO');
-var filaDocs=document.getElementById('zipSegFilaDOCUMENTOS');
-var fotoOculta=!filaFoto||filaFoto.style.display==='none';
-var docsOculta=!filaDocs||filaDocs.style.display==='none';
-if(fotoOculta&&docsOculta){
-var el=document.getElementById('zipSegFondo');
-if(el)el.style.display='none';
-}
-}
-}
-
-function abrirModalZipSeguridad(){
-document.getElementById('zipSegProgresoTexto').textContent='Preparando...';
-document.getElementById('zipSegResumen').style.display='none';
-document.getElementById('zipSegResumen').innerHTML='';
-document.getElementById('zipSegProgresoWrap').style.display='block';
-document.getElementById('zipSegCerrarBtn').style.display='none';
-document.getElementById('zipSegCancelarBtn').style.display='inline-flex';
-document.getElementById('modalZipSeguridad').style.display='flex';
-}
-function actualizarTextoModalZipSeguridad(t){
-var el=document.getElementById('zipSegProgresoTexto');
-if(el)el.textContent=t;
-}
-function mostrarResumenModalZipSeguridad(r){
-document.getElementById('zipSegProgresoWrap').style.display='none';
-document.getElementById('zipSegCancelarBtn').style.display='none';
-document.getElementById('zipSegCerrarBtn').style.display='inline-flex';
-var cont=document.getElementById('zipSegResumen');
-cont.style.display='block';
-var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
-h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipFoto)+': '+r.archivosFoto+' archivo(s)</span>';
-if(r.erroresFoto)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en FOTO: '+r.erroresFoto+'</span>';
-h+='<span class="ges-pill" style="border-color:var(--green);color:var(--green)">'+esc(r.zipDocumentos)+': '+r.archivosDocumentos+' archivo(s)</span>';
-if(r.erroresDocumentos)h+='<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores en DOCUMENTOS: '+r.erroresDocumentos+'</span>';
-h+='</div>';
-cont.innerHTML=h;
-}
-function cerrarModalZipSeguridad(){
-if(zipSeguridadEnCurso){toast('Espera a que termine o pulsa Cancelar',true);return;}
-document.getElementById('modalZipSeguridad').style.display='none';
-}
-function cerrarModalZipSeguridadConError(){
-document.getElementById('zipSegProgresoWrap').style.display='none';
-document.getElementById('zipSegCancelarBtn').style.display='none';
-document.getElementById('zipSegCerrarBtn').style.display='inline-flex';
-}
-/* ========== FIN COPIA DE SEGURIDAD LOCAL EN ZIP ========== */
-
 async function restaurarArbolOficialPrincipal(){
 var btn=document.getElementById('restaurarArbolPrincipalBtn');
 if(btn&&btn.disabled)return;
@@ -17443,9 +17024,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div style="overflow:auto;margin-top:6px;padding-right:2px">
 <div class="herr-section">Uso general</div>
 <div class="herr-subhead">Ayuda</div>
-<button class="herr-item" onclick="window.open('https://meleiro2014-creator.github.io/arbol-genealogico/privacidad.html','_blank','noopener')"><div class="herr-icon"><i class="fa-solid fa-shield-halved"></i></div><div class="herr-text"><div class="herr-title">Política de privacidad</div><div class="herr-desc">Qué datos usa esta app y cómo se tratan</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();mostrarGuiaPrimerAccesoParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-door-open"></i></div><div class="herr-text"><div class="herr-title">Guía de primer acceso</div><div class="herr-desc">Cómo conecta por primera vez un familiar nuevo con Google Drive</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirModalAyuda()"><div class="herr-icon"><i class="fa-solid fa-circle-question"></i></div><div class="herr-text"><div class="herr-title">Ayuda y privacidad</div><div class="herr-desc">Manual de usuario, guía de primer acceso y política de privacidad</div></div></button>
 <div class="herr-subhead">Dispositivo</div>
 <button class="herr-item" id="herrInstalarBtn" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div id="driveOpProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
@@ -17458,9 +17037,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Investigación</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();sv('inv')"><div class="herr-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div><div class="herr-text"><div class="herr-title">Investigación</div><div class="herr-desc">Busca en archivos y hemerotecas externas, y encuentra fotos para la persona activa</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFamilias()"><div class="herr-icon"><i class="fa-solid fa-people-roof"></i></div><div class="herr-text"><div class="herr-title">Familias</div><div class="herr-desc">Catálogo de familias y linajes (etiquetas): fichas, estadísticas y, para el administrador, gestión</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosSinDrive()"><div class="herr-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div><div class="herr-text"><div class="herr-title">Fotos sin copia en Drive</div><div class="herr-desc">Fichas con foto en este dispositivo que no están en la carpeta FOTO de Drive: ver cuáles son y subirlas</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosDudosas()"><div class="herr-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="herr-text"><div class="herr-title">Fotos dudosas</div><div class="herr-desc">Fotos de personas anteriores a 1850 sin marcar como «imagen reconstruida»: revisarlas y marcarlas en bloque</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();abrirDiagnosticoMemoria()"><div class="herr-icon"><i class="fa-solid fa-memory"></i></div><div class="herr-text"><div class="herr-title">Diagnóstico de memoria</div><div class="herr-desc">Qué ocupa más en la pestaña (fotos y textos gigantes) cuando la app se queda sin memoria al hacer copias</div></div></button>
 <div id="herrGestorColabGroup" style="display:none">
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Revisa y unifica apellidos y lugares escritos de formas distintas. Tus correcciones quedan registradas para que las apruebe el administrador</div></div></button>
@@ -17469,39 +17046,53 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item herr-item-danger" onclick="cerrarHerramientas();confirmLimpiar()"><div class="herr-icon"><i class="fa-solid fa-trash-can"></i></div><div class="herr-text"><div class="herr-title">Limpiar cache</div><div class="herr-desc">Elimina todos los datos guardados en este dispositivo. Acción irreversible</div></div></button>
 <div id="herrAdminGroup" style="display:none">
 <div class="herr-section">Solo administrador</div>
-<div class="herr-subhead">Acceso</div>
+<div class="herr-subhead">Administración</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Correo, nombre y fecha/hora de cada vez que un colaborador conecta su cuenta de Google</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();exportarCopia()"><div class="herr-icon"><i class="fa-solid fa-download"></i></div><div class="herr-text"><div class="herr-title">Guardar copia</div><div class="herr-desc">Descarga un respaldo con TODOS los datos sin filtrar, por eso es solo del administrador</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();impCSV()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar CSV</div><div class="herr-desc">Carga o actualiza los datos desde un archivo CSV</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();mostrarPromptLimpiezaIA()"><div class="herr-icon"><i class="fa-solid fa-broom"></i></div><div class="herr-text"><div class="herr-title">Limpiar árbol con IA (generar prompt)</div><div class="herr-desc">Copia un prompt para pegar en tu IA junto con backup-arbol.json: te devolverá un cambios-arbol.json con fallecidos de más de 100 años, personas sin sexo, matrimonios sin vínculo recíproco, personas aisladas, ciclos y nombres/apellidos en mayúsculas</div></div></button>
-<button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
-<button class="herr-item" id="btnCalcularLugaresEstimados" onclick="recalcularLugaresEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-map-location-dot"></i></div><div class="herr-text"><div class="herr-title">Recalcular lugar estimado (LUGARCALC)</div><div class="herr-desc">Vuelve a estimar el lugar de nacimiento (\u2248) de todas las personas sin lugar propio, a partir del familiar real conocido más cercano (o España por defecto)</div></div></button>
-<div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
-<button class="herr-item" onclick="cerrarHerramientas();abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
-<div class="herr-subhead">Documentos y fotos</div>
+<button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de antepasados</div><div class="herr-desc">Descarga un .ged solo con los antepasados de la persona activa (la de la barra "Viendo a")</div></div></button>
+<div class="herr-subhead">Fotos</div>
 <div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas). Puedes elegir importar todas o solo las que han cambiado</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
-<button class="herr-item herr-req-drive" id="herrBtnOlvidarCopiaLocal" style="display:none" onclick="cerrarHerramientas();desactivarCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpeta de copia</div><div class="herr-desc">Deja de usar esa carpeta. NO borra los archivos que ya se copiaron</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('FOTO')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: FOTO</div><div class="herr-desc" id="herrZipSeguridadEstadoFOTO">Copia de seguridad local en ZIP de FOTO: aún no configurada</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();accionZipSeguridadUI('DOCUMENTOS')"><div class="herr-icon"><i class="fa-solid fa-file-zipper"></i></div><div class="herr-text"><div class="herr-title">Copia de seguridad local en ZIP: DOCUMENTOS</div><div class="herr-desc" id="herrZipSeguridadEstadoDOCUMENTOS">Copia de seguridad local en ZIP de DOCUMENTOS: aún no configurada</div></div></button>
-<button class="herr-item" id="herrBtnOlvidarZipSeguridad" style="display:none" onclick="cerrarHerramientas();olvidarZipSeguridad()"><div class="herr-icon"><i class="fa-solid fa-link-slash"></i></div><div class="herr-text"><div class="herr-title">Olvidar carpetas del ZIP</div><div class="herr-desc">Deja de usar esas 3 carpetas (FOTO, DOCUMENTOS y destino). NO borra los archivos ZIP ya creados</div></div></button>
-<div class="herr-subhead">Copias de seguridad: Drive y disco local (solo administrador)</div>
+<div class="herr-subhead">Copias de seguridad</div>
 <button class="herr-item herr-req-drive" onclick="subirCopiaADrive()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Subir copia a Drive</div><div class="herr-desc">Copia blindada: sube un respaldo fechado a la carpeta protegida (fuera de FOTO/DOCUMENTOS), conservando las 5 últimas copias</div></div></button>
 <div id="subirCopiaProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
 <button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(false)"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Copia local de backup-arbol.json</div><div class="herr-desc">Guarda backup-arbol.json en una carpeta de este ordenador (sin pasar por Drive). Solo administrador</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
+<div class="herr-subhead">Avanzado</div>
 <button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(true)"><div class="herr-icon"><i class="fa-solid fa-folder-tree"></i></div><div class="herr-text"><div class="herr-title">Cambiar carpeta de la copia local</div><div class="herr-desc">Elige otra carpeta del disco para backup-arbol.json y guarda la copia ahora</div></div></button>
-<div class="herr-subhead">Exportación</div>
-<button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de antepasados</div><div class="herr-desc">Descarga un .ged solo con los antepasados de la persona activa (la de la barra "Viendo a")</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();abrirDiagnosticoMemoria()"><div class="herr-icon"><i class="fa-solid fa-memory"></i></div><div class="herr-text"><div class="herr-title">Diagnóstico de memoria</div><div class="herr-desc">Qué ocupa más en la pestaña (fotos y textos gigantes) cuando la app se queda sin memoria al hacer copias</div></div></button>
 </div>
 </div>
+</div>
+</div>
+<div id="modalEstimaciones" role="dialog" aria-modal="true" aria-labelledby="modalEstimacionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+<h2 id="modalEstimacionesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-calculator" aria-hidden="true" style="color:var(--accent)"></i> Estimaciones</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalEstimaciones()">×</button>
+</div>
+<button class="herr-item" id="btnCalcularAnosEstimados" onclick="recalcularAnosEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-rotate"></i></div><div class="herr-text"><div class="herr-title">Recalcular año calculado (ANOCALC)</div><div class="herr-desc">Vuelve a estimar el año (\u2248) de todas las personas sin año propio, con los datos actuales del árbol</div></div></button>
+<button class="herr-item" id="btnCalcularLugaresEstimados" onclick="recalcularLugaresEstimadosManual()"><div class="herr-icon"><i class="fa-solid fa-map-location-dot"></i></div><div class="herr-text"><div class="herr-title">Recalcular lugar estimado (LUGARCALC)</div><div class="herr-desc">Vuelve a estimar el lugar de nacimiento (\u2248) de todas las personas sin lugar propio, a partir del familiar real conocido más cercano (o España por defecto)</div></div></button>
+<div id="pbAnoCalc" style="display:none;margin:4px 0 10px"><div class="pb" style="margin:0;display:block"><div class="pf" id="pfAnoCalc"></div></div><div id="pfAnoCalcLabel" style="font-size:11px;color:var(--muted);margin-top:4px"></div></div>
+<button class="herr-item" onclick="abrirModalConfigANOCALC()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Configurar años estimados (ANOCALC)</div><div class="herr-desc">Ajusta las medias de edad usadas para estimar años, o vuelve al cálculo automático</div></div></button>
+</div>
+</div>
+<div id="modalAyuda" role="dialog" aria-modal="true" aria-labelledby="modalAyudaTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:82vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+<h2 id="modalAyudaTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-circle-question" aria-hidden="true" style="color:var(--accent)"></i> Ayuda y privacidad</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalAyuda()">×</button>
+</div>
+<button class="herr-item" onclick="window.open('https://meleiro2014-creator.github.io/arbol-genealogico/privacidad.html','_blank','noopener')"><div class="herr-icon"><i class="fa-solid fa-shield-halved"></i></div><div class="herr-text"><div class="herr-title">Política de privacidad</div><div class="herr-desc">Qué datos usa esta app y cómo se tratan</div></div></button>
+<button class="herr-item" onclick="cerrarModalAyuda();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Manual de usuario</div><div class="herr-desc">Consulta el manual y guárdalo como PDF desde el navegador</div></div></button>
+<button class="herr-item" onclick="cerrarModalAyuda();mostrarGuiaPrimerAccesoParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-door-open"></i></div><div class="herr-text"><div class="herr-title">Guía de primer acceso</div><div class="herr-desc">Cómo conecta por primera vez un familiar nuevo con Google Drive</div></div></button>
 </div>
 </div>
 <div id="modalNovedades" role="dialog" aria-modal="true" aria-labelledby="modalNovedadesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
@@ -17640,7 +17231,6 @@ var MODAL_CLOSERS={
 'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
 'modalDepuracionLUGARCALC':function(){if(typeof cerrarDepuracionLUGARCALC==='function')cerrarDepuracionLUGARCALC();},
 'modalUsuarios':function(){if(typeof cerrarGestionUsuarios==='function')cerrarGestionUsuarios();},
-'modalZipSeguridad':function(){if(typeof cerrarModalZipSeguridad==='function')cerrarModalZipSeguridad();},
 'modalConexiones':function(){if(typeof cerrarRegistroConexiones==='function')cerrarRegistroConexiones();},
 'modalPromptLimpiezaIA':function(){if(typeof cerrarPromptLimpiezaIA==='function')cerrarPromptLimpiezaIA();}
 };
@@ -17835,20 +17425,6 @@ window.addEventListener('appinstalled', function () {
 <div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="copiaLocalDriveCancelarBtn" onclick="cancelarCopiaLocalDrive()">Cancelar</button></div>
 </div>
 <div id="copiaLocalDriveResumen" style="display:none;overflow:auto"></div>
-</div>
-</div>
-<div id="modalZipSeguridad" role="dialog" aria-modal="true" aria-labelledby="zipSegTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-<h2 id="zipSegTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-file-zipper" aria-hidden="true" style="color:var(--accent)"></i> Copia de seguridad en ZIP</h2>
-<button class="ef-nbtn" id="zipSegCerrarBtn" aria-label="Cerrar" style="display:none" onclick="cerrarModalZipSeguridad()">×</button>
-</div>
-<div id="zipSegProgresoWrap" role="status" aria-live="polite">
-<div id="zipSegProgresoTexto" style="font-size:12px;color:var(--muted);margin-bottom:8px">Preparando...</div>
-<p style="font-size:11px;color:var(--muted);margin-top:10px">No cierres esta ventana ni recargues la página mientras se comprimen los archivos.</p>
-<div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="zipSegCancelarBtn" onclick="cancelarZipSeguridad()">Cancelar</button></div>
-</div>
-<div id="zipSegResumen" style="display:none;overflow:auto"></div>
 </div>
 </div>
 <div id="modalConexiones" role="dialog" aria-modal="true" aria-labelledby="modalConexionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
