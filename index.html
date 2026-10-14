@@ -1609,9 +1609,6 @@ return tipoUsuarioActual()==='administrador';
 function esColaborador(){
 return tipoUsuarioActual()==='colaborador';
 }
-function esAmigo(){
-return tipoUsuarioActual()==='amigo';
-}
 /* Gestor de datos: el administrador ve todas sus categorias; el colaborador solo las dos de
    escritura no homogenea (apellidos y lugares); el amigo (o quien no haya conectado) no accede. */
 function puedeUsarGestorDatos(){return esAdministrador()||esColaborador();}
@@ -2454,7 +2451,7 @@ if(typeof origFetch!=='function')return;
    duplicarla con esta. Lista explícita (en vez de un selector genérico por
    nombre) para no toparse con otros "*Wrap" del documento que no son
    barras de progreso, como el desplegable de más opciones del menú. */
-var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','copiaLocalDriveProgresoWrap','progresoAccionWrap'];
+var BARRAS_PROGRESO_NOMBRADAS=['driveOpProgresoWrap','subirCopiaProgresoWrap','progresoCrearPersonaWrap','camSyncProgresoWrap','impFotosProgresoWrap','progresoAccionWrap'];
 function otraBarraProgresoVisible(){
 for(var i=0;i<BARRAS_PROGRESO_NOMBRADAS.length;i++){
 var w=document.getElementById(BARRAS_PROGRESO_NOMBRADAS[i]);
@@ -2749,7 +2746,6 @@ async function guardarCambiosArbolCompleto(lista){var existente=await obtenerArc
 async function registrarCambiosDesdeSnapshots(antes,despues,tipo){if(esAdministrador())return 0;var usuario=usuarioActualParaCambios();var esAdmin=esAdministrador();var ahora=new Date().toISOString();var ma=mapaPersonas(Array.isArray(antes)?antes:Object.keys(antes||{}).map(function(k){return antes[k];})),mb=mapaPersonas(Array.isArray(despues)?despues:Object.keys(despues||{}).map(function(k){return despues[k];}));var ids={},registros=[];Object.keys(ma).forEach(function(id){ids[id]=1;});Object.keys(mb).forEach(function(id){ids[id]=1;});Object.keys(ids).forEach(function(id){var a=ma[id],b=mb[id],campos=camposDiferentes(a,b);if(!campos.length)return;var persona=b||a;var subtipo=(!a&&b)?'crear':(!b&&a)?'eliminar':tipo;var reg={id:crypto.randomUUID?crypto.randomUUID():('c-'+Date.now()+'-'+Math.random().toString(36).slice(2)),fecha:ahora,usuario:usuario,tipo:subtipo,personaId:id,personaNombre:nombrePersonaSnapshot(persona),campos:campos,descripcion:construirDescripcion(usuario,subtipo,persona,campos),estado:esAdmin?'conforme':CAMBIOS_ESTADO,actualizadoEn:ahora};if(esAdmin){reg.resueltoPor=usuario;reg.resueltoEn=ahora;}registros.push(reg);});if(!registros.length)return 0;try{var actuales=await refrescarCambiosDesdeDrive();await guardarCambiosArbolCompleto(actuales.concat(registros));}catch(err){toast('No se pudo guardar el cambio en Drive: '+err.message,true);return 0;}actualizarContadorCambios();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');return registros.length;}
 function actualizarContadorCambios(){listarCambios().then(function(arr){var n=arr.filter(function(c){return c.estado==='pendiente';}).length;var a=document.getElementById('cmdCambios'),b=document.getElementById('cambiosPendCount'),nb=document.getElementById('navCambiosBadge');if(a)a.textContent=n;b&& (b.textContent=n);if(nb){nb.textContent=n;nb.style.display=n?'inline-flex':'none';}}).catch(function(){});}
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
-async function confirmarCambio(id){try{var arr=await refrescarCambiosDesdeDrive();var c=arr.find(function(x){return x.id===id;});if(!c)return;c.estado='confirmado';c.actualizadoEn=new Date().toISOString();await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Cambio confirmado');}catch(err){toast('No se pudo confirmar el cambio: '+err.message,true);}}
 async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios del archivo cambios-arbol.json de Drive.')))return;try{var arr=await refrescarCambiosDesdeDrive();var i=arr.findIndex(function(x){return x.id===id;});if(i<0)return;arr.splice(i,1);await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro eliminado');}catch(err){toast('No se pudo eliminar el registro: '+err.message,true);}}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editSec={};sv('fic');}
 async function obtenerArchivoCambiosDrive(){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&orderBy='+encodeURIComponent('modifiedTime desc')+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
@@ -5253,7 +5249,6 @@ gen=next;
 }
 return{texto:(String(p.NOMBRE||'')+' '+partes.join(' ')).trim(),apellidos:partes.length,generaciones:generaciones};
 }
-function fnEncadenado(p){return fnEncadenadoInfo(p).texto;}
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
 function avatarHTML(p,mini){
@@ -5265,7 +5260,6 @@ return '<div class="'+cls+(al?'al':'de')+'">'+ini(p)+'</div>';
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
 separado por "|" (evita conflictos con comas en nombres de etiqueta). */
 function etiquetasArray(p){return String((p&&p.ETIQUETAS)||'').split(/[|;]/).map(function(s){return s.trim();}).filter(Boolean);}
-function etiquetasTexto(p){return etiquetasArray(p).join(', ');}
 function todasLasEtiquetas(){var set={};D.forEach(function(p){etiquetasArray(p).forEach(function(t){set[t]=(set[t]||0)+1;});});return set;}
 function actualizarDatalistEtiquetas(){
 var dl=document.getElementById('dlEtiquetasGlobal');
@@ -5337,17 +5331,6 @@ var act=await refrescarCambiosDesdeDrive();await guardarCambiosArbolCompleto(act
 if(typeof actualizarContadorCambios==='function')actualizarContadorCambios();
 toast(ops.length+' cambios pendientes creados. Aplícalos desde Cambios.');return true;}
 catch(e){toast('No se pudieron crear los cambios: '+e.message,true);return false;}}
-/* ===== FOTOS DUDOSAS: fichas con foto de personas nacidas antes de 1850 sin marcar como reconstruidas ===== */
-function abrirFotosDudosas(){var o=document.getElementById('dudOv');if(o)o.remove();o=document.createElement('div');o.id='dudOv';o.style.cssText='position:fixed;inset:0;z-index:9000;background:var(--bg);overflow:auto;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px))';
-var l=[];D.forEach(function(p){if(!p||!p.FOTO||p.FOTO_RECON||!puedeVerPersona(String(p.ID)))return;var y=famAnio(p);if(y!==null&&y<1850)l.push(p);});l.sort(function(a,b){return famAnio(a)-famAnio(b);});
-var h='<div style="max-width:900px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px">Fotos dudosas</h1><button class="ef-btn ghost" onclick="document.getElementById(\'dudOv\').remove()">Cerrar</button></div><p style="font-size:13px;color:var(--muted)">Fichas con foto de personas nacidas antes de 1850, cuando la fotografía casi no existía, que aún no están marcadas como «imagen reconstruida». Desmarca las que sean auténticas (por ejemplo, un retrato pintado de la propia persona).</p>';
-if(!l.length)h+='<p style="color:var(--green)">✓ No hay fotos dudosas sin marcar.</p>';
-else h+='<div style="margin-bottom:10px">'+famB('Marcar las seleccionadas como reconstruidas','dudMarcar()')+'</div><table style="width:100%;font-size:13px;border-collapse:collapse">'+l.slice(0,400).map(function(p){var id=String(p.ID);return '<tr style="border-top:1px solid var(--border)"><td style="padding:6px;width:30px"><input type="checkbox" class="dudCk" value="'+escAttr(id)+'" checked></td><td style="width:44px"><img src="'+escAttr(p.FOTO)+'" style="width:36px;height:36px;object-fit:cover;border-radius:6px"></td><td>'+esc(fn(p).trim())+' <span style="color:var(--muted)">'+esc(id)+'</span></td><td style="text-align:right;color:var(--muted)">'+famAnio(p)+'</td></tr>';}).join('')+'</table>'+(l.length>400?'<p style="font-size:12px;color:var(--muted)">Se muestran las 400 primeras; al terminar vuelve a abrir la pantalla para ver las siguientes.</p>':'');
-o.innerHTML=h+'</div>';document.body.appendChild(o);}
-async function dudMarcar(){var ids=Array.prototype.map.call(document.querySelectorAll('#dudOv .dudCk:checked'),function(c){return c.value;});if(!ids.length)return;if(!(await exigirIdentidadGoogle()))return;
-var antes=ids.map(function(i){return clonarPersona(PI[i]);});ids.forEach(function(i){PI[i].FOTO_RECON='1';});bIdx(D);
-try{await sPersonas(ids);registrarCambiosDesdeSnapshots(antes,ids.map(function(i){return PI[i];}),'editar');toast(ids.length+' fotos marcadas como reconstruidas');}catch(e){toast('Error al guardar: '+e.message,true);}
-abrirFotosDudosas();}
 function memMiga(p){try{localStorage.setItem('memProbe',JSON.stringify({paso:p,heap:memHeap()}));}catch(e){}}
 function memMigaFin(){try{localStorage.removeItem('memProbe');}catch(e){}}
 function memHeap(){var m=window.performance&&performance.memory;return m?m.usedJSHeapSize:0;}
@@ -5362,7 +5345,6 @@ h=memHeap();t=Date.now();paso('2 · duplicar todas las fichas (lo que hace cada 
 try{localStorage.removeItem('memProbe');}catch(e){}
 c.innerHTML='<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px"><tr><th style="text-align:left">Paso</th><th style="text-align:right">Tamaño</th><th style="text-align:right">Memoria</th><th></th></tr>'+r.join('')+'</table><p style="font-size:12px;color:var(--muted)">Heap actual: '+mb(memHeap())+'.</p>';}
 /* ===== DIAGNÓSTICO DE MEMORIA: qué ocupa más en la pestaña (fotos y campos de texto gigantes) ===== */
-function bajarBlobComoArchivo(blob,nombre){var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=nombre;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(u);},15000);}
 function abrirDiagnosticoMemoria(){var o=document.getElementById('memOv');if(o)o.remove();
 var n=0,cf=0,tf=0,gr=0,pc={},top=[];
 D.forEach(function(p){if(!p)return;n++;for(var k in p){var v=p[k];if(typeof v!=='string'||!v.length)continue;var L=v.length,c=pc[k]||(pc[k]={t:0,m:0});c.t+=L;if(L>c.m)c.m=L;if(k==='FOTO'){cf++;tf+=L;if(L>250000)gr++;}if(L>100000)top.push({id:String(p.ID),k:k,L:L});}});
@@ -5413,9 +5395,11 @@ catch(e){toast('No se pudo guardar el escudo: '+e.message,true);}}
 async function famEscudoMejorar(){var f=famPorId(FAM_ST.id);if(!f||!f.escudo||!f.escudo.fileId||!tokenDriveValido())return;var k=f.escudo.fileId+'|'+f.escudo.v,u=FAM_ESC_CACHE[k];
 try{if(!u){var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.escudo.fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});if(!r.ok)return;u=FAM_ESC_CACHE[k]=URL.createObjectURL(await r.blob());}
 var im=document.querySelector('#famMain img.famEsc');if(im&&im.dataset.fid===f.id)im.src=u;}catch(e){}}
-function famHEscudo(f){var e=f.escudo;return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Escudo</b><p style="font-size:12px;color:var(--muted);margin:4px 0 8px">'+(e?'Guardado en Drive (DATOS/ESCUDOS/'+esc(e.nombre)+')'+(e.credito?' · '+esc(e.credito):''):(f.imagen?'Usa una URL externa: guárdalo en Drive con «Guardar URL en Drive».':'Sin escudo.'))+'</p><div tabindex="0" style="border:2px dashed var(--border);border-radius:10px;padding:12px;text-align:center;font-size:13px" ondragover="event.preventDefault()" ondrop="famEscDrop(event,\''+f.id+'\')" onpaste="famEscPaste(event,\''+f.id+'\')">Suelta aquí una imagen, o haz clic y pega (Ctrl+V)</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><input type="file" id="famEscF" accept="image/*" style="display:none" onchange="famEscFile(this,\''+f.id+'\')">'+famB('Buscar escudo','famEscBuscar(\''+f.id+'\')')+famB('Elegir archivo','document.getElementById(\'famEscF\').click()','ghost')+(f.imagen&&!e?famB('Guardar URL en Drive','famEscDeUrl(\''+f.id+'\')','ghost'):'')+(e?famB('Quitar escudo','famEscQuitar(\''+f.id+'\')','ghost'):'')+'</div><div id="famEscRes"></div></div>';}
+function famHEscudo(f){var e=f.escudo;return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:12px"><b>Escudo</b><p style="font-size:12px;color:var(--muted);margin:4px 0 8px">'+(e?'Guardado en Drive (DATOS/ESCUDOS/'+esc(e.nombre)+')'+(e.credito?' · '+esc(e.credito):''):(f.imagen?'Usa una URL externa: guárdalo en Drive con «Guardar URL en Drive».':'Sin escudo.'))+'</p><div tabindex="0" onclick="famEscPegarClip(\''+f.id+'\')" style="cursor:pointer;border:2px dashed var(--border);border-radius:10px;padding:12px;text-align:center;font-size:13px" ondragover="event.preventDefault()" ondrop="famEscDrop(event,\''+f.id+'\')" onpaste="famEscPaste(event,\''+f.id+'\')">Suelta aquí una imagen, o haz clic aquí para pegar la que tengas copiada</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><input type="file" id="famEscF" accept="image/*" style="display:none" onchange="famEscFile(this,\''+f.id+'\')">'+famB('Buscar escudo','famEscBuscar(\''+f.id+'\')')+famB('Pegar imagen','famEscPegarClip(\''+f.id+'\')','ghost')+famB('Elegir archivo','document.getElementById(\'famEscF\').click()','ghost')+(f.imagen&&!e?famB('Guardar URL en Drive','famEscDeUrl(\''+f.id+'\')','ghost'):'')+(e?famB('Quitar escudo','famEscQuitar(\''+f.id+'\')','ghost'):'')+'</div><div id="famEscRes"></div></div>';}
 function famEscDrop(ev,id){ev.preventDefault();var fl=ev.dataTransfer&&ev.dataTransfer.files[0];if(fl)famEscudoGuardar(id,fl,{origen:'subida'});}
 function famEscPaste(ev,id){var it=ev.clipboardData&&Array.prototype.filter.call(ev.clipboardData.items,function(i){return i.type.indexOf('image/')===0;})[0];if(it){ev.preventDefault();famEscudoGuardar(id,it.getAsFile(),{origen:'pegado'});}}
+async function famEscPegarClip(id){try{if(!navigator.clipboard||!navigator.clipboard.read)throw new Error('sin api');var its=await navigator.clipboard.read();for(var i=0;i<its.length;i++){var t=its[i].types.filter(function(x){return x.indexOf('image/')===0;})[0];if(t){famEscudoGuardar(id,await its[i].getType(t),{origen:'pegado'});return;}}toast('No hay ninguna imagen en el portapapeles: cópiala primero (clic derecho → Copiar imagen)',true);}catch(e){toast('El navegador no deja leer el portapapeles. Pulsa Ctrl+V con esta pantalla abierta, o usa «Elegir archivo»',true);}}
+document.addEventListener('paste',function(ev){var ov=document.getElementById('famOv');if(!ov||FAM_ST.v!=='ficha'||!FAM_ST.id)return;var t=ev.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;famEscPaste(ev,FAM_ST.id);});
 function famEscFile(inp,id){if(inp.files[0])famEscudoGuardar(id,inp.files[0],{origen:'subida'});inp.value='';}
 async function famEscDeUrl(id){var f=famPorId(id);try{var r=await fetch(f.imagen);if(!r.ok)throw new Error('HTTP '+r.status);await famEscudoGuardar(id,await r.blob(),{origen:'url',fuente:f.imagen});}catch(e){toast('No se pudo descargar la URL (el sitio no lo permite): descarga el archivo y arrástralo aquí',true);}}
 async function famEscQuitar(id){var f=famPorId(id);if(!(await confirmarApp('¿Quitar el escudo de «'+f.nombre+'»? El archivo de Drive no se borra.')))return;if(await famCatGuardarFamilia(id,{escudo:null}))toast('Escudo quitado');famVista('ficha');}
@@ -5441,7 +5425,7 @@ famIndice();if(!FAM_CAT)await famCatCargar();
 if(famMigrar()&&esAdministrador())await famCatGuardar();
 famVista('lista');}
 function famVista(v,arg){FAM_ST.v=v;if(arg!==undefined)FAM_ST.id=arg;var m=document.getElementById('famMain');if(!m)return;
-try{m.innerHTML=({lista:famHLista,ficha:famHFicha,asis:famHAsis,cola:famHCola})[v]();}catch(e){m.innerHTML='<p style="color:#b3402f">Error: '+esc(e.message)+'</p>'+famB('Volver','famVista(\'lista\')');}
+try{m.innerHTML=({lista:famHLista,ficha:famHFicha,asis:famHAsis,cola:famHCola,sug:famHSug})[v]();}catch(e){m.innerHTML='<p style="color:#b3402f">Error: '+esc(e.message)+'</p>'+famB('Volver','famVista(\'lista\')');}
 if(v==='ficha')famEscudoMejorar();window.scrollTo(0,0);var ov=document.getElementById('famOv');if(ov)ov.scrollTop=0;}
 function famFiltro(){FAM_ST.q=document.getElementById('famQ').value;FAM_ST.tipo=document.getElementById('famTp').value;FAM_ST.orden=document.getElementById('famS').value;famVista('lista');}
 function famHLista(){var adm=esAdministrador(),q=famNorm(FAM_ST.q),tot=D.length,sin=FAM_IDX.sin.length;
@@ -5452,7 +5436,7 @@ var dups=Object.keys(g).filter(function(k){return g[k].length>1;});
 var h='<div style="font-size:13px;color:var(--muted);margin:4px 0 10px">'+FAM_CAT.familias.length+' familias · '+(tot-sin)+' de '+tot+' fichas con familia ('+(tot?Math.round((tot-sin)*100/tot):0)+'%) · <b>'+sin+'</b> sin etiquetar</div>';
 if(FAM_AVISO)h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(179,64,47,.12);color:#b3402f;font-size:13px;margin-bottom:8px">'+esc(FAM_AVISO)+'</div>';
 if(dups.length)h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(200,150,30,.15);font-size:13px;margin-bottom:8px">Posibles nombres duplicados: '+dups.map(function(k){return g[k].map(function(f){return '<a style="cursor:pointer;color:var(--accent)" onclick="famVista(\'ficha\',\''+f.id+'\')">'+esc(f.nombre)+'</a>';}).join(' ≈ ');}).join(' · ')+'. Ábrelos y usa «Fusionar» para unificarlos.</div>';
-h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input class="ef-input" id="famQ" placeholder="Buscar familia" value="'+escAttr(FAM_ST.q)+'" oninput="clearTimeout(window.__fq);window.__fq=setTimeout(famFiltro,250)" style="flex:1;min-width:140px"><select class="ef-input" id="famTp" onchange="famFiltro()" style="width:auto"><option value="">Todos los tipos</option><option value="casa"'+(FAM_ST.tipo==='casa'?' selected':'')+'>Casa</option><option value="familia"'+(FAM_ST.tipo==='familia'?' selected':'')+'>Familia</option><option value="linaje"'+(FAM_ST.tipo==='linaje'?' selected':'')+'>Linaje</option></select><select class="ef-input" id="famS" onchange="famFiltro()" style="width:auto"><option value="t">Más personas</option><option value="n"'+(FAM_ST.orden==='n'?' selected':'')+'>Nombre</option></select>'+famB('Sin etiquetar','famVista(\'cola\')','ghost')+(adm?famB('Nueva familia desde una persona','famAsisInit()')+famB('Revertir desde archivo','document.getElementById(\'famRev\').click()','ghost')+'<input type="file" id="famRev" accept=".json" style="display:none" onchange="famRevertir(this)">':'')+'</div>';
+h+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input class="ef-input" id="famQ" placeholder="Buscar familia" value="'+escAttr(FAM_ST.q)+'" oninput="clearTimeout(window.__fq);window.__fq=setTimeout(famFiltro,250)" style="flex:1;min-width:140px"><select class="ef-input" id="famTp" onchange="famFiltro()" style="width:auto"><option value="">Todos los tipos</option><option value="casa"'+(FAM_ST.tipo==='casa'?' selected':'')+'>Casa</option><option value="familia"'+(FAM_ST.tipo==='familia'?' selected':'')+'>Familia</option><option value="linaje"'+(FAM_ST.tipo==='linaje'?' selected':'')+'>Linaje</option></select><select class="ef-input" id="famS" onchange="famFiltro()" style="width:auto"><option value="t">Más personas</option><option value="n"'+(FAM_ST.orden==='n'?' selected':'')+'>Nombre</option></select>'+famB('Sugerencias de grupos','famVista(\'sug\')')+famB('Sin etiquetar','famVista(\'cola\')','ghost')+(adm?famB('Nueva familia desde una persona','famAsisInit()')+famB('Revertir desde archivo','document.getElementById(\'famRev\').click()','ghost')+'<input type="file" id="famRev" accept=".json" style="display:none" onchange="famRevertir(this)">':'')+'</div>';
 h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);font-size:14px"><tr style="color:var(--muted);font-size:12px;text-align:left"><th style="padding:8px">Familia</th><th>Tipo</th><th>Personas</th><th>H / M</th><th>Vivos / fallecidos</th></tr>';
 rows.forEach(function(r){var f=r.f,pv=r.t?Math.round(r.v*100/r.t):0;h+='<tr onclick="famVista(\'ficha\',\''+f.id+'\')" style="cursor:pointer;border-top:1px solid var(--border)"><td style="padding:8px;white-space:nowrap"><span style="display:inline-flex;width:32px;height:32px;border-radius:8px;background:'+((f.escudo&&f.escudo.mini)||f.imagen?'transparent':escAttr(f.color||'#888'))+';color:#fff;font-weight:700;font-size:12px;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;overflow:hidden">'+famEscudoHtml(f)+'</span>'+esc(f.nombre)+' <span style="color:var(--muted);font-size:11px">'+esc(f.id)+'</span></td><td>'+esc(f.tipo)+'</td><td>'+r.t+'</td><td>'+r.h+' / '+r.m+'</td><td style="white-space:nowrap"><span style="display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--dead);opacity:.55;vertical-align:middle;overflow:hidden"><i style="display:block;height:100%;width:'+pv+'%;background:var(--green)"></i></span> '+r.v+' / '+(r.t-r.v)+'</td></tr>';});
 return h+'</table></div>';}
@@ -5506,6 +5490,44 @@ h+=sug.slice(0,60).map(function(s){return '<div style="font-size:13px;padding:3p
 async function famColaAplicar(){var min=parseInt(document.getElementById('famCv').value,10),sel=(FAM_ST.sug||[]).filter(function(s){return s.v>=min;});
 var ops=sel.map(function(s){var a=PI[s.id].ETIQUETAS||'';return{id:String(s.id),antes:a,despues:famEtqAdd(a,s.tag),spec:{a:[s.tag]}};});
 await famAplicarOps(ops,'Etiquetar '+sel.length+' fichas por sugerencia (≥'+min+' votos)');}
+/* ===== SUGERENCIAS DE GRUPOS: bloques conectados alrededor de una persona (consanguíneos y cónyuges) entre las fichas sin etiquetar ===== */
+function famSugVotos(ids){var v={},set={},n=Math.min(ids.length,600);ids.forEach(function(i){set[i]=1;});for(var k=0;k<n;k++){var i=ids[k],p=PI[i];[p.PADRE,p.MADRE,p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].concat(FAM_HIJOS[i]||[]).forEach(function(q){if(q&&PI[q]&&!set[q])etiquetasArray(PI[q]).forEach(function(t){v[t]=(v[t]||0)+1;});});}var ks=Object.keys(v).sort(function(a,b){return v[b]-v[a];});return ks.length?{tag:ks[0],v:v[ks[0]],n:n}:null;}
+function famSugCalc(min,max){var sin={},ids=[],adj={};FAM_IDX.sin.forEach(function(i){if(PI[i]&&puedeVerPersona(i)){sin[i]=1;ids.push(i);adj[i]=[];}});
+function une(a,b){if(!b||a===b)return;b=String(b);if(!sin[b])return;if(adj[a].indexOf(b)<0)adj[a].push(b);if(adj[b].indexOf(a)<0)adj[b].push(a);}
+ids.forEach(function(i){var p=PI[i];[p.PADRE,p.MADRE,p.M1,p.M2,p.M3,p.M4,p.M5,p.M6].concat(FAM_HIJOS[i]||[]).forEach(function(q){une(i,q);});});
+ids.sort(function(a,b){return adj[b].length-adj[a].length;});
+var gid={},gr=[],frag=[];
+ids.forEach(function(sd){if(gid[sd]!==undefined)return;var q=[sd],m=[],h=0;gid[sd]=-2;
+while(h<q.length&&m.length<max){var x=q[h++];m.push(x);adj[x].forEach(function(y){if(gid[y]===undefined){gid[y]=-2;q.push(y);}});}
+q.slice(h).forEach(function(y){gid[y]=undefined;});
+if(m.length>=min){m.forEach(function(x){gid[x]=gr.length;});gr.push({ids:m,raiz:sd});}else{m.forEach(function(x){gid[x]=-1;});frag.push(m);}});
+frag.forEach(function(m){var c={},best=-1,bn=0;m.forEach(function(x){adj[x].forEach(function(y){var g=gid[y];if(g>=0){c[g]=(c[g]||0)+1;if(c[g]>bn){bn=c[g];best=g;}}});});if(best>=0&&gr[best].ids.length+m.length<=max*1.25){m.forEach(function(x){gid[x]=best;gr[best].ids.push(x);});}});
+gr.sort(function(a,b){return b.ids.length-a.ids.length;});
+var tot=0;gr.forEach(function(g){tot+=g.ids.length;});
+var res=gr.slice(0,60).map(function(g){var h=0,m=0,v=0,a=null,b=null,ap=[],lu=[];g.ids.forEach(function(i){var p=PI[i];if(p.SEXO==='Hombre')h++;else if(p.SEXO==='Mujer')m++;if(isAl(p))v++;var y=famAnio(p);if(y!==null){if(a===null||y<a)a=y;if(b===null||y>b)b=y;}ap.push(p.APELLIDO1);lu.push(String(p.LUGARNAC||'').split(',')[0].trim());});
+var vot=famSugVotos(g.ids),t=famTop(ap,1).replace(/\s*\(\d+\)$/,''),nom=(t&&t!=='—')?'Familia '+t:'';
+var ex=nom?FAM_CAT.familias.filter(function(f){return famBase(f.nombre)===famBase(nom);})[0]:null;
+var fuerte=vot&&vot.v>=Math.max(2,Math.round(vot.n*0.3));
+g.nombre=ex?ex.nombre:(fuerte?vot.tag:nom);g.h=h;g.m=m;g.v=v;g.a=a;g.b=b;g.ap=famTop(ap,3);g.lu=famTop(lu,3);g.vot=vot;g.existe=!!ex||!!fuerte;return g;});
+res.total=tot;res.ngr=gr.length;return res;}
+function famSugRecalc(){FAM_ST.smin=parseInt(document.getElementById('famSmin').value,10)||20;FAM_ST.smax=parseInt(document.getElementById('famSmax').value,10)||500;famVista('sug');}
+function famHSug(){var min=FAM_ST.smin||20,max=FAM_ST.smax||500,adm=esAdministrador();if(max<min)max=min;var sg=famSugCalc(min,max);FAM_ST.sg=sg;var sin=FAM_IDX.sin.length;
+var h='<p>'+famB('← Volver','famVista(\'lista\')','ghost')+'</p><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px"><b>Sugerencias de grupos para etiquetar</b><p style="font-size:13px;color:var(--muted);margin:4px 0 8px">Parte de una persona sin etiqueta con muchos parientes sin etiquetar y va sumando a su alrededor, círculo a círculo, padres, hijos y cónyuges, hasta llegar al máximo. Después empieza otro grupo con otra persona. Los trozos sueltos pequeños se unen al grupo vecino. El nombre propuesto es el apellido más repetido; si el grupo está unido a una familia que ya existe, se propone añadirlo a ella. Puedes cambiar cualquier nombre.</p>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><select id="famSmin" class="ef-input" style="width:auto" onchange="famSugRecalc()">'+[10,20,50,100].map(function(n){return '<option value="'+n+'"'+(n===min?' selected':'')+'>mínimo '+n+' personas</option>';}).join('')+'</select><select id="famSmax" class="ef-input" style="width:auto" onchange="famSugRecalc()">'+[100,300,500,1000,3000].map(function(n){return '<option value="'+n+'"'+(n===max?' selected':'')+'>máximo ~'+n+' personas</option>';}).join('')+'</select></div>';
+h+='<p style="font-size:13px"><b>'+sg.ngr+'</b> grupos cubren <b>'+sg.total+'</b> de las <b>'+sin+'</b> fichas sin etiquetar ('+(sin?Math.round(sg.total*100/sin):0)+'%).</p>';
+if(!sg.length)return h+'<p style="color:var(--muted)">No hay grupos con esos tamaños: baja el mínimo.</p></div>';
+if(adm)h+='<div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">'+famB('Generar cambios de los marcados','famSugAplicar()')+famB('Marcar todos','famSugMarcar(true)','ghost')+famB('Desmarcar todos','famSugMarcar(false)','ghost')+'</div>';
+h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">Se muestran los 60 mayores. Los cambios se crean como pendientes (y se descarga un archivo de reversión).</div>';
+sg.forEach(function(g,k){
+h+='<div style="border-top:1px solid var(--border);padding:8px 0;font-size:13px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+(adm?'<input type="checkbox" id="famSc'+k+'" checked>':'')+'<input id="famSn'+k+'" class="ef-input" style="flex:1;min-width:200px" value="'+escAttr(g.nombre)+'" placeholder="Nombre de la etiqueta"'+(adm?'':' disabled')+'><b>'+g.ids.length+' personas</b></div>'
++'<div style="color:var(--muted);margin-top:4px">'+g.h+' H / '+g.m+' M · '+g.v+' vivos · '+(g.a===null?'sin años':g.a+'–'+g.b)+' · Apellidos: '+esc(g.ap)+' · Lugares: '+esc(g.lu)+'</div>'
++'<div style="margin-top:2px">Persona central: '+famLinkP(g.raiz)+' · '+(g.existe?'<span style="color:var(--green)">Se añadirá a una familia ya existente</span>':'<span>Etiqueta nueva</span>')+(g.vot?' · <span style="color:var(--muted)">enlaces con «'+esc(g.vot.tag)+'»: '+g.vot.v+'</span>':'')+'</div></div>';});
+return h+(sg.ngr>60?'<p style="font-size:12px;color:var(--muted)">… y '+(sg.ngr-60)+' grupos más pequeños (se verán al etiquetar los primeros).</p>':'')+'</div>';}
+function famSugMarcar(v){for(var k=0;k<60;k++){var c=document.getElementById('famSc'+k);if(c)c.checked=v;}}
+async function famSugAplicar(){var sg=FAM_ST.sg||[],ops=[],sel=[];
+sg.forEach(function(g,k){var cb=document.getElementById('famSc'+k),nm=document.getElementById('famSn'+k);if(!cb||!cb.checked||!nm)return;var nom=nm.value.trim();if(!nom)return;sel.push([nom,g]);famOps(g.ids,function(t){return famEtqAdd(t,nom);},{a:[nom]}).forEach(function(o){ops.push(o);});});
+if(!sel.length){toast('No hay grupos marcados con nombre',true);return;}
+if(await famAplicarOps(ops,'Etiquetar '+sel.length+' grupos sugeridos ('+ops.length+' fichas)')){sel.forEach(function(x){if(!FAM_CAT.familias.some(function(f){return f.nombre===x[0];})){FAM_CAT.familias.push(famNuevaEntrada(x[0],null,{personaIds:[x[1].raiz],regla:FAM_REGLAS['1'],maxG:0}));}});await famCatGuardar();famVista('lista');}}
 function verFichasConEtiqueta(tag){
 sv('bus');
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
@@ -5706,7 +5728,6 @@ function mostrarHerramientas(){
 mostrarVersionEnHerramientas();
 document.getElementById('modalHerramientas').style.display='flex';
 refrescarGrupoAdminHerramientas();
-mostrarEstadoCopiaLocalDriveEnHerramientas();
 actualizarVisibilidadHerramientasDrive();
 }
 function actualizarVisibilidadHerramientasDrive(){
@@ -7261,18 +7282,6 @@ p.ANOCALC=nuevoValor;p.ANOCALC_MOTIVO=motivo;p.ANOCALC_DISTANCIA=nuevaDist;p.ANO
 bIdx(D);
 return cambios;
 }
-function recalcularAnosEstimados(guardarYActualizarUI){
-if(!D.length)return 0;
-var cambios=aplicarResultadoAnosEstimados(calcularAnosEstimados());
-if(guardarYActualizarUI!==false){
-sAll(D,{marcarANOCALCSucio:false}).then(function(){
-rStats();
-var siEl=document.getElementById('si');if(siEl)doSrch(siEl.value);
-if(cid)rFic(cid);
-}).catch(function(err){console.error('No se pudo guardar los años estimados:',err);});
-}
-return cambios;
-}
 function ejecutarFasesAnosEstimados(opciones){
 opciones=opciones||{};
 var onFase=opciones.onFase||function(){},onDone=opciones.onDone||function(){},onError=opciones.onError||function(){};
@@ -7620,45 +7629,6 @@ cont.innerHTML=h;
 modal.style.display='flex';
 }
 function cerrarDepuracionANOCALC(){var m=document.getElementById('modalDepuracionANOCALC');if(m)m.style.display='none';}
-function haySinCalcular(){
-for(var i=0;i<D.length;i++){
-if(getYear(D[i])===null)return true;
-}
-return false;
-}
-function mostrarOverlayCarga(texto){
-var cont=document.getElementById('cargaInicialInline');
-if(!cont)return;
-cont.style.display='block';
-var barra=document.getElementById('cargaInicialBarra');
-if(barra)barra.style.width='0%';
-var txt=document.getElementById('cargaInicialTexto');
-if(txt)txt.textContent=texto||'';
-}
-function actualizarOverlayCarga(pct,texto){
-var barra=document.getElementById('cargaInicialBarra'),txt=document.getElementById('cargaInicialTexto');
-if(barra)barra.style.width=pct+'%';
-if(txt&&texto)txt.textContent=texto;
-}
-function ocultarOverlayCarga(){
-var cont=document.getElementById('cargaInicialInline');
-if(cont)cont.style.display='none';
-}
-function recalcularAnosEstimadosConProgreso(callback){
-mostrarOverlayCarga('Comprobando años pendientes de estimar...');
-ejecutarFasesAnosEstimados({
-onFase:actualizarOverlayCarga,
-onDone:function(){
-ocultarOverlayCarga();
-if(callback)callback();
-},
-onError:function(err){
-ocultarOverlayCarga();
-console.error('No se pudo calcular los años estimados:',err);
-if(callback)callback();
-}
-});
-}
 var busFiltros={lugar:'',anioDesde:'',anioHasta:'',vivos:true,fallecidos:true,etiqueta:'',ids:[],obs:''};
 function alternarFiltrosBusqueda(){
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
@@ -7937,7 +7907,6 @@ function selP(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',
 function irAFicha(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
 function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escTA(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function genNewId(){var usados={};D.forEach(function(p){usados[String(p.ID)]=true;});var n=1;while(usados[String(n)])n++;return String(n);}
 /* ===== Huecos en la numeración de ID (nuevas personas) =====
 Cuando se crea una persona, en vez de asignar directamente el primer ID libre,
 se muestran los huecos disponibles en la numeración (los ID vacíos que quedan
@@ -8069,12 +8038,6 @@ mantiene el mismo nombre y la misma forma (Promise<string|null>) para no
 tener que tocar el resto de la aplicación. */
 function elegirIdNueva(){
 return reservarIdNuevo();
-}
-function confirmarElegirIdNueva(idHueco){
-var modal=document.getElementById('modalHuecoId');
-if(modal)modal.style.display='none';
-var r=_resolverElegirIdNueva;_resolverElegirIdNueva=null;
-if(r)r(idHueco);
 }
 function cancelarElegirIdNueva(){
 var modal=document.getElementById('modalHuecoId');
@@ -9952,10 +9915,6 @@ actual[campo]='';
 var camposPrevios=capturarCamposEdicionSiProcede(id);
 bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de '+etiqueta+' eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
-async function editarDescendiente(id){
-if(haySeccionEditando()&&!(await confirmarApp('Se perderán los cambios sin guardar en este formulario.')))return;
-cid=id;editSec={datos:true};rFic(id);
-}
 async function crearDescendiente(id,parejaId,btn){
 if(!iniciarOperacionFicha(btn,'Creando...'))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
@@ -10269,12 +10228,6 @@ return palabras.every(function(palabra){return texto.indexOf(palabra)>=0;});
    normalizado de antes (p.ej. p._buscable / p._buscableRapida, calculados
    una vez en bIdx()): se ahorra repetir normTxt() -- con su normalize('NFD')
    -- sobre el mismo texto en cada tecla pulsada. */
-function coincideBusquedaNormalizado(textoNormalizado,q){
-q=normTxt(q);
-if(!q)return true;
-var palabras=q.split(' ').filter(Boolean);
-return palabras.every(function(palabra){return textoNormalizado.indexOf(palabra)>=0;});
-}
 /* ===== INTEGRIDAD REFERENCIAL =====
    Ninguna comprobación de arriba (detectarInconsistencias, detectarDuplicados) puede ver
    estos dos casos: por diseño, cada una solo mira PADRE/MADRE/M1/M2 cuando PI[esa_id] SÍ
@@ -11613,35 +11566,6 @@ try{rGesLigero();}finally{cerrarBarraAccion();}
 }catch(errAnos){cerrarBarraAccion();toast('No se pudo calcular los años estimados: '+errAnos.message,true);}
 }
 /* Aplicar la unificacion de un grupo de lugares (siempre con confirmacion explicita) */
-async function gesAplicarLugar(clave,idxVariante){
-if(!(await exigirIdentidadGoogle()))return;
-var grupos=gesDetectarLugares();
-var g=null;
-grupos.some(function(x){if(gesGrupoKey(x)===clave){g=x;return true;}return false;});
-if(!g){rGesLigero();return;}
-var forma=(g.nivel==='A')?g.canonica:((g.variantes[idxVariante]||{}).txt);
-if(!forma)return;
-var ids={};
-g.variantes.forEach(function(v){v.personas.forEach(function(ref){ids[ref.id]=true;});});
-var nIds=Object.keys(ids).length;
-var aviso=(g.nivel==='A')
-?('¿Unificar '+nIds+' ficha(s) con la forma "'+forma+'"?')
-:('¿Reescribir '+nIds+' ficha(s) con la forma "'+forma+'"? Comprueba que todas las variantes son realmente el mismo lugar.');
-if(!(await confirmarApp(aviso)))return;
-mostrarProgresoAccion('Unificando los lugares en '+nIds+' ficha(s)...');
-try{
-await cederPantalla();
-var antes=mapaPersonas(D);
-g.variantes.forEach(function(v){
-v.personas.forEach(function(ref){
-var p=PI[ref.id];
-if(p)p[ref.campo]=forma;
-});
-});
-await gesGuardarYRefrescar(antes,'editar','Lugares unificados: '+nIds+' ficha(s) ahora usan "'+forma+'"');
-}catch(err){toast('No se pudo guardar: '+err.message,true);}
-finally{ocultarProgresoAccion();}
-}
 /* Unificar de una sola vez todos los grupos de Nivel A (solo mayúsculas/tildes/puntuación:
 unificación segura, sin ambigüedad sobre si son o no el mismo lugar), con vista previa y una
 única confirmación en vez de tener que confirmar grupo a grupo. */
@@ -13081,15 +13005,6 @@ function motivoAnioInforme(p){
 if(esAnioEstimado(p)&&p.ANOCALC_MOTIVO)return p.ANOCALC_MOTIVO;
 return'';
 }
-function datosPersonaTexto(p){
-var partes=[];
-var yrPropio=getYearReal(p);
-var nac=fechaCorta(p,'NAC')||(yrPropio!==null?String(yrPropio):(p.ANOCALC?'\u2248'+p.ANOCALC:''));
-if(nac)partes.push('n. '+nac+(p.LUGARNAC?' en '+p.LUGARNAC:''));
-if(!isAl(p)){var def=fechaCorta(p,'DEF');if(def||p.LUGARDEF)partes.push('f. '+(def||'')+(p.LUGARDEF?' en '+p.LUGARDEF:''));}
-else partes.push('vivo');
-return partes.join(' · ');
-}
 function pdAnioTexto(p){var yr=getYearReal(p);if(yr!==null)return String(yr);if(p.ANOCALC)return'\u2248'+p.ANOCALC;return'';}
 function pdCardHTML(p,esposo,sosa){
 if(!p)return'';
@@ -13922,90 +13837,6 @@ return[
 {titulo:'Sin foto',personas:D.filter(function(p){return !p.FOTO;})}
 ];
 }
-function construirHTMLInformeDatosFaltantes(){
-if(!D.length){toast('No hay datos cargados',true);return null;}
-var cats=datosFaltantesCategorias();
-var MOSTRAR=300;
-var html='<div class="print-report"><h1>Informe de datos faltantes</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+D.length+' personas en total</div>';
-cats.forEach(function(c){
-html+='<div class="print-gen-title">'+esc(c.titulo)+' ('+c.personas.length+')</div>';
-if(!c.personas.length){html+='<div class="print-node" style="border:0;padding-left:0">Ninguna — enhorabuena.</div>';return;}
-var lista=c.personas.slice().sort(function(a,b){return sn(a).localeCompare(sn(b));});
-lista.slice(0,MOSTRAR).forEach(function(pp){
-html+='<div class="print-node"><span class="pn-name">'+esc(fn(pp))+'</span> <span class="pn-meta">(ID '+esc(pp.ID)+')</span>'+(c.mostrarAnio&&pp.ANOCALC?' <span class="pn-meta">— año estimado \u2248 '+esc(pp.ANOCALC)+'</span>':'')+'</div>';
-});
-if(lista.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(lista.length-MOSTRAR)+' más</span></div>';
-});
-html+='</div>';
-return html;
-}
-function descargarInformeDatosFaltantes(){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeDatosFaltantes();
-if(html===null)return;
-document.getElementById('printArea').innerHTML=html;
-setTimeout(function(){window.print();},80);
-}
-function descargarInformeDatosFaltantesPDF(ev){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeDatosFaltantes();
-if(html===null)return;
-generarDescargarPDF(html,'datos-faltantes',{boton:ev&&ev.currentTarget});
-}
-function construirHTMLInformeInconsistencias(){
-if(!D.length){toast('No hay datos cargados',true);return null;}
-var problemas=detectarInconsistencias();
-var html='<div class="print-report"><h1>Informe de inconsistencias</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+problemas.length+' inconsistencia(s)</div>';
-if(!problemas.length)html+='<p style="font-size:12px;color:var(--muted)">No se detectaron inconsistencias.</p>';
-else problemas.forEach(function(pr){
-html+='<div class="print-node"><span class="pn-name">'+esc(pr.etiqueta)+'</span><br><span class="pn-meta">'+pr.mensaje+'</span></div>';
-});
-html+='</div>';
-return html;
-}
-function descargarInformeInconsistencias(){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeInconsistencias();
-if(html===null)return;
-document.getElementById('printArea').innerHTML=html;
-setTimeout(function(){window.print();},80);
-}
-function descargarInformeInconsistenciasPDF(ev){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeInconsistencias();
-if(html===null)return;
-generarDescargarPDF(html,'inconsistencias',{boton:ev&&ev.currentTarget});
-}
-function construirHTMLInformeDuplicados(){
-if(!D.length){toast('No hay datos cargados',true);return null;}
-var todos=detectarDuplicados();
-var pares=todos.filter(function(p){return !DUP_IGNORADOS[p.a.ID+'|'+p.b.ID];});
-var MOSTRAR=200;
-var html='<div class="print-report"><h1>Informe de posibles duplicados</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+pares.length+' pareja(s) candidata(s)</div>';
-if(!pares.length)html+='<p style="font-size:12px;color:var(--muted)">No hay duplicados pendientes de revisar.</p>';
-else{
-pares.slice(0,MOSTRAR).forEach(function(pr){
-var nivel=pr.score>=90?'Muy probable':(pr.score>=65?'Posible':'Baja confianza');
-html+='<div class="print-node"><span class="pn-name">'+esc(nivel)+' · '+pr.score+' pts — '+esc(fn(pr.a))+' (ID '+esc(pr.a.ID)+') vs '+esc(fn(pr.b))+' (ID '+esc(pr.b.ID)+')</span><br><span class="pn-meta">'+esc(pr.motivos.join(' · '))+'</span></div>';
-});
-if(pares.length>MOSTRAR)html+='<div class="print-node" style="border:0"><span class="pn-meta">... y '+(pares.length-MOSTRAR)+' pareja(s) más. Revisa todas en el Gestor de datos.</span></div>';
-}
-html+='</div>';
-return html;
-}
-function descargarInformeDuplicados(){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeDuplicados();
-if(html===null)return;
-document.getElementById('printArea').innerHTML=html;
-setTimeout(function(){window.print();},80);
-}
-function descargarInformeDuplicadosPDF(ev){
-if(!esAdministrador()){toast('Este informe recorre toda la base sin filtrar por perfil; es exclusivo del administrador',true);return;}
-var html=construirHTMLInformeDuplicados();
-if(html===null)return;
-generarDescargarPDF(html,'duplicados',{boton:ev&&ev.currentTarget});
-}
 /* ===== MANUAL DE USUARIO HTML IMPRIMIBLE (punto 22) =====
    Usa el mecanismo de impresión existente (#printArea + window.print()).
    NO usa jsPDF. El contenido refleja las decisiones de los puntos 17, 18, 20.
@@ -14047,7 +13878,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
 {titulo:'Configurar la carpeta de Google Drive',soloAdmin:true,html:'<p>Google Drive es el almacen compartido de fotos, documentos, copias de seguridad y registro de cambios. Ya viene configurada por defecto para toda la familia; solo hace falta tocarla si algun dia cambias de carpeta. Para ello, ve a Herramientas → «Carpeta raiz compartida (avanzado)» y pega el enlace o el identificador de la nueva carpeta raiz que contiene (o contendra) las subcarpetas FOTO y DOCUMENTOS.</p><p>Esta configuracion determina que carpeta usa toda la familia, por lo que es exclusiva del administrador: un colaborador que la cambiara por error descuadraria la carpeta compartida para todos.</p><p>Una vez configurada, la aplicacion crea automaticamente las subcarpetas FOTO y DOCUMENTOS (y, dentro de esta ultima, una subcarpeta por cada persona) en cuanto hacen falta, sin que sea necesario prepararlas a mano de antemano.</p>'},
 {titulo:'Copias de seguridad',soloAdmin:false,html:'<p>Antes de hacer cambios importantes, es buena costumbre asegurarte de que existe una copia de seguridad reciente. En la pantalla principal hay un botón para restaurar el árbol oficial; las funciones de copia avanzada siguen en Herramientas:</p><ul><li><strong>Guardar copia</strong> (solo administrador): descarga un archivo con todos los datos sin filtrar y las fotografias incrustadas. No requiere Google. Es exclusiva del administrador porque, a diferencia del resto de la aplicacion, no aplica ningun filtro de privacidad por tipo de usuario.</li><li><strong>Restaurar árbol oficial</strong> (cualquier usuario): está disponible directamente debajo de la conexión con Google Drive en la pantalla principal; descarga la última copia que exista en la carpeta compartida de Drive y la carga en la aplicación. Requiere identidad de Google conectada. Restaura solo los datos, nunca las fotos: para traer las fotos hay un icono aparte («Importar fotos»), justo al lado, con su propia barra de progreso.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse quien tenga claro que quiere reemplazar por completo el arbol local.</div>'},
-{titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Configurar y actualizar la copia local de fotografias y documentos</strong>: elige una carpeta del disco duro y copia alli, tal cual, todo el contenido actual de las carpetas FOTO y DOCUMENTOS de Drive (respetando su estructura de subcarpetas), como salvaguarda adicional independiente de Google. Es una copia de solo lectura hacia el disco: nunca sube nada de vuelta a Drive ni borra archivos locales por su cuenta.</li><li><strong>Copia de seguridad local en ZIP</strong>: a diferencia de la anterior, esta es local a local, sin pasar por Drive. Se eligen tres carpetas del disco duro (por ejemplo, la carpeta FOTO y la carpeta DOCUMENTOS ya copiadas localmente, y una carpeta de destino como "SEGURIDAD GENEALOGIA"), y cada vez que se pulsa "Actualizar ahora" se generan dos archivos ZIP nuevos, con la fecha y la hora en el nombre, uno con el contenido de FOTO y otro con el de DOCUMENTOS, guardados en la carpeta de destino. No sustituye ni borra los ZIP anteriores.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
+{titulo:'Copias avanzadas del administrador',soloAdmin:true,html:'<p>Ademas de las copias que puede hacer cualquier usuario, el administrador dispone de mecanismos adicionales de respaldo automatico:</p><ul><li><strong>Subir copia a Drive (copia blindada)</strong>: sube a la carpeta protegida (separada de FOTO y DOCUMENTOS) una copia fechada del arbol completo, conservando siempre las 5 copias historicas mas recientes. Si la subida falla, no se borra ninguna copia existente.</li><li><strong>Copia de seguridad local en ZIP</strong>: es local a local, sin pasar por Drive. Se eligen tres carpetas del disco duro (por ejemplo, la carpeta FOTO y la carpeta DOCUMENTOS de tu disco duro, y una carpeta de destino como "SEGURIDAD GENEALOGIA"), y cada vez que se pulsa "Actualizar ahora" se generan dos archivos ZIP nuevos, con la fecha y la hora en el nombre, uno con el contenido de FOTO y otro con el de DOCUMENTOS, guardados en la carpeta de destino. No sustituye ni borra los ZIP anteriores.</li></ul><p>Los documentos nativos de Google (Google Docs, Sheets o Slides, si los hubiera) no se pueden copiar en este formato binario y se listan aparte en el resumen final, como «no soportados».</p>'},
 {titulo:'Importar CSV desde Access',soloAdmin:true,html:'<p>La carga y actualizacion masiva de toda la base de datos se hace importando un archivo CSV, exclusivamente por el administrador, desde Herramientas → «Importar CSV».</p><p>El formato esperado tiene siempre <strong>28 columnas</strong>, sin fila de cabecera, separadas por punto y coma, en codificacion Windows-1252 (ANSI), tal y como las exporta el programa Access de referencia: las 26 columnas originales mas ANOCALC y ANOCALC_MOTIVO al final. La columna APROX (columna 2) se conserva por compatibilidad estructural, pero <strong>se ignora por completo</strong> al importar: no se incorpora a la base de datos.</p><p>Al terminar la importacion, la aplicacion informa de cuantas personas se cargaron, cuantas filas se omitieron por datos incompletos, si hubo identificadores duplicados (se conserva el ultimo registro con ese ID) y si quedo alguna referencia de padre o madre sin coincidencia dentro del propio archivo.</p>'},
 {titulo:'Exportar GEDCOM y CSV para Access',soloAdmin:true,html:'<p>Desde Herramientas, el administrador puede exportar toda la base de datos en dos formatos:</p><ul><li><strong>Exportar GEDCOM</strong>: genera un archivo .ged estandar, compatible con la mayoria de programas de genealogia externos, con individuos, familias, fechas y notas.</li><li><strong>Exportar CSV (Access)</strong>: genera un CSV con las mismas 28 columnas del formato de importacion (Windows-1252, separador «;», sin cabecera), listo para volver a cargarse en el programa Access de referencia tras actualizar su especificacion de importacion a 28 columnas.</li></ul><p>En la exportacion CSV, cualquier caracter que no tenga representacion exacta en la codificacion Windows-1252 se sustituye por un signo de interrogacion, y la aplicacion avisa si esto ha ocurrido.</p>'},
 {titulo:'Limpiar cache e instalar como aplicacion',soloAdmin:false,html:'<p><strong>Limpiar cache</strong> (en Herramientas, disponible para cualquier usuario con identidad de Google conectada) elimina todos los datos guardados en el navegador de este dispositivo. No borra ninguna copia que ya exista en Drive ni en el disco duro; sirve para partir de cero en un dispositivo y volver a cargar los datos importando un CSV o restaurando una copia.</p><div class="manual-warn">Esta accion no se puede deshacer. Asegurate de tener una copia reciente antes de usarla.</div><p>La aplicacion tambien puede <strong>instalarse como una app independiente</strong> en ordenadores y moviles compatibles (tecnologia PWA): si el navegador lo permite, aparece el boton «Instalar aplicacion» en Herramientas, que anade un icono propio para abrirla directamente, sin pasar por el navegador.</p>'},
@@ -14146,7 +13977,7 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>En la pantalla principal, justo debajo de «Conectado a Google Drive», pulsa «Restaurar árbol oficial».</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
 {titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
 {titulo:'Los tres perfiles: Administrador, Colaborador y Amigo',html:'<p>Cada persona autorizada para conectarse con Google tiene asignado uno de estos tres perfiles, que decide el administrador. Saber cual es el tuyo te dice que puedes ver y que puedes hacer dentro de la aplicacion:</p><ul><li><strong>Administrador</strong> — un unico correo fijo para todo el arbol. Ve y edita todo sin restriccion, decide quien tiene acceso y con que perfil, revisa y da la conformidad a los cambios de los demas, y es el unico que puede importar o exportar la base de datos completa, configurar la carpeta de Drive compartida o guardar una copia completa sin filtrar.</li><li><strong>Colaborador</strong> — el perfil habitual de la familia directa. Ve a todas las personas fallecidas del arbol, mas a todas las personas vivas del arbol principal de la familia y de las ramas de «Amigo» que el mismo haya vinculado a su propia ficha (las personas vivas de ramas traidas por otros colaboradores quedan ocultas). Puede editar fichas, crear personas nuevas, subir fotos y documentos, y vincular a su propia ficha a las personas de tipo «Amigo» que traiga. Sus cambios se aplican al momento y quedan firmados con su identidad real; ademas quedan anotados en el registro de cambios para que el administrador les de su conformidad, como constancia de que se han revisado. Desde Herramientas puede abrir tambien el Gestor de datos, pero solo con las dos categorias de escritura no homogenea (apellidos y lugares); el resto del Gestor es exclusivo del administrador.</li><li><strong>Amigo</strong> — el perfil pensado para alguien allegado a la familia que no es de la rama de sangre. Ve a todas las personas fallecidas del arbol, mas a todas las personas — vivas o fallecidas — de su propia rama completa (la familia conectada por parentesco de sangre o matrimonio a su propia ficha); el resto de personas vivas del arbol queda oculto. Puede editar fichas dentro de lo que ve, igual que un colaborador, y sus cambios tambien quedan firmados con su cuenta real, pero no gestiona el acceso de otros usuarios, no vincula nuevas personas de tipo «Amigo» a otras fichas, y no ve ninguna de las herramientas exclusivas del administrador.</li></ul><div class="manual-tip">Da igual el perfil que tengas: cualquier cambio que hagas siempre queda firmado con tu cuenta real de Google, nunca de forma anonima.</div><div class="manual-tip">Si conectas tu cuenta y una persona viva aparece como «Persona no visible» en una ficha, en el arbol o en una busqueda, es exactamente este limite de perfil funcionando como debe: esa persona esta fuera del alcance que te corresponde.</div><p>Este limite se aplica de forma consistente en toda la aplicacion: Buscar, la Ficha, el Arbol grafico, Cronologia, Relacion entre dos personas, Informes (incluidos los PDF descargables) y el buscador de Documentos.</p><div class="manual-warn">Excepcion pendiente de revisar: los posteres ascendentes A3 en SVG (vease «Posters ascendentes A3 para enmarcar») todavia no aplican este filtro persona por persona; evita generarlos si la rama ascendente incluye a alguien fuera de tu alcance.</div>'},
-{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal (solo datos, nunca fotos).</li><li><strong>Fotos:</strong> importar fotos desde Drive tiene su propio icono en la pantalla principal, junto al del árbol; importar desde una carpeta local sigue siendo exclusivo del administrador, dentro de Herramientas.</li><li><strong>Investigacion:</strong> visible en cuanto hay identidad de Google conectada.</li><li><strong>Datos (solo colaborador):</strong> Gestor de datos, limitado a las categorias «Apellidos con escritura no homogenea» y «Lugares con escritura no homogenea».</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, registro de conexiones de los colaboradores, guardar copia completa sin filtrar, el Gestor de datos con todas sus categorias (el colaborador solo ve en el las de apellidos y lugares con escritura no homogenea), importar CSV, configurar anos estimados, copia local de fotos y documentos, copia de seguridad local en ZIP, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
+{titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal (solo datos, nunca fotos).</li><li><strong>Fotos:</strong> importar fotos desde Drive tiene su propio icono en la pantalla principal, junto al del árbol; importar desde una carpeta local sigue siendo exclusivo del administrador, dentro de Herramientas.</li><li><strong>Investigacion:</strong> visible en cuanto hay identidad de Google conectada.</li><li><strong>Datos (solo colaborador):</strong> Gestor de datos, limitado a las categorias «Apellidos con escritura no homogenea» y «Lugares con escritura no homogenea».</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, registro de conexiones de los colaboradores, guardar copia completa sin filtrar, el Gestor de datos con todas sus categorias (el colaborador solo ve en el las de apellidos y lugares con escritura no homogenea), importar CSV, configurar anos estimados, copia de seguridad local en ZIP, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
 {titulo:'Copias de seguridad: Guardar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay dos funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Requiere identidad de Google conectada. Restaura solo los datos; las fotos se traen aparte con el icono «Importar fotos» de la pantalla principal, con su propia barra de progreso.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
 {titulo:'Instalar la aplicacion (sobre todo en el movil)',html:'<p>La app funciona directamente desde el navegador, sin necesidad de instalarla, pero tambien se puede anadir como si fuera un programa independiente: con icono propio y abriendose a pantalla completa, sin la barra del navegador. Es especialmente recomendable en el movil.</p><p><strong>En un movil Android (Chrome):</strong></p><ul><li>Abre el enlace de la app y accede con tu cuenta de Google como en los pasos anteriores.</li><li>Toca el icono de la caja de herramientas y busca «Instalar aplicacion» (solo aparece si el navegador lo permite en ese momento).</li><li>Si no aparece esa opcion, toca el menu de tres puntos de Chrome, arriba a la derecha, y elige «Instalar aplicacion» o «Anadir a pantalla de inicio».</li></ul><p><strong>En un iPhone o iPad (Safari):</strong></p><ul><li>Abre el enlace de la app en Safari — en iPhone, la instalacion solo funciona desde Safari, no desde Chrome.</li><li>Toca el icono de compartir (el cuadrado con una flecha hacia arriba), en la parte inferior de la pantalla.</li><li>Baja hasta «Anadir a pantalla de inicio» y tocalo, luego confirma con «Anadir».</li></ul><p><strong>En un ordenador (Chrome o Edge):</strong> en la barra de direcciones suele aparecer un icono de instalacion; si no aparece, usa Herramientas → «Instalar aplicacion».</p><div class="manual-tip">Este paso es opcional: la app funciona igual de bien abierta desde el navegador. La ventaja de instalarla es tener un acceso mas rapido, sobre todo en el movil.</div>'},
@@ -14371,13 +14202,6 @@ var CSV_EXPORT_HDR=[
   'M1','MF1','ML1','M2','MF2','ML2','FALLECIDO',
   'ANOCALC','ANOCALC_MOTIVO'
 ];
-function csvCampo(v){
-  var s=(v===null||v===undefined)?'':String(v);
-  if(s.indexOf(';')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0||s.indexOf('\r')>=0){
-    return '"'+s.replace(/"/g,'""')+'"';
-  }
-  return s;
-}
 /* Tabla de caracteres Unicode cuyo byte Windows-1252 cae en la zona 0x80-0x9F,
    donde Windows-1252 NO coincide con Unicode. Resuelve la debilidad técnica
    señalada en la valoración (€, comillas tipográficas, guiones largos, etc.)
@@ -14390,48 +14214,6 @@ var WIN1252_ESPECIALES={
   '\u02DC':0x98,'\u2122':0x99,'\u0161':0x9A,'\u203A':0x9B,'\u0153':0x9C,
   '\u017E':0x9E,'\u0178':0x9F
 };
-function stringAWindows1252(str){
-  var huboSustitucion=false;
-  var bytes=new Uint8Array(str.length);
-  for(var i=0;i<str.length;i++){
-    var code=str.charCodeAt(i);
-    var ch=str.charAt(i);
-    if(WIN1252_ESPECIALES[ch]!==undefined){
-      bytes[i]=WIN1252_ESPECIALES[ch];
-    }else if(code<0x80){
-      bytes[i]=code; /* ASCII: idéntico en Windows-1252 */
-    }else if(code>=0xA0&&code<=0xFF){
-      bytes[i]=code; /* suplemento Latin-1: coincide con Windows-1252 (áéíóú ñ ü ¿ ¡) */
-    }else{
-      bytes[i]=0x3F; /* '?' para controles C1 (0x80-0x9F) o caracteres sin equivalente */
-      huboSustitucion=true;
-    }
-  }
-  return {bytes:bytes,huboSustitucion:huboSustitucion};
-}
-async function exportarCSVAccess(){
-  if(!await exigirIdentidadGoogle()) return;
-  if(!esAdministrador()){
-    toast('Solo el administrador puede exportar el CSV para Access',true);
-    return;
-  }
-  if(!D.length){ toast('No hay datos para exportar',true); return; }
-  var lineas=D.map(function(p){
-    return CSV_EXPORT_HDR.map(function(campo){return csvCampo(p[campo]);}).join(';');
-  });
-  var contenido=lineas.join('\r\n')+'\r\n';
-  var codificado=stringAWindows1252(contenido);
-  var blob=new Blob([codificado.bytes],{type:'text/csv;charset=windows-1252'});
-  var fecha=new Date().toISOString().slice(0,10);
-  var url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download='libro-ancestros-'+fecha+'.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast('CSV de 28 columnas descargado: '+D.length+' personas');
-  if(codificado.huboSustitucion){
-    toast('Algún carácter no representable en Windows-1252 fue sustituido por "?".',true);
-  }
-}
 /* ===== TAREA: SEPARAR DATOS Y FOTOS EN DOS ARCHIVOS DE BACKUP =====
    El campo FOTO (dataURL en base64) es lo que hace crecer el backup sin control.
    A partir de ahora se separa siempre en dos archivos, de forma transparente para
@@ -14449,7 +14231,6 @@ function reemplazoCopia(k,v){if(k==='FOTO'||k==='FOTO_FECHA'||(k.length&&k.charA
 async function blobDatosCopia(personas,alProgreso){var cab=JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString()}),partes=[cab.slice(0,-1)+',"personas":['],N=1000;
 for(var i=0;i<personas.length;i+=N){var s=JSON.stringify(personas.slice(i,i+N),reemplazoCopia);partes.push((i?',':'')+s.slice(1,-1));if(alProgreso)alProgreso(i,personas.length);await new Promise(function(r){setTimeout(r,0);});}
 partes.push(']}');return new Blob(partes,{type:'application/json'});}
-function jsonDatosCopia(personas){return JSON.stringify({formato:'Libro de los Ancestros',version:1,fecha:new Date().toISOString(),personas:personas},function(k,v){if(k==='FOTO'||k==='FOTO_FECHA'||(k.length&&k.charAt(0)==='_'))return undefined;return v;});}
 /* Sube un Blob sin concatenarlo en un multipart de texto: crea el archivo vacío (si no existe) y lo rellena
    con PATCH. Si falla la subida de un archivo recién creado, lo manda a la papelera para no dejar uno vacío. */
 async function subirArchivoDriveBlob(nombre,blob,mime,folderId,fileId){var nuevo=false;if(!fileId){fileId=await crearArchivoDriveVacio(nombre,mime,folderId);nuevo=true;}
@@ -14641,13 +14422,6 @@ return (d.files&&d.files.length)?d.files[0]:null;
 }
 /* Gemela de buscarArchivoBackupDrive() pero para el archivo de fotos (backup-fotos.json).
    Este archivo nunca tiene copias históricas fechadas: solo existe como alias "actual". */
-async function buscarArchivoBackupFotosDrive(){
-var folderId=await obtenerCarpetaArbolOficialId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+DRIVE_BACKUP_FOTOS_FILENAME+"' and trashed=false";
-var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-var d=await r.json();
-return (d.files&&d.files.length)?d.files[0]:null;
-}
 /* Pinta, junto al botón "Restaurar árbol oficial" de la pantalla principal, la
    fecha real de la última publicación oficial (modifiedTime que ya devuelve
    Drive en buscarArchivoBackupDrive). Falla en silencio si no hay conexión:
@@ -14811,414 +14585,6 @@ if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se 
 }catch(err){toast('No se pudo subir la copia a Drive: '+err.message,true);}
 finally{memMigaFin();subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
 }
-/* ========== TAREA 6: COPIA LOCAL DE FOTOGRAFÍAS Y DOCUMENTOS ========== */
-/* ---------- Claves de configuración (CFG) ---------- */
-var CFG_ESPEJO_HANDLE = 'copiaLocalDriveDirHandle';
-var CFG_ESPEJO_ULTIMA_FECHA = 'copiaLocalDriveUltimaFecha';
-var CFG_ESPEJO_ULTIMO_RESUMEN = 'copiaLocalDriveUltimoResumen';
-
-/* Concurrencia conservadora para no lanzar cientos de descargas a la vez */
-var COPIA_LOCAL_DRIVE_CONCURRENCIA = 3;
-
-var copiaLocalDriveEnCurso = false;
-var copiaLocalDriveCancelar = false;
-
-/* ---------- Sanitización de nombres (protección contra traversal) ----------
-   Cada segmento se limpia de forma independiente: nunca se admite '..', '.',
-   separadores de ruta, ni nombres vacíos. Esto asegura que la escritura
-   siempre queda dentro de la carpeta local elegida por el usuario. */
-function copiaLocalDriveSanearSegmento(nombre) {
-  var s = String(nombre || '').trim();
-  // quitar separadores de ruta y caracteres no válidos en Windows/Mac/Linux
-  s = s.replace(/[\/\\:*?"<>|]/g, '_');
-  s = s.replace(/\u0000/g, '');
-  s = s.trim();
-  if (s === '' || s === '.' || s === '..') s = '_';
-  // límite razonable de longitud por segmento
-  if (s.length > 150) s = s.slice(0, 150);
-  return s;
-}
-
-/* ---------- Persistencia del handle de carpeta local ---------- */
-async function obtenerHandleEspejoDrive() {
-  try {
-    var h = await leerValorCFG(CFG_ESPEJO_HANDLE);
-    return h || null;
-  } catch (e) {
-    return null;
-  }
-}
-
-async function asegurarPermisoDirectorioLocal(dirHandle) {
-  if (!dirHandle) return false;
-  try {
-    var permiso = await dirHandle.queryPermission({ mode: 'readwrite' });
-    if (permiso !== 'granted') {
-      permiso = await dirHandle.requestPermission({ mode: 'readwrite' });
-    }
-    return permiso === 'granted';
-  } catch (e) {
-    return false;
-  }
-}
-
-/* ---------- Configurar / desconfigurar (operación administrativa) ---------- */
-async function configurarCopiaLocalDrive() {
-  if (!(await exigirIdentidadGoogle())) return false;
-  if (!esAdministrador()) {
-    toast('Solo el administrador puede configurar la copia local de fotografías y documentos', true);
-    return false;
-  }
-  if (!window.showDirectoryPicker) {
-    toast('Tu navegador no permite elegir una carpeta del disco para esto (usa Chrome o Edge en escritorio).', true);
-    return false;
-  }
-  try {
-    var handle = await window.showDirectoryPicker();
-    var ok = await asegurarPermisoDirectorioLocal(handle);
-    if (!ok) {
-      toast('No se concedió permiso de escritura sobre la carpeta elegida', true);
-      return false;
-    }
-    await guardarValorCFG(CFG_ESPEJO_HANDLE, handle);
-    toast('Carpeta de copia configurada: ' + handle.name);
-    return true;
-  } catch (err) {
-    if (err && err.name !== 'AbortError') toast('No se pudo configurar la carpeta: ' + err.message, true);
-    return false;
-  }
-}
-
-async function desconfigurarCopiaLocalDrive() {
-  if (!(await exigirIdentidadGoogle())) return;
-  if (!esAdministrador()) {
-    toast('Solo el administrador puede olvidar la carpeta de copia', true);
-    return;
-  }
-  // Se borra SOLO la referencia CFG; nunca se toca el contenido de la carpeta.
-  await guardarValorCFG(CFG_ESPEJO_HANDLE, null);
-  toast('Se ha olvidado la carpeta de copia. Los archivos que ya se copiaron NO se han borrado.');
-}
-
-/* ---------- Búsqueda de FOTO/DOCUMENTOS dentro de driveRootFolderId ----------
-   Reutiliza el mismo patrón de consulta que ya usa el resto de la app
-   (obtenerCarpetaDocumentosId / obtenerCarpetaFotoId) en vez de duplicar
-   lógica de búsqueda de carpetas. */
-async function copiaLocalDriveBuscarCarpetaRaiz(nombreCarpeta) {
-  var q = "'" + driveRootFolderId + "' in parents and name='" + nombreCarpeta.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)&spaces=drive', { headers: { Authorization: 'Bearer ' + driveAccessToken } });
-  if (r.status === 401) { driveAccessToken = null; throw new Error('sesion_caducada'); }
-  var d = await r.json();
-  return (d.files && d.files.length) ? d.files[0] : null;
-}
-
-/* ---------- Descarga de un archivo binario de Drive y escritura local ----------
-   Reutiliza el mismo patrón de fetch+Authorization+blob que ya usa
-   importarFotosDesdeDrive(). Escribe SIEMPRE con createWritable(), y solo
-   sobrescribe el archivo local una vez la descarga ha terminado con éxito
-   (nunca borra antes de tener el contenido nuevo disponible). */
-async function descargarArchivoDriveAArchivoLocal(fileId, nombreLocal, dirHandleDestino, resumenCat) {
-  try {
-    var rImg = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + driveAccessToken } });
-    if (rImg.status === 401) { driveAccessToken = null; throw new Error('sesion_caducada'); }
-    if (!rImg.ok) { resumenCat.errores.push(nombreLocal); return false; }
-    var blob = await rImg.blob();
-  } catch (eDescarga) {
-    if (eDescarga && eDescarga.message === 'sesion_caducada') throw eDescarga;
-    resumenCat.errores.push(nombreLocal);
-    return false;
-  }
-  try {
-    var fileHandle = await dirHandleDestino.getFileHandle(nombreLocal, { create: true });
-    var writable = await fileHandle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-    resumenCat.copiados++;
-    return true;
-  } catch (eEscritura) {
-    // El archivo local anterior (si existía) no se ve afectado por un fallo aquí,
-    // porque no se borra nada antes de tener el blob descargado y validado.
-    resumenCat.errores.push(nombreLocal);
-    return false;
-  }
-}
-
-/* ---------- Sincronización recursiva de una carpeta de Drive con una
-   carpeta local, con concurrencia limitada para archivos ---------- */
-async function copiaLocalDriveSincronizarCarpeta(folderIdDrive, dirHandleLocal, resumenCat, onProgreso) {
-  if (copiaLocalDriveCancelar) return;
-  var q = "'" + folderIdDrive + "' in parents and trashed=false";
-  var items;
-  try {
-    items = await listarTodosArchivosDrive(q, 'id,name,mimeType');
-  } catch (e) {
-    if (e && e.message === 'sesion_caducada') throw e;
-    resumenCat.erroresListado = (resumenCat.erroresListado || 0) + 1;
-    return;
-  }
-  var carpetas = items.filter(function (f) { return f.mimeType === 'application/vnd.google-apps.folder'; });
-  var archivos = items.filter(function (f) { return f.mimeType !== 'application/vnd.google-apps.folder'; });
-  var googleNativos = archivos.filter(function (f) { return String(f.mimeType || '').indexOf('application/vnd.google-apps.') === 0; });
-  archivos = archivos.filter(function (f) { return googleNativos.indexOf(f) === -1; });
-
-  googleNativos.forEach(function (f) {
-    // Punto 20/110/128 del informe: no se inventa formato de exportación para
-    // documentos nativos de Google (Docs, Sheets, Slides...). Se registran
-    // como no soportados en el resumen, sin descargar ninguna versión.
-    resumenCat.noSoportados.push(f.name);
-  });
-
-  resumenCat.encontrados += archivos.length;
-
-  // Subcarpetas: se crean localmente y se recorre en profundidad (sin límite
-  // artificial de profundidad, tal como pide el informe).
-  for (var i = 0; i < carpetas.length; i++) {
-    if (copiaLocalDriveCancelar) return;
-    var nombreLocalCarpeta = copiaLocalDriveSanearSegmento(carpetas[i].name);
-    var subDirHandle;
-    try {
-      subDirHandle = await dirHandleLocal.getDirectoryHandle(nombreLocalCarpeta, { create: true });
-    } catch (eDir) {
-      resumenCat.errores.push(carpetas[i].name + '/');
-      continue;
-    }
-    await copiaLocalDriveSincronizarCarpeta(carpetas[i].id, subDirHandle, resumenCat, onProgreso);
-  }
-
-  // Archivos: concurrencia limitada
-  var indice = 0;
-  async function siguienteLote() {
-    var tareas = [];
-    while (indice < archivos.length && tareas.length < COPIA_LOCAL_DRIVE_CONCURRENCIA) {
-      (function (f) {
-        var nombreLocal = copiaLocalDriveSanearSegmento(f.name);
-        tareas.push(
-          descargarArchivoDriveAArchivoLocal(f.id, nombreLocal, dirHandleLocal, resumenCat).then(function () {
-            resumenCat.procesados++;
-            if (onProgreso) onProgreso(resumenCat.procesados, resumenCat.encontrados);
-          })
-        );
-      })(archivos[indice]);
-      indice++;
-    }
-    if (!tareas.length) return;
-    await Promise.all(tareas);
-    if (!copiaLocalDriveCancelar) await siguienteLote();
-  }
-  await siguienteLote();
-}
-
-/* ---------- Orquestador principal: FOTO + DOCUMENTOS ---------- */
-async function sincronizarCopiaLocalDrive(callbacksUI) {
-  callbacksUI = callbacksUI || {};
-  var onFase = callbacksUI.onFase || function () {};
-  var onDone = callbacksUI.onDone || function () {};
-  var onError = callbacksUI.onError || function () {};
-
-  if (copiaLocalDriveEnCurso) { toast('Ya hay una copia local en curso; espera a que termine', true); return; }
-
-  if (!(await exigirIdentidadGoogle())) return;
-  if (!esAdministrador()) { toast('Solo el administrador puede actualizar la copia local', true); return; }
-  if (!driveRootFolderId) { toast('Configura primero la carpeta raíz de Google Drive (botón "Documentos")', true); return; }
-  if (!tokenDriveValido()) {
-    try { await conectarGoogleDrive(); } catch (err) { toast('No se pudo conectar con Google Drive: ' + err.message, true); return; }
-  }
-
-  var dirHandle = await obtenerHandleEspejoDrive();
-  if (!dirHandle) { toast('Configura primero la carpeta local de copia', true); return; }
-  var permisoOk = await asegurarPermisoDirectorioLocal(dirHandle);
-  if (!permisoOk) { toast('No se pudo obtener permiso de escritura sobre la carpeta local elegida. Vuelve a configurarla.', true); return; }
-
-  copiaLocalDriveEnCurso = true;
-  copiaLocalDriveCancelar = false;
-
-  var resumen = {
-    foto: { encontrados: 0, copiados: 0, procesados: 0, errores: [], noSoportados: [], erroresListado: 0 },
-    documentos: { encontrados: 0, copiados: 0, procesados: 0, errores: [], noSoportados: [], erroresListado: 0 }
-  };
-
-  try {
-    onFase('Buscando la carpeta FOTO en Drive...', 0, 1);
-    var carpetaFotoDrive = await copiaLocalDriveBuscarCarpetaRaiz('FOTO');
-    var carpetaDocsDrive = await copiaLocalDriveBuscarCarpetaRaiz('DOCUMENTOS');
-
-    if (!carpetaFotoDrive && !carpetaDocsDrive) {
-      throw new Error('No se han encontrado las carpetas "FOTO" ni "DOCUMENTOS" dentro de la carpeta raíz de Drive configurada.');
-    }
-
-    if (carpetaFotoDrive) {
-      var dirFotoLocal = await dirHandle.getDirectoryHandle('FOTO', { create: true });
-      onFase('Copiando fotografías', 0, 1);
-      await copiaLocalDriveSincronizarCarpeta(carpetaFotoDrive.id, dirFotoLocal, resumen.foto, function (hechos, total) {
-        onFase('Copiando fotografías', hechos, total);
-      });
-    }
-
-    if (copiaLocalDriveCancelar) throw { cancelado: true };
-
-    if (carpetaDocsDrive) {
-      var dirDocsLocal = await dirHandle.getDirectoryHandle('DOCUMENTOS', { create: true });
-      onFase('Copiando documentos', 0, 1);
-      await copiaLocalDriveSincronizarCarpeta(carpetaDocsDrive.id, dirDocsLocal, resumen.documentos, function (hechos, total) {
-        onFase('Copiando documentos', hechos, total);
-      });
-    }
-
-    if (copiaLocalDriveCancelar) throw { cancelado: true };
-
-    var totalArchivos = resumen.foto.encontrados + resumen.documentos.encontrados;
-    var totalErrores = resumen.foto.errores.length + resumen.documentos.errores.length + resumen.foto.erroresListado + resumen.documentos.erroresListado;
-    var totalNoSoportados = resumen.foto.noSoportados.length + resumen.documentos.noSoportados.length;
-
-    var resumenGuardable = {
-      fecha: new Date().toISOString(),
-      totalArchivos: totalArchivos,
-      copiados: resumen.foto.copiados + resumen.documentos.copiados,
-      errores: totalErrores,
-      noSoportados: totalNoSoportados,
-      completo: totalErrores === 0
-    };
-    await guardarValorCFG(CFG_ESPEJO_ULTIMA_FECHA, resumenGuardable.fecha);
-    await guardarValorCFG(CFG_ESPEJO_ULTIMO_RESUMEN, resumenGuardable);
-
-    onDone(resumen);
-    if (totalErrores === 0 && totalNoSoportados === 0) {
-      toast('Copia local actualizada: ' + totalArchivos + ' archivo(s), sin errores');
-    } else {
-      toast('Copia local actualizada con incidencias: ' + totalErrores + ' error(es), ' + totalNoSoportados + ' archivo(s) no soportado(s) (Google Docs/Sheets/Slides)', totalErrores > 0);
-    }
-  } catch (err) {
-    if (err && err.cancelado) {
-      toast('Copia local cancelada. Los archivos ya copiados se conservan.', true);
-      onDone(resumen, true);
-    } else if (err && err.message === 'sesion_caducada') {
-      avisarSesionDriveCaducada();
-      onError(err);
-    } else {
-      toast('No se pudo completar la copia local: ' + (err && err.message ? err.message : 'error desconocido'), true);
-      onError(err);
-    }
-  } finally {
-    copiaLocalDriveEnCurso = false;
-    copiaLocalDriveCancelar = false;
-  }
-}
-
-function cancelarCopiaLocalDrive() {
-  if (!copiaLocalDriveEnCurso) return;
-  copiaLocalDriveCancelar = true;
-  toast('Cancelando... se detendrán las nuevas copias, sin borrar nada');
-}
-
-/* ---------- Estado / texto informativo (para Herramientas) ---------- */
-async function obtenerEstadoCopiaLocalDrive() {
-  var handle = await obtenerHandleEspejoDrive();
-  var fecha = await leerValorCFG(CFG_ESPEJO_ULTIMA_FECHA);
-  var resumen = await leerValorCFG(CFG_ESPEJO_ULTIMO_RESUMEN);
-  return { configurada: !!handle, nombreCarpeta: handle ? handle.name : '', fecha: fecha, resumen: resumen };
-}
-
-async function mostrarEstadoCopiaLocalDriveEnHerramientas() {
-  var el = document.getElementById('herrCopiaLocalDriveEstado');
-  if (!el) return;
-  try {
-    var estado = await obtenerEstadoCopiaLocalDrive();
-    if (!estado.configurada) {
-      el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada. Toca para configurarla.';
-      return;
-    }
-    var txt = 'Carpeta configurada: ' + estado.nombreCarpeta;
-    if (estado.fecha) {
-      var rel = formatoFechaRelativa(estado.fecha);
-      txt += rel ? (' · última copia: ' + rel) : '';
-      if (estado.resumen && !estado.resumen.completo) txt += ' (con incidencias)';
-    } else {
-      txt += ' · todavía no se ha ejecutado ninguna copia';
-    }
-    txt += ' · toca para actualizar ahora';
-    el.textContent = txt;
-  } catch (e) {
-    el.textContent = 'Copia local de las fotografías y documentos de Google Drive: aún no configurada. Toca para configurarla.';
-  }
-}
-
-/* ---------- Envoltorios de interfaz (modal de progreso reutilizando el
-   mismo patrón visual que el modal de importación de fotos) ---------- */
-function accionCopiaLocalDriveUI(){
-obtenerEstadoCopiaLocalDrive().then(function(estado){
-if(estado.configurada)actualizarCopiaLocalDriveUI();
-else configurarCopiaLocalDriveUI();
-}).catch(function(){configurarCopiaLocalDriveUI();});
-}
-function configurarCopiaLocalDriveUI() {
-  configurarCopiaLocalDrive().then(function () {
-    mostrarHerramientas();
-  });
-}
-
-
-function abrirModalCopiaLocalDrive() {
-  document.getElementById('copiaLocalDriveTitulo').textContent = 'Copiando fotografías y documentos';
-  document.getElementById('copiaLocalDriveProgresoTexto').textContent = 'Preparando...';
-  document.getElementById('copiaLocalDriveProgresoBarra').style.width = '0%';
-  document.getElementById('copiaLocalDriveResumen').style.display = 'none';
-  document.getElementById('copiaLocalDriveResumen').innerHTML = '';
-  document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'block';
-  document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'none';
-  document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'inline-flex';
-  document.getElementById('modalCopiaLocalDrive').style.display = 'flex';
-}
-
-function cerrarModalCopiaLocalDrive() {
-  if (copiaLocalDriveEnCurso) { toast('Espera a que termine o pulsa Cancelar', true); return; }
-  document.getElementById('modalCopiaLocalDrive').style.display = 'none';
-}
-
-var copiaLocalDriveUltimaActualizacionUI = 0;
-async function actualizarCopiaLocalDriveUI() {
-  if (copiaLocalDriveEnCurso) { toast('Ya hay una copia local en curso', true); return; }
-  if (!(await confirmarApp('Se copiarán localmente los archivos de FOTO y DOCUMENTOS almacenados en Google Drive. El proceso puede tardar y ocupar espacio en disco.'))) return;
-  abrirModalCopiaLocalDrive();
-  sincronizarCopiaLocalDrive({
-    onFase: function (texto, hechos, total) {
-      var ahora = Date.now();
-      if (hechos < total && (ahora - copiaLocalDriveUltimaActualizacionUI) < 150) return;
-      copiaLocalDriveUltimaActualizacionUI = ahora;
-      var pct = total ? Math.round(hechos / total * 100) : 0;
-      var barra = document.getElementById('copiaLocalDriveProgresoBarra');
-      if (barra) barra.style.width = pct + '%';
-      var txt = document.getElementById('copiaLocalDriveProgresoTexto');
-      if (txt) txt.textContent = texto + (total ? (' (' + hechos + ' de ' + total + ')') : '');
-    },
-    onDone: function (resumen, cancelado) {
-      document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'none';
-      document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'none';
-      document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'inline-flex';
-      var cont = document.getElementById('copiaLocalDriveResumen');
-      cont.style.display = 'block';
-      var h = '';
-      if (cancelado) h += '<p style="font-size:12px;color:var(--muted);margin-bottom:10px">Copia cancelada. Los archivos copiados hasta el momento se conservan.</p>';
-      h += '<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
-      h += '<span class="ges-pill">Fotografías encontradas: ' + resumen.foto.encontrados + '</span>';
-      h += '<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Fotografías copiadas: ' + resumen.foto.copiados + '</span>';
-      h += '<span class="ges-pill">Documentos encontrados: ' + resumen.documentos.encontrados + '</span>';
-      h += '<span class="ges-pill" style="border-color:var(--green);color:var(--green)">Documentos copiados: ' + resumen.documentos.copiados + '</span>';
-      var totalErrores = resumen.foto.errores.length + resumen.documentos.errores.length;
-      var totalNoSop = resumen.foto.noSoportados.length + resumen.documentos.noSoportados.length;
-      h += '<span class="ges-pill" style="border-color:#c0392b;color:#c0392b">Errores: ' + totalErrores + '</span>';
-      h += '<span class="ges-pill">No soportados (Google Docs/Sheets/Slides): ' + totalNoSop + '</span>';
-      h += '</div>';
-      cont.innerHTML = h;
-      mostrarEstadoCopiaLocalDriveEnHerramientas();
-    },
-    onError: function () {
-      document.getElementById('copiaLocalDriveProgresoWrap').style.display = 'none';
-      document.getElementById('copiaLocalDriveCancelarBtn').style.display = 'none';
-      document.getElementById('copiaLocalDriveCerrarBtn').style.display = 'inline-flex';
-    }
-  });
-}
-/* ========== FIN TAREA 6 ========== */
 
 /* ========== REGISTRO DE CONEXIONES (solo administrador) ==========
    Cada vez que se confirma la identidad de Google en una pestaña/sesión
@@ -15431,20 +14797,6 @@ toast('Error procesando: '+ex.message,true);console.error(ex);
 }
 };
 r.readAsArrayBuffer(f);
-}
-function splitCSVLine(line, delim){
-var result=[], cur='', inQuotes=false;
-for(var i=0;i<line.length;i++){
-var c=line[i];
-if(c==='"'){
-if(inQuotes && line[i+1]==='"'){cur+='"';i++;}
-else inQuotes=!inQuotes;
-} else if(c===delim && !inQuotes){
-result.push(cur);cur='';
-} else { cur+=c; }
-}
-result.push(cur);
-return result;
 }
 function parseCSVFull(text, delim){
 var rows=[], row=[], field='', inQuotes=false, i=0, len=text.length, sawAny=false;
@@ -16840,15 +16192,9 @@ var restantes=arr.filter(function(c){return c.estado!=='conforme'&&c.estado!=='r
 try{await guardarCambiosArbolCompleto(restantes);actualizarContadorCambios();mostrarCambios('historial');toast(resueltos.length+' registro(s) del historial eliminados');}catch(err){toast('No se pudieron eliminar los registros: '+err.message,true);}
 }).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});
 }
-function guardarCambiosEnDrive(){if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para guardar tus cambios',true);accionDriveStatusPill();return;}sincronizarCambiosDrive(true);}
 /* Como ahora la pantalla de Cambios SIEMPRE lee directamente cambios-arbol.json (ver
    refrescarCambiosDesdeDrive/sincronizarCambiosDrive), esta función manual solo repite
    esa misma recarga explícita; ya no hay "dispositivo" con copia propia que sustituir. */
-async function restaurarCambiosDesdeDrive(){
-if(!esAdministrador()){toast('Solo el administrador puede recargar el registro de cambios desde Drive',true);return;}
-if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive (pulsa la luz roja) para cargar los cambios',true);accionDriveStatusPill();return;}
-try{var lista=await refrescarCambiosDesdeDrive();actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro de cambios recargado desde Drive: '+lista.length+' registro(s)');}catch(err){toast('No se pudo descargar el archivo de Drive: '+err.message,true);}
-}
 function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();actualizarRelojConexionDrive();}
 /* ===== Reloj de tiempo de conexión =====
    Muestra, junto a la abeja, cuánto le queda al token de acceso de Google
@@ -17037,7 +16383,6 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Investigación</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();sv('inv')"><div class="herr-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div><div class="herr-text"><div class="herr-title">Investigación</div><div class="herr-desc">Busca en archivos y hemerotecas externas, y encuentra fotos para la persona activa</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFamilias()"><div class="herr-icon"><i class="fa-solid fa-people-roof"></i></div><div class="herr-text"><div class="herr-title">Familias</div><div class="herr-desc">Catálogo de familias y linajes (etiquetas): fichas, estadísticas y, para el administrador, gestión</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFotosDudosas()"><div class="herr-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="herr-text"><div class="herr-title">Fotos dudosas</div><div class="herr-desc">Fotos de personas anteriores a 1850 sin marcar como «imagen reconstruida»: revisarlas y marcarlas en bloque</div></div></button>
 <div id="herrGestorColabGroup" style="display:none">
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Revisa y unifica apellidos y lugares escritos de formas distintas. Tus correcciones quedan registradas para que las apruebe el administrador</div></div></button>
@@ -17063,7 +16408,6 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="progreso-drive-texto" style="font-size:11px;color:var(--muted);margin-top:4px">Trabajando...</div>
 </div>
 <button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(false)"><div class="herr-icon"><i class="fa-solid fa-hard-drive"></i></div><div class="herr-text"><div class="herr-title">Copia local de backup-arbol.json</div><div class="herr-desc">Guarda backup-arbol.json en una carpeta de este ordenador (sin pasar por Drive). Solo administrador</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();accionCopiaLocalDriveUI()"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Copia local de fotos y documentos</div><div class="herr-desc" id="herrCopiaLocalDriveEstado">Copia local de las fotografías y documentos de Google Drive: aún no configurada</div></div></button>
 <div class="herr-subhead">Avanzado</div>
 <button class="herr-item" onclick="cerrarHerramientas();guardarBackupArbolLocal(true)"><div class="herr-icon"><i class="fa-solid fa-folder-tree"></i></div><div class="herr-text"><div class="herr-title">Cambiar carpeta de la copia local</div><div class="herr-desc">Elige otra carpeta del disco para backup-arbol.json y guarda la copia ahora</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();elegirCarpetaDocumentos()"><div class="herr-icon"><i class="fa-brands fa-google-drive"></i></div><div class="herr-text"><div class="herr-title">Carpeta raíz compartida (avanzado)</div><div class="herr-desc">Ya está configurada por defecto para toda la familia. Solo hace falta tocar esto si algún día cambias de carpeta de Drive</div></div></button>
@@ -17412,21 +16756,6 @@ window.addEventListener('appinstalled', function () {
 });
 </script>
 
-<div id="modalCopiaLocalDrive" role="dialog" aria-modal="true" aria-labelledby="copiaLocalDriveTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-<h2 id="copiaLocalDriveTitulo" style="font-family:'Cinzel',serif;font-size:16px"><i class="fa-solid fa-folder-open" aria-hidden="true" style="color:var(--accent)"></i> Copiando fotografías y documentos</h2>
-<button class="ef-nbtn" id="copiaLocalDriveCerrarBtn" aria-label="Cerrar" style="display:none" onclick="cerrarModalCopiaLocalDrive()">×</button>
-</div>
-<div id="copiaLocalDriveProgresoWrap" role="status" aria-live="polite">
-<div id="copiaLocalDriveProgresoTexto" style="font-size:12px;color:var(--muted);margin-bottom:8px">Preparando...</div>
-<div class="pb" style="margin:0;display:block"><div class="pf" id="copiaLocalDriveProgresoBarra"></div></div>
-<p style="font-size:11px;color:var(--muted);margin-top:10px">No cierres esta ventana ni recargues la página mientras se copian los archivos.</p>
-<div style="text-align:right;margin-top:10px"><button class="ef-btn ghost" id="copiaLocalDriveCancelarBtn" onclick="cancelarCopiaLocalDrive()">Cancelar</button></div>
-</div>
-<div id="copiaLocalDriveResumen" style="display:none;overflow:auto"></div>
-</div>
-</div>
 <div id="modalConexiones" role="dialog" aria-modal="true" aria-labelledby="modalConexionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
