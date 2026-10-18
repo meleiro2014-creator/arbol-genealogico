@@ -612,6 +612,8 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .asc-scale-inner{position:absolute;top:0;left:0;transform-origin:top left;white-space:nowrap}
 .asc-print-page-fixed{width:420mm;height:297mm;background:#fff}
 .asc-print-page-fixed svg{display:block;width:420mm;height:297mm}
+.asc-print-page-vert{width:297mm;height:420mm;background:#fff}
+.asc-print-page-vert svg{display:block;width:297mm;height:420mm}
 @media print{
 @page{size:landscape}
 body>*:not(.print-area){display:none!important}
@@ -876,6 +878,11 @@ body{background:#fff}
 <button class="ef-btn" onclick="abrirModalAscendentePosterV2()"><i class="fa-solid fa-file-pdf"></i> Generar poster mejorado</button>
 </div>
 <div class="inf-card">
+<h3><i class="fa-solid fa-tree"></i> Árbol ascendente vertical (cuadro familiar A3)</h3>
+<p>Poster en A3 vertical con cuatro generaciones (la persona, sus padres, abuelos y bisabuelos), foto en todas las casillas, árbol de fondo y marco ornamental, pensado para imprimir y enmarcar. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
+<button class="ef-btn" onclick="abrirModalAscendentePosterV3()"><i class="fa-solid fa-file-pdf"></i> Generar poster vertical</button>
+</div>
+<div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
 <p>Informe detallado con los datos completos de cada antepasado.</p>
 <button class="ef-btn ghost" onclick="descargarInformeAscendientes()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeAscendientesPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
@@ -1070,8 +1077,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.15.4';
+var APP_VERSION = '2026.10.18.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.18.1', fecha:'2026-10-18', cambios:[
+    'Informes: nuevo poster «Árbol ascendente vertical (cuadro familiar A3)». Cuatro generaciones (la persona, sus padres, abuelos y bisabuelos) con foto en todas las casillas, árbol de fondo y marco ornamental, en A3 vertical y con color de fondo a elegir. A diferencia de los dos posters horizontales, este sí respeta el límite de perfil: las personas fuera de tu alcance aparecen como «Persona no visible», sin foto ni ramas por encima.'
+  ]},
   { version:'2026.10.15.3', fecha:'2026-10-15', cambios:[
     'Buscar: nueva galleta «Rompecabezas». Se muestra el árbol de una persona (padres y abuelos) con los huecos vacíos y hay que colocar los 6 nombres en su sitio (tocar el nombre y luego el hueco). Nivel Fácil con foto y años; nivel Difícil solo con nombres y 2 intrusos. Al acabar, cada nombre acertado enlaza con su ficha.'
   ]},
@@ -13614,6 +13624,243 @@ window.print();
 setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
 });
 }
+/* ===== POSTER ASCENDENTE A3 VERTICAL (V3) — cuatro generaciones con fotos, estilo cuadro familiar ===== */
+var ASCV_W=297, ASCV_H=420;
+var ASCV_VERDE='#1F4A38', ASCV_LINEA='#2F5642', ASCV_ORO='#B8975A', ASCV_ORO_CLARO='#E3D3AC', ASCV_TARJETA='#FFFDF6', ASCV_TEXTO='#23402F';
+var ASCV_BG_OPTIONS=[{id:'pergamino',label:'Pergamino',hex:'#FBF8EE'}].concat(ASC_BG_OPTIONS);
+var ascVertBg=ASCV_BG_OPTIONS[0].hex;
+/* Geometria de las 4 filas (mm): w=ancho de la tarjeta, ph=alto de la foto, lh=alto de la zona de texto */
+var ASCV_FILAS=[
+{y:70, w:54,pw:48,ph:50,lh:17,fsMax:4.2,fsMin:2.6,lineas:2},
+{y:169,w:47,pw:41,ph:43,lh:16,fsMax:3.6,fsMin:2.3,lineas:2},
+{y:260,w:40,pw:34,ph:36,lh:15,fsMax:3.1,fsMin:2.0,lineas:3},
+{y:343,w:30,pw:26,ph:29,lh:14,fsMax:2.6,fsMin:1.6,lineas:3}
+];
+var ASCV_PAD_SUP=3, ASCV_GAP_FOTO=1.5, ASCV_PAD_INF=1.5;
+function ascVAltoFila(f){return ASCV_PAD_SUP+f.ph+ASCV_GAP_FOTO+f.lh+ASCV_PAD_INF;}
+function ascVCentros(){
+var c3=[];for(var i=0;i<8;i++)c3.push(18+15+33*i);
+var c2=[],c1=[];
+for(var j=0;j<4;j++)c2.push((c3[2*j]+c3[2*j+1])/2);
+for(var k=0;k<2;k++)c1.push((c2[2*k]+c2[2*k+1])/2);
+return [[(c1[0]+c1[1])/2],c1,c2,c3];
+}
+var ASCV_ROLES=[
+['INDIVIDUO'],
+['PADRE','MADRE'],
+['ABUELO PATERNO','ABUELA PATERNA','ABUELO MATERNO','ABUELA MATERNA'],
+['BISABUELO','BISABUELA','BISABUELO','BISABUELA','BISABUELO','BISABUELA','BISABUELO','BISABUELA']
+];
+function ascVRng(seed){var s=seed>>>0;return function(){s=(s+0x6D2B79F5)|0;var t=Math.imul(s^(s>>>15),1|s);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+/* Fondo: arbol de hojas suaves (determinista: siempre sale igual) */
+function ascVArbolFondoSVG(){
+var rnd=ascVRng(20261018);
+var ramas='',hojas='',nRama=0,nCopa=0;
+var verdes=['#B7C79C','#A6BB88','#C8D5B0','#97AF7B','#BFCDA5'];
+function hoja(x,y,ang,s){
+hojas+='<use href="#ascvHoja" transform="translate('+x.toFixed(1)+' '+y.toFixed(1)+') rotate('+ang.toFixed(0)+') scale('+s.toFixed(2)+')" fill="'+verdes[Math.floor(rnd()*verdes.length)]+'"/>';
+}
+function rama(x,y,ang,len,w,prof){
+var a=ang*Math.PI/180;
+var x2=x+Math.cos(a)*len,y2=y+Math.sin(a)*len;
+var am=a+(rnd()-0.5)*0.55;
+var cx=x+Math.cos(am)*len*0.55,cy=y+Math.sin(am)*len*0.55;
+ramas+='<path d="M'+x.toFixed(1)+' '+y.toFixed(1)+' Q'+cx.toFixed(1)+' '+cy.toFixed(1)+' '+x2.toFixed(1)+' '+y2.toFixed(1)+'" stroke-width="'+Math.max(0.3,w).toFixed(2)+'"/>';
+if(prof<=2){
+for(var i=0;i<3;i++){var t=0.4+rnd()*0.6;hoja(x+(x2-x)*t+(rnd()-0.5)*6,y+(y2-y)*t+(rnd()-0.5)*6,rnd()*360,0.8+rnd()*0.6);nRama++;}
+}
+if(prof<=0){
+for(var m=0;m<7;m++){hoja(x2+(rnd()-0.5)*14,y2+(rnd()-0.5)*14,rnd()*360,0.8+rnd()*0.7);nRama++;}
+return;
+}
+var hijos=prof>=5?2:(rnd()<0.4?2:3);
+for(var h=0;h<hijos;h++){
+var spread=hijos===2?(h===0?-1:1)*(20+rnd()*22):(h-1)*(28+rnd()*14);
+rama(x2,y2,ang+spread+(rnd()-0.5)*8,len*(0.74+rnd()*0.1),w*0.68,prof-1);
+}
+}
+var cx0=ASCV_W/2;
+rama(cx0,398,-90,60,9,6);
+/* relleno de copa: hojas sueltas dentro de un contorno ovalado, mas densas hacia el centro */
+var intentos=0;
+while(nCopa<1150&&intentos<20000){
+intentos++;
+var px=cx0+(rnd()*2-1)*128,py=118+rnd()*278;
+var dx=(px-cx0)/128,dy=(py-262)/146,r2=dx*dx+dy*dy;
+if(r2>1)continue;
+if(rnd()>1.15-r2*0.9)continue;
+hoja(px,py,rnd()*360,0.75+rnd()*0.85);nCopa++;
+}
+return '<defs><path id="ascvHoja" d="M0 0 C1.4 -2.3 4.8 -2.5 6.8 0 C4.8 2.5 1.4 2.3 0 0Z"/><clipPath id="ascvClipMarco"><rect x="11" y="11" width="'+(ASCV_W-22)+'" height="'+(ASCV_H-22)+'"/></clipPath></defs>'+
+'<g clip-path="url(#ascvClipMarco)"><g fill="none" stroke="#C2B995" stroke-linecap="round" opacity="0.8">'+ramas+'</g>'+
+'<g opacity="0.8">'+hojas+'</g></g>';
+}
+function ascVAjustarTexto(nombre,anio,aw,ah,fsMax,fsMin,maxLineas){
+var fs=fsMax;
+function medidas(f,lin,conAnio){
+var fsR=Math.min(f*0.72,2.1),fsY=f*0.8;
+return{lin:lin,fs:f,fsR:fsR,fsY:fsY,anio:conAnio?anio:'',h:lin.length*f*1.13+(conAnio&&anio?fsY*1.2:0)+fsR*1.4};
+}
+while(fs>=fsMin-1e-6){
+var maxCh=Math.max(4,Math.floor(aw/(fs*0.58)));
+var lin=dividirNombreLineas(nombre,maxCh,maxLineas);
+var cabe=lin.length<=maxLineas&&lin.every(function(l){return l.length<=maxCh;});
+if(cabe){
+var m1=medidas(fs,lin,true);if(m1.h<=ah)return m1;
+if(anio){var m2=medidas(fs,lin,false);if(m2.h<=ah)return m2;}
+}
+fs-=0.15;
+}
+var maxCh2=Math.max(4,Math.floor(aw/(fsMin*0.58)));
+var lin2=dividirNombreLineas(nombre,maxCh2,maxLineas).slice(0,maxLineas).map(function(l){return truncarTexto(l,maxCh2);});
+return medidas(fsMin,lin2,false);
+}
+function ascVSiluetaSVG(px,py,pw,ph,color){
+return '<circle cx="'+(px+pw/2).toFixed(2)+'" cy="'+(py+ph*0.40).toFixed(2)+'" r="'+(pw*0.17).toFixed(2)+'" fill="'+color+'"/>'+
+'<path d="M'+(px+pw*0.12).toFixed(2)+' '+(py+ph).toFixed(2)+' C'+(px+pw*0.12).toFixed(2)+' '+(py+ph*0.70).toFixed(2)+' '+(px+pw*0.30).toFixed(2)+' '+(py+ph*0.62).toFixed(2)+' '+(px+pw/2).toFixed(2)+' '+(py+ph*0.62).toFixed(2)+' C'+(px+pw*0.70).toFixed(2)+' '+(py+ph*0.62).toFixed(2)+' '+(px+pw*0.88).toFixed(2)+' '+(py+ph*0.70).toFixed(2)+' '+(px+pw*0.88).toFixed(2)+' '+(py+ph).toFixed(2)+'Z" fill="'+color+'"/>';
+}
+/* estado: 'ok' (persona visible), 'oculto' (fuera del alcance del perfil) o 'vacio' (sin datos) */
+function ascVTarjetaSVG(cx,fila,estado,persona,rol){
+var f=ASCV_FILAS[fila],h=ascVAltoFila(f),x=cx-f.w/2,y=f.y;
+var px=cx-f.pw/2,py=y+ASCV_PAD_SUP;
+var o='';
+var vacio=(estado!=='ok');
+o+='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+f.w+'" height="'+h.toFixed(2)+'" rx="1" ry="1" fill="'+(vacio?ascVertBg:ASCV_TARJETA)+'" stroke="'+(vacio?ASCV_ORO_CLARO:ASCV_ORO)+'" stroke-width="'+(vacio?0.3:0.55)+'"'+(vacio?' stroke-dasharray="1.6,1.2"':'')+'/>';
+if(!vacio)o+='<rect x="'+(x+0.9).toFixed(2)+'" y="'+(y+0.9).toFixed(2)+'" width="'+(f.w-1.8)+'" height="'+(h-1.8).toFixed(2)+'" rx="0.6" ry="0.6" fill="none" stroke="'+ASCV_ORO_CLARO+'" stroke-width="0.15"/>';
+ascClip2Id++;var clipId='ascvClip_'+ascClip2Id;
+o+='<clipPath id="'+clipId+'"><rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+f.pw+'" height="'+f.ph+'" rx="0.5" ry="0.5"/></clipPath>';
+o+='<rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+f.pw+'" height="'+f.ph+'" rx="0.5" ry="0.5" fill="'+(vacio?ascVertBg:'#F1EBD9')+'"/>';
+if(estado==='ok'&&persona&&persona.FOTO){
+o+='<image x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+f.pw+'" height="'+f.ph+'" href="'+escAttr(persona.FOTO)+'" preserveAspectRatio="xMidYMid meet" clip-path="url(#'+clipId+')"/>';
+}else{
+o+='<g clip-path="url(#'+clipId+')">'+ascVSiluetaSVG(px,py,f.pw,f.ph,vacio?'#EEE7D3':'#D9CFB3')+'</g>';
+}
+o+='<rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+f.pw+'" height="'+f.ph+'" rx="0.5" ry="0.5" fill="none" stroke="'+(vacio?ASCV_ORO_CLARO:ASCV_ORO)+'" stroke-width="0.35"/>';
+/* texto */
+var tTop=py+f.ph+ASCV_GAP_FOTO,aw=f.w-2*(f.w*0.06),ah=f.lh;
+var nombre,anio='';
+if(estado==='ok'){nombre=nombreParaPoster(persona,3).trim()||'?';anio=pdAnioTexto(persona);}
+else if(estado==='oculto'){nombre='Persona no visible';}
+else{nombre='Por investigar';}
+var ajuste=ascVAjustarTexto(nombre,anio,aw,ah,f.fsMax,f.fsMin,f.lineas);
+var yy=tTop+(ah-ajuste.h)/2+ajuste.fs*0.85;
+if(yy<tTop+ajuste.fs*0.85)yy=tTop+ajuste.fs*0.85;
+var colorN=(estado==='ok')?ASCV_TEXTO:'#9AA595';
+var estiloN=(estado==='ok')?'font-weight="700"':'font-style="italic"';
+ascClip2Id++;var tClip='ascvClip_'+ascClip2Id;
+o+='<clipPath id="'+tClip+'"><rect x="'+(x+0.4).toFixed(2)+'" y="'+tTop.toFixed(2)+'" width="'+(f.w-0.8).toFixed(2)+'" height="'+(ah+ASCV_PAD_INF).toFixed(2)+'"/></clipPath><g clip-path="url(#'+tClip+')">';
+ajuste.lin.forEach(function(l,i){
+o+='<text x="'+cx.toFixed(2)+'" y="'+(yy+i*ajuste.fs*1.13).toFixed(2)+'" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" '+estiloN+' font-size="'+ajuste.fs.toFixed(2)+'" fill="'+colorN+'">'+esc(l)+'</text>';
+});
+var yNext=yy+(ajuste.lin.length-1)*ajuste.fs*1.13;
+if(ajuste.anio){
+yNext+=ajuste.fsY*1.2;
+o+='<text x="'+cx.toFixed(2)+'" y="'+yNext.toFixed(2)+'" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-size="'+ajuste.fsY.toFixed(2)+'" fill="'+colorN+'" opacity="0.8">'+esc(ajuste.anio)+'</text>';
+}
+yNext+=ajuste.fsR*1.4;
+o+='<text x="'+cx.toFixed(2)+'" y="'+yNext.toFixed(2)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="'+ajuste.fsR.toFixed(2)+'" letter-spacing="0.25" fill="'+ASCV_ORO+'">('+esc(rol)+')</text>';
+o+='</g>';
+return o;
+}
+function ascVEsquinaSVG(){
+/* adorno de esquina (se espeja en las otras tres) */
+return '<path d="M11 33 Q11 11 33 11" fill="none" stroke="'+ASCV_ORO+'" stroke-width="0.55"/>'+
+'<path d="M11 24 Q11 11 24 11" fill="none" stroke="'+ASCV_ORO+'" stroke-width="0.3"/>'+
+'<circle cx="11" cy="11" r="1.3" fill="'+ASCV_ORO+'"/>'+
+'<path d="M17 14.5 q3 -4.5 8 -3.5 q-2.5 4.5 -8 3.5Z" fill="'+ASCV_ORO+'" opacity="0.75"/>'+
+'<path d="M14.5 17 q-4.5 3 -3.5 8 q4.5 -2.5 3.5 -8Z" fill="'+ASCV_ORO+'" opacity="0.75"/>';
+}
+function ascVAdornoLinea(cx,y,ancho){
+var a=cx-ancho/2,b=cx+ancho/2;
+return '<line x1="'+a+'" y1="'+y+'" x2="'+(cx-3)+'" y2="'+y+'" stroke="'+ASCV_ORO+'" stroke-width="0.3"/>'+
+'<line x1="'+(cx+3)+'" y1="'+y+'" x2="'+b+'" y2="'+y+'" stroke="'+ASCV_ORO+'" stroke-width="0.3"/>'+
+'<path d="M'+(cx-2)+' '+y+' L'+cx+' '+(y-1.3)+' L'+(cx+2)+' '+y+' L'+cx+' '+(y+1.3)+'Z" fill="'+ASCV_ORO+'"/>'+
+'<circle cx="'+(a-1.5)+'" cy="'+y+'" r="0.6" fill="'+ASCV_ORO+'"/><circle cx="'+(b+1.5)+'" cy="'+y+'" r="0.6" fill="'+ASCV_ORO+'"/>';
+}
+function buildAscPosterSVGStringV3(rootId){
+ascClip2Id=0;
+/* niveles de ids: raiz, padres, abuelos, bisabuelos. Al llegar a una persona oculta se deja de subir. */
+var niveles=[[String(rootId)]],estados=[['ok']];
+for(var l=1;l<=3;l++){
+var curIds=[],curEst=[];
+niveles[l-1].forEach(function(id,i){
+var est=estados[l-1][i],p=(est==='ok'&&id&&PI[id])?PI[id]:null;
+[p&&p.PADRE?String(p.PADRE):null,p&&p.MADRE?String(p.MADRE):null].forEach(function(pid){
+if(!pid||!PI[pid]){curIds.push(null);curEst.push('vacio');}
+else if(!puedeVerPersona(pid)){curIds.push(pid);curEst.push('oculto');}
+else{curIds.push(pid);curEst.push('ok');}
+});
+});
+niveles.push(curIds);estados.push(curEst);
+}
+var centros=ascVCentros();
+var conectores='',tarjetas='';
+for(var fila=0;fila<4;fila++){
+var f=ASCV_FILAS[fila];
+for(var i=0;i<niveles[fila].length;i++){
+var persona=(estados[fila][i]==='ok'&&niveles[fila][i])?PI[niveles[fila][i]]:null;
+tarjetas+=ascVTarjetaSVG(centros[fila][i],fila,estados[fila][i],persona,ASCV_ROLES[fila][i]);
+}
+if(fila<3){
+var fn2=ASCV_FILAS[fila+1],yb=f.y+ascVAltoFila(f),yc=fn2.y,ym=(yb+yc)/2;
+for(var j=0;j<niveles[fila].length;j++){
+var cP=centros[fila][j],c1=centros[fila+1][2*j],c2=centros[fila+1][2*j+1];
+var hay1=estados[fila+1][2*j]!=='vacio',hay2=estados[fila+1][2*j+1]!=='vacio';
+var colT=(hay1||hay2)?ASCV_LINEA:ASCV_ORO_CLARO,w=(hay1||hay2)?0.45:0.3;
+conectores+='<path d="M'+cP.toFixed(2)+' '+yb.toFixed(2)+' V'+ym.toFixed(2)+' M'+c1.toFixed(2)+' '+ym.toFixed(2)+' H'+c2.toFixed(2)+'" fill="none" stroke="'+colT+'" stroke-width="'+w+'"/>';
+conectores+='<path d="M'+c1.toFixed(2)+' '+ym.toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(hay1?ASCV_LINEA:ASCV_ORO_CLARO)+'" stroke-width="'+(hay1?0.45:0.3)+'"/>';
+conectores+='<path d="M'+c2.toFixed(2)+' '+ym.toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(hay2?ASCV_LINEA:ASCV_ORO_CLARO)+'" stroke-width="'+(hay2?0.45:0.3)+'"/>';
+}
+}
+}
+var bg='<rect x="0" y="0" width="'+ASCV_W+'" height="'+ASCV_H+'" fill="'+ascVertBg+'"/>';
+var marco='<rect x="6" y="6" width="'+(ASCV_W-12)+'" height="'+(ASCV_H-12)+'" fill="none" stroke="'+ASCV_ORO+'" stroke-width="0.8"/>'+
+'<rect x="9" y="9" width="'+(ASCV_W-18)+'" height="'+(ASCV_H-18)+'" fill="none" stroke="'+ASCV_ORO+'" stroke-width="0.25"/>'+
+'<g>'+ascVEsquinaSVG()+'</g>'+
+'<g transform="translate('+ASCV_W+' 0) scale(-1 1)">'+ascVEsquinaSVG()+'</g>'+
+'<g transform="translate(0 '+ASCV_H+') scale(1 -1)">'+ascVEsquinaSVG()+'</g>'+
+'<g transform="translate('+ASCV_W+' '+ASCV_H+') scale(-1 -1)">'+ascVEsquinaSVG()+'</g>';
+var cx=ASCV_W/2;
+var titulo='<text x="'+cx+'" y="34" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="13.5" letter-spacing="0.5" fill="'+ASCV_VERDE+'">ÁRBOL GENEALÓGICO</text>'+
+'<text x="'+cx+'" y="45.5" text-anchor="middle" font-family="Cinzel,serif" font-size="6.4" letter-spacing="3.4" fill="'+ASCV_VERDE+'">FAMILIAR</text>'+
+ascVAdornoLinea(cx-52,44,38)+ascVAdornoLinea(cx+52,44,38)+
+'<text x="'+cx+'" y="57.5" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-style="italic" font-size="7.4" fill="'+ASCV_VERDE+'">Cuatro generaciones</text>'+
+ascVAdornoLinea(cx,62.5,22);
+var pie=ascVAdornoLinea(cx,402,44)+
+'<text x="'+cx+'" y="407.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCV_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>';
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASCV_W+' '+ASCV_H+'" width="'+ASCV_W+'mm" height="'+ASCV_H+'mm">'+bg+ascVArbolFondoSVG()+marco+titulo+conectores+tarjetas+pie+'</svg>';
+}
+function renderAscBgSwatchesV3(){
+var cont=document.getElementById('ascColorSwatchesV3');
+if(!cont)return;
+cont.innerHTML=ASCV_BG_OPTIONS.map(function(c){
+var activo=c.hex===ascVertBg;
+return '<button type="button" title="'+esc(c.label)+'" onclick="elegirFondoAscendenteV3(\''+c.hex+'\')" style="width:36px;height:36px;border-radius:50%;background:'+c.hex+';border:3px solid '+(activo?'var(--accent)':'#c8c0b0')+';cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15);flex-shrink:0"></button>';
+}).join('');
+}
+function elegirFondoAscendenteV3(hex){ascVertBg=hex;renderAscBgSwatchesV3();}
+function abrirModalAscendentePosterV3(){
+if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+renderAscBgSwatchesV3();
+document.getElementById('modalPosterAscendenteV3').style.display='flex';
+}
+function cerrarModalAscendentePosterV3(){document.getElementById('modalPosterAscendenteV3').style.display='none';}
+function generarArbolAscendentePosterV3(){
+if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
+if(!puedeVerPersona(infId)){toast('No tienes acceso a la ficha de esta persona',true);return;}
+var svg=buildAscPosterSVGStringV3(infId);
+var printArea=document.getElementById('printArea');
+printArea.innerHTML='<div class="asc-print-page-vert">'+svg+'</div>';
+var styleTag=document.getElementById('pageSizeOverride');
+if(!styleTag){styleTag=document.createElement('style');styleTag.id='pageSizeOverride';document.head.appendChild(styleTag);}
+styleTag.textContent='@media print{@page{size:A3 portrait;margin:0}}';
+cerrarModalAscendentePosterV3();
+requestAnimationFrame(function(){
+window.print();
+setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
+});
+}
+
 function recopilarAscendientesInforme(id,gen,sosa,maxGen,visitados,porGeneracion){
 if(gen>maxGen||visitados[sosa])return;
 var p=id?PI[id]:null;
@@ -13899,7 +14146,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p><p>El buscador de esta pantalla, la comparativa familiar y la linea de vida respetan el mismo limite de perfil que el resto de la aplicacion: una persona viva fuera de tu alcance no aparece en la busqueda ni se menciona por su nombre en la comparativa (vease «Los tres perfiles»).</p>'},
 {titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». La <strong>Persona A es siempre la persona activa</strong> (la que aparece en la cabecera; se llega aqui normalmente pulsando «Parentesco» desde su ficha, y puede cambiarse con el boton «Cambiar persona activa» de esta misma pantalla, con la lupa del cabecero, o abriendo otra ficha). Busca y elige a la <strong>Persona B</strong> con su buscador; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>La Persona A, la Persona B y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
-{titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Ambos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><div class="manual-warn">A diferencia del resto de la aplicacion, estos posteres todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Se corregira en una proxima actualizacion.</div>'},
+{titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Los dos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><p>Ademas existe el <strong>poster vertical (cuadro familiar)</strong>: cuatro generaciones (la persona, sus padres, abuelos y bisabuelos) con foto en todas las casillas, un arbol de fondo y un marco ornamental. Se imprime en papel A3 en <strong>orientacion vertical</strong> (tamano real al 100%). Las ramas sin datos aparecen como «Por investigar».</p><div class="manual-warn">A diferencia del resto de la aplicacion, los dos posteres horizontales (clasico y mejorado) todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). El poster vertical si lo hace: una persona fuera de tu alcance aparece como «Persona no visible», sin foto, y no se sigue subiendo por su rama.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
 {titulo:'El Gestor de datos',soloAdmin:true,etiquetaAcceso:'ADMINISTRADOR · COLABORADOR (PARCIAL)',html:'<p>El Gestor de datos es el centro de mantenimiento del arbol: agrupa, por categorias, todo lo que convendria revisar o corregir, y cada categoria desaparece automaticamente en cuanto su recuento llega a cero.</p><div class="manual-tip"><strong>Acceso por perfil:</strong> el administrador ve todas las categorias que se describen a continuacion. El colaborador tambien puede abrir el Gestor de datos desde Herramientas (bloque «Datos»), pero solo ve las dos categorias de escritura no homogenea: «Apellidos con escritura no homogenea» y «Lugares con escritura no homogenea». Sus correcciones quedan registradas como cualquier otra edicion de un colaborador, para que el administrador les de su conformidad. El perfil Amigo no tiene acceso al Gestor.</div><ul><li><strong>Discrepancias en nombre y apellidos</strong>: nombre o apellidos con formato irregular (guiones, guiones bajos, puntos, espacios sobrantes), un nombre o apellido escrito enteramente en mayusculas o enteramente en minusculas (se propone la capitalizacion correcta, respetando particulas como "de", "del", "la" o "y"), un valor de relleno tipo «s/d»/«desconocido» en vez de un dato real, o una posible errata en un apellido heredado de un progenitor (misma grafia con tildes o mayusculas distintas) -estos cuatro, con boton «Solucionar»-, y casos solo para revisar: primer apellido muy distinto al del padre o segundo apellido muy distinto al primer apellido de la madre (solo personas nacidas desde 1900 y con diferencias grandes, no tildes ni erratas pequenas; se muestra tambien la ficha del padre o la madre para compararlas; no se avisa de personas portuguesas o brasilenas, cuyos apellidos se forman al reves, ni, en el caso de la madre, de personas de paises anglosajones, que usan un solo apellido), o nombre/apellidos identicos entre si.</li><li><strong>Inconsistencias</strong>: casos como conyuges sin vinculo reciproco, sexo incoherente con el rol de padre o madre, edades imposibles entre progenitores e hijos, matrimonios posteriores a una defuncion, etc. Cuando la correccion es segura y reversible aparece un boton «Solucionar»; el resto solo permite abrir la ficha para revisarla a mano.</li><li><strong>Posibles duplicados</strong>: parejas de personas con el mismo nombre y apellidos, agrupadas por nivel de confianza segun coincidan tambien el ano, los padres o el lugar de nacimiento. Cada pareja puede fusionarse en un solo registro (los datos vacios del que se conserva se rellenan con los del que se elimina) o marcarse como «no es duplicado».</li><li><strong>Apellidos con escritura no homogenea</strong>: agrupa las distintas formas de escribir un mismo apellido en Primer y Segundo apellido (por ejemplo «Fernandez» y «Fernández», o «Duran» y «Durán»). Nivel A: solo cambian mayusculas, tildes, puntuacion o espacios. Nivel C: posible errata de una letra en una grafia muy poco usada frente a otra frecuente (se muestran las fichas para comprobarlo). La forma recomendada es la mas usada, sumando las fichas con otra grafia cuyo padre o madre la tiene escrita asi. Marca en cada grupo la forma correcta (o escribe la tuya en «Otra forma») y aplica todas de una vez con «Aplicar selección»; solo el Nivel A se puede unificar automaticamente en bloque.</li><li><strong>Lugares con escritura no homogenea</strong>: agrupa toponimos que parecen el mismo lugar escrito de formas distintas (mayusculas, tildes, erratas...), en tres niveles de certeza, y permite marcar en cada grupo la forma correcta y aplicar todas las elegidas de una sola vez con el botón «Aplicar selección» (el guardado solo toca las fichas afectadas, por lo que es rápido aunque sean muchos grupos).</li><li><strong>Anos estimados pendientes de calcular</strong> y <strong>personas vivas con mas de 100 anos</strong>: accesos directos a las acciones masivas correspondientes.</li></ul><p>En las listas largas (mas de 100 casos) puedes elegir el tamano del tramo (100, 200, 300 o 500) y saltar directamente a cualquier tramo, por ejemplo al 301–600, sin volver a pasar por los ya revisados; las selecciones de lugares y apellidos se conservan al cambiar de tramo.</p><p>Todas las correcciones del Gestor exigen identidad de Google conectada y quedan registradas en el registro de cambios, igual que cualquier otra edicion.</p><div class="manual-warn">Fusionar dos fichas es una accion que no se puede deshacer: revisa siempre los dos resumenes antes de confirmar.</div>'},
 {titulo:'El registro de cambios',soloAdmin:true,html:'<p>Cada vez que un colaborador (sin ser el administrador) edita, crea, elimina, vincula o fusiona algo en el arbol, la aplicacion anota que campos cambiaron, quien lo hizo y cuando, en el registro de cambios. La pantalla Cambios permite revisarlos.</p><ul><li><strong>Pendientes</strong>: cambios de otros colaboradores todavia sin revisar por el administrador.</li><li><strong>Historial</strong>: todos los cambios, incluidos los ya resueltos.</li></ul><p>El administrador puede dar <strong>conformidad</strong> a un cambio (lo aplica de forma definitiva al arbol y lo marca como conforme) o <strong>rechazarlo</strong> (queda registrado, pero no se aplica). El boton «Conforme a todos» permite resolver de golpe todos los cambios pendientes cuando hay muchos, y «Eliminar todos» los quita de la lista sin tocar los datos del arbol (util para vaciar pendientes acumulados).</p><p>Los cambios que hace el propio administrador se aplican al arbol al instante, igual que los de cualquiera, pero <strong>no generan un pendiente de conformidad para si mismo</strong>: quedan directamente en el Historial como resueltos, ya que el arbol del administrador es el que manda y no necesita revisarse a si mismo. Esto aplica tambien a acciones masivas (recalculo de anos, marcar fallecidos en bloque, etc.).</p><p>El boton «Guardar cambios en Drive» sincroniza el registro con la carpeta compartida, para que todos los colaboradores vean los mismos cambios, aunque trabajen desde dispositivos distintos.</p><p>Cada cambio queda atribuido a la <strong>identidad real de Google</strong> de quien lo hizo (nombre y correo), nunca a un nombre escrito a mano: asi se evita que alguien pueda firmar un cambio en nombre de otra persona.</p>'},
@@ -14003,7 +14250,7 @@ var GUIA_CONTENIDO=[
 {titulo:'Paso 5 — La app comprueba automaticamente si esa cuenta tiene acceso',html:'<p>En cuanto se concede el permiso, la app comprueba en segundo plano si ese correo esta en la lista de «Usuarios autorizados». Hay dos resultados posibles:</p><ul><li><strong>Si esta autorizado:</strong> la pastilla se pone en verde y pasa a decir «Conectado a Google Drive». Puede continuar al paso 6.</li><li><strong>Si no esta autorizado:</strong> aparece el aviso «La cuenta [correo] no esta autorizada para acceder a este arbol familiar. Contacta con el administrador si crees que deberias tener acceso», y la app cierra la sesion de Drive sola.</li></ul>'},
 {titulo:'Paso 6 — Traer los datos familiares (solo si el arbol aparece vacio)',html:'<p>Si es un dispositivo realmente nuevo y el arbol aparece sin personas, hay que traer los datos una vez:</p><ul><li>En la pantalla principal, justo debajo de «Conectado a Google Drive», pulsa «Restaurar árbol oficial».</li><li>La app descarga automaticamente la ultima copia de seguridad guardada en Drive y la carga en el dispositivo.</li></ul><p>Este paso solo hace falta repetirlo si algun dia se usa la app en otro dispositivo distinto (un movil nuevo, otro navegador...), no cada vez que se abre.</p>'},
 {titulo:'Paso 7 — Uso normal a partir de ahora',html:'<p>Las siguientes veces que se abra la app en el mismo dispositivo y navegador, no hara falta repetir todo esto: la app intenta reconectar con Drive en silencio en cuanto se toca la pantalla, sin volver a pedir permiso ni mostrar los avisos de Google, mientras la sesion de Google siga vigente en ese navegador.</p><div class="manual-tip">Ni un colaborador ni un amigo veran ninguna seccion de «Solo administrador» dentro de Herramientas. Esa parte solo la ve el administrador del arbol.</div>'},
-{titulo:'Los tres perfiles: Administrador, Colaborador y Amigo',html:'<p>Cada persona autorizada para conectarse con Google tiene asignado uno de estos tres perfiles, que decide el administrador. Saber cual es el tuyo te dice que puedes ver y que puedes hacer dentro de la aplicacion:</p><ul><li><strong>Administrador</strong> — un unico correo fijo para todo el arbol. Ve y edita todo sin restriccion, decide quien tiene acceso y con que perfil, revisa y da la conformidad a los cambios de los demas, y es el unico que puede importar o exportar la base de datos completa, configurar la carpeta de Drive compartida o guardar una copia completa sin filtrar.</li><li><strong>Colaborador</strong> — el perfil habitual de la familia directa. Ve a todas las personas fallecidas del arbol, mas a todas las personas vivas del arbol principal de la familia y de las ramas de «Amigo» que el mismo haya vinculado a su propia ficha (las personas vivas de ramas traidas por otros colaboradores quedan ocultas). Puede editar fichas, crear personas nuevas, subir fotos y documentos, y vincular a su propia ficha a las personas de tipo «Amigo» que traiga. Sus cambios se aplican al momento y quedan firmados con su identidad real; ademas quedan anotados en el registro de cambios para que el administrador les de su conformidad, como constancia de que se han revisado. Desde Herramientas puede abrir tambien el Gestor de datos, pero solo con las dos categorias de escritura no homogenea (apellidos y lugares); el resto del Gestor es exclusivo del administrador.</li><li><strong>Amigo</strong> — el perfil pensado para alguien allegado a la familia que no es de la rama de sangre. Ve a todas las personas fallecidas del arbol, mas a todas las personas — vivas o fallecidas — de su propia rama completa (la familia conectada por parentesco de sangre o matrimonio a su propia ficha); el resto de personas vivas del arbol queda oculto. Puede editar fichas dentro de lo que ve, igual que un colaborador, y sus cambios tambien quedan firmados con su cuenta real, pero no gestiona el acceso de otros usuarios, no vincula nuevas personas de tipo «Amigo» a otras fichas, y no ve ninguna de las herramientas exclusivas del administrador.</li></ul><div class="manual-tip">Da igual el perfil que tengas: cualquier cambio que hagas siempre queda firmado con tu cuenta real de Google, nunca de forma anonima.</div><div class="manual-tip">Si conectas tu cuenta y una persona viva aparece como «Persona no visible» en una ficha, en el arbol o en una busqueda, es exactamente este limite de perfil funcionando como debe: esa persona esta fuera del alcance que te corresponde.</div><p>Este limite se aplica de forma consistente en toda la aplicacion: Buscar, la Ficha, el Arbol grafico, Cronologia, Relacion entre dos personas, Informes (incluidos los PDF descargables) y el buscador de Documentos.</p><div class="manual-warn">Excepcion pendiente de revisar: los posteres ascendentes A3 en SVG (vease «Posters ascendentes A3 para enmarcar») todavia no aplican este filtro persona por persona; evita generarlos si la rama ascendente incluye a alguien fuera de tu alcance.</div>'},
+{titulo:'Los tres perfiles: Administrador, Colaborador y Amigo',html:'<p>Cada persona autorizada para conectarse con Google tiene asignado uno de estos tres perfiles, que decide el administrador. Saber cual es el tuyo te dice que puedes ver y que puedes hacer dentro de la aplicacion:</p><ul><li><strong>Administrador</strong> — un unico correo fijo para todo el arbol. Ve y edita todo sin restriccion, decide quien tiene acceso y con que perfil, revisa y da la conformidad a los cambios de los demas, y es el unico que puede importar o exportar la base de datos completa, configurar la carpeta de Drive compartida o guardar una copia completa sin filtrar.</li><li><strong>Colaborador</strong> — el perfil habitual de la familia directa. Ve a todas las personas fallecidas del arbol, mas a todas las personas vivas del arbol principal de la familia y de las ramas de «Amigo» que el mismo haya vinculado a su propia ficha (las personas vivas de ramas traidas por otros colaboradores quedan ocultas). Puede editar fichas, crear personas nuevas, subir fotos y documentos, y vincular a su propia ficha a las personas de tipo «Amigo» que traiga. Sus cambios se aplican al momento y quedan firmados con su identidad real; ademas quedan anotados en el registro de cambios para que el administrador les de su conformidad, como constancia de que se han revisado. Desde Herramientas puede abrir tambien el Gestor de datos, pero solo con las dos categorias de escritura no homogenea (apellidos y lugares); el resto del Gestor es exclusivo del administrador.</li><li><strong>Amigo</strong> — el perfil pensado para alguien allegado a la familia que no es de la rama de sangre. Ve a todas las personas fallecidas del arbol, mas a todas las personas — vivas o fallecidas — de su propia rama completa (la familia conectada por parentesco de sangre o matrimonio a su propia ficha); el resto de personas vivas del arbol queda oculto. Puede editar fichas dentro de lo que ve, igual que un colaborador, y sus cambios tambien quedan firmados con su cuenta real, pero no gestiona el acceso de otros usuarios, no vincula nuevas personas de tipo «Amigo» a otras fichas, y no ve ninguna de las herramientas exclusivas del administrador.</li></ul><div class="manual-tip">Da igual el perfil que tengas: cualquier cambio que hagas siempre queda firmado con tu cuenta real de Google, nunca de forma anonima.</div><div class="manual-tip">Si conectas tu cuenta y una persona viva aparece como «Persona no visible» en una ficha, en el arbol o en una busqueda, es exactamente este limite de perfil funcionando como debe: esa persona esta fuera del alcance que te corresponde.</div><p>Este limite se aplica de forma consistente en toda la aplicacion: Buscar, la Ficha, el Arbol grafico, Cronologia, Relacion entre dos personas, Informes (incluidos los PDF descargables) y el buscador de Documentos.</p><div class="manual-warn">Excepcion pendiente de revisar: los dos posteres ascendentes A3 horizontales en SVG (clasico y mejorado; vease «Posters ascendentes A3 para enmarcar») todavia no aplican este filtro persona por persona; evita generarlos si la rama ascendente incluye a alguien fuera de tu alcance. El poster vertical si lo aplica.</div>'},
 {titulo:'Herramientas — que hay en la caja de herramientas',html:'<p>Arriba a la derecha, el icono con forma de caja de herramientas abre un panel con varias funciones, agrupadas por bloques. Un colaborador o un amigo (cualquiera que no sea el administrador) ve el bloque «Uso general»:</p><ul><li><strong>Ayuda:</strong> Politica de privacidad, Manual de usuario, Guia de primer acceso.</li><li><strong>Dispositivo:</strong> Instalar aplicacion.</li><li><strong>Copias de seguridad:</strong> Restaurar árbol oficial desde la pantalla principal (solo datos, nunca fotos).</li><li><strong>Fotos:</strong> importar fotos desde Drive tiene su propio icono en la pantalla principal, junto al del árbol; importar desde una carpeta local sigue siendo exclusivo del administrador, dentro de Herramientas.</li><li><strong>Investigacion:</strong> visible en cuanto hay identidad de Google conectada.</li><li><strong>Datos (solo colaborador):</strong> Gestor de datos, limitado a las categorias «Apellidos con escritura no homogenea» y «Lugares con escritura no homogenea».</li><li><strong>Mantenimiento:</strong> Limpiar cache.</li></ul><p>El administrador ve ademas un bloque «Solo administrador» (gestion de usuarios con su tipo y ficha vinculada, registro de conexiones de los colaboradores, guardar copia completa sin filtrar, el Gestor de datos con todas sus categorias (el colaborador solo ve en el las de apellidos y lugares con escritura no homogenea), importar CSV, configurar anos estimados, copia de seguridad local en ZIP, carpeta raiz compartida (avanzado), la copia oficial en Drive y exportar GEDCOM), que el resto de la familia no ve. Subir la copia oficial a Drive y guardar la copia completa son, a proposito, acciones exclusivas del administrador: son la unica forma de que el arbol compartido no se desincronice entre dispositivos y de que nadie pueda sacarse sin querer una copia con datos que no deberia ver.</p>'},
 {titulo:'Politica de privacidad',html:'<p>Explica que datos usa la app y como se tratan. Se puede consultar en cualquier momento desde Herramientas → «Politica de privacidad», o directamente en este enlace:</p><p style="text-align:center"><a href="'+GUIA_PRIVACIDAD_URL+'">'+GUIA_PRIVACIDAD_URL+'</a></p>'},
 {titulo:'Copias de seguridad: Guardar y Restaurar desde Drive',html:'<p>Antes de hacer cambios importantes conviene asegurarse de que existe una copia de seguridad reciente. Dentro de Herramientas hay dos funciones relacionadas, disponibles para cualquier usuario:</p><ul><li><strong>Guardar copia:</strong> descarga al dispositivo un archivo con todos los datos y las fotografias incrustadas. No requiere conexion a Google.</li><li><strong>Restaurar desde Drive:</strong> descarga automaticamente la ultima copia que exista en la carpeta compartida de Drive y la carga en la app — es el paso descrito en el Paso 6 de esta guia. Requiere identidad de Google conectada. Restaura solo los datos; las fotos se traen aparte con el icono «Importar fotos» de la pantalla principal, con su propia barra de progreso.</li></ul><div class="manual-warn">Restaurar una copia sustituye TODOS los datos actuales del dispositivo. Solo debe hacerse cuando se quiere reemplazar por completo el arbol local — por ejemplo, la primera vez que se usa la app en un dispositivo nuevo.</div>'},
@@ -16175,6 +16422,18 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePosterV2()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generar e imprimir</button>
 </div>
 </div>
+<div id="modalPosterAscendenteV3" role="dialog" aria-modal="true" aria-labelledby="modalPosterAscV3Titulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<h2 id="modalPosterAscV3Titulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-tree" aria-hidden="true" style="color:var(--accent)"></i> Poster vertical (cuadro familiar)</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalAscendentePosterV3()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Cuatro generaciones (la persona, sus padres, abuelos y bisabuelos) con foto en todas las casillas, árbol de fondo y marco dorado, en A3 vertical. Las fotos nunca se recortan. Las ramas sin datos aparecen como «Por investigar»; las personas fuera de tu alcance, como «Persona no visible». Puedes elegir el color de fondo:</p>
+<div id="ascColorSwatchesV3" role="group" aria-label="Color de fondo del poster" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
+<p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación vertical y tamaño real (100%, sin "ajustar a la página").</p>
+<button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePosterV3()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generar e imprimir</button>
+</div>
+</div>
 <div id="modalImportFotos" role="dialog" aria-modal="true" aria-labelledby="impFotosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:240;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -16254,6 +16513,7 @@ var MODAL_CLOSERS={
 'modalNovedades':function(){if(typeof cerrarNovedades==='function')cerrarNovedades();},
 'modalPosterAscendente':function(){if(typeof cerrarModalAscendentePoster==='function')cerrarModalAscendentePoster();},
 'modalPosterAscendenteV2':function(){if(typeof cerrarModalAscendentePosterV2==='function')cerrarModalAscendentePosterV2();},
+'modalPosterAscendenteV3':function(){if(typeof cerrarModalAscendentePosterV3==='function')cerrarModalAscendentePosterV3();},
 'modalImportFotos':function(){if(typeof cerrarModalImportFotos==='function')cerrarModalImportFotos();},
 'modalConfigANOCALC':function(){if(typeof cerrarModalConfigANOCALC==='function')cerrarModalConfigANOCALC();},
 'modalDepuracionANOCALC':function(){if(typeof cerrarDepuracionANOCALC==='function')cerrarDepuracionANOCALC();},
