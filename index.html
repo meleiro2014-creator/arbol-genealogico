@@ -879,7 +879,7 @@ body{background:#fff}
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-leaf"></i> Árbol ascendente con olivo (A3 vertical)</h3>
-<p>Poster elegante en A3 vertical con cinco generaciones hasta los tatarabuelos (los tatarabuelos en la penúltima fila y las tatarabuelas en la última), fotos en marcos dorados tal como están guardadas, años de nacimiento y defunción bajo cada nombre y ramas de olivo en los laterales. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
+<p>Poster elegante en A3 vertical con cinco generaciones hasta los tatarabuelos (los tatarabuelos en la penúltima fila y las tatarabuelas en la última), fotos en marcos dorados cuadrados tal como están guardadas, años de nacimiento y defunción bajo cada nombre y ramas de olivo en los laterales. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
 <button class="ef-btn" onclick="abrirModalAscendentePosterV4()"><i class="fa-solid fa-file-pdf"></i> Generar poster con olivo</button>
 </div>
 <div class="inf-card">
@@ -1077,8 +1077,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.18.3';
+var APP_VERSION = '2026.10.18.4';
 var APP_CHANGELOG = [
+  { version:'2026.10.18.4', fecha:'2026-10-18', cambios:[
+    'Informes: en el poster «Árbol ascendente con olivo» las fotos van en marcos perfectamente cuadrados, y entre el padre y la madre de cada pareja aparece un ornamento dorado sutil (filete fino con rombo central).'
+  ]},
   { version:'2026.10.18.3', fecha:'2026-10-18', cambios:[
     'Informes: el poster «Árbol ascendente con olivo (A3 vertical)» pasa a cinco generaciones (hasta los tatarabuelos: tatarabuelos en la penúltima fila y tatarabuelas en la última), con marcos rectangulares dorados en lugar de óvalos y fotos sin ningún tratamiento (se quitan las opciones de sepia y recorte).',
     'Informes: se elimina el informe «Árbol ascendente (poster A3)».'
@@ -13824,12 +13827,12 @@ var ascOBg=ASCV_BG_OPTIONS[0].hex;
 /* Geometria (mm): marco de la foto (w x h), y = parte superior del marco, lh = alto reservado al texto.
    Filas: 0 persona, 1 padres, 2 abuelos, 3 bisabuelos, 4 tatarabuelos (varones), 5 tatarabuelas (mujeres) */
 var ASCO_FILAS=[
-{y:56, w:42,h:52,lh:17,fsMax:4.2,fsMin:2.8,lineas:2},
-{y:131,w:36,h:45,lh:16,fsMax:3.6,fsMin:2.5,lineas:2},
-{y:198,w:30,h:38,lh:16,fsMax:3.2,fsMin:2.2,lineas:3},
-{y:258,w:26,h:32,lh:17,fsMax:2.7,fsMin:1.8,lineas:3},
-{y:311,w:24,h:26,lh:14,fsMax:2.5,fsMin:1.6,lineas:3},
-{y:353,w:24,h:26,lh:14,fsMax:2.5,fsMin:1.6,lineas:3}
+{y:56, w:46,h:46,lh:17,fsMax:4.2,fsMin:2.8,lineas:2},
+{y:125,w:38,h:38,lh:16,fsMax:3.6,fsMin:2.5,lineas:2},
+{y:187,w:32,h:32,lh:16,fsMax:3.2,fsMin:2.2,lineas:3},
+{y:243,w:27,h:27,lh:17,fsMax:2.7,fsMin:1.8,lineas:3},
+{y:293,w:25,h:25,lh:14,fsMax:2.5,fsMin:1.6,lineas:3},
+{y:342,w:25,h:25,lh:14,fsMax:2.5,fsMin:1.6,lineas:3}
 ];
 var ASCO_GAP_TEXTO=2.6;
 function ascOCentros(){
@@ -13926,11 +13929,11 @@ var def='<defs><path id="ascoHoja" d="M0 0 C3 -1.7 7.5 -1.7 11 0 C7.5 1.7 3 1.7 
 var W=ASCV_W;
 function izq(){
 return ascORamaOlivo([14,14],[12,46],[40,66],rnd,7,3)+
-ascORamaOlivo([14,252],[5,200],[26,136],rnd,8,4);
+ascORamaOlivo([14,238],[5,192],[26,134],rnd,8,4);
 }
 function der(){
 return ascORamaOlivo([W-14,14],[W-12,46],[W-40,66],rnd,7,3)+
-ascORamaOlivo([W-14,252],[W-5,200],[W-26,136],rnd,8,4);
+ascORamaOlivo([W-14,238],[W-5,192],[W-26,134],rnd,8,4);
 }
 return def+'<g>'+izq()+der()+'</g>';
 }
@@ -13939,6 +13942,17 @@ var d=dir||1;
 return '<path d="M'+(cx-9)+' '+y+' C'+(cx-6)+' '+(y-2*d)+' '+(cx-3)+' '+(y-2*d)+' '+(cx-1.5)+' '+y+' M'+(cx+9)+' '+y+' C'+(cx+6)+' '+(y-2*d)+' '+(cx+3)+' '+(y-2*d)+' '+(cx+1.5)+' '+y+'" fill="none" stroke="'+ASCO_ORO+'" stroke-width="0.4"/>'+
 '<path d="M'+cx+' '+(y-3*d)+' L'+(cx+1.6)+' '+y+' L'+cx+' '+(y+1.6*d)+' L'+(cx-1.6)+' '+y+'Z" fill="'+ASCO_ORO+'"/>'+
 '<circle cx="'+(cx-11)+'" cy="'+y+'" r="0.6" fill="'+ASCO_ORO+'"/><circle cx="'+(cx+11)+'" cy="'+y+'" r="0.6" fill="'+ASCO_ORO+'"/>';
+}
+/* Ornamento sutil entre los dos miembros de una pareja: filete dorado fino con rombo central y dos puntos */
+function ascOEnlaceSVG(x,y,half,color){
+var o='';
+var d=1.25;
+o+='<path d="M'+x.toFixed(2)+' '+(y-d).toFixed(2)+' L'+(x+d).toFixed(2)+' '+y.toFixed(2)+' L'+x.toFixed(2)+' '+(y+d).toFixed(2)+' L'+(x-d).toFixed(2)+' '+y.toFixed(2)+'Z" fill="'+color+'"/>';
+if(half>3){
+o+='<path d="M'+(x-half).toFixed(2)+' '+y.toFixed(2)+' H'+(x-d-1.4).toFixed(2)+' M'+(x+d+1.4).toFixed(2)+' '+y.toFixed(2)+' H'+(x+half).toFixed(2)+'" fill="none" stroke="'+color+'" stroke-width="0.3"/>';
+o+='<circle cx="'+(x-half-1.1).toFixed(2)+'" cy="'+y.toFixed(2)+'" r="0.45" fill="'+color+'"/><circle cx="'+(x+half+1.1).toFixed(2)+'" cy="'+y.toFixed(2)+'" r="0.45" fill="'+color+'"/>';
+}
+return o;
 }
 function buildAscPosterSVGStringV4(rootId){
 /* 5 generaciones: persona, padres (2), abuelos (4), bisabuelos (8), tatarabuelos (16: padres de cada bisabuelo/a) */
@@ -13983,6 +13997,25 @@ conectores+='<path d="M'+cP.toFixed(2)+' '+yb.toFixed(2)+' V'+ym.toFixed(2)+'" f
 conectores+='<path d="M'+(cP).toFixed(2)+' '+ym.toFixed(2)+' H'+(c1+R).toFixed(2)+' Q'+c1.toFixed(2)+' '+ym.toFixed(2)+' '+c1.toFixed(2)+' '+(ym+R).toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(h1?ASCO_ORO:ASCO_ORO_CLARO)+'" stroke-width="0.5"/>';
 conectores+='<path d="M'+(cP).toFixed(2)+' '+ym.toFixed(2)+' H'+(c2-R).toFixed(2)+' Q'+c2.toFixed(2)+' '+ym.toFixed(2)+' '+c2.toFixed(2)+' '+(ym+R).toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(h2?ASCO_ORO:ASCO_ORO_CLARO)+'" stroke-width="0.5"/>';
 }
+}
+/* ornamento entre padre y madre de cada pareja (filas 1 a 3: lado a lado; filas 4 y 5: en vertical) */
+for(var fp=1;fp<=3;fp++){
+var ff=ASCO_FILAS[fp];
+for(var jp=0;jp<filas[fp].length/2;jp++){
+var xa=centros[fp][2*jp],xb=centros[fp][2*jp+1];
+var hp=(filasEst[fp][2*jp]!=='vacio'&&filasEst[fp][2*jp+1]!=='vacio');
+var gapp=(xb-xa)-ff.w;
+var halfp=Math.min(10,gapp/2-3);
+if(gapp<12)halfp=0;
+var dd=Math.min(1.25,gapp/2-0.9);
+if(dd<0.5)continue;
+conectores+=ascOEnlaceSVG((xa+xb)/2,ff.y+ff.h/2,halfp,hp?ASCO_ORO:ASCO_ORO_CLARO);
+}
+}
+var yMax4=0;for(var jm=0;jm<8;jm++){yMax4=Math.max(yMax4,finTxt[4][jm]);}
+for(var jv=0;jv<8;jv++){
+var hv=(filasEst[4][jv]!=='vacio'&&filasEst[5][jv]!=='vacio');
+conectores+=ascOEnlaceSVG(centros[4][jv],(yMax4+ASCO_FILAS[5].y)/2,4.5,hv?ASCO_ORO:ASCO_ORO_CLARO);
 }
 /* bisabuelo/a -> sus padres (tatarabuelos): hilo vertical corto hacia la columna de abajo */
 for(var j3=0;j3<8;j3++){
