@@ -868,11 +868,6 @@ body{background:#fff}
 <button class="ef-btn ghost" onclick="descargarInformeRama()"><i class="fa-solid fa-print"></i> Imprimir</button> <button class="ef-btn" onclick="descargarInformeRamaPDF(event)"><i class="fa-solid fa-file-pdf"></i> Descargar PDF</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-sitemap fa-rotate-180"></i> Árbol ascendente (poster A3)</h3>
-<p>Poster en abanico de 8 generaciones, pensado para imprimir en A3 apaisado y enmarcar. Sin fotos; elige el color.</p>
-<button class="ef-btn" onclick="abrirModalAscendentePoster()"><i class="fa-solid fa-file-pdf"></i> Generar poster</button>
-</div>
-<div class="inf-card">
 <h3><i class="fa-solid fa-images"></i> Árbol ascendente mejorado (poster A3)</h3>
 <p>Igual que el poster anterior, pero con letra más grande en la persona principal, sus padres, sus abuelos y sus bisabuelos; foto (sin recortar) en esas cuatro generaciones cuando exista; y una caja con foto para el cónyuge de la persona principal, a su izquierda.</p>
 <button class="ef-btn" onclick="abrirModalAscendentePosterV2()"><i class="fa-solid fa-file-pdf"></i> Generar poster mejorado</button>
@@ -883,9 +878,9 @@ body{background:#fff}
 <button class="ef-btn" onclick="abrirModalAscendentePosterV3()"><i class="fa-solid fa-file-pdf"></i> Generar poster vertical</button>
 </div>
 <div class="inf-card">
-<h3><i class="fa-solid fa-leaf"></i> Árbol ascendente en óvalos con olivo (A3 vertical)</h3>
-<p>Poster en A3 vertical con cuatro generaciones, fotos en óvalo (en sepia si quieres), años de nacimiento y defunción bajo cada nombre y ramas de olivo en los laterales. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
-<button class="ef-btn" onclick="abrirModalAscendentePosterV4()"><i class="fa-solid fa-file-pdf"></i> Generar poster con óvalos</button>
+<h3><i class="fa-solid fa-leaf"></i> Árbol ascendente con olivo (A3 vertical)</h3>
+<p>Poster elegante en A3 vertical con cinco generaciones hasta los tatarabuelos (los tatarabuelos en la penúltima fila y las tatarabuelas en la última), fotos en marcos dorados tal como están guardadas, años de nacimiento y defunción bajo cada nombre y ramas de olivo en los laterales. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
+<button class="ef-btn" onclick="abrirModalAscendentePosterV4()"><i class="fa-solid fa-file-pdf"></i> Generar poster con olivo</button>
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-file-lines"></i> Informe de ascendientes</h3>
@@ -1082,8 +1077,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.18.2';
+var APP_VERSION = '2026.10.18.3';
 var APP_CHANGELOG = [
+  { version:'2026.10.18.3', fecha:'2026-10-18', cambios:[
+    'Informes: el poster «Árbol ascendente con olivo (A3 vertical)» pasa a cinco generaciones (hasta los tatarabuelos: tatarabuelos en la penúltima fila y tatarabuelas en la última), con marcos rectangulares dorados en lugar de óvalos y fotos sin ningún tratamiento (se quitan las opciones de sepia y recorte).',
+    'Informes: se elimina el informe «Árbol ascendente (poster A3)».'
+  ]},
   { version:'2026.10.18.2', fecha:'2026-10-18', cambios:[
     'Informes: nuevo poster «Árbol ascendente en óvalos con olivo (A3 vertical)». Cuatro generaciones con fotos en óvalo, años de nacimiento y defunción bajo cada nombre, ramas de olivo en los laterales y marco dorado. Opción de fotos en sepia (solo en el poster, sin modificar las fotos guardadas) y de recortar la foto para llenar el óvalo. Como el poster vertical anterior, respeta el límite de perfil: las personas fuera de tu alcance aparecen como «Persona no visible».'
   ]},
@@ -13210,57 +13209,7 @@ out+=ascNodeSVG(hijoM,esPadre);
 }
 return out;
 }
-function buildAscPosterSVGString(rootId){
-var p=PI[rootId];
-ascRowIndex=0;var arbolPadre=ascRecBuild(p.PADRE,0);
-ascRowIndex=0;var arbolMadre=ascRecBuild(p.MADRE,0);
-var gen2Y=arbolPadre.y;
-var g0Padre=ascGetBoxGeom(0,true),g0Madre=ascGetBoxGeom(0,false);
-var svg='';
-svg+=ascNodeSVG(arbolPadre,true);
-svg+=ascNodeSVG(arbolMadre,false);
-svg+='<line x1="'+(ASC_PAGE_W/2).toFixed(2)+'" y1="'+ASC_ROOT_Y.toFixed(2)+'" x2="'+(ASC_PAGE_W/2).toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
-svg+='<line x1="'+(g0Padre.x+g0Padre.w).toFixed(2)+'" y1="'+gen2Y.toFixed(2)+'" x2="'+g0Madre.x.toFixed(2)+'" y2="'+gen2Y.toFixed(2)+'" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.3"/>';
-svg+=ascBoxSVG(ASC_ROOT_X,ASC_ROOT_Y-ASC_ROOT_H/2,ASC_ROOT_W,ASC_ROOT_H,p,false);
-var bg='<rect x="0" y="0" width="'+ASC_PAGE_W+'" height="'+ASC_PAGE_H+'" fill="'+ascPosterBg+'"/>';
-var marco='<rect x="4" y="4" width="'+(ASC_PAGE_W-8)+'" height="'+(ASC_PAGE_H-8)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.6"/>'+
-'<rect x="7" y="7" width="'+(ASC_PAGE_W-14)+'" height="'+(ASC_PAGE_H-14)+'" fill="none" stroke="'+ASC_LINE_COLOR+'" stroke-width="0.18"/>';
-var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="6.5" letter-spacing="1.5" fill="'+ASC_LINE_COLOR+'">ÁRBOL GENEALÓGICO</text>'+
-'<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
-var leyenda='<rect x="'+(ASC_PAGE_W/2-36)+'" y="24.3" width="7" height="2.8" fill="none" stroke="'+ASC_FAINT_COLOR+'" stroke-width="0.25" stroke-dasharray="1.4,1.1"/>'+
-'<text x="'+(ASC_PAGE_W/2-26)+'" y="26.5" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASC_LINE_COLOR+'" opacity="0.65">= rama pendiente de investigar</text>';
-var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
-return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+leyenda+svg+pie+'</svg>';
-}
-function renderAscBgSwatches(){
-var cont=document.getElementById('ascColorSwatches');
-if(!cont)return;
-cont.innerHTML=ASC_BG_OPTIONS.map(function(c){
-var activo=c.hex===ascPosterBg;
-return '<button type="button" title="'+esc(c.label)+'" onclick="elegirFondoAscendente(\''+c.hex+'\')" style="width:36px;height:36px;border-radius:50%;background:'+c.hex+';border:3px solid '+(activo?'var(--accent)':'#c8c0b0')+';cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15);flex-shrink:0"></button>';
-}).join('');
-}
-function elegirFondoAscendente(hex){ascPosterBg=hex;renderAscBgSwatches();}
-function abrirModalAscendentePoster(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
-renderAscBgSwatches();
-document.getElementById('modalPosterAscendente').style.display='flex';
-}
-function cerrarModalAscendentePoster(){document.getElementById('modalPosterAscendente').style.display='none';}
-function generarArbolAscendentePoster(){
-if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
-var svg=buildAscPosterSVGString(infId);
-var printArea=document.getElementById('printArea');
-printArea.innerHTML='<div class="asc-print-page-fixed">'+svg+'</div>';
-var styleTag=document.getElementById('pageSizeOverride');
-if(!styleTag){styleTag=document.createElement('style');styleTag.id='pageSizeOverride';document.head.appendChild(styleTag);}
-styleTag.textContent='@media print{@page{size:A3 landscape;margin:0}}';
-cerrarModalAscendentePoster();
-requestAnimationFrame(function(){
-window.print();
-setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
-});
-}
+function elegirFondoAscendente(hex){ascPosterBg=hex;}
 /* ===== POSTER ASCENDENTE A3 — VERSION MEJORADA (V2) ===== */
 var ASC2_ROOT_W=34.0, ASC2_ROOT_H=26.0;
 var ASC2_ROOT_X=(ASC_PAGE_W/2)-(ASC2_ROOT_W/2), ASC2_ROOT_Y=278.0;
@@ -13869,24 +13818,26 @@ setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
 });
 }
 
-/* ===== POSTER ASCENDENTE A3 VERTICAL (V4) — fotos en óvalo, ramas de olivo, sepia opcional ===== */
+/* ===== POSTER ASCENDENTE A3 VERTICAL (V4) — marcos rectangulares dorados, 5 generaciones, ramas de olivo ===== */
 var ASCO_VERDE='#2F4A2F', ASCO_TEXTO='#2B3A2E', ASCO_ORO='#C09A4E', ASCO_ORO_CLARO='#E6D6AE';
 var ascOBg=ASCV_BG_OPTIONS[0].hex;
-var ascOSepia=true, ascORecorte=false;
-/* Geometria (mm): ovalo de la foto (w x h), y = parte superior del ovalo, lh = alto reservado al texto */
+/* Geometria (mm): marco de la foto (w x h), y = parte superior del marco, lh = alto reservado al texto.
+   Filas: 0 persona, 1 padres, 2 abuelos, 3 bisabuelos, 4 tatarabuelos (varones), 5 tatarabuelas (mujeres) */
 var ASCO_FILAS=[
-{y:66, w:46,h:56,lh:19,fsMax:4.0,fsMin:2.6,lineas:2},
-{y:160,w:40,h:50,lh:18,fsMax:3.5,fsMin:2.4,lineas:2},
-{y:246,w:35,h:45,lh:19,fsMax:3.0,fsMin:2.0,lineas:3},
-{y:330,w:28,h:35,lh:23,fsMax:2.6,fsMin:1.7,lineas:3}
+{y:56, w:42,h:52,lh:17,fsMax:4.2,fsMin:2.8,lineas:2},
+{y:131,w:36,h:45,lh:16,fsMax:3.6,fsMin:2.5,lineas:2},
+{y:198,w:30,h:38,lh:16,fsMax:3.2,fsMin:2.2,lineas:3},
+{y:258,w:26,h:32,lh:17,fsMax:2.7,fsMin:1.8,lineas:3},
+{y:311,w:24,h:26,lh:14,fsMax:2.5,fsMin:1.6,lineas:3},
+{y:353,w:24,h:26,lh:14,fsMax:2.5,fsMin:1.6,lineas:3}
 ];
-var ASCO_GAP_TEXTO=3.2;
+var ASCO_GAP_TEXTO=2.6;
 function ascOCentros(){
 var c3=[];for(var i=0;i<8;i++)c3.push(38.25+31.5*i);
 var c2=[],c1=[];
 for(var j=0;j<4;j++)c2.push((c3[2*j]+c3[2*j+1])/2);
 for(var k=0;k<2;k++)c1.push((c2[2*k]+c2[2*k+1])/2);
-return [[(c1[0]+c1[1])/2],c1,c2,c3];
+return [[(c1[0]+c1[1])/2],c1,c2,c3,c3,c3];
 }
 function ascOAnios(p,esRaiz){
 var nac=pdAnioTexto(p),fall=getDeathYear(p);
@@ -13909,28 +13860,27 @@ if(anios){var m2=med(fs,lin,false);if(m2.h<=ah)return m2;}
 var mc=Math.max(4,Math.floor(aw/(fsMin*0.56)));
 return med(fsMin,dividirNombreLineas(nombre,mc,maxLineas).slice(0,maxLineas).map(function(l){return truncarTexto(l,mc);}),false);
 }
-/* estado: 'ok' | 'oculto' | 'vacio' */
-function ascOOvaloSVG(cx,fila,estado,persona,esRaiz){
-var f=ASCO_FILAS[fila],cy=f.y+f.h/2,rx=f.w/2,ry=f.h/2;
+/* estado: 'ok' | 'oculto' | 'vacio'. Marco rectangular con doble filete dorado; la foto se muestra tal cual (sin sepia ni recorte). */
+function ascOMarcoSVG(cx,fila,estado,persona,esRaiz){
+var f=ASCO_FILAS[fila],x=cx-f.w/2,y=f.y;
 var vacio=(estado!=='ok');
 var oro=vacio?ASCO_ORO_CLARO:ASCO_ORO;
 var o='';
-ascClip2Id++;var cid='ascoClip_'+ascClip2Id;
-var rxi=rx-1.3,ryi=ry-1.3;
-o+='<clipPath id="'+cid+'"><ellipse cx="'+cx.toFixed(2)+'" cy="'+cy.toFixed(2)+'" rx="'+rxi.toFixed(2)+'" ry="'+ryi.toFixed(2)+'"/></clipPath>';
-o+='<ellipse cx="'+cx.toFixed(2)+'" cy="'+cy.toFixed(2)+'" rx="'+rxi.toFixed(2)+'" ry="'+ryi.toFixed(2)+'" fill="'+(vacio?ascOBg:'#EADFC6')+'"/>';
-var px=cx-rxi,py=cy-ryi,pw=rxi*2,ph=ryi*2;
+var ins=(fila<=1)?1.6:1.2;
+o+='<rect x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" width="'+f.w+'" height="'+f.h+'" fill="'+(vacio?ascOBg:'#F4ECD8')+'" stroke="'+oro+'" stroke-width="'+(vacio?0.3:0.7)+'"'+(vacio?' stroke-dasharray="1.6,1.2"':'')+'/>';
+var px=x+ins,py=y+ins,pw=f.w-2*ins,ph=f.h-2*ins;
 if(estado==='ok'&&persona&&persona.FOTO){
-o+='<image x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+pw.toFixed(2)+'" height="'+ph.toFixed(2)+'" href="'+escAttr(persona.FOTO)+'" preserveAspectRatio="'+(ascORecorte?'xMidYMin slice':'xMidYMid meet')+'" clip-path="url(#'+cid+')"'+(ascOSepia?' filter="url(#ascoSepia)"':'')+'/>';
+o+='<rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+pw.toFixed(2)+'" height="'+ph.toFixed(2)+'" fill="#EADFC6"/>';
+o+='<image x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+pw.toFixed(2)+'" height="'+ph.toFixed(2)+'" href="'+escAttr(persona.FOTO)+'" preserveAspectRatio="xMidYMid meet"/>';
 }else{
-o+='<g clip-path="url(#'+cid+')">'+ascVSiluetaSVG(px,py,pw,ph,vacio?'#EEE7D3':'#D9CFB3')+'</g>';
+o+='<rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+pw.toFixed(2)+'" height="'+ph.toFixed(2)+'" fill="'+(vacio?'#F1EBDA':'#EADFC6')+'"/>';
+o+=ascVSiluetaSVG(px,py,pw,ph,vacio?'#E4DCC4':'#D9CFB3');
 }
-o+='<ellipse cx="'+cx.toFixed(2)+'" cy="'+cy.toFixed(2)+'" rx="'+rxi.toFixed(2)+'" ry="'+ryi.toFixed(2)+'" fill="none" stroke="'+oro+'" stroke-width="0.35"/>';
-o+='<ellipse cx="'+cx.toFixed(2)+'" cy="'+cy.toFixed(2)+'" rx="'+(rx).toFixed(2)+'" ry="'+(ry).toFixed(2)+'" fill="none" stroke="'+oro+'" stroke-width="'+(vacio?0.3:0.8)+'"'+(vacio?' stroke-dasharray="1.6,1.2"':'')+'/>';
-/* texto bajo el ovalo */
-var tTop=f.y+f.h+ASCO_GAP_TEXTO,aw=(fila===3?31:f.w+14);
+if(!vacio)o+='<rect x="'+px.toFixed(2)+'" y="'+py.toFixed(2)+'" width="'+pw.toFixed(2)+'" height="'+ph.toFixed(2)+'" fill="none" stroke="'+oro+'" stroke-width="0.25"/>';
+/* texto bajo el marco */
+var tTop=y+f.h+ASCO_GAP_TEXTO,aw=(fila>=3?30.5:f.w+14);
 var nombre,anios='';
-if(estado==='ok'){nombre=(nombreParaPoster(persona,fila===3?4:3)||'').trim()||'?';anios=ascOAnios(persona,esRaiz);}
+if(estado==='ok'){nombre=(nombreParaPoster(persona,fila>=3?4:3)||'').trim()||'?';anios=ascOAnios(persona,esRaiz);}
 else if(estado==='oculto'){nombre='Persona no visible';}
 else{nombre='Por investigar';}
 var aj=ascOAjustar(nombre,anios,aw,f.lh-ASCO_GAP_TEXTO+1,f.fsMax,f.fsMin,f.lineas);
@@ -13945,7 +13895,7 @@ if(aj.anios){
 yEnd+=aj.fsA*1.25;
 o+='<text x="'+cx.toFixed(2)+'" y="'+yEnd.toFixed(2)+'" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-size="'+aj.fsA.toFixed(2)+'" fill="'+col+'">'+esc(aj.anios)+'</text>';
 }
-return {svg:o,finTexto:yEnd+ (aj.fs*0.35)};
+return {svg:o,finTexto:yEnd+(aj.fs*0.35)};
 }
 /* Rama de olivo: curva cuadratica con hojas alargadas a ambos lados y aceitunas */
 function ascORamaOlivo(p0,p1,p2,rnd,nPares,aceitunas){
@@ -13972,16 +13922,15 @@ return o;
 }
 function ascOOlivosSVG(){
 var rnd=ascVRng(1810);
-var def='<defs><path id="ascoHoja" d="M0 0 C3 -1.7 7.5 -1.7 11 0 C7.5 1.7 3 1.7 0 0Z"/>'+
-'<filter id="ascoSepia" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.393 0.769 0.189 0 0  0.349 0.686 0.168 0 0  0.272 0.534 0.131 0 0  0 0 0 1 0"/></filter></defs>';
+var def='<defs><path id="ascoHoja" d="M0 0 C3 -1.7 7.5 -1.7 11 0 C7.5 1.7 3 1.7 0 0Z"/></defs>';
 var W=ASCV_W;
 function izq(){
 return ascORamaOlivo([14,14],[12,46],[40,66],rnd,7,3)+
-ascORamaOlivo([13,360],[7,300],[26,236],rnd,9,4);
+ascORamaOlivo([14,252],[5,200],[26,136],rnd,8,4);
 }
 function der(){
 return ascORamaOlivo([W-14,14],[W-12,46],[W-40,66],rnd,7,3)+
-ascORamaOlivo([W-13,360],[W-7,300],[W-26,236],rnd,9,4);
+ascORamaOlivo([W-14,252],[W-5,200],[W-26,136],rnd,8,4);
 }
 return def+'<g>'+izq()+der()+'</g>';
 }
@@ -13992,9 +13941,9 @@ return '<path d="M'+(cx-9)+' '+y+' C'+(cx-6)+' '+(y-2*d)+' '+(cx-3)+' '+(y-2*d)+
 '<circle cx="'+(cx-11)+'" cy="'+y+'" r="0.6" fill="'+ASCO_ORO+'"/><circle cx="'+(cx+11)+'" cy="'+y+'" r="0.6" fill="'+ASCO_ORO+'"/>';
 }
 function buildAscPosterSVGStringV4(rootId){
-ascClip2Id=0;
+/* 5 generaciones: persona, padres (2), abuelos (4), bisabuelos (8), tatarabuelos (16: padres de cada bisabuelo/a) */
 var niveles=[[String(rootId)]],estados=[['ok']];
-for(var l=1;l<=3;l++){
+for(var l=1;l<=4;l++){
 var curIds=[],curEst=[];
 niveles[l-1].forEach(function(id,i){
 var est=estados[l-1][i],p=(est==='ok'&&id&&PI[id])?PI[id]:null;
@@ -14006,26 +13955,41 @@ else{curIds.push(pid);curEst.push('ok');}
 });
 niveles.push(curIds);estados.push(curEst);
 }
-var centros=ascOCentros(),ovalos='',conectores='',finTxt=[];
+/* filas de dibujo: la fila 4 son los tatarabuelos (padres) y la fila 5 las tatarabuelas (madres) de cada columna de bisabuelos */
+var filas=[],filasEst=[];
+for(var g=0;g<=3;g++){filas.push(niveles[g]);filasEst.push(estados[g]);}
+var f4=[],e4=[],f5=[],e5=[];
+for(var j=0;j<8;j++){f4.push(niveles[4][2*j]);e4.push(estados[4][2*j]);f5.push(niveles[4][2*j+1]);e5.push(estados[4][2*j+1]);}
+filas.push(f4);filasEst.push(e4);filas.push(f5);filasEst.push(e5);
+var centros=ascOCentros(),marcos='',conectores='',finTxt=[];
 var R=2.5;
-for(var fila=0;fila<4;fila++){
+for(var fila=0;fila<6;fila++){
 finTxt[fila]=[];
-for(var i=0;i<niveles[fila].length;i++){
-var persona=(estados[fila][i]==='ok'&&niveles[fila][i])?PI[niveles[fila][i]]:null;
-var r=ascOOvaloSVG(centros[fila][i],fila,estados[fila][i],persona,fila===0);
-ovalos+=r.svg;finTxt[fila][i]=r.finTexto;
+for(var i=0;i<filas[fila].length;i++){
+var persona=(filasEst[fila][i]==='ok'&&filas[fila][i])?PI[filas[fila][i]]:null;
+var r=ascOMarcoSVG(centros[fila][i],fila,filasEst[fila][i],persona,fila===0);
+marcos+=r.svg;finTxt[fila][i]=r.finTexto;
 }
 }
+/* conectores en horquilla: persona -> padres -> abuelos -> bisabuelos */
 for(var fl=0;fl<3;fl++){
 var yc=ASCO_FILAS[fl+1].y;
-for(var j=0;j<niveles[fl].length;j++){
-var cP=centros[fl][j],c1=centros[fl+1][2*j],c2=centros[fl+1][2*j+1];
-var yb=finTxt[fl][j]+1.5,ym=yb+(yc-yb)*0.45;
-var h1=estados[fl+1][2*j]!=='vacio',h2=estados[fl+1][2*j+1]!=='vacio';
+for(var j2=0;j2<filas[fl].length;j2++){
+var cP=centros[fl][j2],c1=centros[fl+1][2*j2],c2=centros[fl+1][2*j2+1];
+var yb=finTxt[fl][j2]+1.5,ym=yb+(yc-yb)*0.45;
+var h1=filasEst[fl+1][2*j2]!=='vacio',h2=filasEst[fl+1][2*j2+1]!=='vacio';
 var tr=(h1||h2)?ASCO_ORO:ASCO_ORO_CLARO;
 conectores+='<path d="M'+cP.toFixed(2)+' '+yb.toFixed(2)+' V'+ym.toFixed(2)+'" fill="none" stroke="'+tr+'" stroke-width="0.5"/>';
 conectores+='<path d="M'+(cP).toFixed(2)+' '+ym.toFixed(2)+' H'+(c1+R).toFixed(2)+' Q'+c1.toFixed(2)+' '+ym.toFixed(2)+' '+c1.toFixed(2)+' '+(ym+R).toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(h1?ASCO_ORO:ASCO_ORO_CLARO)+'" stroke-width="0.5"/>';
 conectores+='<path d="M'+(cP).toFixed(2)+' '+ym.toFixed(2)+' H'+(c2-R).toFixed(2)+' Q'+c2.toFixed(2)+' '+ym.toFixed(2)+' '+c2.toFixed(2)+' '+(ym+R).toFixed(2)+' V'+yc.toFixed(2)+'" fill="none" stroke="'+(h2?ASCO_ORO:ASCO_ORO_CLARO)+'" stroke-width="0.5"/>';
+}
+}
+/* bisabuelo/a -> sus padres (tatarabuelos): hilo vertical corto hacia la columna de abajo */
+for(var j3=0;j3<8;j3++){
+var y0=finTxt[3][j3]+1.2,y1=ASCO_FILAS[4].y-0.4;
+if(y1-y0>1.2){
+var hay=(filasEst[4][j3]!=='vacio'||filasEst[5][j3]!=='vacio');
+conectores+='<path d="M'+centros[3][j3].toFixed(2)+' '+y0.toFixed(2)+' V'+y1.toFixed(2)+'" fill="none" stroke="'+(hay?ASCO_ORO:ASCO_ORO_CLARO)+'" stroke-width="0.4"/>';
 }
 }
 var W=ASCV_W,H=ASCV_H,cx=W/2;
@@ -14040,7 +14004,7 @@ var titulo='<text x="'+cx+'" y="31" text-anchor="middle" font-family="Cinzel,ser
 ascOFleuron(cx,38.5,1)+
 '<text x="'+cx+'" y="49" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-style="italic" font-size="5" fill="'+ASCO_TEXTO+'">'+esc('Ascendientes de '+fn(p).replace(/\s+/g,' ').trim())+'</text>';
 var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCO_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>';
-return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+bg+marco+ascOOlivosSVG()+titulo+conectores+ovalos+pie+'</svg>';
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+bg+marco+ascOOlivosSVG()+titulo+conectores+marcos+pie+'</svg>';
 }
 function renderAscBgSwatchesV4(){
 var cont=document.getElementById('ascColorSwatchesV4');
@@ -14054,16 +14018,12 @@ function elegirFondoAscendenteV4(hex){ascOBg=hex;renderAscBgSwatchesV4();}
 function abrirModalAscendentePosterV4(){
 if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
 renderAscBgSwatchesV4();
-var a=document.getElementById('ascOSepia'),b=document.getElementById('ascORecorte');
-if(a)a.checked=ascOSepia;if(b)b.checked=ascORecorte;
 document.getElementById('modalPosterAscendenteV4').style.display='flex';
 }
 function cerrarModalAscendentePosterV4(){document.getElementById('modalPosterAscendenteV4').style.display='none';}
 function generarArbolAscendentePosterV4(){
 if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
 if(!puedeVerPersona(infId)){toast('No tienes acceso a la ficha de esta persona',true);return;}
-var a=document.getElementById('ascOSepia'),b=document.getElementById('ascORecorte');
-if(a)ascOSepia=!!a.checked;if(b)ascORecorte=!!b.checked;
 var svg=buildAscPosterSVGStringV4(infId);
 var printArea=document.getElementById('printArea');
 printArea.innerHTML='<div class="asc-print-page-vert">'+svg+'</div>';
@@ -16614,18 +16574,6 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div id="novedadesLista" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
-<div id="modalPosterAscendente" role="dialog" aria-modal="true" aria-labelledby="modalPosterAscTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-<h2 id="modalPosterAscTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-palette" aria-hidden="true" style="color:var(--accent)"></i> Poster ascendente</h2>
-<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalAscendentePoster()">×</button>
-</div>
-<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Plantilla fija en abanico de 8 generaciones, pensada para imprimir en A3 apaisado (horizontal) y enmarcar. No incluye fotos. Las lineas y las casillas son siempre color sepia; puedes elegir el color de fondo:</p>
-<div id="ascColorSwatches" role="group" aria-label="Color de fondo del poster" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
-<p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación horizontal y tamaño real (100%, sin "ajustar a la página").</p>
-<button class="ef-btn" style="width:100%;justify-content:center" onclick="generarArbolAscendentePoster()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> Generar e imprimir</button>
-</div>
-</div>
 <div id="modalPosterAscendenteV2" role="dialog" aria-modal="true" aria-labelledby="modalPosterAscV2Titulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -16653,12 +16601,10 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div id="modalPosterAscendenteV4" role="dialog" aria-modal="true" aria-labelledby="modalPosterAscV4Titulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-<h2 id="modalPosterAscV4Titulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-leaf" aria-hidden="true" style="color:var(--accent)"></i> Poster en óvalos con olivo</h2>
+<h2 id="modalPosterAscV4Titulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-leaf" aria-hidden="true" style="color:var(--accent)"></i> Poster con olivo</h2>
 <button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalAscendentePosterV4()">×</button>
 </div>
-<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Cuatro generaciones (la persona, sus padres, abuelos y bisabuelos) con foto en óvalo, años de nacimiento y defunción, ramas de olivo y marco dorado, en A3 vertical. Las ramas sin datos aparecen como «Por investigar»; las personas fuera de tu alcance, como «Persona no visible».</p>
-<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin-bottom:8px;line-height:1.4"><input type="checkbox" id="ascOSepia" checked style="margin-top:2px"> <span><strong>Fotos en sepia</strong> (solo en el poster; las fotos guardadas no se tocan)</span></label>
-<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin-bottom:14px;line-height:1.4"><input type="checkbox" id="ascORecorte" style="margin-top:2px"> <span><strong>Llenar el óvalo recortando</strong> la foto. Si no se marca, cada foto se ve entera, con un fondo crema alrededor.</span></label>
+<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Cinco generaciones: la persona, sus padres, abuelos, bisabuelos y tatarabuelos (tatarabuelos en la penúltima fila y tatarabuelas en la última), con foto en marcos dorados, años de nacimiento y defunción, ramas de olivo y marco ornamental, en A3 vertical. Las fotos se muestran tal cual, sin recortar ni cambiar de color. Las ramas sin datos aparecen como «Por investigar»; las personas fuera de tu alcance, como «Persona no visible».</p>
 <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Color de fondo:</p>
 <div id="ascColorSwatchesV4" role="group" aria-label="Color de fondo del poster" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
 <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación vertical y tamaño real (100%, sin "ajustar a la página").</p>
@@ -16742,7 +16688,6 @@ var MODAL_CLOSERS={
 'modalHuecoId':function(){if(typeof cancelarElegirIdNueva==='function')cancelarElegirIdNueva();},
 'modalHerramientas':function(){if(typeof cerrarHerramientas==='function')cerrarHerramientas();},
 'modalNovedades':function(){if(typeof cerrarNovedades==='function')cerrarNovedades();},
-'modalPosterAscendente':function(){if(typeof cerrarModalAscendentePoster==='function')cerrarModalAscendentePoster();},
 'modalPosterAscendenteV2':function(){if(typeof cerrarModalAscendentePosterV2==='function')cerrarModalAscendentePosterV2();},
 'modalPosterAscendenteV3':function(){if(typeof cerrarModalAscendentePosterV3==='function')cerrarModalAscendentePosterV3();},
 'modalPosterAscendenteV4':function(){if(typeof cerrarModalAscendentePosterV4==='function')cerrarModalAscendentePosterV4();},
