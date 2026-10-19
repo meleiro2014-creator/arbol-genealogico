@@ -1077,8 +1077,13 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.18.4';
+var APP_VERSION = '2026.10.19.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.19.1', fecha:'2026-10-19', cambios:[
+    'Ficha: nuevo botón «Marcar para borrar» (y «Quitar marca de borrado») en la barra de la ficha, para administrador y colaborador. Marcar no borra nada: la ficha muestra un aviso rojo hasta que se desmarque o se borre.',
+    'Gestor de datos (administrador): nueva categoría «Fichas marcadas para borrar», con una casilla por ficha (todas marcadas por defecto), aviso de hijos y cónyuges que quedarían desvinculados y botón «Borrar definitivamente las fichas seleccionadas», que las elimina todas de una vez con confirmación.',
+    'Gestor de datos (administrador): nueva categoría «Cónyuges con nombres parecidos» (dentro de Posibles duplicados). Detecta personas con dos o más cónyuges cuyos nombres y apellidos son iguales o casi iguales, muestra años, hijos en común y datos de boda de cada uno, y permite fusionarlos (los hijos pasan al conservado y la persona queda con un único cónyuge) o indicar que son personas distintas.'
+  ]},
   { version:'2026.10.18.4', fecha:'2026-10-18', cambios:[
     'Informes: en el poster «Árbol ascendente con olivo» las fotos van en marcos perfectamente cuadrados, y entre el padre y la madre de cada pareja aparece un ornamento dorado sutil (filete fino con rombo central).'
   ]},
@@ -2756,7 +2761,7 @@ var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicio
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',M3:'Cónyuge 3',M4:'Cónyuge 4',M5:'Cónyuge 5',M6:'Cónyuge 6',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas'
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas',BORRAR:'Marcada para borrar'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -2826,7 +2831,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{await refrescarCambiosDesdeDrive();var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO','BORRAR'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -8761,7 +8766,7 @@ if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='';
 h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+botonMarcaBorrarHtml(id)+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
 h+='<div id="efConexionAviso" style="display:none"></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
@@ -8789,6 +8794,7 @@ var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
 h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO&&p.FOTO_RECON)h+='<div style="font-size:12px;font-weight:700;color:#7a3f6a;margin:-8px 0 12px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Imagen reconstruida: no es una fotografía real de la persona.</div>';else if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
+if(p.BORRAR==='1')h+='<div style="background:#fdecea;border:1px solid #c0392b;color:#922b21;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin:0 0 12px"><i class="fa-solid fa-flag" aria-hidden="true"></i> Marcada para borrar. Se eliminará cuando el administrador ejecute el borrado masivo en el Gestor de datos.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
 h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
@@ -9651,6 +9657,287 @@ return afectados.length;
    guardado directamente o pendiente de aprobación. Se recuerda en memoria el último
    resultado de guardado de cada ficha (esta sesión) y se muestra como aviso en la ficha. */
 var FICHA_ULTIMO_GUARDADO={};
+/* ===== MARCAR FICHAS PARA BORRAR + BORRADO MASIVO + CÓNYUGES CON NOMBRES PARECIDOS =====
+   1) Campo BORRAR ('1' = marcada, '' = no). Se marca/desmarca desde la ficha (administrador y
+      colaborador). Marcar NO borra nada: solo deja una señal visible en la ficha.
+   2) Gestor de datos (solo administrador): categoría «Fichas marcadas para borrar», con casillas
+      para elegir cuáles y un botón que las elimina de una sola vez, desvinculando de padre, madre,
+      cónyuges y amigos las referencias a ellas (mismo criterio que eliminarFicha).
+   3) Gestor de datos (solo administrador): categoría «Cónyuges con nombres parecidos»: personas
+      con dos o más cónyuges cuyos nombres son iguales o casi iguales (probable cónyuge duplicado). */
+function puedeMarcarBorrar(){return esAdministrador()||esColaborador();}
+function botonMarcaBorrarHtml(id){
+if(!puedeMarcarBorrar())return '';
+var p=PI[id];if(!p)return '';
+var m=p.BORRAR==='1';
+return '<button class="ef-btn ghost" title="'+(m?'Quita la señal de borrado de esta ficha':'Deja la ficha señalada; se borrará cuando el administrador ejecute el borrado masivo en el Gestor de datos')+'" onclick="alternarMarcaBorrar(\''+safeId(id)+'\')"><i class="fa-solid '+(m?'fa-rotate-left':'fa-flag')+'"></i> '+(m?'Quitar marca de borrado':'Marcar para borrar')+'</button>';
+}
+async function alternarMarcaBorrar(id){
+if(!puedeMarcarBorrar()){toast('No tienes permiso para marcar fichas para borrar',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+var p=PI[id];
+if(!p){toast('Ficha no encontrada',true);return;}
+var marcar=p.BORRAR!=='1';
+var antesCambio=clonarPersona(p);
+p.BORRAR=marcar?'1':'';
+try{
+await sPersonas([id],{marcarANOCALCSucio:false});
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rFic(id);
+toast(marcar?'Ficha marcada para borrar':'Marca de borrado quitada');
+try{await registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');}catch(errReg){}
+}catch(err){
+p.BORRAR=antesCambio.BORRAR||'';
+toast('No se pudo guardar la marca: '+err.message,true);
+}
+}
+/* --- Borrado masivo de las fichas marcadas (Gestor de datos) --- */
+function gesBorrarConstruir(ids){
+/* ids: objeto {ID:true}. Devuelve el nuevo array de personas y cuántos vínculos se desvincularon. */
+var enlaces=0;
+var campos=['PADRE','MADRE','M1','M2','M3','M4','M5','M6'];
+var nuevos=[];
+D.forEach(function(p){
+if(ids[String(p.ID)])return;
+var copia=null;
+campos.forEach(function(c){
+if(p[c]&&ids[String(p[c])]){if(!copia)copia=clonarPersona(p);copia[c]='';enlaces++;}
+});
+if(p.AMIGOS!=null){
+var lista=Array.isArray(p.AMIGOS)?p.AMIGOS.map(String):(typeof p.AMIGOS==='string'&&p.AMIGOS.trim()?p.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);
+var resto=lista.filter(function(a){return !ids[String(a)];});
+if(resto.length!==lista.length){if(!copia)copia=clonarPersona(p);copia.AMIGOS=resto;}
+}
+nuevos.push(copia||p);
+});
+return{nuevos:nuevos,enlaces:enlaces};
+}
+function gesBorrarSeleccionadas(){
+GES_UI.borrarNo=GES_UI.borrarNo||{};
+return D.filter(function(p){return p.BORRAR==='1'&&!GES_UI.borrarNo[String(p.ID)];});
+}
+async function gesBorrarMarcadas(){
+if(!esAdministrador()){toast('Solo el administrador puede borrar fichas en bloque',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+var marcadas=gesBorrarSeleccionadas();
+if(!marcadas.length){toast('No hay ninguna ficha marcada y seleccionada para borrar',true);return;}
+var ids={};marcadas.forEach(function(p){ids[String(p.ID)]=true;});
+var vistaPrevia=gesBorrarConstruir(ids);
+var lista=marcadas.slice(0,15).map(function(p){return '  · '+(fn(p).trim()||'(sin nombre)')+' (ID '+p.ID+')';}).join('\n');
+var extra=marcadas.length>15?('\n  … y '+(marcadas.length-15)+' más'):'';
+if(!(await confirmarApp('Se van a ELIMINAR DEFINITIVAMENTE '+marcadas.length+' ficha(s):\n\n'+lista+extra+'\n\nSe desvincularán '+vistaPrevia.enlaces+' relación(es) (padre, madre o cónyuge) de otras fichas que apuntaban a ellas. Esta acción no se puede deshacer: si no tienes una copia de seguridad reciente, súbela a Drive antes de continuar.',{titulo:'Borrar fichas marcadas',textoAceptar:'Borrar definitivamente'})))return;
+mostrarProgresoAccion('Borrando '+marcadas.length+' ficha(s)...');
+try{
+await cederPantalla();
+var antes=mapaPersonas(D);
+var r=gesBorrarConstruir(ids);
+D=r.nuevos;
+if(cid&&ids[String(cid)]){cid=null;editSec={};}
+GES_UI.borrarNo={};
+await gesGuardarYRefrescar(antes,'eliminar',marcadas.length+' ficha(s) eliminada(s)');
+}catch(err){
+toast('No se pudieron borrar las fichas: '+err.message,true);
+try{bIdx(D);rGesLigero();}catch(e2){}
+}
+finally{ocultarProgresoAccion();}
+}
+async function gesBorrarQuitarMarca(id){
+if(!esAdministrador())return;
+var p=PI[id];if(!p)return;
+p.BORRAR='';
+mostrarProgresoAccion('Quitando la marca...');
+try{
+await cederPantalla();
+await sPersonas([id],{marcarANOCALCSucio:false});
+toast('Marca de borrado quitada');
+rGesLigero();
+}catch(err){p.BORRAR='1';toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
+}
+function gesBorrarToggle(inp){
+GES_UI.borrarNo=GES_UI.borrarNo||{};
+var id=inp.getAttribute('data-id');
+if(inp.checked)delete GES_UI.borrarNo[id];else GES_UI.borrarNo[id]=true;
+gesBorrarActualizarContador();
+}
+function gesBorrarActualizarContador(){
+var el=document.getElementById('gesBorrarCont');if(!el)return;
+var c=gesCatPorId('marcadas_borrar');if(!c)return;
+var no=0;c.items.forEach(function(it){if(GES_UI.borrarNo&&GES_UI.borrarNo[String(it.id)])no++;});
+el.innerHTML='<b>'+(c.items.length-no)+'</b> de '+c.items.length+' seleccionadas para borrar';
+}
+function gesBorrarSelTodas(valor){
+GES_UI.borrarNo={};
+if(!valor)D.forEach(function(p){if(p.BORRAR==='1')GES_UI.borrarNo[String(p.ID)]=true;});
+gesRender();
+}
+function gesBorrarBarraHtml(c){
+GES_UI.borrarNo=GES_UI.borrarNo||{};
+var no=0;c.items.forEach(function(it){if(GES_UI.borrarNo[String(it.id)])no++;});
+return '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;margin:6px 0">'+
+'<span id="gesBorrarCont"><b>'+(c.items.length-no)+'</b> de '+c.items.length+' seleccionadas para borrar</span>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesBorrarSelTodas(true)">Seleccionar todas</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesBorrarSelTodas(false)">Ninguna</button></div>';
+}
+function gesRenderBorrar(it){
+var p=PI[it.id];
+if(!p)return '<div class="inc-row"><div class="inc-msg"><span style="color:var(--muted)">ID '+esc(it.id)+' (la ficha ya no existe)</span></div></div>';
+GES_UI.borrarNo=GES_UI.borrarNo||{};
+var sel=!GES_UI.borrarNo[String(p.ID)];
+var hijos=(HD[p.ID]||[]).length;
+var conyuges=gesConyugesValidos(p).length;
+var y=pdAnioTexto(p);
+var avisos=[];
+if(hijos)avisos.push('<span style="color:#c0392b"><i class="fa-solid fa-triangle-exclamation"></i> '+hijos+' hijo(s) perderán este progenitor</span>');
+if(conyuges)avisos.push(conyuges+' cónyuge(s) se desvincularán');
+if(p.PADRE||p.MADRE)avisos.push('tiene padre/madre registrados');
+return '<div class="inc-row"><div class="inc-msg"><label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">'+
+'<input type="checkbox" data-id="'+escAttr(p.ID)+'"'+(sel?' checked':'')+' onclick="gesBorrarToggle(this)" style="margin-top:3px">'+
+'<span><b>'+esc(fn(p).trim()||'(sin nombre)')+'</b> <span style="color:var(--muted)">(ID '+esc(p.ID)+')</span>'+(y?' · '+esc(y):'')+
+(avisos.length?'<br><span style="font-size:11px;color:var(--muted)">'+avisos.join(' · ')+'</span>':'')+'</span></label>'+
+'<div class="inc-actions"><button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(p.ID)+'\')">Ver ficha</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesBorrarQuitarMarca(\''+safeId(p.ID)+'\')"><i class="fa-solid fa-rotate-left"></i> Quitar marca</button></div></div></div>';
+}
+/* --- Cónyuges con nombres parecidos --- */
+var CONY_IGNORADOS={};
+function gesConyugesValidos(p){
+var out=[];
+CAMPOS_CONYUGE.forEach(function(c,i){var id=p[c];if(id&&PI[id])out.push({id:String(id),slot:i+1});});
+return out;
+}
+/* Cadenas ya normalizadas y no vacías: iguales, o con 1 errata (2 si son largas) */
+function gesCercano(x,y){
+if(x===y)return true;
+if(!x||!y)return false;
+var m=Math.min(x.length,y.length);
+if(m<4)return false;
+return gesLev(x,y)<=(m>=8?2:1);
+}
+function gesNombrePilaCompat(a,b){
+if(a===b)return true;
+if(!a||!b)return false;
+var ta=a.split(' '),tb=b.split(' ');
+if(!gesCercano(ta[0],tb[0]))return false;
+var ra=ta.slice(1).join(' '),rb=tb.slice(1).join(' ');
+return !ra||!rb||ra===rb||gesCercano(ra,rb);
+}
+/* Devuelve null si no se parecen; si se parecen, {exacto:bool} */
+function gesParecidosConyuge(A,B){
+var na=normTxt(A.NOMBRE),nb=normTxt(B.NOMBRE),a1=normTxt(A.APELLIDO1),b1=normTxt(B.APELLIDO1),a2=normTxt(A.APELLIDO2),b2=normTxt(B.APELLIDO2);
+if(!na||!nb||!a1||!b1)return null;
+if(!gesNombrePilaCompat(na,nb))return null;
+if(!gesCercano(a1,b1))return null;
+if(a2&&b2&&!gesCercano(a2,b2))return null;
+return{exacto:(na===nb&&a1===b1&&a2===b2)};
+}
+function gesDetectarConyugesParecidos(){
+var items=[];
+D.forEach(function(x){
+var cs=gesConyugesValidos(x);
+if(cs.length<2)return;
+for(var i=0;i<cs.length;i++){
+for(var j=i+1;j<cs.length;j++){
+if(cs[i].id===cs[j].id)continue;
+var A=PI[cs[i].id],B=PI[cs[j].id];
+if(CONY_IGNORADOS[x.ID+'|'+A.ID+'|'+B.ID]||CONY_IGNORADOS[x.ID+'|'+B.ID+'|'+A.ID])continue;
+var sim=gesParecidosConyuge(A,B);
+if(!sim)continue;
+var motivos=[],conflictos=[];
+motivos.push(sim.exacto?'mismo nombre y apellidos':'nombre y apellidos casi iguales');
+var yA=getYearReal(A),yB=getYearReal(B);
+if(yA!==null&&yB!==null){
+if(Math.abs(yA-yB)<=1)motivos.push('mismo año de nacimiento ('+yA+')');
+else if(Math.abs(yA-yB)>3)conflictos.push('años de nacimiento distintos ('+yA+' / '+yB+')');
+}
+if(A.LUGARNAC&&B.LUGARNAC&&normTxt(A.LUGARNAC)===normTxt(B.LUGARNAC))motivos.push('mismo lugar de nacimiento');
+if(A.SEXO&&B.SEXO&&A.SEXO!==B.SEXO)conflictos.push('distinto sexo');
+if(A.PADRE&&A.PADRE===B.PADRE)motivos.push('mismo padre');
+else if(A.PADRE&&B.PADRE&&PI[A.PADRE]&&PI[B.PADRE]&&normTxt(fn(PI[A.PADRE]))!==normTxt(fn(PI[B.PADRE])))conflictos.push('padres distintos');
+if(A.MADRE&&A.MADRE===B.MADRE)motivos.push('misma madre');
+var hx=HD[x.ID]||[];
+var hijosCon=function(P){return hx.filter(function(h){var q=PI[h];return q&&(q.PADRE===P.ID||q.MADRE===P.ID);}).length;};
+var boda=function(slot){var f=x['MF'+slot],l=x['ML'+slot];return (f||l)?[f,l].filter(Boolean).join(', '):'sin datos de boda';};
+items.push({tipo:'conyuges',ownerId:x.ID,aId:A.ID,bId:B.ID,exacto:sim.exacto,motivos:motivos,conflictos:conflictos,
+nomOwner:fn(x).trim(),nomA:fn(A).trim(),nomB:fn(B).trim(),
+resA:fichaResumenDup(A)+' · '+hijosCon(A)+' hijo(s) con '+(fn(x).trim().split(' ')[0]||'esta persona')+' · boda: '+boda(cs[i].slot),
+resB:fichaResumenDup(B)+' · '+hijosCon(B)+' hijo(s) con '+(fn(x).trim().split(' ')[0]||'esta persona')+' · boda: '+boda(cs[j].slot)});
+}
+}
+});
+items.sort(function(a,b){
+var sa=(a.exacto?2:0)-a.conflictos.length,sb=(b.exacto?2:0)-b.conflictos.length;
+return sb-sa;
+});
+return items;
+}
+function gesRenderConyuges(c,it,idx){
+var etq=it.exacto?'Mismo nombre':'Nombre parecido';
+var col=it.conflictos.length?'var(--muted)':(it.exacto?'#c0392b':'var(--blue)');
+var htmlConf=it.conflictos.length?('<span style="color:#c0392b;font-size:11px"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(it.conflictos.join(' · '))+'</span><br>'):'';
+return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-people-arrows"></i></div>'+
+'<div class="inc-msg"><span class="inc-tag" style="color:'+col+'">'+etq+'</span><br>'+
+'Cónyuges de <b>'+esc(it.nomOwner)+'</b> (ID '+esc(it.ownerId)+'):<br>'+
+'<b>'+esc(it.nomA)+'</b> (ID '+esc(it.aId)+') y <b>'+esc(it.nomB)+'</b> (ID '+esc(it.bId)+')<br>'+
+'<span style="color:var(--muted);font-size:11px">'+esc(it.motivos.join(' · '))+'</span><br>'+htmlConf+
+'<span style="color:var(--muted);font-size:11px">A: '+esc(it.resA)+'</span><br>'+
+'<span style="color:var(--muted);font-size:11px">B: '+esc(it.resB)+'</span>'+
+'<div class="inc-actions">'+
+'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
+'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.aId)+'\')">Ver A</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.bId)+'\')">Ver B</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.ownerId)+'\')">Ver persona</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesConyugesIgnorar(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> Son personas distintas</button>'+
+'</div></div></div>';
+}
+async function gesConyugesIgnorar(catId,idx){
+var cat=gesCatPorId(catId);if(!cat)return;
+var it=cat.items[idx];if(!it||it.tipo!=='conyuges')return;
+CONY_IGNORADOS[it.ownerId+'|'+it.aId+'|'+it.bId]=true;
+toast('Marcados como personas distintas (hasta que recargues la app)');
+mostrarProgresoAccion('Actualizando el Gestor de datos...');
+try{await cederPantalla();rGesLigero();}
+finally{ocultarProgresoAccion();}
+}
+/* Tras fusionar dos cónyuges, quien tenía a ambos queda con el conservado en dos huecos (M2 y M3,
+   por ejemplo): se deja solo el primero, rescatando fecha/lugar de boda del hueco que se elimina
+   si el que se conserva no los tenía. */
+function gesLimpiarConyugesRepetidos(idConservado){
+D.forEach(function(x){
+var primero=null;
+CAMPOS_CONYUGE.forEach(function(c,i){
+if(String(x[c]||'')!==String(idConservado))return;
+var n=i+1;
+if(primero===null){primero=n;return;}
+if(!x['MF'+primero]&&x['MF'+n])x['MF'+primero]=x['MF'+n];
+if(!x['ML'+primero]&&x['ML'+n])x['ML'+primero]=x['ML'+n];
+x[c]='';x['MF'+n]='';x['ML'+n]='';
+});
+});
+}
+async function gesFusionarConyuges(catId,idx,inverso){
+if(!(await exigirIdentidadGoogle()))return;
+var cat=gesCatPorId(catId);if(!cat)return;
+var it=cat.items[idx];if(!it||it.tipo!=='conyuges')return;
+var idMantener=inverso?it.bId:it.aId;
+var idEliminar=inverso?it.aId:it.bId;
+var pM=PI[idMantener],pE=PI[idEliminar];
+if(!pM||!pE){rGesLigero();return;}
+if(!(await confirmarApp('Se fusionarán los dos cónyuges en una sola ficha.\nSe conservará: '+fn(pM).trim()+' (ID '+idMantener+')\nSe eliminará: '+fn(pE).trim()+' (ID '+idEliminar+')\nLos datos vacíos de la ficha conservada se rellenarán con los de la eliminada, y sus hijos y demás relaciones pasarán a la conservada. Quien tenía a los dos como cónyuge quedará con uno solo. Esta acción no se puede deshacer.')))return;
+mostrarProgresoAccion('Fusionando los dos cónyuges...');
+try{
+await cederPantalla();
+var antes=mapaPersonas(D);
+if(!(await fusionarPersonas(idMantener,idEliminar,true))){rGesLigero();return;}
+gesLimpiarConyugesRepetidos(idMantener);
+if(cid===idEliminar)cid=idMantener;
+await gesGuardarYRefrescar(antes,'fusionar','Cónyuges fusionados correctamente');
+}catch(err){
+toast('No se pudo guardar la fusión: '+err.message,true);
+try{bIdx(D);rGesLigero();}catch(e2){}
+}
+finally{ocultarProgresoAccion();}
+}
 async function eliminarFicha(id){
 if(!(await exigirIdentidadGoogle()))return;
 var persona=PI[id];
@@ -11158,6 +11445,16 @@ return cats;
 function construirCategoriasMantenimiento(){
 if(!esAdministrador())return gesCategoriasHomogeneidad();
 var cats=[];
+/* Fichas marcadas para borrar desde la ficha (campo BORRAR): borrado masivo con casillas. */
+var marcadasBorrar=D.filter(function(p){return p.BORRAR==='1';});
+if(marcadasBorrar.length)cats.push({
+id:'marcadas_borrar',fuente:'borrar',grupo:'borrado',
+titulo:'Fichas marcadas para borrar',
+icono:'fa-trash-can',severidad:'revision',
+descripcion:marcadasBorrar.length+' ficha(s) señalada(s) para borrar desde su ficha. Revisa la lista, desmarca las casillas de las que quieras conservar por ahora y pulsa el botón para eliminar de una vez las que queden seleccionadas. Al borrar, las referencias a ellas como padre, madre o cónyuge se desvinculan en las demás fichas. No se puede deshacer.',
+items:marcadasBorrar.map(function(p){return{tipo:'borrar',id:p.ID};}),
+accionMasiva:{etiqueta:'Borrar definitivamente las fichas seleccionadas'}
+});
 /* §4.0 Integridad referencial: se comprueba y se muestra ANTES que nada más, porque si hay
 IDs duplicados o vínculos rotos, cualquier otra cifra de este Gestor (edades, duplicados por
 nombre, completitud...) puede estar calculada sobre un dato ya dañado. Es además la comprobación
@@ -11278,6 +11575,16 @@ descripcion:nv.soloSeguros?'Parejas con el mismo nombre, año de nacimiento real
 items:sub.map(function(pr){return{tipo:'dup',aId:pr.a.ID,bId:pr.b.ID,score:pr.score,motivos:pr.motivos,conflictos:pr.conflictos||[],seguro:!!pr.seguro,nExtra:(function(){try{var par=dupElegirConservar(pr.a,pr.b);return dupPlanFusion(par[0],par[1]).length-1;}catch(e){return 0;}})(),resA:fichaResumenDup(pr.a),resB:fichaResumenDup(pr.b),nomA:fn(pr.a),nomB:fn(pr.b)};}),
 accionMasiva:nv.soloSeguros?{etiqueta:'Arreglar los '+sub.length+' duplicados seguros'}:null
 });
+});
+/* Cónyuges con nombres parecidos: personas con 2 o más cónyuges que parecen la misma persona. */
+var conyPar=gesDetectarConyugesParecidos();
+if(conyPar.length)cats.push({
+id:'conyuges_parecidos',fuente:'conyuges',grupo:'duplicados',
+titulo:'Cónyuges con nombres parecidos',
+icono:'fa-people-arrows',severidad:'revision',
+descripcion:conyPar.length+' caso(s) de una persona con dos o más cónyuges cuyos nombres y apellidos son iguales o casi iguales (probable cónyuge duplicado). Se comparan nombre, primer y segundo apellido tolerando tildes y erratas pequeñas; si falta un segundo apellido se compara solo lo que hay. Los casos con el mismo nombre y sin incompatibilidades salen primero. Puedes fusionar los dos cónyuges en uno (los hijos pasan al conservado) o indicar que son personas distintas.',
+items:conyPar,
+accionMasiva:null
 });
 /* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años,
 lugar de nacimiento, padre/madre y foto (esas tres últimas se quitaron del Gestor: son
@@ -11409,6 +11716,7 @@ async function gesAccionMasiva(catId){
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
+if(cat.fuente==='borrar'){await gesBorrarMarcadas();return;}
 if(cat.fuente==='fallecidos'){
 await marcarFallecidosMayores100();
 mostrarProgresoAccion('Actualizando el Gestor de datos...');
@@ -12097,13 +12405,15 @@ var tam=gesTam(c.id);
 var desde=gesDesde(c.id,total);
 var vistos=c.items.slice(desde,desde+tam);
 var nav=gesNavHtml(c,desde,tam,total);
-var h=(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():''))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
+var h=(c.fuente==='borrar'?gesBorrarBarraHtml(c):'')+(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():''))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
 vistos.forEach(function(it,j){
 var i=desde+j; /* indice ABSOLUTO dentro de c.items: los botones Solucionar/Fusionar lo usan */
 h+='<li>';
 if(it.tipo==='lugar')h+=gesRenderLugar(it.grupo);
 else if(it.tipo==='apellido')h+=gesRenderApellido(it.grupo);
 else if(it.tipo==='dup')h+=gesRenderItemDup(c,it,i);
+else if(it.tipo==='borrar')h+=gesRenderBorrar(it);
+else if(it.tipo==='conyuges')h+=gesRenderConyuges(c,it,i);
 else if(c.fuente==='inc'||c.fuente==='apellidos')h+=gesRenderItemInc(c,it,i);
 else h+=gesRenderItemDef(c,it);
 h+='</li>';
@@ -12113,7 +12423,7 @@ return h;
 }
 function gesRenderCat(c){
 var abierta=gesEstaAbierta(c);
-var chips={integridad:'Integridad',apellidos:'Apellidos',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var chips={integridad:'Integridad',borrado:'Borrado',apellidos:'Apellidos',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
 var h='<section class="ges-cat sev-'+(c.severidad||'info')+(abierta?' abierta':'')+'" data-id="'+c.id+'">';
 h+='<header class="ges-cat-head" onclick="gesToggle(\''+c.id+'\')">';
 h+='<i class="fa-solid '+esc(c.icono||'fa-circle-info')+' ges-ico"></i>';
@@ -12159,7 +12469,7 @@ primero las que tienen accionMasiva (limpiar lo fácil) y luego por nº de items
 Antes se ordenaba solo por accionMasiva+tamaño sin mirar el grupo, así que "Duplicados" podía
 aparecer, desaparecer y volver a aparecer entre categorías de otro tipo — de ahí la sensación
 de desorden. */
-var GES_GRUPO_ORDEN=['integridad','apellidos','inconsistencias','duplicados','completitud','lugares','otros'];
+var GES_GRUPO_ORDEN=['integridad','borrado','apellidos','inconsistencias','duplicados','completitud','lugares','otros'];
 cats.sort(function(a,b){
 var oa=GES_GRUPO_ORDEN.indexOf(a.grupo);if(oa<0)oa=99;
 var ob=GES_GRUPO_ORDEN.indexOf(b.grupo);if(ob<0)ob=99;
@@ -12189,7 +12499,7 @@ if(!cats.length){
 cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>'+(esAdministrador()?'Todo limpio: no queda ningún problema pendiente en el árbol.':'Todo limpio: no hay apellidos ni lugares con escritura no homogénea pendientes.')+'</div></div>';
 return;
 }
-var titulosGrupo={integridad:'Integridad de los datos',apellidos:'Discrepancias en nombre y apellidos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
+var titulosGrupo={integridad:'Integridad de los datos',borrado:'Borrado de fichas',apellidos:'Discrepancias en nombre y apellidos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
 var h=avisoSnapshot,grupoAnterior=null;
 cats.forEach(function(c){
 if(c.grupo!==grupoAnterior){
