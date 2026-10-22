@@ -1047,6 +1047,7 @@ body{background:#fff}
 </div>
 <div id="cambiosEstadoSync" class="cambio-sync" style="max-width:900px;margin:0 auto 10px"></div>
 <div id="listaCambios"></div>
+<div id="camConyPar" style="max-width:900px;margin:14px auto 0"></div>
 </div>
 <div class="view" id="vDoc">
 <div class="hero">
@@ -8914,6 +8915,11 @@ var lblTxt=esc(labelTxt);
 var acciones='<button type="button" class="ef-nbtn" title="Editar vinculado" aria-label="Editar '+lblTxt+' vinculado/a"'+(linked?'':' disabled')+' onclick="editarVinculado(\''+safeId(p.ID)+'\',\''+campo+'\')">E</button>';
 acciones+='<button type="button" class="ef-nbtn" title="Elegir persona existente" aria-label="Elegir persona existente para '+lblTxt+'" onclick="abrirSelectorRelacion(\''+safeId(p.ID)+'\',\''+campo+'\')"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>';
 acciones+='<button type="button" class="ef-nbtn" title="Crear nuevo y vincular" aria-label="Crear nueva persona y vincular como '+lblTxt+'" onclick="crearVinculado(\''+safeId(p.ID)+'\',\''+campo+'\',\''+sexoNuevo+'\',this)">N</button>';
+if(esConyuge&&linked){
+var nSlot=parseInt(campo.slice(1),10);
+acciones+='<button type="button" class="ef-nbtn" title="Subir: pasar a Cónyuge '+(nSlot-1)+'" aria-label="Subir '+lblTxt+'"'+(nSlot>1?'':' disabled')+' onclick="moverConyuge(\''+safeId(p.ID)+'\','+nSlot+',-1,this)"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>';
+acciones+='<button type="button" class="ef-nbtn" title="Bajar: pasar a Cónyuge '+(nSlot+1)+'" aria-label="Bajar '+lblTxt+'"'+(nSlot<6&&p['M'+(nSlot+1)]&&PI[p['M'+(nSlot+1)]]?'':' disabled')+' onclick="moverConyuge(\''+safeId(p.ID)+'\','+nSlot+',1,this)"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>';
+}
 if(esConyuge&&linked)acciones+='<button type="button" class="ef-nbtn" title="Quitar vínculo" aria-label="Quitar vínculo de '+lblTxt+'" onclick="quitarConyuge(\''+safeId(p.ID)+'\',\''+campo+'\',this)"><i class="fa-solid fa-link-slash" aria-hidden="true"></i></button>';
 if((campo==='PADRE'||campo==='MADRE')&&linked)acciones+='<button type="button" class="ef-nbtn" title="Quitar vínculo" aria-label="Quitar vínculo de '+lblTxt+'" onclick="quitarPadreMadre(\''+safeId(p.ID)+'\',\''+campo+'\',this)"><i class="fa-solid fa-link-slash" aria-hidden="true"></i></button>';
 return '<div class="ef-row"><div class="ef-field" style="flex:0 0 90px;min-width:90px"><span class="ef-label" id="lbl_'+safeId(campo)+'_'+safeId(p.ID)+'">'+lblTxt+'</span></div>'+
@@ -10236,6 +10242,32 @@ registrarCambiosDesdeSnapshots(antes,D,'crear');
 cid=newId;editSec={datos:true};rFic(newId);
 toast('Persona creada y añadida como amigo de '+(duenio?fn(duenio).trim():idDuenio)+'. Completa los datos y guarda.');
 }).catch(function(err){toast('No se pudo crear: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
+}
+/* Cambia de lugar un cónyuge (intercambia el hueco n con el n+dir, llevándose lugar y fecha de boda).
+   Se guarda al momento, como el resto de acciones de vínculos, y conserva lo escrito en el formulario. */
+async function moverConyuge(id,n,dir,btn){
+var m=n+dir;
+if(m<1||m>6)return;
+if(!iniciarOperacionFicha(btn,''))return;
+if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
+var p=PI[id];
+if(!p||!p['M'+n]){finOperacionFicha(btn);return;}
+var antes=mapaPersonas(D);
+var camposPrevios=capturarCamposEdicionSiProcede(id);
+var fm={};
+for(var k=1;k<=6;k++){['ef-ml','ef-mf'].forEach(function(pre){var el=document.getElementById(pre+k);if(el)fm[pre+k]=el.value;});}
+['M','ML','MF'].forEach(function(pre){var t=p[pre+n];p[pre+n]=p[pre+m];p[pre+m]=t;});
+['ef-ml','ef-mf'].forEach(function(pre){var a=pre+n,b=pre+m,ta=fm[a],tb=fm[b];fm[a]=tb;fm[b]=ta;});
+var hoy=new Date();
+p.FechaEdicion=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+bIdx(D);
+sDesdeSnapshot(antes).then(function(){
+rFic(id);
+restaurarCamposEdicion(camposPrevios);
+Object.keys(fm).forEach(function(k){var el=document.getElementById(k);if(el&&fm[k]!==undefined)el.value=fm[k];});
+toast('Cónyuges reordenados');
+registrarCambiosDesdeSnapshots(antes,D,'vincular');
+}).catch(function(err){toast('No se pudo reordenar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function quitarConyuge(id,campo,btn){
 if(!iniciarOperacionFicha(btn,''))return;
@@ -16896,6 +16928,36 @@ if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial()
 if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
 function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+/* ===== Gestión de cambios: cónyuges con nombres parecidos (administrador y colaboradores, solo lectura) ===== */
+function renderConyugesParecidosCambios(){
+var cont=document.getElementById('camConyPar');
+if(!cont)return;
+if(!(esAdministrador()||esColaborador())){cont.innerHTML='';return;}
+var items=[];
+try{items=gesDetectarConyugesParecidos();}catch(e){cont.innerHTML='';return;}
+items=items.filter(function(it){return puedeVerPersona(it.ownerId)&&puedeVerPersona(it.aId)&&puedeVerPersona(it.bId);});
+var tocados={};
+CAMBIOS_CACHE.forEach(function(c){if(c.estado==='pendiente'&&c.personaId)tocados[String(c.personaId)]=true;});
+items.forEach(function(it){it.tocado=!!(tocados[String(it.ownerId)]||tocados[String(it.aId)]||tocados[String(it.bId)]);});
+items.sort(function(a,b){return (b.tocado?1:0)-(a.tocado?1:0);});
+if(!items.length){cont.innerHTML='<div class="cambio-card cambio-empty" style="font-size:12px"><i class="fa-solid fa-people-arrows" aria-hidden="true"></i> No hay personas con cónyuges de nombres parecidos.</div>';return;}
+var MAX=30,btn='style="padding:4px 10px;font-size:11px"';
+var h='<div class="cambio-card"><div class="cambio-head"><div><strong><i class="fa-solid fa-people-arrows" aria-hidden="true"></i> Cónyuges con nombres parecidos ('+items.length+')</strong></div></div>'+
+'<div class="cambio-desc" style="font-size:12px;color:var(--muted)">Personas con dos o más cónyuges cuyos nombres y apellidos son iguales o casi iguales: pueden ser la misma persona duplicada. Al revisar un cambio, comprueba si afecta a alguna de estas fichas.'+(esAdministrador()?' Para fusionarlas: Herramientas → Gestor de datos → «Cónyuges con nombres parecidos».':' Si crees que son la misma persona, avisa al administrador.')+'</div>';
+items.slice(0,MAX).forEach(function(it){
+var col=it.conflictos.length?'var(--muted)':(it.exacto?'#c0392b':'var(--blue)');
+h+='<div class="cambio-desc" style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+
+'<span style="font-weight:700;color:'+col+'">'+(it.exacto?'Mismo nombre':'Nombre parecido')+'</span>'+(it.tocado?' · <span style="color:#c0392b;font-weight:700"><i class="fa-solid fa-clock" aria-hidden="true"></i> afectado por un cambio pendiente</span>':'')+'<br>'+
+'Cónyuges de <b>'+esc(it.nomOwner)+'</b> (ID '+esc(it.ownerId)+'):<br><b>'+esc(it.nomA)+'</b> (ID '+esc(it.aId)+') y <b>'+esc(it.nomB)+'</b> (ID '+esc(it.bId)+')<br>'+
+'<span style="color:var(--muted);font-size:11px">'+esc(it.motivos.join(' · '))+'</span>'+
+(it.conflictos.length?'<br><span style="color:#c0392b;font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> '+esc(it.conflictos.join(' · '))+'</span>':'')+
+'<br><span style="color:var(--muted);font-size:11px">A: '+esc(it.resA)+'</span><br><span style="color:var(--muted);font-size:11px">B: '+esc(it.resB)+'</span>'+
+'<div class="cambio-actions"><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.aId)+'\')">Ver A</button><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.bId)+'\')">Ver B</button><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.ownerId)+'\')">Ver persona</button></div></div>';
+});
+if(items.length>MAX)h+='<div class="cambio-desc" style="font-size:11px;color:var(--muted);margin-top:8px">Se muestran los '+MAX+' primeros de '+items.length+'.</div>';
+cont.innerHTML=h+'</div>';
+}
+(function(){var orig=mostrarCambios;mostrarCambios=function(modo){var r=orig.apply(this,arguments);try{renderConyugesParecidosCambios();}catch(e){}return r;};})();
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var puedeSyncCam=!!(driveRootFolderId&&tokenDriveValido());
 CAMBIOS_CARGANDO=puedeSyncCam;
 /* La barra (con la abeja) se enseña YA, nada mas abrir la pantalla, y no se oculta hasta que
