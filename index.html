@@ -1047,7 +1047,6 @@ body{background:#fff}
 </div>
 <div id="cambiosEstadoSync" class="cambio-sync" style="max-width:900px;margin:0 auto 10px"></div>
 <div id="listaCambios"></div>
-<div id="camConyPar" style="max-width:900px;margin:14px auto 0"></div>
 </div>
 <div class="view" id="vDoc">
 <div class="hero">
@@ -1078,8 +1077,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.19.1';
+var APP_VERSION = '2026.10.22.1';
 var APP_CHANGELOG = [
+  { version:'2026.10.22.1', fecha:'2026-10-22', cambios:[
+    'Registro de cambios: se quita el bloque «Cónyuges con nombres parecidos». Ahora el colaborador lo consulta (solo lectura) en Gestor de datos → Posibles duplicados; el administrador sigue pudiendo fusionarlos desde ahí.'
+  ]},
   { version:'2026.10.19.1', fecha:'2026-10-19', cambios:[
     'Ficha: nuevo botón «Marcar para borrar» (y «Quitar marca de borrado») en la barra de la ficha, para administrador y colaborador. Marcar no borra nada: la ficha muestra un aviso rojo hasta que se desmarque o se borre.',
     'Gestor de datos (administrador): nueva categoría «Fichas marcadas para borrar», con una casilla por ficha (todas marcadas por defecto), aviso de hijos y cónyuges que quedarían desvinculados y botón «Borrar definitivamente las fichas seleccionadas», que las elimina todas de una vez con confirmación.',
@@ -1650,7 +1652,7 @@ function esColaborador(){
 return tipoUsuarioActual()==='colaborador';
 }
 /* Gestor de datos: el administrador ve todas sus categorias; el colaborador solo las dos de
-   escritura no homogenea (apellidos y lugares); el amigo (o quien no haya conectado) no accede. */
+   escritura no homogenea (apellidos y lugares) y, en solo lectura, cónyuges con nombres parecidos; el amigo (o quien no haya conectado) no accede. */
 function puedeUsarGestorDatos(){return esAdministrador()||esColaborador();}
 /* Avisa en el momento de conectar si la cuenta de Google activa no es la del
    administrador (ADMIN_EMAIL). Objetivo: detectar al instante si se está
@@ -9900,15 +9902,16 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-people-
 '<span style="color:var(--muted);font-size:11px">A: '+esc(it.resA)+'</span><br>'+
 '<span style="color:var(--muted);font-size:11px">B: '+esc(it.resB)+'</span>'+
 '<div class="inc-actions">'+
-'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
-'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
+(esAdministrador()?'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>':'')+
+(esAdministrador()?'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>':'')+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.aId)+'\')">Ver A</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.bId)+'\')">Ver B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.ownerId)+'\')">Ver persona</button>'+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesConyugesIgnorar(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> Son personas distintas</button>'+
+(esAdministrador()?'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesConyugesIgnorar(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> Son personas distintas</button>':'')+
 '</div></div></div>';
 }
 async function gesConyugesIgnorar(catId,idx){
+if(!esAdministrador()){toast('Solo el administrador puede hacer esto',true);return;}
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='conyuges')return;
 CONY_IGNORADOS[it.ownerId+'|'+it.aId+'|'+it.bId]=true;
@@ -9934,6 +9937,7 @@ x[c]='';x['MF'+n]='';x['ML'+n]='';
 });
 }
 async function gesFusionarConyuges(catId,idx,inverso){
+if(!esAdministrador()){toast('Solo el administrador puede hacer esto',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='conyuges')return;
@@ -11465,6 +11469,20 @@ accionMasiva:{etiqueta:'Calcular años estimados ('+sinPropio.length+')'}
    Colaborador en el Gestor de datos; el administrador las ve junto con todas las demas. */
 function gesCategoriasHomogeneidad(){
 var cats=[];
+/* Cónyuges con nombres parecidos para el COLABORADOR (solo lectura: el administrador la ve completa,
+   con fusión, desde construirCategoriasMantenimiento). Solo personas que el colaborador puede ver. */
+if(!esAdministrador()){
+var conyParCol=[];
+try{conyParCol=gesDetectarConyugesParecidos().filter(function(it){return puedeVerPersona(it.ownerId)&&puedeVerPersona(it.aId)&&puedeVerPersona(it.bId);});}catch(e){conyParCol=[];}
+if(conyParCol.length)cats.push({
+id:'conyuges_parecidos',fuente:'conyuges',grupo:'duplicados',
+titulo:'Cónyuges con nombres parecidos',
+icono:'fa-people-arrows',severidad:'revision',
+descripcion:conyParCol.length+' caso(s) de una persona con dos o más cónyuges cuyos nombres y apellidos son iguales o casi iguales (probable cónyuge duplicado). Solo lectura: abre las fichas para comprobarlo y, si crees que son la misma persona, avisa al administrador, que es quien puede fusionarlas.',
+items:conyParCol,
+accionMasiva:null
+});
+}
 /* §4.5 NUEVO: lugares con escritura no homogenea (LUGARNAC/LUGARDEF) */
 var gruposLug=gesDetectarLugares();
 if(gruposLug.length){
@@ -12651,7 +12669,7 @@ var cont=document.getElementById('gesPanel');
 var res=document.getElementById('gesResumen');
 if(!cont)return;
 var subGes=document.getElementById('gesSubtitulo');
-if(subGes)subGes.textContent=esAdministrador()?'Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0':'Apellidos y lugares escritos de formas distintas: marca la forma correcta y aplica. Tus correcciones quedan registradas para que las apruebe el administrador';
+if(subGes)subGes.textContent=esAdministrador()?'Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0':'Apellidos y lugares escritos de formas distintas: marca la forma correcta y aplica (tus correcciones quedan registradas para que las apruebe el administrador). También puedes consultar los cónyuges con nombres parecidos, en solo lectura';
 var btnLimpIA=document.getElementById('gesBtnLimpiarIA');if(btnLimpIA)btnLimpIA.style.display=esAdministrador()?'':'none';
 var cats=(GES_CACHE||[]).slice();
 /* §5: se ordena primero por GRUPO (Integridad > Inconsistencias > Duplicados > Completitud >
@@ -16928,36 +16946,6 @@ if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial()
 if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
 function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#c0392b;border-color:#c0392b" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#c0392b;border-color:#c0392b" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#c0392b">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
-/* ===== Gestión de cambios: cónyuges con nombres parecidos (administrador y colaboradores, solo lectura) ===== */
-function renderConyugesParecidosCambios(){
-var cont=document.getElementById('camConyPar');
-if(!cont)return;
-if(!(esAdministrador()||esColaborador())){cont.innerHTML='';return;}
-var items=[];
-try{items=gesDetectarConyugesParecidos();}catch(e){cont.innerHTML='';return;}
-items=items.filter(function(it){return puedeVerPersona(it.ownerId)&&puedeVerPersona(it.aId)&&puedeVerPersona(it.bId);});
-var tocados={};
-CAMBIOS_CACHE.forEach(function(c){if(c.estado==='pendiente'&&c.personaId)tocados[String(c.personaId)]=true;});
-items.forEach(function(it){it.tocado=!!(tocados[String(it.ownerId)]||tocados[String(it.aId)]||tocados[String(it.bId)]);});
-items.sort(function(a,b){return (b.tocado?1:0)-(a.tocado?1:0);});
-if(!items.length){cont.innerHTML='<div class="cambio-card cambio-empty" style="font-size:12px"><i class="fa-solid fa-people-arrows" aria-hidden="true"></i> No hay personas con cónyuges de nombres parecidos.</div>';return;}
-var MAX=30,btn='style="padding:4px 10px;font-size:11px"';
-var h='<div class="cambio-card"><div class="cambio-head"><div><strong><i class="fa-solid fa-people-arrows" aria-hidden="true"></i> Cónyuges con nombres parecidos ('+items.length+')</strong></div></div>'+
-'<div class="cambio-desc" style="font-size:12px;color:var(--muted)">Personas con dos o más cónyuges cuyos nombres y apellidos son iguales o casi iguales: pueden ser la misma persona duplicada. Al revisar un cambio, comprueba si afecta a alguna de estas fichas.'+(esAdministrador()?' Para fusionarlas: Herramientas → Gestor de datos → «Cónyuges con nombres parecidos».':' Si crees que son la misma persona, avisa al administrador.')+'</div>';
-items.slice(0,MAX).forEach(function(it){
-var col=it.conflictos.length?'var(--muted)':(it.exacto?'#c0392b':'var(--blue)');
-h+='<div class="cambio-desc" style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'+
-'<span style="font-weight:700;color:'+col+'">'+(it.exacto?'Mismo nombre':'Nombre parecido')+'</span>'+(it.tocado?' · <span style="color:#c0392b;font-weight:700"><i class="fa-solid fa-clock" aria-hidden="true"></i> afectado por un cambio pendiente</span>':'')+'<br>'+
-'Cónyuges de <b>'+esc(it.nomOwner)+'</b> (ID '+esc(it.ownerId)+'):<br><b>'+esc(it.nomA)+'</b> (ID '+esc(it.aId)+') y <b>'+esc(it.nomB)+'</b> (ID '+esc(it.bId)+')<br>'+
-'<span style="color:var(--muted);font-size:11px">'+esc(it.motivos.join(' · '))+'</span>'+
-(it.conflictos.length?'<br><span style="color:#c0392b;font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> '+esc(it.conflictos.join(' · '))+'</span>':'')+
-'<br><span style="color:var(--muted);font-size:11px">A: '+esc(it.resA)+'</span><br><span style="color:var(--muted);font-size:11px">B: '+esc(it.resB)+'</span>'+
-'<div class="cambio-actions"><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.aId)+'\')">Ver A</button><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.bId)+'\')">Ver B</button><button class="ef-btn ghost" '+btn+' onclick="verPersonaCambio(\''+safeId(it.ownerId)+'\')">Ver persona</button></div></div>';
-});
-if(items.length>MAX)h+='<div class="cambio-desc" style="font-size:11px;color:var(--muted);margin-top:8px">Se muestran los '+MAX+' primeros de '+items.length+'.</div>';
-cont.innerHTML=h+'</div>';
-}
-(function(){var orig=mostrarCambios;mostrarCambios=function(modo){var r=orig.apply(this,arguments);try{renderConyugesParecidosCambios();}catch(e){}return r;};})();
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var puedeSyncCam=!!(driveRootFolderId&&tokenDriveValido());
 CAMBIOS_CARGANDO=puedeSyncCam;
 /* La barra (con la abeja) se enseña YA, nada mas abrir la pantalla, y no se oculta hasta que
