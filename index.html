@@ -89,27 +89,17 @@ main{max-width:100%;margin:0 auto;padding:14px}
 .rp-niv{display:flex;gap:6px}
 .rp-cuenta{font-size:12px;color:var(--muted)}
 .rp-ayuda{font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.4}
-.rp-tree{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:6px 0 12px}
-.rp-g{grid-column:span 1;min-width:0}.rp-p{grid-column:span 2;min-width:0}.rp-c2{grid-column:span 2;padding-top:0}.rp-c4{grid-column:1/-1}
-.rp-anchor{grid-column:2/4;min-width:0}
-.rp-u{position:relative;height:9px;margin:0 25%;border:2px solid var(--border);border-top:0}
-.rp-u::after{content:'';position:absolute;left:50%;top:100%;height:9px;border-left:2px solid var(--border);transform:translateX(-1px)}
-.rp-c2,.rp-c4{margin-top:-6px;margin-bottom:3px}
-.rp-slot{min-height:70px;border:2px dashed var(--border);border-radius:10px;padding:5px 4px;font-size:11px;line-height:1.2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;cursor:pointer;background:var(--bg);overflow-wrap:anywhere;word-break:break-word;min-width:0;box-sizing:border-box}
-.rp-slot.rp-objetivo{border-color:var(--accent);background:rgba(196,101,58,.08)}
-.rp-slot.rp-lleno{border-style:solid;border-color:var(--accent);background:var(--card)}
-.rp-slot.rp-ok{border-style:solid;border-color:var(--green);background:rgba(90,138,60,.13)}
-.rp-slot.rp-mal{border-style:solid;border-color:#b3402f;background:rgba(179,64,47,.11)}
-.rp-slot.rp-base{border-style:solid;border-color:var(--blue);background:var(--card)}
-.rp-et{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700}
-.rp-hueco{font-size:11px;color:var(--muted);opacity:.8}
-.rp-nom{font-weight:700;color:var(--text)}.rp-anio{font-size:10px;color:var(--muted)}
-.rp-slot .ra,.rp-chip .ra{width:34px;height:34px;font-size:12px}
-.rp-banco-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:4px 0 6px}
-.rp-bank{display:flex;flex-wrap:wrap;gap:6px}
-.rp-chip{flex:1 1 45%;min-width:130px;display:flex;align-items:center;gap:7px;padding:6px 8px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);cursor:pointer;font-size:12px;text-align:left;overflow-wrap:anywhere;box-sizing:border-box;flex-wrap:wrap}
-.rp-chip .rp-nom{flex:1 1 90px}
-.rp-chip.rp-sel{border-color:var(--accent);background:rgba(196,101,58,.12);box-shadow:0 0 0 2px var(--accent)}
+.pz-tablero{--pz-ratio:1;display:grid;gap:3px;margin:8px auto 4px;width:min(100%,calc(66vh*var(--pz-ratio)));aspect-ratio:var(--pz-ratio);user-select:none;-webkit-user-select:none}
+.pz-tablero.pz-hecho{gap:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--green)}
+.pz-pieza{background-image:var(--pz-img);background-repeat:no-repeat;border-radius:4px;cursor:grab;touch-action:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 1px 3px rgba(0,0,0,.25);min-width:0;min-height:0;outline:none;transition:transform .12s,box-shadow .12s}
+.pz-pieza:focus-visible{box-shadow:0 0 0 3px var(--blue)}
+.pz-pieza.pz-sel{box-shadow:0 0 0 3px var(--accent),0 4px 10px rgba(0,0,0,.3);transform:scale(.95)}
+.pz-pieza.pz-bien{box-shadow:inset 0 0 0 2px rgba(90,138,60,.9)}
+.pz-pieza.pz-origen{opacity:.35}
+.pz-tablero.pz-hecho .pz-pieza{border-radius:0;box-shadow:none;cursor:default}
+.pz-ghost{position:fixed;z-index:9999;pointer-events:none;background-image:var(--pz-img);background-repeat:no-repeat;border-radius:4px;box-shadow:0 8px 20px rgba(0,0,0,.4);opacity:.92;transform:scale(1.06)}
+.pz-modelo{margin:8px auto 0;width:min(46%,150px);border-radius:8px;border:1.5px solid var(--border);background-image:var(--pz-img);background-size:100% 100%;background-repeat:no-repeat}
+.pz-cargando{text-align:center;color:var(--muted);font-size:13px;padding:22px 0}
 .rp-acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:14px}
 .rp-msg{width:100%;text-align:center;font-size:13px;font-weight:700}.rp-msg-ok{color:var(--green)}.rp-msg-mal{color:#b3402f}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
@@ -1124,8 +1114,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.25.1';
+var APP_VERSION = '2026.10.25.2';
 var APP_CHANGELOG = [
+  { version:'2026.10.25.2', fecha:'2026-10-25', cambios:[
+    'Buscar: la galleta «Rompecabezas» pasa a ser un rompecabezas de una fotografía de la familia. Se elige al azar a una persona con foto (solo las que tu perfil puede ver), se corta su foto en piezas mezcladas y hay que ordenarlas tocando dos piezas para intercambiarlas o arrastrando una sobre otra. Tres niveles: Fácil (3×3, con las piezas bien colocadas marcadas en verde), Normal (4×4) y Difícil (5×5). Incluye Pista, Ver modelo y Mostrar solución. El nombre de la persona se descubre al completarlo y enlaza con su ficha. Sustituye al antiguo rompecabezas de colocar nombres en el árbol.'
+  ]},
   { version:'2026.10.25.1', fecha:'2026-10-25', cambios:[
     'Guía de primer acceso: nuevo diseño elegante. La portada es ahora una lámina color crema con marco dorado y un fondo muy suave de panal, la abeja es el emblema de la portada y el icono de todo el documento (viñetas, índice, secciones, avisos y cierre).',
     'Guía de primer acceso: contenido revisado y actualizado. La conexión con Drive se explica ahora con la abeja de la cabecera (roja, con aro naranja o verde; etiqueta «Desconectada» / «Conectada»), que es lo que ve el usuario, en lugar de la antigua «pastilla». Se corrigen las tildes, se unifica el trato de tú y se reescribe el aviso sobre los pósteres A3, que sonaba a nota interna.',
@@ -16314,7 +16307,7 @@ function clicFotoCarruselHero(elId){
 cargarOtrasPersonasCarruselHero();
 }
 /* ===== Selector de pantalla en Buscar: Carrusel / Resultados / Eventos / Rompecabezas =====
-   Carrusel, Eventos y Rompecabezas tienen su propia galleta (roja=activa,
+   Carrusel, Eventos y Rompecabezas (de una foto) tienen su propia galleta (roja=activa,
    gris=inactiva) y solo se ve una pantalla a la vez. Resultados NO tiene
    galleta propia: se activa solo automáticamente en cuanto hay texto (o
    algún filtro) en la búsqueda -- ver doSrch(), que oculta el carrusel y los
@@ -16377,149 +16370,220 @@ ocultarCarruselHero();
 }
 actualizarPantallaBusPills();
 }
-/* ===== Rompecabezas de árbol genealógico (galleta «Rompecabezas» de Buscar) =====
-   Se elige al azar una persona con padres y abuelos conocidos (7 personas distintas y
-   visibles). La persona queda fija abajo; los 6 antepasados se mezclan en un banco de
-   nombres y hay que colocarlos en su hueco: se toca un nombre y luego el hueco (tocar
-   un hueco lleno devuelve el nombre al banco). Nivel Fácil: nombre + foto + años.
-   Nivel Difícil: solo el nombre y con 2 intrusos que no pertenecen al árbol. Sin
-   puntos ni ranking: solo cuenta los árboles completados en la sesión. */
-var ROMPE={nivel:'facil',anchor:null,sol:null,chips:[],col:{},sel:null,comprobado:false,resueltos:0,vacio:false};
-var ROMPE_ET={PP:'Abuelo paterno',MP:'Abuela paterna',PM:'Abuelo materno',MM:'Abuela materna',P:'Padre',M:'Madre'};
-function rompeBarajar(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t;}return a;}
-function rompeNombreNorm(p){return fn(p).toLowerCase().replace(/\s+/g,' ').trim();}
-function rompeGenerar(){
-var ids=Object.keys(PI),n=ids.length;if(!n)return null;
-for(var t=0;t<40000;t++){
-var p=PI[ids[Math.floor(Math.random()*n)]];
-if(!p||!p.PADRE||!p.MADRE)continue;
-var pa=PI[p.PADRE],ma=PI[p.MADRE];if(!pa||!ma)continue;
-var pp=PI[pa.PADRE],mp=PI[pa.MADRE],pm=PI[ma.PADRE],mm=PI[ma.MADRE];
-if(!pp||!mp||!pm||!mm)continue;
-var todos=[p,pa,ma,pp,mp,pm,mm],vistos={},nombres={},ok=true;
-todos.forEach(function(x){var id=String(x.ID),nm=rompeNombreNorm(x);if(vistos[id]||nombres[nm]||!nm||nm.indexOf('?')>=0||!puedeVerPersona(x.ID))ok=false;vistos[id]=1;nombres[nm]=1;});
-if(!ok)continue;
-return{anchor:p,sol:{P:pa,M:ma,PP:pp,MP:mp,PM:pm,MM:mm},vistos:vistos,nombres:nombres};
+/* ===== Rompecabezas de una foto (galleta «Rompecabezas» de Buscar) =====
+   Se elige al azar una persona con fotografía (visible para el usuario según su perfil,
+   sin fotos reconstruidas ni de fallecidos en el último año, igual que el Carrusel) y se
+   corta su foto en piezas que se mezclan. Hay que ordenarlas: se tocan dos piezas para
+   intercambiarlas o se arrastra una sobre otra. Niveles: Fácil 3×3 (las piezas bien
+   colocadas se marcan en verde), Normal 4×4 y Difícil 5×5 (sin marcas). Hay Pista, Ver
+   modelo y Mostrar solución. El nombre se descubre al completarlo y enlaza con la ficha.
+   Las piezas son trozos de una misma imagen (background-position), sin canvas, y el
+   tablero respeta la proporción real de la foto, así que no se deforma. */
+var PZL={nivel:3,persona:null,ratio:1,n:3,orden:[],sel:null,movs:0,pistas:0,t0:0,t1:0,resuelto:false,mostrada:false,modelo:false,resueltos:0,vistos:{},cssUrl:'',cargando:false,vacio:false,token:0,intentos:0,focoSlot:null};
+var PZL_NIVELES={3:'Fácil',4:'Normal',5:'Difícil'};
+var pzlArr=null;
+function pzlBarajar(n){
+var a=[],i,t,j;for(i=0;i<n*n;i++)a.push(i);
+do{for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];a[j]=t;}}
+while(a.every(function(v,k){return v===k;}));
+return a;
 }
-return null;
-}
-function rompeIntrusos(g){
-var ids=Object.keys(PI),n=ids.length,res=[],ap=[];
-['P','M','PP','MP','PM','MM'].forEach(function(k){var a=String(g.sol[k].APELLIDO1||'').trim().toLowerCase();if(a)ap.push(a);});
-var sexos=['Hombre','Mujer'];
-sexos.forEach(function(sx){
-var elegido=null,cualquiera=null;
-for(var t=0;t<4000&&!elegido;t++){
-var q=PI[ids[Math.floor(Math.random()*n)]];
-if(!q||q.SEXO!==sx||g.vistos[String(q.ID)]||!puedeVerPersona(q.ID))continue;
-var nm=rompeNombreNorm(q);if(!nm||nm.indexOf('?')>=0||g.nombres[nm])continue;
-if(!cualquiera)cualquiera=q;
-if(ap.indexOf(String(q.APELLIDO1||'').trim().toLowerCase())>=0)elegido=q;
-}
-elegido=elegido||cualquiera;
-if(elegido){res.push(elegido);g.vistos[String(elegido.ID)]=1;g.nombres[rompeNombreNorm(elegido)]=1;}
+function pzlCandidatas(excluirVistos){
+var anio=new Date().getFullYear();
+return D.filter(function(p){
+if(!p.FOTO||p.FOTO_RECON)return false;
+if(!puedeVerPersona(p.ID))return false;
+if(excluirVistos&&PZL.vistos[p.ID])return false;
+if(!isAl(p)){var da=parseInt(p.DEFA,10);if(da&&(anio-da)<=1)return false;}
+return true;
 });
-return res;
 }
-function rompeNuevo(){
-var g=rompeGenerar();
-if(!g){ROMPE.vacio=true;ROMPE.anchor=null;rompeRender();return;}
-ROMPE.vacio=false;ROMPE.anchor=g.anchor;ROMPE.sol=g.sol;ROMPE.g=g;
-rompePrepararChips();
+function pzlNueva(){
+if(typeof D==='undefined'||!D||!D.length){PZL.vacio=true;PZL.persona=null;pzlRender();return;}
+var pool=pzlCandidatas(true);
+if(!pool.length){PZL.vistos={};pool=pzlCandidatas(false);}
+if(!pool.length||PZL.intentos>=6){PZL.vacio=true;PZL.persona=null;PZL.cargando=false;PZL.intentos=0;pzlRender();return;}
+PZL.vacio=false;
+var p=pool[Math.floor(Math.random()*pool.length)];
+PZL.vistos[p.ID]=true;
+PZL.persona=p;PZL.cargando=true;PZL.token++;
+var tk=PZL.token;
+pzlRender();
+var img=new Image();
+img.onload=function(){
+if(tk!==PZL.token)return;
+var w=img.naturalWidth||img.width||1,h=img.naturalHeight||img.height||1;
+PZL.ratio=Math.max(.3,Math.min(3,w/h));
+PZL.cssUrl='url("'+String(p.FOTO).replace(/"/g,'%22')+'")';
+PZL.cargando=false;PZL.intentos=0;
+pzlPreparar();
+};
+img.onerror=function(){
+if(tk!==PZL.token)return;
+PZL.intentos++;pzlNueva();
+};
+img.src=p.FOTO;
 }
-function rompePrepararChips(){
-var lista=['P','M','PP','MP','PM','MM'].map(function(k){return ROMPE.sol[k];});
-if(ROMPE.nivel==='dificil'&&ROMPE.g)lista=lista.concat(rompeIntrusos(ROMPE.g));
-ROMPE.chips=rompeBarajar(lista);
-ROMPE.col={P:null,M:null,PP:null,MP:null,PM:null,MM:null};
-ROMPE.sel=null;ROMPE.comprobado=false;ROMPE.mostrada=false;
-rompeRender();
+function pzlPreparar(){
+PZL.n=PZL.nivel;PZL.orden=pzlBarajar(PZL.n);
+PZL.sel=null;PZL.movs=0;PZL.pistas=0;PZL.t0=Date.now();PZL.t1=0;
+PZL.resuelto=false;PZL.mostrada=false;PZL.modelo=false;
+pzlRender();
 }
-function rompeCambiarNivel(nv){
-if(ROMPE.nivel===nv)return;ROMPE.nivel=nv;
-if(!ROMPE.anchor){rompeNuevo();return;}
-/* mismos antepasados; en Difícil se añaden los intrusos */
-if(nv==='dificil'&&ROMPE.g){ROMPE.g.vistos={};ROMPE.g.nombres={};[ROMPE.anchor].concat(['P','M','PP','MP','PM','MM'].map(function(k){return ROMPE.sol[k];})).forEach(function(x){ROMPE.g.vistos[String(x.ID)]=1;ROMPE.g.nombres[rompeNombreNorm(x)]=1;});}
-rompePrepararChips();
+function pzlCambiarNivel(n){
+if(PZL.nivel===n)return;
+PZL.nivel=n;
+if(!PZL.persona||PZL.cargando){pzlNueva();return;}
+pzlPreparar();
 }
-function rompeChipPorId(id){for(var i=0;i<ROMPE.chips.length;i++)if(String(ROMPE.chips[i].ID)===String(id))return ROMPE.chips[i];return null;}
-function rompeContenidoPersona(p){
-var y=pdAnioTexto(p);
-if(ROMPE.nivel==='facil')return avatarHTML(p)+'<span class="rp-nom">'+esc(fn(p).replace(/\s+/g,' ').trim())+'</span>'+(y?'<span class="rp-anio">'+esc(y)+'</span>':'');
-return '<span class="rp-nom">'+esc(fn(p).replace(/\s+/g,' ').trim())+'</span>';
+function pzlComprobar(){
+if(PZL.orden.every(function(v,i){return v===i;})){
+PZL.resuelto=true;PZL.t1=Date.now();PZL.sel=null;
+if(!PZL.mostrada)PZL.resueltos++;
 }
-function rompeSlotHTML(k){
-var cid=ROMPE.col[k],cls='rp-slot',inner='';
-var et='<span class="rp-et">'+ROMPE_ET[k]+'</span>';
-if(cid){
-var c=rompeChipPorId(cid);
-inner=rompeContenidoPersona(c);
-if(ROMPE.comprobado)cls+=(String(c.ID)===String(ROMPE.sol[k].ID))?' rp-ok':' rp-mal';else cls+=' rp-lleno';
-}else{cls+=' rp-vacio'+(ROMPE.sel?' rp-objetivo':'');inner='<span class="rp-hueco">'+(ROMPE.sel?'Colocar aquí':'Vacío')+'</span>';}
-return '<div class="'+cls+'" role="button" tabindex="0" onclick="rompeTocarSlot(\''+k+'\')">'+et+inner+'</div>';
+pzlRender();
 }
-function rompeRender(){
-var cont=document.getElementById('rompeCont');if(!cont)return;
-var h='<div class="rp-bar"><div class="rp-niv"><button type="button" class="pbus-pill'+(ROMPE.nivel==='facil'?' pbus-activa':'')+'" onclick="rompeCambiarNivel(\'facil\')">Fácil</button><button type="button" class="pbus-pill'+(ROMPE.nivel==='dificil'?' pbus-activa':'')+'" onclick="rompeCambiarNivel(\'dificil\')">Difícil</button></div><span class="rp-cuenta">Árboles completados: '+ROMPE.resueltos+'</span></div>';
-if(ROMPE.vacio||!ROMPE.anchor){
-h+='<p style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0">Todavía no hay personas con padres y abuelos conocidos para montar un árbol.</p>';
+function pzlIntercambiar(a,b){
+if(a===b||PZL.resuelto)return;
+var t=PZL.orden[a];PZL.orden[a]=PZL.orden[b];PZL.orden[b]=t;
+PZL.movs++;PZL.sel=null;
+pzlComprobar();
+}
+function pzlTocar(s){
+if(PZL.resuelto)return;
+if(PZL.sel===null){PZL.sel=s;pzlRender();}
+else if(PZL.sel===s){PZL.sel=null;pzlRender();}
+else pzlIntercambiar(PZL.sel,s);
+}
+function pzlTecla(ev,s){
+if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();PZL.focoSlot=s;pzlTocar(s);}
+}
+function pzlPista(){
+if(PZL.resuelto)return;
+var i=-1,k;
+for(k=0;k<PZL.orden.length;k++){if(PZL.orden[k]!==k){i=k;break;}}
+if(i<0)return;
+var j=PZL.orden.indexOf(i);
+var t=PZL.orden[i];PZL.orden[i]=PZL.orden[j];PZL.orden[j]=t;
+PZL.pistas++;PZL.sel=null;
+pzlComprobar();
+}
+function pzlModelo(){PZL.modelo=!PZL.modelo;pzlRender();}
+function pzlSolucion(){
+if(PZL.resuelto)return;
+PZL.orden=PZL.orden.map(function(v,i){return i;});
+PZL.mostrada=true;
+pzlComprobar();
+}
+function pzlLimpiarArrastre(){
+document.removeEventListener('pointermove',pzlPointerMove);
+document.removeEventListener('pointerup',pzlPointerUp);
+document.removeEventListener('pointercancel',pzlPointerCancel);
+if(pzlArr){
+if(pzlArr.ghost&&pzlArr.ghost.parentNode)pzlArr.ghost.parentNode.removeChild(pzlArr.ghost);
+if(pzlArr.el)pzlArr.el.classList.remove('pz-origen');
+}
+pzlArr=null;
+}
+function pzlPointerDown(ev){
+if(PZL.resuelto||(ev.pointerType==='mouse'&&ev.button!==0))return;
+var el=ev.target.closest?ev.target.closest('.pz-pieza'):null;
+if(!el)return;
+pzlLimpiarArrastre();
+pzlArr={el:el,slot:parseInt(el.getAttribute('data-slot'),10),x:ev.clientX,y:ev.clientY,activo:false,ghost:null,id:ev.pointerId,dx:0,dy:0};
+document.addEventListener('pointermove',pzlPointerMove);
+document.addEventListener('pointerup',pzlPointerUp);
+document.addEventListener('pointercancel',pzlPointerCancel);
+}
+function pzlPointerMove(ev){
+var a=pzlArr;
+if(!a||ev.pointerId!==a.id)return;
+if(!a.activo){
+if(Math.abs(ev.clientX-a.x)+Math.abs(ev.clientY-a.y)<8)return;
+a.activo=true;
+var r=a.el.getBoundingClientRect();
+var g=a.el.cloneNode(false);
+g.removeAttribute('role');g.removeAttribute('tabindex');g.removeAttribute('onkeydown');g.removeAttribute('data-slot');g.removeAttribute('aria-label');
+g.className='pz-ghost';
+g.style.width=r.width+'px';g.style.height=r.height+'px';
+g.style.setProperty('--pz-img',PZL.cssUrl);
+document.body.appendChild(g);
+a.el.classList.add('pz-origen');
+a.ghost=g;a.dx=r.width/2;a.dy=r.height/2;
+}
+a.ghost.style.left=(ev.clientX-a.dx)+'px';
+a.ghost.style.top=(ev.clientY-a.dy)+'px';
+}
+function pzlPointerUp(ev){
+var a=pzlArr;
+if(!a||ev.pointerId!==a.id)return;
+var destino=null,slot=a.slot,activo=a.activo;
+if(activo){
+a.ghost.style.display='none';
+var t=document.elementFromPoint(ev.clientX,ev.clientY);
+var pz=t&&t.closest?t.closest('.pz-pieza'):null;
+if(pz)destino=parseInt(pz.getAttribute('data-slot'),10);
+}
+pzlLimpiarArrastre();
+if(activo){
+if(destino!==null&&destino!==slot)pzlIntercambiar(slot,destino);
+else pzlRender();
+}else pzlTocar(slot);
+}
+function pzlPointerCancel(ev){
+var a=pzlArr;
+if(!a||ev.pointerId!==a.id)return;
+pzlLimpiarArrastre();
+}
+function pzlTiempoTxt(ms){
+var s=Math.max(0,Math.round(ms/1000)),m=Math.floor(s/60);
+return m+':'+(s%60<10?'0':'')+(s%60);
+}
+function pzlRender(){
+var cont=document.getElementById('rompeCont');
+if(!cont)return;
+pzlLimpiarArrastre();
+var h='<div class="rp-bar"><div class="rp-niv">';
+[3,4,5].forEach(function(n){h+='<button type="button" class="pbus-pill'+(PZL.nivel===n?' pbus-activa':'')+'" onclick="pzlCambiarNivel('+n+')">'+PZL_NIVELES[n]+'</button>';});
+h+='</div><span class="rp-cuenta">'+(PZL.resueltos?PZL.resueltos+(PZL.resueltos===1?' foto completada':' fotos completadas'):'')+'</span></div>';
+if(PZL.vacio||(!PZL.persona&&!PZL.cargando)){
+h+='<p style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0">Todavía no hay personas con fotografía para montar un rompecabezas.</p>';
 cont.innerHTML=h;return;
 }
-var a=ROMPE.anchor;
-h+='<p class="rp-ayuda">Coloca los nombres en el árbol de <b>'+esc(fn(a).replace(/\s+/g,' ').trim())+'</b>. Toca un nombre del banco y luego su hueco.</p>';
-h+='<div class="rp-tree">';
-['PP','MP','PM','MM'].forEach(function(k){h+='<div class="rp-g">'+rompeSlotHTML(k)+'</div>';});
-h+='<div class="rp-c2"><div class="rp-u"></div></div><div class="rp-c2"><div class="rp-u"></div></div>';
-h+='<div class="rp-p">'+rompeSlotHTML('P')+'</div><div class="rp-p">'+rompeSlotHTML('M')+'</div>';
-h+='<div class="rp-c4"><div class="rp-u"></div></div>';
-h+='<div class="rp-anchor"><div class="rp-slot rp-base" role="button" tabindex="0" onclick="irAFicha(\''+escAttr(safeId(a.ID))+'\')"><span class="rp-et">Persona</span>'+rompeContenidoPersona(a)+'</div></div>';
-h+='</div>';
-var enSlots={};Object.keys(ROMPE.col).forEach(function(k){if(ROMPE.col[k])enSlots[String(ROMPE.col[k])]=1;});
-var banco=ROMPE.chips.filter(function(p){return !enSlots[String(p.ID)];});
-if(banco.length){
-h+='<div class="rp-banco-t">Nombres por colocar</div><div class="rp-bank">';
-banco.forEach(function(p){var id=String(p.ID);h+='<div class="rp-chip'+(ROMPE.sel===id?' rp-sel':'')+'" role="button" tabindex="0" onclick="rompeTocarChip(\''+escAttr(safeId(id))+'\')">'+rompeContenidoPersona(p)+'</div>';});
-h+='</div>';
+if(PZL.cargando){
+h+='<p class="pz-cargando">Preparando la foto…</p>';
+cont.innerHTML=h;return;
 }
-var llenos=Object.keys(ROMPE.col).filter(function(k){return ROMPE.col[k];}).length;
-h+='<div class="rp-acc">';
-if(!ROMPE.comprobado){
-h+='<button type="button" class="ef-btn" '+(llenos===6?'':'disabled style="opacity:.45;cursor:not-allowed"')+' onclick="rompeComprobar()"><i class="fa-solid fa-check" aria-hidden="true"></i> Comprobar</button>';
+var n=PZL.n,p=PZL.persona,total=n*n;
+h+='<p class="rp-ayuda">'+(PZL.resuelto?'':'¿Sabes quién es? Ordena las piezas para descubrirlo. Toca dos piezas para intercambiarlas, o arrastra una sobre otra.')+'</p>';
+h+='<div class="pz-tablero'+(PZL.resuelto?' pz-hecho':'')+'" id="pzTablero" style="--pz-ratio:'+PZL.ratio+';grid-template-columns:repeat('+n+',minmax(0,1fr));grid-template-rows:repeat('+n+',minmax(0,1fr))">';
+PZL.orden.forEach(function(k,s){
+var c=k%n,r=Math.floor(k/n);
+var bx=n>1?(c/(n-1)*100):0,by=n>1?(r/(n-1)*100):0;
+var cls='pz-pieza'+(PZL.sel===s?' pz-sel':'')+((!PZL.resuelto&&PZL.nivel===3&&k===s)?' pz-bien':'');
+h+='<div class="'+cls+'" data-slot="'+s+'" role="button" tabindex="0" aria-label="Pieza '+(s+1)+' de '+total+'" onkeydown="pzlTecla(event,'+s+')" style="background-size:'+(n*100)+'% '+(n*100)+'%;background-position:'+bx+'% '+by+'%"></div>';
+});
+h+='</div>';
+if(PZL.modelo&&!PZL.resuelto)h+='<div class="pz-modelo" style="aspect-ratio:'+PZL.ratio+'" aria-label="Modelo de la foto completa"></div>';
+if(PZL.resuelto){
+var nombre=fn(p).replace(/\s+/g,' ').trim();
+h+='<div class="rp-msg rp-msg-ok" style="margin-top:10px">'+(PZL.mostrada?'Esta es la solución.':'¡Completado en '+PZL.movs+(PZL.movs===1?' movimiento':' movimientos')+(PZL.pistas?' y '+PZL.pistas+(PZL.pistas===1?' pista':' pistas'):'')+', '+pzlTiempoTxt(PZL.t1-PZL.t0)+'!')+'</div>';
+h+='<div class="rp-acc"><button type="button" class="ef-btn" onclick="irAFicha(\''+escAttr(safeId(p.ID))+'\')"><i class="fa-solid fa-user" aria-hidden="true"></i> Es '+esc(nombre)+': ver su ficha</button>';
 }else{
-var aciertos=Object.keys(ROMPE.col).filter(function(k){return ROMPE.col[k]&&String(ROMPE.col[k])===String(ROMPE.sol[k].ID);}).length;
-if(aciertos===6){h+='<div class="rp-msg rp-msg-ok">'+(ROMPE.mostrada?'Esta es la solución.':'¡Árbol completo!')+' Toca cualquier nombre para ver su ficha.</div>';}
-else{h+='<div class="rp-msg rp-msg-mal">'+aciertos+' de 6 bien. Los rojos están mal colocados.</div><button type="button" class="ef-btn" onclick="rompeReintentar()"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Reintentar</button><button type="button" class="ef-btn ghost" onclick="rompeSolucion()">Mostrar solución</button>';}
+h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="pzlPista()"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Pista</button><button type="button" class="ef-btn ghost" onclick="pzlModelo()"><i class="fa-solid fa-image" aria-hidden="true"></i> '+(PZL.modelo?'Ocultar modelo':'Ver modelo')+'</button><button type="button" class="ef-btn ghost" onclick="pzlSolucion()">Mostrar solución</button>';
 }
-h+='<button type="button" class="ef-btn ghost" onclick="rompeNuevo()"><i class="fa-solid fa-shuffle" aria-hidden="true"></i> Otro árbol</button></div>';
+h+='<button type="button" class="ef-btn ghost" onclick="pzlNueva()"><i class="fa-solid fa-shuffle" aria-hidden="true"></i> Otra foto</button></div>';
 cont.innerHTML=h;
+cont.style.setProperty('--pz-img',PZL.cssUrl);
+var tb=document.getElementById('pzTablero');
+if(tb&&!PZL.resuelto)tb.addEventListener('pointerdown',pzlPointerDown);
+if(PZL.focoSlot!==null){
+var el=cont.querySelector('[data-slot="'+PZL.focoSlot+'"]');
+if(el)el.focus();
+PZL.focoSlot=null;
 }
-function rompeTocarChip(id){if(ROMPE.comprobado)return;ROMPE.sel=(ROMPE.sel===String(id))?null:String(id);rompeRender();}
-function rompeTocarSlot(k){
-if(ROMPE.comprobado){
-var cid=ROMPE.col[k];
-if(cid&&String(cid)===String(ROMPE.sol[k].ID))irAFicha(String(cid));
-return;
 }
-if(ROMPE.sel){ROMPE.col[k]=ROMPE.sel;ROMPE.sel=null;}
-else if(ROMPE.col[k]){ROMPE.col[k]=null;}
-rompeRender();
-}
-function rompeComprobar(){
-var llenos=Object.keys(ROMPE.col).filter(function(k){return ROMPE.col[k];}).length;if(llenos<6)return;
-ROMPE.comprobado=true;ROMPE.sel=null;
-var ok=Object.keys(ROMPE.col).every(function(k){return String(ROMPE.col[k])===String(ROMPE.sol[k].ID);});
-if(ok)ROMPE.resueltos++;
-rompeRender();
-}
-function rompeReintentar(){
-Object.keys(ROMPE.col).forEach(function(k){if(String(ROMPE.col[k])!==String(ROMPE.sol[k].ID))ROMPE.col[k]=null;});
-ROMPE.comprobado=false;ROMPE.sel=null;rompeRender();
-}
-function rompeSolucion(){
-Object.keys(ROMPE.col).forEach(function(k){ROMPE.col[k]=String(ROMPE.sol[k].ID);});
-ROMPE.comprobado=true;ROMPE.mostrada=true;ROMPE.sel=null;rompeRender();
-}
-function entrarPantallaRompe(){if(!ROMPE.anchor&&!ROMPE.vacio)rompeNuevo();else if(ROMPE.vacio)rompeNuevo();else rompeRender();}
+function entrarPantallaRompe(){if(PZL.vacio||!PZL.persona)pzlNueva();else pzlRender();}
 /* ===== Eventos familiares =====
    Próximos cumpleaños, santos (solo de los vivos, ver SANTORAL más abajo) y
    aniversarios de fallecimiento de los familiares más cercanos a la persona
