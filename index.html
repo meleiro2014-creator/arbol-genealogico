@@ -56,6 +56,13 @@ nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent
 .nav-more-menu button:hover,.nav-more-menu button.active{background:rgba(196,101,58,.08);color:var(--accent)}
 main{max-width:100%;margin:0 auto;padding:14px}
 .view{display:none}.view.active{display:block}
+@media(min-width:1100px){
+main.ges-split{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(480px,46%);gap:16px;align-items:start}
+main.ges-split #vGes{grid-column:1;grid-row:1;min-width:0}
+main.ges-split #vFic{grid-column:2;grid-row:1;min-width:0;position:sticky;top:66px;max-height:calc(100vh - 80px);overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:6px 14px 14px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+main.ges-split #vFic .ficha{max-width:none}
+main.ges-split .ges-cat{max-width:none}
+}
 .view.active.dir-fwd{animation:viewSlideFromRight .24s ease}
 .view.active.dir-back{animation:viewSlideFromLeft .24s ease}
 @keyframes viewSlideFromRight{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
@@ -5662,14 +5669,14 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function svInternal(v,dir){['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v,dir){__splitSalir();['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
 /* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
    Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
    navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
    de salir de la app, volvemos a renderizar la pantalla anterior con svInternal (sin volver a apilar
    historial). Solo cuando ya no queda ninguna pantalla propia en la pila, el siguiente "Atrás" sale
    de la app de verdad, igual que hacen Gmail, Maps, etc. en su versión web. */
-var __vistaActual='bus';
+var __vistaActual='bus';var __splitGes=false,__splitFirma='',__splitTmr=null;
 /* ===== Pila de navegación propia (además del historial real del navegador) =====
    Antes, sv(v) solo apilaba una entrada de historial cuando cambiaba la VISTA (v).
    Eso significa que moverse de una ficha a otra (p.ej. pulsar sobre el padre, luego
@@ -5689,6 +5696,7 @@ function actualizarBotonesNavHist(){
   if(f)f.disabled=(__navPos>=__navStack.length-1);
 }
 function sv(v){
+  if(v==='fic'&&__splitGes){editSec={};rFic(cid);var pn=document.getElementById('vFic');if(pn)pn.scrollTop=0;return;}
   if(v==='ges'&&!puedeUsarGestorDatos()){toast('El Gestor de datos no está disponible para tu perfil',true);return;}
   var actual=__navStack[__navPos];
   if(!actual||__claveNav(v,cid)!==__claveNav(actual.appView,actual.cidNav)){
@@ -5718,7 +5726,7 @@ function navHistForward(){history.forward();}
    no se deshabilitan visualmente cuando no hay una pantalla anterior, así que
    comprobamos __navPos antes de pedir "Atrás" al navegador; si no hay nada
    detrás en nuestra propia pila, vamos a Buscar en vez de salir de la app. */
-function navHistBackSafe(){if(__navPos>0)history.back();else sv('bus');}
+function navHistBackSafe(){if(__splitGes){__splitCerrar(false);return;}if(__navPos>0)history.back();else sv('bus');}
 try{history.replaceState({navPos:0,appView:'bus',cidNav:null},'',location.pathname+location.search+'#bus');}catch(e){}
 function initInvestigacion(){actualizarInvExtPersonaActiva();}
 /* Barra de progreso (con la abeja) que se ve en el inicio hasta que estan listos los numeros.
@@ -8204,7 +8212,50 @@ if(!(await confirmarApp('Desde el Gestor piden abrir la ficha de '+nom+', pero t
 cid=id;editSec={};sv('fic');
 try{window.focus();}catch(e){}
 }
+/* ===== Ficha en PANEL DERECHO dentro de la misma ventana (Gestor de datos, pantalla ancha) =====
+   En vez de abrir otra pestaña, el Gestor se queda a la izquierda y la ficha se carga a la derecha,
+   en la MISMA aplicación (mismos datos en memoria): lo que se guarda en la ficha queda al instante en
+   el Gestor y la lista de problemas se recalcula sola. Al pulsar «Ver ficha» de otro problema, el panel
+   cambia de persona. Si la pantalla es estrecha se usa la segunda ventana de siempre. */
+function __splitPosible(){var g=document.getElementById('vGes');return !!(g&&g.classList.contains('active'))&&window.innerWidth>=1100;}
+function __splitFirmaActual(){try{return cid&&PI[cid]?JSON.stringify(PI[cid])+'|'+((FICHA_ULTIMO_GUARDADO[cid]||{}).ts||''):'';}catch(e){return '';}}
+function __splitSalir(){if(!__splitGes)return;__splitGes=false;var m=document.getElementById('mainContent');if(m)m.classList.remove('ges-split');}
+async function __splitAbrir(id){
+if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
+if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
+if(__splitGes&&String(cid)===String(id))return;
+if(__splitGes&&haySeccionEditando()){
+if(!(await confirmarApp('Tienes una sección en edición sin guardar en la ficha de la derecha. ¿Abrir la otra ficha y descartar lo que estás editando?')))return;
+}
+var m=document.getElementById('mainContent'),pn=document.getElementById('vFic');
+__splitGes=true;m.classList.add('ges-split');pn.classList.add('active');
+cid=id;editSec={};__splitFirma=__splitFirmaActual();rFic(id);pn.scrollTop=0;
+}
+async function __splitCerrar(forzar){
+if(!forzar&&haySeccionEditando()){
+if(!(await confirmarApp('Tienes una sección en edición sin guardar. ¿Cerrar la ficha y descartar lo que estás editando?')))return;
+}
+var pn=document.getElementById('vFic');
+__splitSalir();if(pn)pn.classList.remove('active');
+editSec={};clearTimeout(__splitTmr);
+}
+function __splitTrasPintar(){
+var b=document.querySelector('#fco .bb');
+if(b)b.innerHTML='<i class="fa-solid fa-xmark" aria-hidden="true"></i> Cerrar ficha';
+clearTimeout(__splitTmr);
+__splitTmr=setTimeout(function(){
+if(!__splitGes||haySeccionEditando())return;
+var f=__splitFirmaActual();
+if(f!==__splitFirma){__splitFirma=f;rGesLigero();}
+},600);
+}
+function __splitRefrescarFicha(){
+if(!PI[cid]){__splitCerrar(true);return;}
+if(haySeccionEditando())return;
+__splitFirma=__splitFirmaActual();rFic(cid);
+}
 function abrirFichaEnPestana(id){
+if(__splitGes||__splitPosible()){__splitAbrir(id);return;}
 if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
 var url=location.origin+location.pathname+'?ficha='+encodeURIComponent(id);
@@ -8245,6 +8296,7 @@ function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarPa
 function rFic(id){
 rFicView(id);
 actualizarBarraActiva();
+if(__splitGes)__splitTrasPintar();
 }
 /* ===== CORREGIDO: "Editar" no aparecía tras conectar sin cambiar de pantalla =====
    El botón "Editar" (y "Documentos") de la ficha solo se generan en el HTML si
@@ -10038,7 +10090,7 @@ return copia;
 actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
 await cederPantalla();
 await sAll(nuevos);
-D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);sv('bus');actualizarBarraActiva();
+D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);if(__splitGes){__splitCerrar(true);rGesLigero();}else sv('bus');actualizarBarraActiva();
 toast('Ficha eliminada correctamente');
 try{
 actualizarProgresoAccion('Registrando el cambio...');
@@ -12838,6 +12890,7 @@ GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
 window.scrollTo(0,scrollAntes);
 gesTrasRender();
+if(__splitGes)__splitRefrescarFicha();
 }
 /* Si el motor ANOCALC quedo pendiente (datos cambiados desde el ultimo calculo), se ofrece la
 categoria de recalculo aunque ya exista un calculo previo guardado. Compartido por rGes() y
