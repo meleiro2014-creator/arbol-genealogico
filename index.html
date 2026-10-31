@@ -1165,8 +1165,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.31.3';
+var APP_VERSION = '2026.10.31.4';
 var APP_CHANGELOG = [
+  { version:'2026.10.31.4', fecha:'2026-10-31', cambios:[
+    'Pantalla en reposo: si pasa un minuto sin mover el cursor, tocar la pantalla ni pulsar teclas, aparecen telarañas en dos esquinas y una araña que sube y baja colgada de su hilo. Al volver a mover el cursor o tocar la pantalla, desaparece con un fundido. No bloquea ningún botón y no se imprime.'
+  ]},
   { version:'2026.10.31.3', fecha:'2026-10-31', cambios:[
     'Informes: nuevo poster «Cuadro de familia» (A3 vertical). Muestra en la cabecera a la persona elegida con su pareja, debajo a cada hijo o hija con su pareja y, a su derecha, a sus hijos. Se adapta a hijos sin pareja, hijos sin hijos y a un número distinto de nietos en cada fila; título editable, años opcionales, fondo a elegir y fotos tal cual. Respeta el perfil: las personas fuera de tu alcance aparecen como «Persona no visible».'
   ]},
@@ -18341,6 +18344,57 @@ if(document.readyState==='loading'){
 }else{
   MusicEngine.init();
 }
+</script>
+<style>
+#aranaOverlay{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:0;visibility:hidden;transition:opacity 1.8s ease,visibility 0s linear 1.8s}
+#aranaOverlay.activa{opacity:1;visibility:visible;transition:opacity 1.8s ease}
+#aranaOverlay .ar-tela{position:absolute;width:min(46vw,300px);height:min(46vw,300px)}
+#aranaOverlay .ar-tela svg{width:100%;height:100%;display:block}
+#aranaOverlay .ar-tela.sup{top:0;right:0;transform:scaleX(-1)}
+#aranaOverlay .ar-tela.inf{bottom:0;left:0;width:min(32vw,210px);height:min(32vw,210px);transform:scaleY(-1)}
+#aranaOverlay .ar-hilo{position:absolute;top:0;right:calc(min(46vw,300px)*0.22);width:1px;background:rgba(110,110,110,.75);height:50px}
+#aranaOverlay.activa .ar-hilo{animation:arSube 7s ease-in-out infinite alternate}
+#aranaOverlay .ar-bicho{position:absolute;left:-11px;bottom:-17px;width:22px;height:22px}
+@keyframes arSube{from{height:50px}to{height:min(60vh,420px)}}
+@media (prefers-reduced-motion:reduce){#aranaOverlay.activa .ar-hilo{animation:none;height:120px}}
+@media print{#aranaOverlay{display:none!important}}
+</style>
+<script>
+(function(){
+var ESPERA_MS=60000,ov=null,t=null;
+function telaSVG(){
+var R=[],ang=[0,15,30,45,60,75,90],rad=[35,70,105,140,175,210],d='';
+function pt(r,a){var q=a*Math.PI/180;return[(r*Math.cos(q)).toFixed(1),(r*Math.sin(q)).toFixed(1)];}
+ang.forEach(function(a){var p=pt(235,a);d+='M0 0L'+p[0]+' '+p[1];});
+rad.forEach(function(r){
+for(var i=0;i<ang.length-1;i++){
+var a=pt(r,ang[i]),b=pt(r,ang[i+1]),c=pt(r*0.84,(ang[i]+ang[i+1])/2);
+d+='M'+a[0]+' '+a[1]+'Q'+c[0]+' '+c[1]+' '+b[0]+' '+b[1];
+}
+});
+return '<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><path d="'+d+'" fill="none" stroke="#8d8d8d" stroke-opacity=".75" stroke-width=".7" stroke-linecap="round"/></svg>';
+}
+function aranaSVG(){
+var l='';
+[[-1,-.9],[-1,-.2],[-1,.5],[-1,1.1]].forEach(function(v){
+var s=v[0],y=v[1];
+l+='<path d="M11 11 Q'+(11+s*5)+' '+(11+y*5-3)+' '+(11+s*9)+' '+(11+y*9)+'" fill="none" stroke="#444" stroke-width=".9"/>';
+l+='<path d="M11 11 Q'+(11-s*5)+' '+(11+y*5-3)+' '+(11-s*9)+' '+(11+y*9)+'" fill="none" stroke="#444" stroke-width=".9"/>';
+});
+return '<svg class="ar-bicho" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">'+l+'<ellipse cx="11" cy="13" rx="3.6" ry="4.6" fill="#3a3a3a"/><circle cx="11" cy="8.3" r="2.3" fill="#2b2b2b"/></svg>';
+}
+function crear(){
+if(ov)return;
+ov=document.createElement('div');ov.id='aranaOverlay';ov.setAttribute('aria-hidden','true');
+ov.innerHTML='<div class="ar-tela sup">'+telaSVG()+'</div><div class="ar-tela inf">'+telaSVG()+'</div><div class="ar-hilo">'+aranaSVG()+'</div>';
+document.body.appendChild(ov);
+}
+function mostrar(){crear();requestAnimationFrame(function(){ov.classList.add('activa');});}
+function ocultar(){if(ov)ov.classList.remove('activa');}
+function actividad(){ocultar();clearTimeout(t);t=setTimeout(mostrar,ESPERA_MS);}
+['mousemove','mousedown','keydown','touchstart','wheel','scroll','click'].forEach(function(ev){window.addEventListener(ev,actividad,{passive:true,capture:true});});
+actividad();
+})();
 </script>
 </body>
 </html>
