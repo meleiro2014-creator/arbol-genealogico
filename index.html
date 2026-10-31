@@ -1165,8 +1165,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.31.5';
+var APP_VERSION = '2026.10.31.6';
 var APP_CHANGELOG = [
+  { version:'2026.10.31.6', fecha:'2026-10-31', cambios:[
+    'Instalar aplicación: en iPhone, iPad y otros navegadores que no ofrecen instalación automática, el botón abre ahora una ventana con los pasos exactos para tu dispositivo (antes abría la guía del colaborador, que el perfil de Lector no puede ver, y daba un error). La Guía del lector incluye también la sección de instalación.'
+  ]},
   { version:'2026.10.31.5', fecha:'2026-10-31', cambios:[
     'Informes: el logo familiar (la abeja de las guías) aparece ahora de forma discreta en todos los informes: pequeño, en la esquina superior derecha de los informes de texto (ficha, ascendientes, descendientes, rama, cronología, apellido y árbol descendente) y junto al pie de todos los pósters (cuadro de familia, olivo, cuadro vertical y horizontales).'
   ]},
@@ -15631,6 +15634,7 @@ var LECTOR_CONTENIDO=[
 {titulo:'Fotografías',html:'<p>Las fotos aparecen en la ficha de cada persona, en el Carrusel y en el Rompecabezas. Para tenerlas en tu dispositivo, con la abeja en verde pulsa el icono de las fotografías de Inicio («Importar fotos»): la aplicación busca la carpeta FOTO de Drive y asigna cada imagen a su persona.</p><p>La coincidencia es siempre por nombre exacto: el nombre del archivo, sin la extensión, es el ID de la persona. Nunca se hacen coincidencias aproximadas, para no poner una foto a quien no corresponde. Al terminar verás un resumen con lo encontrado y lo asociado.</p><div class="manual-tip">Las imágenes con una varita mágica en la esquina son reconstrucciones o coloreados, no fotografías originales.</div><div class="manual-warn">«Restaurar árbol oficial» no trae fotos. Las fotos se traen siempre con «Importar fotos».</div>'},
 {titulo:'Personas vivas y privacidad',html:'<p>Con el perfil de Lector ves a <strong>todas las personas del árbol, también a las que viven</strong>: sus fechas, lugares, fotografías y datos familiares. Es una muestra de confianza del administrador, y conlleva una responsabilidad:</p><ul><li>Los datos de las personas vivas son <strong>privados de la familia</strong>. No los publiques ni los compartas fuera de ella.</li><li>No difundas capturas de pantalla ni fotos de personas vivas, y menos todavía en redes sociales, sin su permiso.</li><li>No compartas tu cuenta de Google ni dejes tu sesión abierta en un dispositivo ajeno o compartido.</li></ul><p>Más detalles en la política de privacidad, dentro de Herramientas → Ayuda.</p>'},
 {titulo:'Si ves algo que corregir o quieres aportar algo',html:'<p>Con tu perfil no puedes cambiar el árbol, pero puedes ayudar mucho avisando de lo que veas:</p><ul><li><strong>Un dato que parece erróneo:</strong> escribe al administrador con el nombre completo de la persona (y su ID, si lo ves), indica qué dato crees que falla y, si puedes, de dónde sale la corrección.</li><li><strong>Una foto o un documento que quieres añadir:</strong> envíaselo al administrador, que lo subirá a la carpeta de esa persona.</li><li><strong>Quieres colaborar de forma habitual:</strong> pídele que cambie tu perfil a Colaborador. Entonces recibirás la guía del colaborador.</li></ul>'},
+{titulo:'Instalar la aplicación en el móvil',html:'<p>Es opcional, pero cómodo: la app queda con su propio icono y se abre a pantalla completa.</p><p><strong>En un iPhone o iPad:</strong></p><ul><li>Abre el enlace de la app en Safari.</li><li>Toca el icono de compartir (el cuadrado con una flecha hacia arriba).</li><li>Baja hasta «Añadir a pantalla de inicio», tócalo y confirma con «Añadir».</li></ul><p><strong>En un móvil Android (Chrome):</strong> menú de tres puntos → «Instalar aplicación» o «Añadir a pantalla de inicio».</p><div class=\"manual-tip\">En iPhone, el botón «Instalar aplicación» de Herramientas te muestra estos mismos pasos: Apple no permite instalarla con un solo toque.</div>'},
 {titulo:'Preguntas frecuentes y solución de problemas',html:'<ul><li><strong>La abeja está roja.</strong> Púlsala para conectar con tu cuenta de Google. Si la aplicación dice que tu cuenta no está autorizada, contacta con el administrador.</li><li><strong>No veo el botón «Documentos» en la ficha.</strong> Solo aparece con la abeja en verde. Conéctate y vuelve a abrir la ficha.</li><li><strong>El árbol aparece vacío.</strong> Pulsa «Restaurar árbol oficial» con la abeja en verde.</li><li><strong>No veo las fotos.</strong> Pulsa «Importar fotos». Los datos y las fotos se traen por separado.</li><li><strong>Un documento no se ve en el visor.</strong> Solo se pueden previsualizar imágenes, PDF y vídeos; los demás tipos muestran únicamente sus datos.</li><li><strong>Falta una persona o una novedad.</strong> Puede que el administrador la haya publicado después de tu última actualización: pulsa «Restaurar árbol oficial».</li><li><strong>«Tu perfil es de solo lectura».</strong> Es el aviso normal cuando se intenta algo que tu perfil no permite. No se ha perdido nada.</li><li><strong>Quiero editar o subir algo.</strong> Pídele al administrador que cambie tu perfil a Colaborador.</li></ul>'},
 {titulo:'Glosario',html:'<ul><li><strong>Lector:</strong> perfil de solo lectura: ve todo el árbol, vivos incluidos, pero no puede cambiar nada.</li><li><strong>Árbol oficial:</strong> la versión de referencia de toda la familia, publicada por el administrador en Drive.</li><li><strong>Copia de trabajo:</strong> los datos que tienes guardados en tu dispositivo.</li><li><strong>Persona activa:</strong> la persona sobre la que trabajan el Árbol y la Ficha; se ve en la barra «Viendo a».</li><li><strong>Ficha:</strong> la página con todos los datos de una persona.</li><li><strong>La abeja:</strong> el símbolo de la aplicación y el botón que conecta con Google Drive.</li><li><strong>ID:</strong> el número que identifica a cada persona del árbol.</li><li><strong>Año estimado (≈):</strong> año calculado por la aplicación cuando no hay una fecha documentada.</li></ul>'}
 ];
@@ -18140,15 +18144,52 @@ function instalarPWA() {
      ofrece así, y Chrome/Edge solo la ofrecen si aún no está instalada y
      se cumplen sus propios criterios). En ese caso, en vez de no hacer
      nada, se abren las instrucciones manuales paso a paso. */
-  toast('Este navegador no ofrece instalación automática; sigue estos pasos manuales');
   cerrarHerramientas();
-  mostrarManualParaImprimir();
+  mostrarPasosInstalacion();
 }
+/* Pasos manuales de instalación, válidos para TODOS los perfiles (incluido Lector). */
+function mostrarPasosInstalacion(){
+  var ua=navigator.userAgent||'';
+  var esIOS=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var esAndroid=/Android/.test(ua);
+  var yaInstalada=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  var h='';
+  if(yaInstalada){
+    h+='<p>La aplicación ya está instalada y la estás usando como tal.</p>';
+  }else if(esIOS){
+    h+='<p>En iPhone y iPad no existe instalación automática: se añade a la pantalla de inicio desde el menú de compartir.</p><ol>'
+      +'<li>Abre el enlace de la app en <strong>Safari</strong> (es lo más fiable).</li>'
+      +'<li>Toca el icono de <strong>compartir</strong> (el cuadrado con una flecha hacia arriba), abajo en la pantalla. Si no lo ves, toca los tres puntos «···» junto a la barra de direcciones.</li>'
+      +'<li>Desliza hacia abajo y toca <strong>«Añadir a pantalla de inicio»</strong>.</li>'
+      +'<li>Confirma con <strong>«Añadir»</strong>, arriba a la derecha.</li></ol>'
+      +'<p style="font-size:12px;color:var(--muted)">Si usas Chrome en iPhone, su menú de compartir también ofrece «Añadir a pantalla de inicio» en las versiones recientes de iOS.</p>';
+  }else if(esAndroid){
+    h+='<ol><li>Toca el menú de <strong>tres puntos</strong> de Chrome, arriba a la derecha.</li>'
+      +'<li>Elige <strong>«Instalar aplicación»</strong> o <strong>«Añadir a pantalla de inicio»</strong>.</li>'
+      +'<li>Confirma.</li></ol>';
+  }else{
+    h+='<p>En Chrome o Edge, busca el icono de instalación en la barra de direcciones (a la derecha) o, en el menú del navegador, «Instalar Libro de los Ancestros». En Safari para Mac: Archivo → «Añadir al Dock».</p>';
+  }
+  h+='<p style="font-size:12px;color:var(--muted)">Este paso es opcional: la app funciona igual abierta desde el navegador.</p>';
+  document.getElementById('instalarPasosCuerpo').innerHTML=h;
+  document.getElementById('modalInstalarPasos').style.display='flex';
+}
+function cerrarPasosInstalacion(){document.getElementById('modalInstalarPasos').style.display='none';}
 window.addEventListener('appinstalled', function () {
   deferredInstallPrompt = null;
   toast('Libro de los Ancestros instalado correctamente');
 });
 </script>
+
+<div id="modalInstalarPasos" role="dialog" aria-modal="true" aria-labelledby="modalInstalarPasosTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)cerrarPasosInstalacion()">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h2 id="modalInstalarPasosTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-arrow-down" aria-hidden="true" style="color:var(--accent)"></i> Instalar la aplicación</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarPasosInstalacion()">×</button>
+</div>
+<div id="instalarPasosCuerpo" style="overflow:auto;flex:1;font-size:14px;line-height:1.5"></div>
+</div>
+</div>
 
 <div id="modalConexiones" role="dialog" aria-modal="true" aria-labelledby="modalConexionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
