@@ -1165,8 +1165,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.31.4';
+var APP_VERSION = '2026.10.31.5';
 var APP_CHANGELOG = [
+  { version:'2026.10.31.5', fecha:'2026-10-31', cambios:[
+    'Informes: el logo familiar (la abeja de las guías) aparece ahora de forma discreta en todos los informes: pequeño, en la esquina superior derecha de los informes de texto (ficha, ascendientes, descendientes, rama, cronología, apellido y árbol descendente) y junto al pie de todos los pósters (cuadro de familia, olivo, cuadro vertical y horizontales).'
+  ]},
   { version:'2026.10.31.4', fecha:'2026-10-31', cambios:[
     'Pantalla en reposo: si pasa un minuto sin mover el cursor, tocar la pantalla ni pulsar teclas, aparecen telarañas en dos esquinas y una araña que sube y baja colgada de su hilo. Al volver a mover el cursor o tocar la pantalla, desaparece con un fundido. No bloquea ningún botón y no se imprime.'
   ]},
@@ -13889,7 +13892,7 @@ return h;
 function construirHTMLArbolDescendente(){
 if(!infId||!PI[infId])return null;
 var p=PI[infId];
-return '<div class="print-report"><h1>Árbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
+return '<div class="print-report">'+logoFamiliaHTML()+'<h1>Árbol descendente de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div><div class="pd-tree-wrap"><ul class="pd-tree">'+buildArbolDescendenteGrafico(infId,{},0)+'</ul></div></div>';
 }
 function descargarArbolDescendente(){
 var html=construirHTMLArbolDescendente();
@@ -14358,7 +14361,7 @@ var titulo='<text x="'+(ASC_PAGE_W/2)+'" y="16" text-anchor="middle" font-family
 '<text x="'+(ASC_PAGE_W/2)+'" y="21.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="2.6" letter-spacing="0.6" fill="'+ASC_LINE_COLOR+'">'+esc('ASCENDIENTES DE '+fn(p).toUpperCase()+' \u00b7 8 GENERACIONES')+'</text>';
 var leyenda='<rect x="'+(ASC_PAGE_W/2-36)+'" y="24.3" width="7" height="2.8" fill="none" stroke="'+ASC_FAINT_COLOR+'" stroke-width="0.25" stroke-dasharray="1.4,1.1"/>'+
 '<text x="'+(ASC_PAGE_W/2-26)+'" y="26.5" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASC_LINE_COLOR+'" opacity="0.65">= rama pendiente de investigar</text>';
-var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>';
+var pie='<text x="'+(ASC_PAGE_W/2)+'" y="'+(ASC_PAGE_H-4.5)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="2" opacity="0.7" fill="'+ASC_LINE_COLOR+'">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 Libro de los Ancestros')+'</text>'+logoFamiliaPoster((ASC_PAGE_W/2)-27,(ASC_PAGE_H-4.5)-3.6,6,0.85);
 return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASC_PAGE_W+' '+ASC_PAGE_H+'" width="'+ASC_PAGE_W+'mm" height="'+ASC_PAGE_H+'mm">'+bg+marco+titulo+leyenda+svg+pie+'</svg>';
 }
 function renderAscBgSwatchesV2(){
@@ -14592,7 +14595,7 @@ ascVAdornoLinea(cx-52,44,38)+ascVAdornoLinea(cx+52,44,38)+
 '<text x="'+cx+'" y="57.5" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-style="italic" font-size="7.4" fill="'+ASCV_VERDE+'">Cuatro generaciones</text>'+
 ascVAdornoLinea(cx,62.5,22);
 var pie=ascVAdornoLinea(cx,402,44)+
-'<text x="'+cx+'" y="407.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCV_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>';
+'<text x="'+cx+'" y="407.5" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCV_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>'+logoFamiliaPoster(cx-31,407.5-3.6,7,0.85);
 return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+ASCV_W+' '+ASCV_H+'" width="'+ASCV_W+'mm" height="'+ASCV_H+'mm">'+bg+ascVArbolFondoSVG()+marco+titulo+conectores+tarjetas+pie+'</svg>';
 }
 function renderAscBgSwatchesV3(){
@@ -14841,7 +14844,7 @@ var p=PI[rootId];
 var titulo='<text x="'+cx+'" y="31" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="9.8" letter-spacing="0.4" fill="'+ASCO_VERDE+'">ÁRBOL GENEALÓGICO FAMILIAR</text>'+
 ascOFleuron(cx,38.5,1)+
 '<text x="'+cx+'" y="49" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-style="italic" font-size="5" fill="'+ASCO_TEXTO+'">'+esc('Ascendientes de '+fn(p).replace(/\s+/g,' ').trim())+'</text>';
-var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCO_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>';
+var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+ASCO_VERDE+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>'+logoFamiliaPoster(cx-31,(H-12)-3.6,7,0.85);
 return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+bg+marco+ascOOlivosSVG()+titulo+conectores+marcos+pie+'</svg>';
 }
 function renderAscBgSwatchesV4(){
@@ -15062,7 +15065,7 @@ marco+='<g>'+esq+'</g><g transform="translate('+W+' 0) scale(-1 1)">'+esq+'</g><
 var tit=famPSn(o.titulo)||famPTituloSugerido(rootId,tieneSp?spId:null);
 var fsT=Math.max(8,Math.min(19,205/(Math.max(8,tit.length)*0.42)));
 var titulo='<text x="'+cx+'" y="31" text-anchor="middle" font-family="\'Great Vibes\',\'Snell Roundhand\',cursive" font-size="'+fsT.toFixed(2)+'" fill="'+FAMP_TINTA+'">'+esc(tit)+'</text>'+ascOFleuron(cx,39.5,1);
-var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+FAMP_TINTA+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>';
+var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+FAMP_TINTA+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>'+logoFamiliaPoster(cx-31,(H-12)-3.6,7,0.85);
 return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+defs+bg+marco+titulo+conect+marcos+pie+'</svg>';
 }
 function renderFamPSwatches(){
@@ -15132,7 +15135,7 @@ var porGeneracion={};
 recopilarAscendientesInforme(infId,0,1,7,{},porGeneracion);
 var sosaMap={};
 Object.keys(porGeneracion).forEach(function(g){porGeneracion[g].forEach(function(item){sosaMap[item.sosa]=item.p;});});
-var html='<div class="print-report"><h1>Informe de ascendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+var html='<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe de ascendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
 Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
 html+='<div class="print-gen-title">Generación '+(parseInt(g,10)+1)+'</div>';
 porGeneracion[g].forEach(function(item){
@@ -15212,7 +15215,7 @@ Object.keys(porGeneracion).forEach(function(g){
 porGeneracion[g]=porGeneracion[g].filter(function(pp){return filtro==='vivos'?isAl(pp):!isAl(pp);});
 });
 }
-var html='<div class="print-report"><h1>Informe de descendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+(filtro!=='todos'?' · Solo '+(filtro==='vivos'?'personas vivas':'personas fallecidas'):'')+'</div>';
+var html='<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe de descendientes de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+(filtro!=='todos'?' · Solo '+(filtro==='vivos'?'personas vivas':'personas fallecidas'):'')+'</div>';
 var huboAlguno=false;
 Object.keys(porGeneracion).sort(function(a,b){return a-b;}).forEach(function(g){
 if(!porGeneracion[g].length)return;
@@ -15243,7 +15246,7 @@ var padre=p.PADRE&&PI[p.PADRE]&&puedeVerPersona(p.PADRE)?fn(PI[p.PADRE]):'Descon
 var madre=p.MADRE&&PI[p.MADRE]&&puedeVerPersona(p.MADRE)?fn(PI[p.MADRE]):'Desconocida';
 var her=gHerm(infId).filter(function(x){return puedeVerPersona(x.ID);});
 var hij=ordenarIdsPorEdad(HD[infId]||[]).filter(function(x){return puedeVerPersona(x);});
-var html='<div class="print-report"><h1>Informe de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+var html='<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
 html+='<div class="print-person" style="border-bottom:0">';
 html+='<div class="pn-name" style="font-size:14px">Datos personales</div>';
 html+='<div class="pn-row">ID: '+esc(p.ID)+(p.SEXO?' · Sexo: '+esc(p.SEXO):'')+' · '+(al?'Vivo':'Fallecido')+'</div>';
@@ -15280,7 +15283,7 @@ var padre=p.PADRE&&PI[p.PADRE]&&puedeVerPersona(p.PADRE)?fn(PI[p.PADRE]):'Descon
 var madre=p.MADRE&&PI[p.MADRE]&&puedeVerPersona(p.MADRE)?fn(PI[p.MADRE]):'Desconocida';
 var porGeneracion={};
 recopilarDescendientesInforme(infId,0,PD_MAX_GEN,{},porGeneracion);
-var html='<div class="print-report"><h1>Informe de la rama de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
+var html='<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe de la rama de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>';
 html+='<div class="print-person"><div class="pn-name">Cabeza de rama: '+esc(fn(p))+'</div>';
 html+='<div class="pn-row">Hijo/a de '+esc(padre)+' y '+esc(madre)+'</div>';
 html+='<div class="pn-row">Nacimiento: '+esc(nacimientoTextoInforme(p))+(p.LUGARNAC?' — '+esc(p.LUGARNAC):'')+'</div>';
@@ -15312,7 +15315,7 @@ generarDescargarPDF(html,'rama-'+(PI[infId]?fn(PI[infId]):''),{boton:ev&&ev.curr
 function construirHTMLInformeCronologico(){
 if(!infId||!PI[infId])return null;
 var p=PI[infId];
-return '<div class="print-report"><h1>Informe cronológico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada)+'</div>';
+return '<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe cronológico de '+esc(fn(p))+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+'</div>'+htmlLineaVida(p)+htmlGanttFamilia(p,croGenAmpliada)+'</div>';
 }
 function descargarInformeCronologico(){
 var html=construirHTMLInformeCronologico();
@@ -15338,7 +15341,7 @@ var ya=getYear(a),yb=getYear(b);
 if(ya===null&&yb===null)return sn(a).localeCompare(sn(b));
 if(ya===null)return 1;if(yb===null)return -1;return ya-yb;
 });
-var html='<div class="print-report"><h1>Informe del apellido '+esc(q)+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+coincidencias.length+' persona(s)</div>';
+var html='<div class="print-report">'+logoFamiliaHTML()+'<h1>Informe del apellido '+esc(q)+'</h1><div class="print-sub">Generado el '+esc(new Date().toLocaleDateString())+' · '+coincidencias.length+' persona(s)</div>';
 coincidencias.forEach(function(pp){html+=htmlPrintPersona(pp);});
 html+='</div>';
 return {html:html,apellido:q};
@@ -15510,6 +15513,16 @@ var GUIA_CONTENIDO=[
 ];
 /* ----- La abeja (versión estática, la misma de la cabecera y de las barras de progreso) ----- */
 var guiaAbejaSeq=0;
+/* Logo familiar (la abeja de las guías), versión discreta para informes y pósters */
+var logoFamSeq=0;
+function logoFamiliaInner(){logoFamSeq++;return guiaAbejaDentro('lf'+logoFamSeq,'#F2B705');}
+function logoFamiliaPoster(x,y,w,op){
+var k=w/32;
+return '<g transform="translate('+x.toFixed(2)+' '+(y-k).toFixed(2)+') scale('+k.toFixed(4)+')" opacity="'+(op||0.85)+'">'+logoFamiliaInner()+'</g>';
+}
+function logoFamiliaHTML(){
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 1 32 19.5" width="26" height="16" style="float:right;width:26px;height:16px;margin:2px 0 0 10px;opacity:.85" aria-hidden="true">'+logoFamiliaInner()+'</svg>';
+}
 function guiaAbejaDentro(id,cuerpo){
   return '<defs><clipPath id="'+id+'"><ellipse cx="14" cy="13" rx="9" ry="6"/></clipPath></defs>'+
   '<ellipse cx="9" cy="5" rx="5.5" ry="3.2" fill="#fff" fill-opacity=".93" stroke="#B8923F" stroke-width=".4"/>'+
