@@ -750,6 +750,16 @@ body{background:#fff}
 .cmp-btn:hover{border-color:var(--accent);color:var(--accent)}
 .cmp-btn-danger:hover{border-color:#c0392b;color:#c0392b}
 @media(max-width:640px){.cmp-row{flex-direction:column}.cmp-mid{display:none}.cmp-half{border-bottom:1px dashed var(--border)}.cmp-half:last-child{border-bottom:0}}
+.tbl-conex{width:100%;border-collapse:collapse;font-size:13px}
+.tbl-conex th{position:sticky;top:0;background:var(--card);text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);white-space:nowrap}
+.tbl-conex th.num,.tbl-conex td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl-conex td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+.tbl-conex tbody tr:last-child td{border-bottom:none}
+.tbl-conex-ord{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--text);cursor:pointer}
+.tbl-conex-ord:hover{color:var(--accent)}
+.tbl-conex-nombre{font-weight:700;word-break:break-word}
+.tbl-conex-sub{font-size:11px;color:var(--muted);word-break:break-all}
+.tbl-conex-nunca{color:var(--muted);font-style:italic}
 /* ===== Perfil Lector (solo lectura): oculta todo lo que modifica, sube, descarga o borra ===== */
 body.perfil-lector #mn button[data-view="inf"],
 body.perfil-lector #mn button[data-view="cam"],
@@ -1165,8 +1175,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.10.31.6';
+var APP_VERSION = '2026.11.01.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.01.1', fecha:'2026-11-01', cambios:[
+    'Registro de conexiones rediseñado (solo administrador, Herramientas → Acceso): ahora es una tabla con una fila por persona —usuario, última conexión y número de veces que se ha conectado—, ordenable pulsando cada título de columna, y muestra también a quien aún no se ha conectado nunca.',
+    'El perfil Lector también queda anotado en el registro. Para ello se guarda ahora en una carpeta nueva de Drive llamada CONEXIONES (un archivo pequeño por persona), donde el Lector tiene permiso de editor solo para anotar su propia conexión; en DATOS, FOTO y DOCUMENTOS sigue siendo solo lector. Las anotaciones del antiguo conexiones.json se suman a la tabla. Después de actualizar, el administrador debe pulsar una vez «Reforzar accesos de Drive de todos» (Herramientas → Usuarios) para crear y compartir CONEXIONES.'
+  ]},
   { version:'2026.10.31.6', fecha:'2026-10-31', cambios:[
     'Instalar aplicación: en iPhone, iPad y otros navegadores que no ofrecen instalación automática, el botón abre ahora una ventana con los pasos exactos para tu dispositivo (antes abría la guía del colaborador, que el perfil de Lector no puede ver, y daba un error). La Guía del lector incluye también la sección de instalación.'
   ]},
@@ -1382,6 +1396,10 @@ var DRIVE_ARBOL_OFICIAL_FOLDER_NOMBRE='ARBOL_OFICIAL';
 var DRIVE_DATOS_FOLDER_NOMBRE='Datos';
 var driveArbolOficialFolderId=null;
 var driveDatosFolderId=null;
+/* Carpeta CONEXIONES: la única donde el perfil Lector tiene permiso de editor (para anotar su propia
+   conexión). Así DATOS, FOTO y DOCUMENTOS siguen siendo de solo lectura para el Lector. */
+var DRIVE_CONEXIONES_FOLDER_NOMBRE='CONEXIONES';
+var driveConexionesFolderId=null;
 async function obtenerCarpetaArbolOficialId(crear){
 if(driveArbolOficialFolderId)return driveArbolOficialFolderId;
 if(!driveRootFolderId)return null;
@@ -1413,6 +1431,22 @@ if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+
 var dc=await rc.json();
 driveDatosFolderId=dc.id;
 return driveDatosFolderId;
+}
+async function obtenerCarpetaConexionesId(crear){
+if(driveConexionesFolderId)return driveConexionesFolderId;
+if(!driveRootFolderId)return null;
+var q="'"+driveRootFolderId+"' in parents and name='"+DRIVE_CONEXIONES_FOLDER_NOMBRE+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length){driveConexionesFolderId=d.files[0].id;return driveConexionesFolderId;}
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:DRIVE_CONEXIONES_FOLDER_NOMBRE,parents:[driveRootFolderId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+DRIVE_CONEXIONES_FOLDER_NOMBRE);
+var dc=await rc.json();
+driveConexionesFolderId=dc.id;
+return driveConexionesFolderId;
 }
 var BACKUP_HISTORICO_PREFIJO='backup-arbol-';
 var BACKUP_HISTORICO_MAX=5;
@@ -1781,7 +1815,9 @@ return tipoUsuarioActual()==='colaborador';
    Protección en tres capas:
    1) Drive (la real): su cuenta solo tiene permiso de «lector» en la carpeta compartida.
    2) Cortafuegos de fetch (más abajo): cualquier petición de escritura a la API de Drive
-      se rechaza antes de salir del navegador, sin depender de cada pantalla.
+      se rechaza antes de salir del navegador, sin depender de cada pantalla. Única excepción:
+      mientras registrarConexion() anota la conexión del propio lector (y Drive solo le deja
+      escribir en la carpeta CONEXIONES).
    3) Interfaz: los botones de editar/subir/borrar no se muestran (clase perfil-lector). */
 function esLector(){
 return tipoUsuarioActual()==='lector';
@@ -1795,7 +1831,7 @@ window.fetch=function(input,init){
 try{
 var url=(typeof input==='string')?input:((input&&input.url)||'');
 var metodo=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
-if(metodo!=='GET'&&metodo!=='HEAD'&&metodo!=='OPTIONS'&&/googleapis\.com\/(upload\/)?drive\//.test(url)&&esLector()){
+if(metodo!=='GET'&&metodo!=='HEAD'&&metodo!=='OPTIONS'&&/googleapis\.com\/(upload\/)?drive\//.test(url)&&esLector()&&!window.__conexionEscribiendo){
 return Promise.resolve(new Response(JSON.stringify({error:{code:403,message:'Perfil de solo lectura: no se puede modificar Drive'}}),{status:403,headers:{'Content-Type':'application/json'}}));
 }
 }catch(e){}
@@ -1926,7 +1962,7 @@ if(!(await confirmarApp('¿Volver a compartir la carpeta de Drive con los '+list
 toast('Reforzando accesos de Drive, un momento...');
 var ok=[],fallo=[];
 for(var i=0;i<lista.length;i++){
-try{await compartirCarpetaRaizConEmail(lista[i].email);ok.push(lista[i].email);}
+try{await compartirCarpetaRaizConEmail(lista[i].email,lista[i].tipo);ok.push(lista[i].email);}
 catch(e){fallo.push(lista[i].email+' ('+e.message+')');}
 }
 var msg='Accesos reforzados: '+ok.length+' de '+lista.length+'.';
@@ -1954,20 +1990,31 @@ if(r.status===401){driveAccessToken=null;throw new Error('sesión de Drive caduc
 if(!r.ok){var msg='';try{msg=(await r.json()).error.message;}catch(e){}throw new Error('Drive respondió '+r.status+(msg?': '+msg:''));}
 return true;
 }
-async function compartirCarpetaRaizConEmail(email){
+async function compartirCarpetaRaizConEmail(email,tipo){
 if(!driveRootFolderId)throw new Error('no hay carpeta raíz de Drive configurada');
+var esLec=(tipo==='lector');
 await compartirPermisoDrive(driveRootFolderId,email,'reader',true); /* GENEALOGIA: lector, un único aviso por correo */
 var carpetaDatos=await obtenerCarpetaDatosId(true);
 var carpetaFoto=await obtenerCarpetaFotoId(true);
 var carpetaDocs=await obtenerCarpetaDocumentosId(true);
+var carpetaConex=await obtenerCarpetaConexionesId(true);
 var subcarpetas=[{id:carpetaDatos,nombre:'DATOS'},{id:carpetaFoto,nombre:'FOTO'},{id:carpetaDocs,nombre:'DOCUMENTOS'}];
 var errores=[];
 for(var i=0;i<subcarpetas.length;i++){
 if(!subcarpetas[i].id){errores.push(subcarpetas[i].nombre+' (no encontrada)');continue;}
+if(esLec){
+/* Un Lector no recibe editor en DATOS, FOTO ni DOCUMENTOS (y si lo tenía, se le baja a lector). */
+var okLec=await ajustarRolPermisoDrive(subcarpetas[i].id,email,'reader').catch(function(){return false;});
+if(!okLec)errores.push(subcarpetas[i].nombre+': no se pudo dejar solo como lector');
+}else{
 try{await compartirPermisoDrive(subcarpetas[i].id,email,'writer',false);}
 catch(e){errores.push(subcarpetas[i].nombre+': '+e.message);}
 }
-if(errores.length)throw new Error('carpeta raíz compartida (lector), pero falló al dar editor en: '+errores.join('; '));
+}
+/* CONEXIONES: editor para todos los perfiles (también el Lector), para que cada cual anote su propia conexión. */
+if(!carpetaConex){errores.push('CONEXIONES (no encontrada)');}
+else{try{await compartirPermisoDrive(carpetaConex,email,'writer',false);}catch(e2){errores.push('CONEXIONES: '+e2.message);}}
+if(errores.length)throw new Error('carpeta raíz compartida (lector), pero falló al ajustar: '+errores.join('; '));
 return true;
 }
 async function buscarPermisoDrivePorEmail(fileId,email){
@@ -1991,7 +2038,8 @@ if(!driveRootFolderId)return false;
 var carpetaDatos=await obtenerCarpetaDatosId(false).catch(function(){return null;});
 var carpetaFoto=await obtenerCarpetaFotoId(false).catch(function(){return null;});
 var carpetaDocs=await obtenerCarpetaDocumentosId(false).catch(function(){return null;});
-var ids=[driveRootFolderId,carpetaDatos,carpetaFoto,carpetaDocs].filter(function(x){return !!x;});
+var carpetaConex=await obtenerCarpetaConexionesId(false).catch(function(){return null;});
+var ids=[driveRootFolderId,carpetaDatos,carpetaFoto,carpetaDocs,carpetaConex].filter(function(x){return !!x;});
 var algunoOk=false;
 for(var i=0;i<ids.length;i++){if(await revocarPermisoDrive(ids[i],email))algunoOk=true;}
 return algunoOk;
@@ -2031,11 +2079,14 @@ if(!ids[i].id)continue;
 var ok=await ajustarRolPermisoDrive(ids[i].id,email,'reader').catch(function(){return false;});
 if(!ok)fallos.push(ids[i].n);
 }
-if(fallos.length)toast('Permisos de Drive de '+email+': no se pudo dejar solo como lector en '+fallos.join(', ')+'. Revísalo en drive.google.com.',true);
-else toast(email+' ahora solo tiene permiso de lector en Drive');
+/* Única excepción: CONEXIONES, donde el Lector puede escribir su propia anotación de conexión. */
+try{var idConex=await obtenerCarpetaConexionesId(true);if(idConex)await compartirPermisoDrive(idConex,email,'writer',false);else fallos.push('CONEXIONES (no encontrada)');}
+catch(eConex){fallos.push('CONEXIONES');}
+if(fallos.length)toast('Permisos de Drive de '+email+': no se pudo dejar bien en '+fallos.join(', ')+'. Revísalo en drive.google.com.',true);
+else toast(email+' ahora solo tiene permiso de lector en Drive (salvo para anotar su conexión en CONEXIONES)');
 }else{
-await compartirCarpetaRaizConEmail(email);
-toast('Permisos de Drive de '+email+' restablecidos (editor en DATOS, FOTO y DOCUMENTOS)');
+await compartirCarpetaRaizConEmail(email,tipo);
+toast('Permisos de Drive de '+email+' restablecidos (editor en DATOS, FOTO, DOCUMENTOS y CONEXIONES)');
 }
 }catch(err){toast('No se pudieron ajustar los permisos de Drive de '+email+': '+err.message+'. Revísalos en drive.google.com.',true);}
 }
@@ -3068,7 +3119,7 @@ try{var f=await obtenerConfigRaizDrive();if(!f)return false;
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 if(!r.ok)return false;var cfg=await r.json();var id=cfg&&cfg.driveRootFolderId?String(cfg.driveRootFolderId):'';
-if(!id)return false;driveRootFolderId=id;driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveBasuraFolderId=null;await guardarCarpetaDocumentos();return true;
+if(!id)return false;driveRootFolderId=id;driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveConexionesFolderId=null;driveBasuraFolderId=null;await guardarCarpetaDocumentos();return true;
 }catch(err){console.warn('No se pudo cargar la configuración común de Drive:',err);return false;}}
 async function guardarConfigRaizDrive(){
 if(!tokenDriveValido())throw new Error('Conecta primero Google Drive');
@@ -3275,7 +3326,7 @@ if(!entrada)return;
 var folderId=extraerIdCarpetaDrive(entrada);
 if(!folderId){toast('No se pudo reconocer el ID de la carpeta',true);return;}
 driveRootFolderId=folderId;
-driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveBasuraFolderId=null;
+driveDocumentosFolderId=null;driveFotoFolderId=null;driveArbolOficialFolderId=null;driveDatosFolderId=null;driveConexionesFolderId=null;driveBasuraFolderId=null;
 try{await guardarCarpetaDocumentos();await guardarConfigRaizDrive();toast('Carpeta raíz de Google Drive configurada para todos los usuarios');registrarSincronizacionDrive();actualizarDriveStatusPill();if(cid)rFic(cid);}catch(err){toast('No se pudo guardar la configuración: '+err.message,true);}
 }
 var driveDocumentosFolderId=null;
@@ -16221,81 +16272,194 @@ if(!aliasOk)toast('Aviso: la copia fechada se guardó correctamente, pero no se 
 finally{memMigaFin();subiendoCopiaDrive=false;ocultarProgresoDrive(contenedorId);}
 }
 
-/* ========== REGISTRO DE CONEXIONES (solo administrador) ==========
-   Cada vez que se confirma la identidad de Google en una pestaña/sesión
-   nueva del navegador, se anota el correo, el nombre y la fecha/hora en un
-   archivo compartido de Drive (conexiones.json, dentro de DATOS). Se guarda
-   en DATOS y no en ARBOL_OFICIAL porque ARBOL_OFICIAL solo da permiso de
-   lector a colaboradores y amigos (ver compartirCarpetaRaizConEmail): si
-   conexiones.json viviera ahí, ningún colaborador ni amigo podría escribir
-   su propia entrada y el registro solo mostraría al administrador, que es
-   el único con permiso de editor en esa carpeta. No es imprescindible para
-   el funcionamiento de la app: si el guardado falla (sin conexión, sin
-   permiso todavía, etc.) se ignora en silencio, sin avisar al colaborador
-   ni bloquear su acceso. Solo el administrador puede leer este registro,
-   desde Herramientas → Acceso. */
-var CONEXIONES_ARCHIVO='conexiones.json';
-var CONEXIONES_MAX_REGISTROS=500;
+/* ========== REGISTRO DE CONEXIONES ==========
+   Cada vez que se confirma la identidad de Google en una pestaña/sesión nueva del
+   navegador, la app anota en Drive quién se ha conectado, cuándo fue la última vez y
+   cuántas veces. Ahora lo hace TODO el mundo, también el perfil Lector.
+   · Dónde: carpeta CONEXIONES (hermana de DATOS, dentro de la raíz). Es la única carpeta
+     donde el Lector tiene permiso de editor; en DATOS, FOTO y DOCUMENTOS sigue siendo solo
+     lector, así que no puede tocar cambios-arbol.json, ids-reservados.json, etc.
+   · Cómo: un archivo pequeño por persona (conexion-<correo>.json) con {email, nombre,
+     primera, ultima, total}. Cada persona escribe SOLO el suyo, así que no hay choques
+     cuando dos se conectan a la vez (con un único archivo común, el último en guardar pisaba
+     al otro). Ya no hay un registro de las últimas 500 conexiones: ahora es un resumen por
+     persona, que es lo que se consulta.
+   · Quién lo ve: solo el administrador, en Herramientas → Acceso → Registro de conexiones,
+     como tabla (usuario, última conexión, nº de veces). Si existe el antiguo conexiones.json
+     de DATOS, sus anotaciones se suman a la tabla.
+   · No es imprescindible: si guardar falla (sin conexión, CONEXIONES aún no compartida...)
+     se ignora en silencio, sin avisar ni bloquear el acceso. "Una conexión" = una sesión de
+     pestaña/navegador en la que se confirma la cuenta de Google (no cada reconexión
+     silenciosa al tocar la pantalla). */
+var CONEXIONES_ARCHIVO_ANTIGUO='conexiones.json';
+var CONEXIONES_PREFIJO='conexion-';
+var conexionesVista={filas:[],orden:'ultima',dir:-1};
 
-async function obtenerArchivoConexionesDrive(){
-var folderId=await obtenerCarpetaDatosId(true);
-return await obtenerArchivoEnDrivePorNombre(CONEXIONES_ARCHIVO,folderId);
+function nombreArchivoConexion(email){
+return CONEXIONES_PREFIJO+String(email||'').trim().toLowerCase().replace(/[^a-z0-9@._+-]/g,'_')+'.json';
 }
-async function descargarConexionesDrive(){
-var f=await obtenerArchivoConexionesDrive();
-if(!f)return {conexiones:[]};
-var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
-if(!r.ok)throw new Error('No se pudo descargar conexiones.json');
-var x=await r.json();
-return (x&&Array.isArray(x.conexiones))?x:{conexiones:[]};
-}
-/* Como mucho una anotación por pestaña/sesión y por correo, para no acumular
-   una entrada en cada reconexión silenciosa al tocar la pantalla (mismo
-   patrón de sessionStorage que avisarSiCuentaNoAdmin). */
 async function registrarConexion(){
 if(!googleIdentidad||!googleIdentidad.email)return;
-if(esLector())return;
 var email=googleIdentidad.email;
 try{
 if(sessionStorage.getItem('conexionRegistrada')===email)return;
 sessionStorage.setItem('conexionRegistrada',email);
 }catch(e){}
 if(!driveRootFolderId||!tokenDriveValido())return;
+var conExito=false;
+/* Mientras dura la anotación, el cortafuegos del Lector deja pasar la escritura; Drive solo
+   se la permite dentro de CONEXIONES, así que no puede aprovecharlo para tocar nada más. */
+window.__conexionEscribiendo=(window.__conexionEscribiendo||0)+1;
 try{
-var actual=await descargarConexionesDrive();
-var lista=Array.isArray(actual.conexiones)?actual.conexiones:[];
-lista.push({email:email,nombre:googleIdentidad.name||'',fecha:new Date().toISOString()});
-if(lista.length>CONEXIONES_MAX_REGISTROS)lista=lista.slice(lista.length-CONEXIONES_MAX_REGISTROS);
-var contenido=JSON.stringify({formato:'Libro de los Ancestros - conexiones',version:1,fecha:new Date().toISOString(),conexiones:lista});
-var folderId=await obtenerCarpetaDatosId(true);
-var existente=await obtenerArchivoConexionesDrive();
-await subirArchivoDrive(CONEXIONES_ARCHIVO,contenido,'application/json',folderId,existente?existente.id:null);
+var folderId=await obtenerCarpetaConexionesId(esAdministrador());
+if(!folderId){console.warn('Registro de conexiones: la carpeta CONEXIONES aún no existe o no está compartida.');return;}
+var nombreArchivo=nombreArchivoConexion(email);
+var existente=await obtenerArchivoEnDrivePorNombre(nombreArchivo,folderId);
+var previo=null;
+if(existente){
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+existente.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.ok){try{previo=await r.json();}catch(e2){previo=null;}}
+}
+var ahora=new Date().toISOString();
+var totalPrevio=(previo&&Number(previo.total)>0)?Number(previo.total):0;
+var registro={formato:'Libro de los Ancestros - conexion',version:2,email:email,nombre:googleIdentidad.name||(previo&&previo.nombre)||'',primera:(previo&&previo.primera)||ahora,ultima:ahora,total:totalPrevio+1};
+var resp=await subirArchivoDrive(nombreArchivo,JSON.stringify(registro),'application/json',folderId,existente?existente.id:null);
+if(resp&&resp.ok)conExito=true;
+else console.warn('No se pudo anotar el registro de conexiones (Drive respondió '+(resp&&resp.status)+')');
 }catch(err){
 console.warn('No se pudo anotar el registro de conexiones:',err&&err.message);
+}finally{
+window.__conexionEscribiendo=Math.max(0,(window.__conexionEscribiendo||0)-1);
+/* Si no se pudo anotar, se permite reintentarlo en la próxima reconexión de esta pestaña. */
+if(!conExito){try{if(sessionStorage.getItem('conexionRegistrada')===email)sessionStorage.removeItem('conexionRegistrada');}catch(e3){}}
 }
 }
+
+/* ----- Lectura (administrador) ----- */
+async function listarArchivosConexionesDrive(folderId){
+var out=[],pageToken='';
+do{
+var q="'"+folderId+"' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'";
+var url='https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name)&pageSize=1000&spaces=drive'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+var r=await fetch(url,{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al listar CONEXIONES');
+var d=await r.json();
+(d.files||[]).forEach(function(f){out.push(f);});
+pageToken=d.nextPageToken||'';
+}while(pageToken);
+return out;
+}
+async function descargarConexionesAntiguasDrive(){
+var folderDatos=await obtenerCarpetaDatosId(false).catch(function(){return null;});
+if(!folderDatos)return [];
+var f=await obtenerArchivoEnDrivePorNombre(CONEXIONES_ARCHIVO_ANTIGUO,folderDatos);
+if(!f)return [];
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)return [];
+var x=await r.json().catch(function(){return null;});
+return (x&&Array.isArray(x.conexiones))?x.conexiones:[];
+}
+async function cargarResumenConexiones(){
+var porEmail={};
+function fila(email){
+var e=String(email||'').trim().toLowerCase();
+if(!e)return null;
+return porEmail[e]||(porEmail[e]={email:e,nombre:'',ultima:'',veces:0});
+}
+/* Todos los usuarios autorizados aparecen, aunque nunca se hayan conectado. */
+(usuariosCache||[]).forEach(function(u){fila(u.email);});
+fila(ADMIN_EMAIL);
+/* Anotaciones del antiguo conexiones.json (una por conexión). */
+try{
+(await descargarConexionesAntiguasDrive()).forEach(function(c){
+var f=fila(c.email);if(!f)return;
+if(c.nombre&&!f.nombre)f.nombre=c.nombre;
+if(c.fecha&&String(c.fecha)>f.ultima)f.ultima=String(c.fecha);
+f.veces+=1;
+});
+}catch(eAnt){}
+/* Archivos nuevos: uno por persona. */
+var folderId=await obtenerCarpetaConexionesId(true);
+if(folderId){
+var archivos=(await listarArchivosConexionesDrive(folderId)).filter(function(a){return a.name&&a.name.indexOf(CONEXIONES_PREFIJO)===0;});
+for(var i=0;i<archivos.length;i+=6){
+var lote=archivos.slice(i,i+6);
+var datos=await Promise.all(lote.map(function(a){
+return fetch('https://www.googleapis.com/drive/v3/files/'+a.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}})
+.then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});
+}));
+datos.forEach(function(x){
+if(!x||!x.email)return;
+var f=fila(x.email);if(!f)return;
+if(x.nombre)f.nombre=x.nombre;
+if(x.ultima&&String(x.ultima)>f.ultima)f.ultima=String(x.ultima);
+f.veces+=(Number(x.total)>0?Number(x.total):0);
+});
+}
+}
+return Object.keys(porEmail).map(function(k){return porEmail[k];});
+}
+
+/* ----- Pantalla (administrador) ----- */
 async function abrirRegistroConexiones(){
 if(!esAdministrador()){toast('Solo el administrador puede ver el registro de conexiones',true);return;}
 if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta primero Google Drive para ver el registro de conexiones',true);return;}
 document.getElementById('modalConexiones').style.display='flex';
-document.getElementById('listaConexiones').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
+await refrescarRegistroConexiones();
+}
+async function refrescarRegistroConexiones(){
+var cont=document.getElementById('listaConexiones');
+var resumen=document.getElementById('resumenConexiones');
+if(resumen)resumen.textContent='';
+cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Cargando...</div>';
 try{
-var datos=await descargarConexionesDrive();
-pintarListaConexiones(datos.conexiones||[]);
+conexionesVista.filas=await cargarResumenConexiones();
+pintarListaConexiones();
 }catch(err){
-document.getElementById('listaConexiones').innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No se pudo cargar el registro de conexiones: '+esc(err.message)+'</div>';
+cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">No se pudo cargar el registro de conexiones: '+esc(err.message)+'</div>';
 }
 }
 function cerrarRegistroConexiones(){document.getElementById('modalConexiones').style.display='none';}
-function pintarListaConexiones(lista){
+function ordenarConexiones(col){
+if(conexionesVista.orden===col)conexionesVista.dir=-conexionesVista.dir;
+else{conexionesVista.orden=col;conexionesVista.dir=(col==='usuario')?1:-1;}
+pintarListaConexiones();
+}
+function pintarListaConexiones(){
 var cont=document.getElementById('listaConexiones');
-if(!lista.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Todavía no hay ninguna conexión registrada.</div>';return;}
-var ordenada=lista.slice().sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});
-cont.innerHTML=ordenada.map(function(c){
-var quien=c.nombre?(esc(c.nombre)+' <span style="color:var(--muted)">('+esc(c.email||'')+')</span>'):esc(c.email||'—');
-var fechaTxt=c.fecha?new Date(c.fecha).toLocaleString('es-ES'):'—';
-return '<div class="cambio-card"><div class="cambio-head"><div>'+quien+'</div><div class="cambio-date">'+fechaTxt+'</div></div></div>';
+var resumen=document.getElementById('resumenConexiones');
+var filas=(conexionesVista.filas||[]).slice();
+if(!filas.length){cont.innerHTML='<div style="padding:10px;color:var(--muted);font-size:13px">Todavía no hay ninguna conexión registrada.</div>';if(resumen)resumen.textContent='';return;}
+var col=conexionesVista.orden,dir=conexionesVista.dir;
+filas.sort(function(a,b){
+var r=0;
+if(col==='usuario')r=String(a.nombre||a.email).localeCompare(String(b.nombre||b.email),'es',{sensitivity:'base'});
+else if(col==='veces')r=a.veces-b.veces;
+else{
+/* Quien nunca se ha conectado queda siempre al final, en cualquier sentido. */
+if(!a.ultima&&!b.ultima)r=0;else if(!a.ultima)return 1;else if(!b.ultima)return -1;
+else r=String(a.ultima).localeCompare(String(b.ultima));
+}
+if(r===0)r=String(a.email).localeCompare(String(b.email));
+return r*dir;
+});
+var nunca=filas.filter(function(f){return !f.veces&&!f.ultima;}).length;
+var total=filas.reduce(function(n,f){return n+f.veces;},0);
+if(resumen)resumen.textContent=filas.length+' usuarios · '+total+' conexiones registradas'+(nunca?' · '+nunca+(nunca===1?' nunca se ha conectado':' nunca se han conectado'):'');
+function cab(id,txt,alin){
+var flecha=(col===id)?(dir>0?' ▲':' ▼'):'';
+return '<th class="'+(alin||'')+'"><button type="button" class="tbl-conex-ord" onclick="ordenarConexiones(\''+id+'\')" aria-label="Ordenar por '+txt+'">'+txt+flecha+'</button></th>';
+}
+var cuerpo=filas.map(function(f){
+var tipo=tipoDeEmail(f.email);
+var etiqueta=tipo&&ETIQUETAS_TIPO_USUARIO[tipo]?ETIQUETAS_TIPO_USUARIO[tipo]:'';
+var principal=f.nombre?esc(f.nombre):esc(f.email);
+var secundario=(f.nombre?esc(f.email):'')+(etiqueta?(f.nombre?' · ':'')+esc(etiqueta):'');
+var fechaTxt=f.ultima?new Date(f.ultima).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'<span class="tbl-conex-nunca">Nunca</span>';
+return '<tr><td><div class="tbl-conex-nombre">'+principal+'</div>'+(secundario?'<div class="tbl-conex-sub">'+secundario+'</div>':'')+'</td><td>'+fechaTxt+'</td><td class="num">'+f.veces+'</td></tr>';
 }).join('');
+cont.innerHTML='<table class="tbl-conex"><thead><tr>'+cab('usuario','Usuario')+cab('ultima','Última conexión')+cab('veces','Veces','num')+'</tr></thead><tbody>'+cuerpo+'</tbody></table>';
 }
 /* ========== FIN REGISTRO DE CONEXIONES ========== */
 
@@ -17775,7 +17939,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-section">Solo administrador</div>
 <div class="herr-subhead">Administración</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo/lector) y ficha vinculada de cada persona</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Correo, nombre y fecha/hora de cada vez que un colaborador conecta su cuenta de Google</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Tabla con cada usuario, su última conexión y cuántas veces se ha conectado (también los lectores)</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
@@ -18192,12 +18356,16 @@ window.addEventListener('appinstalled', function () {
 </div>
 
 <div id="modalConexiones" role="dialog" aria-modal="true" aria-labelledby="modalConexionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:230;align-items:center;justify-content:center;padding:20px;">
-<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
 <h2 id="modalConexionesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-right-to-bracket" aria-hidden="true" style="color:var(--accent)"></i> Registro de conexiones</h2>
+<div style="display:flex;gap:6px;align-items:center">
+<button class="ef-nbtn" aria-label="Actualizar" title="Actualizar" onclick="refrescarRegistroConexiones()"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
 <button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarRegistroConexiones()">×</button>
 </div>
-<p style="font-size:11px;color:var(--muted);margin:0 0 10px">Correo, nombre y fecha/hora de cada vez que un colaborador ha conectado su cuenta de Google, de más reciente a más antigua (hasta las últimas 500 conexiones).</p>
+</div>
+<p style="font-size:11px;color:var(--muted);margin:0 0 4px">Una fila por persona: cuándo fue su última conexión y cuántas veces se ha conectado (administrador, colaboradores, amigos y lectores). Cuenta una vez cada vez que abre la aplicación y conecta su cuenta de Google. Pulsa un título de columna para ordenar.</p>
+<p id="resumenConexiones" style="font-size:12px;font-weight:700;margin:0 0 8px" role="status" aria-live="polite"></p>
 <div id="listaConexiones" style="overflow:auto;flex:1"></div>
 </div>
 </div>
