@@ -392,6 +392,23 @@ main.ges-split .ges-cat{max-width:none}
 .activebar-label{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:9px}
 .activebar-name{font-weight:700;color:var(--text);cursor:pointer;flex:1;min-width:0;overflow-wrap:anywhere}
 .activebar-name:hover{color:var(--accent);text-decoration:underline}
+.ges-visado{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;padding:4px 7px;border:1px solid var(--border);border-radius:8px;background:var(--card);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);cursor:pointer}
+.ges-visado input{width:18px;height:18px;margin:0;accent-color:#1e8449;cursor:pointer}
+.ges-visado.on{color:#1e8449;border-color:#1e8449}
+.ges-cat.ges-solo-lectura .ges-masiva{display:none}
+.ges-cat.ges-solo-lectura .inc-actions button:not([onclick*="abrirFichaEnPestana"]){display:none}
+.placa-usuario{position:fixed;left:16px;bottom:16px;z-index:95;display:none;align-items:center;gap:12px;padding:11px 20px 11px 14px;max-width:min(80vw,340px);cursor:pointer;color:#3b2a14;font-family:'Cinzel',Georgia,serif;
+background:radial-gradient(ellipse at 30% 20%,#FFFBF0,#F3E6C8 70%,#E9D7AC);border:3px double #9a7420;border-radius:10px;
+box-shadow:0 0 0 2px #F8EFD8,0 0 0 4px #c9a13b,0 0 0 6px #F8EFD8,0 0 0 7px #8a6a1c,0 8px 22px rgba(60,40,10,.38),inset 0 0 14px rgba(154,116,32,.25);transition:padding .2s}
+.placa-usuario .pc{position:absolute;width:18px;height:18px;line-height:18px;text-align:center;font-size:15px;color:#9a7420;background:#F3E6C8;border-radius:50%;box-shadow:0 0 0 1px #c9a13b}
+.placa-usuario .pc1{top:-11px;left:-11px}.placa-usuario .pc2{top:-11px;right:-11px}.placa-usuario .pc3{bottom:-11px;left:-11px}.placa-usuario .pc4{bottom:-11px;right:-11px}
+.placa-usuario .pfoto{flex-shrink:0;width:56px;height:56px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#E9D7AC;font-size:24px;font-weight:700;color:#7a5a14;border:2px solid #b8902f;box-shadow:0 0 0 2px #F8EFD8,0 0 0 3px #8a6a1c,0 2px 6px rgba(60,40,10,.35)}
+.placa-usuario .pfoto img{width:100%;height:100%;object-fit:cover}
+.placa-usuario .ptxt{min-width:0}
+.placa-usuario .pnom{font-size:14px;font-weight:700;line-height:1.25;letter-spacing:.3px;overflow-wrap:anywhere}
+.placa-usuario .prol{margin-top:2px;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:#8a6a1c}
+.placa-usuario.mini{padding:9px}.placa-usuario.mini .ptxt{display:none}
+@media print{.placa-usuario{display:none!important}}
 @media(max-width:640px){.hero{padding:24px 12px 16px}.cmd-grid{gap:8px}.cmd-card{padding:9px 14px;min-width:100px}.cmd-num{font-size:20px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}nav button{padding:8px}#mn .mh{display:none}#mn>button[data-view="inf"],#mn>button[data-view="cam"]{display:none!important}.nav-more-wrap{display:inline-flex!important}}
 /* ===== ÁRBOL GENEALÓGICO ===== */
 .tc{overflow-x:auto;overflow-y:auto;padding:20px 10px}
@@ -836,6 +853,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <button data-view="cam" style="display:none" aria-label="Registro de cambios" onclick="sv('cam')"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span class="mh">Cambios</span><span id="navCambiosBadge" class="cambio-badge" style="display:none" aria-hidden="true">0</span></button><div class="nav-more-wrap" id="navMoreWrap"><button type="button" data-view="mas" id="navMoreBtn" aria-haspopup="true" aria-expanded="false" aria-label="Más opciones de navegación" onclick="toggleNavMore(event)"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i> <span class="mh">Más</span></button></div></nav>
 <div class="nav-more-menu" id="navMoreMenu" role="menu" aria-label="Más pantallas"></div>
 </header>
+<div class="placa-usuario" id="placaUsuario" onclick="this.classList.toggle('mini')" title="Usuario conectado (pulsa para reducir o ampliar)"></div>
 <div class="activebar" id="activeBar">
 <span class="activebar-label" id="activebarLabelTxt" title="Esta es la persona sobre la que trabajan el Árbol, la Ficha y los Informes; cámbiala con la lupa de al lado">Viendo a</span>
 <span class="activebar-name" id="activeBarName" role="button" tabindex="0" onclick="irFicha()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();irFicha();}" aria-describedby="activebarLabelTxt"></span>
@@ -1185,8 +1203,12 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.01.1';
+var APP_VERSION = '2026.11.02.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.02.1', fecha:'2026-11-02', cambios:[
+    'Gestor de datos: cada apartado tiene ahora una casilla de «Visado» (solo la ve el administrador). Los colaboradores acceden únicamente a los apartados con el visado activo; el cambio se aplica la próxima vez que abran el Gestor, y si se quita el visado dejan de verlo. Por defecto se mantienen los tres que ya tenían (lugares, apellidos y cónyuges con nombres parecidos). Los apartados que implican fusionar, borrar o recalcular se muestran a los colaboradores en solo lectura. El listado se guarda en el archivo gestor-permisos.json de la carpeta del árbol oficial.',
+    'Nueva placa del usuario conectado: esquina inferior izquierda, con su foto y su nombre y apellidos dentro de un marco barroco (si su cuenta está vinculada a una ficha usa la de la ficha; si no, la de Google). Al pulsarla se reduce a la foto.'
+  ]},
   { version:'2026.11.01.1', fecha:'2026-11-01', cambios:[
     'Registro de conexiones rediseñado (solo administrador, Herramientas → Acceso): ahora es una tabla con una fila por persona —usuario, última conexión y número de veces que se ha conectado—, ordenable pulsando cada título de columna, y muestra también a quien aún no se ha conectado nunca.',
     'El perfil Lector también queda anotado en el registro. Para ello se guarda ahora en una carpeta nueva de Drive llamada CONEXIONES (un archivo pequeño por persona), donde el Lector tiene permiso de editor solo para anotar su propia conexión; en DATOS, FOTO y DOCUMENTOS sigue siendo solo lector. Las anotaciones del antiguo conexiones.json se suman a la tabla. Después de actualizar, el administrador debe pulsar una vez «Reforzar accesos de Drive de todos» (Herramientas → Usuarios) para crear y compartir CONEXIONES.'
@@ -10139,6 +10161,7 @@ GES_UI.borrarNo=GES_UI.borrarNo||{};
 return D.filter(function(p){return p.BORRAR==='1'&&!GES_UI.borrarNo[String(p.ID)];});
 }
 async function gesBorrarMarcadas(){
+if(!esAdministrador())return;
 if(!esAdministrador()){toast('Solo el administrador puede borrar fichas en bloque',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 var marcadas=gesBorrarSeleccionadas();
@@ -11914,8 +11937,97 @@ accionMasiva:gruposApeA.length?{etiqueta:'Unificar automáticamente los '+grupos
 }
 return cats;
 }
+/* ===== Visado de apartados del Gestor para colaboradores =====
+   El administrador marca en cada apartado la casilla «Visado»; los ids marcados se guardan en
+   gestor-permisos.json (carpeta del árbol oficial, que los colaboradores ya leen). Al abrir el
+   Gestor se relee siempre, así que activar o quitar un visado surte efecto en la siguiente
+   entrada del colaborador. Si el archivo no existe, rigen los tres apartados de siempre. Si no se
+   puede leer, el colaborador no ve ninguno (más seguro que dejar un permiso retirado). */
+var GES_PERMISOS_ARCHIVO='gestor-permisos.json';
+var GES_PERMISOS_DEFECTO=['lugares_no_homogeneos','apellidos_no_homogeneos','conyuges_parecidos'];
+var GES_PERMISOS_COLAB=null,GES_PERMISOS_LECTURA_OK=false;
+async function gesCargarPermisosColab(){
+GES_PERMISOS_LECTURA_OK=false;
+try{
+var carpeta=await obtenerCarpetaArbolOficialId(true);
+var f=await obtenerArchivoEnDrivePorNombre(GES_PERMISOS_ARCHIVO,carpeta);
+if(!f){GES_PERMISOS_COLAB=GES_PERMISOS_DEFECTO.slice();GES_PERMISOS_LECTURA_OK=true;return;}
+var x=await leerArchivoDriveJSON(f);
+if(x&&Array.isArray(x.apartados)){GES_PERMISOS_COLAB=x.apartados.map(String);GES_PERMISOS_LECTURA_OK=true;}
+else GES_PERMISOS_COLAB=esAdministrador()?GES_PERMISOS_DEFECTO.slice():[];
+}catch(e){GES_PERMISOS_COLAB=esAdministrador()?GES_PERMISOS_DEFECTO.slice():[];}
+}
+async function gesAlternarVisado(id,activo){
+if(!esAdministrador())return;
+if(!GES_PERMISOS_LECTURA_OK){toast('No se pudo leer gestor-permisos.json de Drive: se evita sobrescribirlo. Pulsa «Recargar de Drive» e inténtalo de nuevo.',true);gesRender();return;}
+var ant=(GES_PERMISOS_COLAB||[]).slice();
+var nuevo=ant.filter(function(i){return i!==id;});
+if(activo)nuevo.push(id);
+GES_PERMISOS_COLAB=nuevo;
+try{
+var carpeta=await obtenerCarpetaArbolOficialId(true);
+var ex=await obtenerArchivoEnDrivePorNombre(GES_PERMISOS_ARCHIVO,carpeta);
+var r=await subirArchivoDrive(GES_PERMISOS_ARCHIVO,JSON.stringify({formato:'Libro de los Ancestros - apartados del Gestor visados para colaboradores',version:1,fecha:new Date().toISOString(),apartados:nuevo}),'application/json',carpeta,ex?ex.id:null);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+toast(activo?'Apartado visado: los colaboradores lo verán la próxima vez que abran el Gestor':'Visado retirado: los colaboradores dejarán de ver este apartado');
+}catch(err){GES_PERMISOS_COLAB=ant;toast('No se pudo guardar el visado: '+err.message,true);}
+var y=window.scrollY;gesRender();window.scrollTo(0,y);
+}
+/* Apartados que, para un colaborador, solo se pueden consultar (fusionar, borrar o recalcular
+   siguen siendo del administrador). */
+function gesEsSoloLecturaColab(c){
+return c.grupo==='integridad'||c.grupo==='borrado'||c.grupo==='duplicados'||c.fuente==='anocalc'||c.fuente==='fallecidos'||c.fuente==='huecos'||c.fuente==='conyuges';
+}
+function gesBloqueadoColab(catId){
+if(esAdministrador())return false;
+var c=gesCatPorId(catId);
+if(c&&!c.soloLectura)return false;
+toast('Este apartado es de solo lectura para tu perfil',true);
+return true;
+}
+function gesItemVisibleColab(it){
+var ks=['verId','verId2','id','aId','bId','ownerId'];
+for(var i=0;i<ks.length;i++){var v=it[ks[i]];if(v!=null&&v!==''&&!puedeVerPersona(v))return false;}
+return true;
+}
 function construirCategoriasMantenimiento(){
-if(!esAdministrador())return gesCategoriasHomogeneidad();
+if(esAdministrador())return gesConstruirTodas();
+var vis=GES_PERMISOS_COLAB||[],vistos={},res=[];
+var todas=gesConstruirTodas();
+for(var i=todas.length-1;i>=0;i--){ /* ante ids repetidos manda la versión de colaborador (la última) */
+var c=todas[i];
+if(vistos[c.id])continue;vistos[c.id]=1;
+if(vis.indexOf(c.id)<0)continue;
+if(c.fuente!=='lugares'&&c.fuente!=='apellidos_var'){
+c.items=c.items.filter(function(it){return gesItemVisibleColab(it);});
+if(!c.items.length)continue;
+}
+c.soloLectura=gesEsSoloLecturaColab(c);
+res.unshift(c);
+}
+return res;
+}
+/* ===== Placa del usuario conectado (marco barroco) ===== */
+var __placaSig='';
+function actualizarPlacaUsuario(){
+var el=document.getElementById('placaUsuario');if(!el)return;
+var ident=googleIdentidad;
+if(!ident||!ident.email){el.style.display='none';__placaSig='';return;}
+var p=null;try{var mid=miFichaId();if(mid&&PI)p=PI[mid]||null;}catch(e){}
+var nombre=p?fn(p):(ident.name||ident.email);
+var foto=(p&&p.FOTO)||ident.picture||'';
+var rol=ETIQUETAS_TIPO_USUARIO[tipoUsuarioActual()]||'';
+var sig=[nombre,foto.length,foto.slice(-40),rol].join('|');
+if(sig===__placaSig&&el.style.display==='flex')return;
+__placaSig=sig;
+var ini0=String(nombre||'?').trim().charAt(0).toUpperCase();
+el.innerHTML='<span class="pc pc1">❦</span><span class="pc pc2">❦</span><span class="pc pc3">❦</span><span class="pc pc4">❦</span>'+
+'<div class="pfoto">'+(foto?'<img src="'+String(foto).replace(/"/g,'&quot;')+'" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.textContent=\''+ini0.replace(/[\\\']/g,'')+'\'">':esc(ini0))+'</div>'+
+'<div class="ptxt"><div class="pnom">'+esc(nombre)+'</div>'+(rol?'<div class="prol">'+esc(rol)+'</div>':'')+'</div>';
+el.style.display='flex';
+}
+setInterval(actualizarPlacaUsuario,1500);
+function gesConstruirTodas(){
 var cats=[];
 /* Fichas marcadas para borrar desde la ficha (campo BORRAR): borrado masivo con casillas. */
 var marcadasBorrar=D.filter(function(p){return p.BORRAR==='1';});
@@ -12176,6 +12288,7 @@ rGesLigero();
 }
 /* Correccion individual de una inconsistencia (mismo patron que solucionarInconsistenciaFicha) */
 async function gesAplicarItem(catId,idx,iAcc){
+if(gesBloqueadoColab(catId))return;
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||typeof it.aplicar!=='function')return;
@@ -12192,6 +12305,7 @@ finally{ocultarProgresoAccion();}
 /* Accion masiva por categoria: aplica .aplicar una a una, re-detectando en cada paso,
 y guarda/registra una sola vez al terminar (igual que hacia solucionarTodasInconsistencias). */
 async function gesAccionMasiva(catId){
+if(gesBloqueadoColab(catId))return;
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);
 if(!cat||!cat.accionMasiva)return;
@@ -12269,6 +12383,7 @@ finally{ocultarProgresoAccion();}
 }
 /* Fusion de duplicados desde el Gestor (mismo flujo que el antiguo modal, pareja a pareja) */
 async function gesFusionarDup(catId,idx,inverso){
+if(gesBloqueadoColab(catId))return;
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
@@ -12298,6 +12413,7 @@ finally{ocultarProgresoAccion();}
 
 /* Arreglar un duplicado "seguro": fusiona la pareja y, antes, a los progenitores que tambien estan duplicados */
 async function gesArreglarDup(catId,idx){
+if(gesBloqueadoColab(catId))return;
 if(!(await exigirIdentidadGoogle()))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
@@ -12325,6 +12441,7 @@ finally{ocultarProgresoAccion();}
 }
 /* Arreglar de golpe todos los duplicados seguros de la lista (por lotes para no bloquear el navegador) */
 async function gesArreglarDuplicadosSeguros(cat){
+if(!esAdministrador())return;
 if(!(await exigirIdentidadGoogle()))return;
 var items=cat.items.filter(function(it){return it.tipo==='dup'&&it.seguro;});
 if(!items.length)return;
@@ -12359,6 +12476,7 @@ await gesGuardarYRefrescar(antes,'fusionar',n+' ficha(s) fusionada(s)'+(restante
 finally{ocultarProgresoAccion();}
 }
 async function gesIgnorarDup(catId,idx){
+if(gesBloqueadoColab(catId))return;
 var cat=gesCatPorId(catId);if(!cat)return;
 var it=cat.items[idx];if(!it||it.tipo!=='dup')return;
 DUP_IGNORADOS[it.aId+'|'+it.bId]=true;
@@ -12369,6 +12487,7 @@ finally{ocultarProgresoAccion();}
 }
 /* Años estimados desde el Gestor: reutiliza el motor por fases con barra de progreso propia */
 async function gesCalcularAnosGes(){
+if(!esAdministrador())return;
 if(!D.length){toast('No hay datos cargados',true);return;}
 if(!(await confirmarApp('Se recalculará el año estimado de todas las personas sin ningún año propio, usando las diferencias medias de edad reales de tu propio árbol.\nEsto NUNCA modifica ni sobrescribe un año de nacimiento; solo actualiza el campo separado "año estimado automáticamente" (≈).')))return;
 var btn=document.querySelector('[data-masiva="anios_estimados"]');
@@ -13036,15 +13155,19 @@ return h;
 function gesRenderCat(c){
 var abierta=gesEstaAbierta(c);
 var chips={integridad:'Integridad',borrado:'Borrado',apellidos:'Apellidos',inconsistencias:'Inconsistencias',duplicados:'Duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
-var h='<section class="ges-cat sev-'+(c.severidad||'info')+(abierta?' abierta':'')+'" data-id="'+c.id+'">';
+var h='<section class="ges-cat sev-'+(c.severidad||'info')+(abierta?' abierta':'')+(c.soloLectura?' ges-solo-lectura':'')+'" data-id="'+c.id+'">';
 h+='<header class="ges-cat-head" onclick="gesToggle(\''+c.id+'\')">';
 h+='<i class="fa-solid '+esc(c.icono||'fa-circle-info')+' ges-ico"></i>';
 h+='<div class="ges-cat-txt"><div class="ges-cat-titulo">'+esc(c.titulo)+' <span class="ges-chip">'+(chips[c.grupo]||c.grupo)+'</span></div>';
-h+='<div class="ges-cat-desc">'+esc(c.descripcion||'')+'</div></div>';
+h+='<div class="ges-cat-desc">'+esc(c.descripcion||'')+(c.soloLectura?' · Solo lectura para colaboradores.':'')+'</div></div>';
 /* v2.5: desglose CALCULADO/INGRESADO junto al contador rojo (antes solo aparecía en el
 texto gris de la descripción, donde el usuario tenía que buscarlo). c.nCalculado/nIngresado
 ya vienen calculados en construirCategoriasMantenimiento(); si la categoría no es de edad
 (nCalculado===null), se muestra solo el badge de siempre, sin sub-línea. */
+if(esAdministrador()){
+var visado=(GES_PERMISOS_COLAB||[]).indexOf(c.id)>=0;
+h+='<label class="ges-visado'+(visado?' on':'')+'" title="Visado: si está activo, los colaboradores pueden abrir este apartado desde su próxima conexión" onclick="event.stopPropagation()"><input type="checkbox"'+(visado?' checked':'')+' onchange="gesAlternarVisado(\''+c.id+'\',this.checked)"><span>Visado</span></label>';
+}
 if(c.nCalculado!==null&&c.nCalculado!==undefined){
 h+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">';
 h+='<span class="ges-badge">'+c.items.length+'</span>';
@@ -13072,7 +13195,7 @@ var cont=document.getElementById('gesPanel');
 var res=document.getElementById('gesResumen');
 if(!cont)return;
 var subGes=document.getElementById('gesSubtitulo');
-if(subGes)subGes.textContent=esAdministrador()?'Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0':'Apellidos y lugares escritos de formas distintas: marca la forma correcta y aplica (tus correcciones quedan registradas para que las apruebe el administrador). También puedes consultar los cónyuges con nombres parecidos, en solo lectura';
+if(subGes)subGes.textContent=esAdministrador()?'Mantenimiento clasificado del árbol: cada categoría desaparece automáticamente cuando su recuento llega a 0':'Apartados habilitados por el administrador para tu perfil. En los de escritura no homogénea marca la forma correcta y aplica (tus correcciones quedan registradas para que las apruebe el administrador); los demás pueden aparecer en solo lectura';
 var btnLimpIA=document.getElementById('gesBtnLimpiarIA');if(btnLimpIA)btnLimpIA.style.display=esAdministrador()?'':'none';
 var cats=(GES_CACHE||[]).slice();
 /* §5: se ordena primero por GRUPO (Integridad > Inconsistencias > Duplicados > Completitud >
@@ -13108,7 +13231,7 @@ de ID) se siguen mostrando debajo con normalidad. */
 var avisoSnapshot=GES_SNAPSHOT_ERROR?('<div class="ges-ok" style="border-color:#c0392b;margin-bottom:10px"><i class="fa-solid fa-triangle-exclamation" style="font-size:20px;color:#c0392b"></i><div><b>No se pudo cargar el archivo de años calculados desde Drive.</b><br>'+esc(GES_SNAPSHOT_ERROR)+'<br>Las comprobaciones que dependen del año calculado (inconsistencias de edad, personas sin año estimable, mayores de 100 años) están pausadas hasta reconectar; el resto de comprobaciones de abajo (duplicados, lugares, completitud, huecos de ID) siguen funcionando con normalidad.<br><button class="ef-btn ghost" style="margin-top:10px;padding:4px 12px;font-size:11px" onclick="rGes(true)"><i class="fa-solid fa-rotate"></i> Reintentar</button></div></div>'):'';
 if(!cats.length){
 /* §3: si todas las categorias estan a 0, un unico mensaje de exito (salvo que haya un aviso de Drive que mostrar) */
-cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>'+(esAdministrador()?'Todo limpio: no queda ningún problema pendiente en el árbol.':'Todo limpio: no hay apellidos ni lugares con escritura no homogénea pendientes.')+'</div></div>';
+cont.innerHTML=avisoSnapshot+'<div class="ges-ok"><i class="fa-solid fa-circle-check" style="font-size:22px"></i><div>'+(esAdministrador()?'Todo limpio: no queda ningún problema pendiente en el árbol.':((GES_PERMISOS_COLAB&&GES_PERMISOS_COLAB.length)?'Todo limpio: no queda nada pendiente en los apartados habilitados para ti.':'El administrador todavía no ha habilitado ningún apartado del Gestor para tu perfil.'))+'</div></div>';
 return;
 }
 var titulosGrupo={integridad:'Integridad de los datos',borrado:'Borrado de fichas',apellidos:'Discrepancias en nombre y apellidos',inconsistencias:'Inconsistencias',duplicados:'Posibles duplicados',completitud:'Completitud',lugares:'Lugares',otros:'Otros'};
@@ -13149,7 +13272,8 @@ async function rGesInterno(forzar){
 var cont=document.getElementById('gesPanel'),res=document.getElementById('gesResumen');
 if(res)res.innerHTML='';
 if(cont)cont.innerHTML='';
-if(esAdministrador()){
+await gesCargarPermisosColab();
+if(esAdministrador()||(GES_PERMISOS_COLAB||[]).some(function(i){return GES_PERMISOS_DEFECTO.indexOf(i)<0;})){
 try{
 var snap=await cargarAniosCalculadosDrive(forzar);
 GES_ANIOS_SNAPSHOT=snap.anios;
@@ -13158,7 +13282,7 @@ GES_SNAPSHOT_ERROR=null;
 }catch(err){
 GES_ANIOS_SNAPSHOT=null;
 GES_ANIOS_SNAPSHOT_FECHA=null;
-GES_SNAPSHOT_ERROR=err.message;
+GES_SNAPSHOT_ERROR=esAdministrador()?err.message:null;
 }
 }else{
 /* Colaborador: sus dos categorias (apellidos y lugares) no dependen del archivo de años calculados. */
