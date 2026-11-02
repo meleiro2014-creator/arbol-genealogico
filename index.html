@@ -192,6 +192,16 @@ main.ges-split .ges-cat{max-width:none}
 .fac-box.fac-empty{border-style:dashed;border-color:var(--border);color:var(--muted);cursor:default}
 .fac-box.fac-empty:hover{background:none}
 .fac-box.fac-self{cursor:default;border-width:2px;background:rgba(196,101,58,.06)}
+/* Dibujitos de persona sin foto (según sexo y etapa de vida), sobre el fondo crema del programa */
+.av-dib{display:block;width:100%;height:100%}
+.fa.fa-dib{background:var(--bg);padding:0}
+.fa.fa-dib .av-dib{border-radius:13px}
+.ra.dib{padding:0;overflow:hidden;background:var(--bg)}
+.ra.dib.al{border:2px solid var(--alive)}.ra.dib.de{border:2px solid var(--dead)}
+.ra.mini.dib{width:28px;height:28px;border-width:1.5px}
+.fac-av{width:46px;height:46px;border-radius:50%;overflow:hidden;margin:0 auto 5px;background:var(--bg);border:1.5px solid var(--border);box-sizing:border-box}
+.fac-av img{width:100%;height:100%;object-fit:cover;display:block}
+.fac-box.fac-self .fac-av{width:54px;height:54px}
 .fic-lugarcalc-tag{color:var(--accent);font-style:italic;font-weight:700;opacity:.85}
 /* ===== MEJORA UX: separación visual de acciones irreversibles en Herramientas (ver 1. Usabilidad) ===== */
 .herr-item-danger{background:rgba(166,52,43,.05);border:1px solid rgba(166,52,43,.2);margin-top:10px}
@@ -2464,7 +2474,7 @@ if(!personaObj)return '';
 if(!puedeVerPersona(personaObj.ID)){
 return '<span style="color:var(--muted);font-style:italic" title="No tienes acceso a esta ficha">Persona no visible</span>';
 }
-return '<span class="fam-rel">'+avatarHTML(personaObj,true)+'<a class="'+(claseEnlace||'fl2')+'" onclick="'+onclickAttr+'">'+esc(fn(personaObj))+'</a>'+(extraHtml||'')+'</span>';
+return '<span class="fam-rel">'+avatarHTML(personaObj,true,true)+'<a class="'+(claseEnlace||'fl2')+'" onclick="'+onclickAttr+'">'+esc(fn(personaObj))+'</a>'+(extraHtml||'')+'</span>';
 }
 function usuarioActualParaCambios(){
 if(!googleIdentidad||!googleIdentidad.email){throw new Error('No hay identidad Google para registrar el cambio');}
@@ -5582,10 +5592,11 @@ return{texto:(String(p.NOMBRE||'')+' '+partes.join(' ')).trim(),apellidos:partes
 }
 function isAl(p){return!(p.FALLECIDO==='-1'||p.FALLECIDO===true||p.FALLECIDO==='VERDADERO'||p.FALLECIDO===1||p.FALLECIDO==='1');}
 function ini(p){return(p.NOMBRE||'?').charAt(0).toUpperCase();}
-function avatarHTML(p,mini){
+function avatarHTML(p,mini,dibujo){
 var al=isAl(p);
 var cls='ra'+(mini?' mini':'')+' ';
 if(p.FOTO)return '<div class="'+cls+'foto '+(al?'al':'de')+'"><img src="'+p.FOTO.replace(/"/g,'&quot;')+'" alt="" loading="lazy">'+(p.FOTO_RECON?'<span class="foto-recon" title="Imagen reconstruida: no es una fotografía real"><i class="fa-solid fa-wand-magic-sparkles"></i></span>':'')+'</div>';
+if(dibujo)return '<div class="'+cls+'dib '+(al?'al':'de')+'">'+avatarDibujoSVG(p)+'</div>';
 return '<div class="'+cls+(al?'al':'de')+'">'+ini(p)+'</div>';
 }
 /* ===== ETIQUETAS/NOTAS POR PERSONA ===== Se guardan en el campo ETIQUETAS como texto
@@ -8592,16 +8603,71 @@ if(isAl(per))return nacTxt;
 var defA=per.DEFA?parseInt(per.DEFA,10):null;
 return nacTxt+'\u2013'+(defA?String(defA):'?');
 }
-function cajaArbol(per,claseExtra,clicable){
+/* ===== DIBUJITOS DE PERSONA SIN FOTO =====
+   Cuando una persona no tiene foto se muestra un dibujo de línea (cara de hombre o de mujer) sobre el
+   fondo crema del programa, en vez de la inicial. La etapa (niño, joven, adulto, mayor) sale de la edad
+   (nacimiento real o estimado y, si es fallecido, su año de defunción); si no se puede calcular, se usa
+   el papel que tiene en el árbol (abuelos = mayor, padres = adulto). Sexo vacío = dibujo neutro. */
+function etapaAvatarDibujo(per,rol){
+var nac=null,fin=null,e;
+try{nac=getYearReal(per);}catch(err){}
+if(nac===null&&per&&per.ANOCALC!==undefined&&per.ANOCALC!==null&&per.ANOCALC!==''){var a=parseInt(per.ANOCALC,10);if(!isNaN(a))nac=a;}
+if(per&&!isAl(per)){var d=parseInt(per.DEFA,10);if(!isNaN(d))fin=d;}else fin=(new Date()).getFullYear();
+if(nac!==null&&fin!==null){e=fin-nac;if(e>=0&&e<=120)return e<15?'nino':(e<36?'joven':(e<62?'adulto':'mayor'));}
+if(rol==='nino'||rol==='joven'||rol==='adulto'||rol==='mayor')return rol;
+return 'adulto';
+}
+function avatarDibujoSVG(per,rol){
+var sexo=per&&per.SEXO==='Mujer'?'m':(per&&per.SEXO==='Hombre'?'h':'n');
+var et=etapaAvatarDibujo(per,rol);
+var L='#5f5a54',PIEL='#FFFEFB';
+var H=et==='mayor'?'#a29d96':(et==='adulto'?'#5f5a54':'#47423d');
+var st='stroke="'+L+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+var back='',front='',extra='';
+if(sexo==='m'){
+if(et==='mayor'){
+back='<circle cx="35" cy="40" r="8" fill="'+H+'" '+st+'/><circle cx="65" cy="40" r="8" fill="'+H+'" '+st+'/><circle cx="40" cy="28" r="8" fill="'+H+'" '+st+'/><circle cx="60" cy="28" r="8" fill="'+H+'" '+st+'/><circle cx="50" cy="24" r="8" fill="'+H+'" '+st+'/>';
+front='<circle cx="42" cy="31" r="5.5" fill="'+H+'" '+st+'/><circle cx="50" cy="29" r="5.5" fill="'+H+'" '+st+'/><circle cx="58" cy="31" r="5.5" fill="'+H+'" '+st+'/>';
+extra='<circle cx="33.5" cy="55" r="1.8" fill="'+L+'"/><circle cx="66.5" cy="55" r="1.8" fill="'+L+'"/>';
+}else if(et==='adulto'){
+back='<path d="M30 48 C25 22 38 15 50 15 C62 15 75 22 70 48 C71 60 69 70 66 75 L34 75 C31 70 29 60 30 48 Z" fill="'+H+'" '+st+'/>';
+front='<path d="M34 37 C34 26 42 21 50 21 C59 21 66 26 66 37 C62 32 56 30 50 29 C43 30 38 33 34 37 Z" fill="'+H+'" '+st+'/>';
+}else{
+back='<path d="M31 46 C27 23 39 17 50 17 C61 17 73 23 69 46 C70 54 69 58 67 61 L33 61 C31 58 30 54 31 46 Z" fill="'+H+'" '+st+'/>';
+front='<path d="M33 42 C32 27 42 21 50 21 C60 21 68 27 67 42 C63 33 58 30 52 29 C46 33 38 33 33 42 Z" fill="'+H+'" '+st+'/>';
+}
+}else if(et==='mayor'){
+front='<path d="M33 45 C31 37 33 31 38 28 C36 34 36 40 36 47 Z" fill="'+H+'" '+st+'/><path d="M67 45 C69 37 67 31 62 28 C64 34 64 40 64 47 Z" fill="'+H+'" '+st+'/><path d="M38 28 C44 22 56 22 62 28" fill="none" '+st+'/>';
+}else if(et==='nino'||et==='joven'){
+front='<path d="M34 39 C31 24 42 18 50 18 C59 18 69 24 66 39 C65 35 61 31 56 30 C52 33 44 33 39 31 C36 33 35 36 34 39 Z" fill="'+H+'" '+st+'/>';
+}else{
+front='<path d="M34 37 C32 25 41 20 50 20 C59 20 68 25 66 37 C63 32 58 29 50 29 C42 29 37 32 34 37 Z" fill="'+H+'" '+st+'/>';
+}
+var rostro='<path d="M42 60 L42 78 Q50 84 58 78 L58 60" fill="'+PIEL+'" '+st+'/>'+
+'<ellipse cx="33" cy="47" rx="3" ry="5" fill="'+PIEL+'" '+st+'/><ellipse cx="67" cy="47" rx="3" ry="5" fill="'+PIEL+'" '+st+'/>'+
+'<ellipse cx="50" cy="44" rx="17" ry="21" fill="'+PIEL+'" '+st+'/>';
+var ojos=(et==='nino'?'<circle cx="43" cy="47" r="2.4" fill="'+L+'"/><circle cx="57" cy="47" r="2.4" fill="'+L+'"/>':'<circle cx="43" cy="45" r="1.9" fill="'+L+'"/><circle cx="57" cy="45" r="1.9" fill="'+L+'"/>')+
+'<path d="M38.5 40 Q43 37.5 47.5 40 M52.5 40 Q57 37.5 61.5 40" fill="none" '+st.replace('stroke-width="2"','stroke-width="1.6"')+'/>'+
+'<path d="M50 47 L49 54 Q50.5 56 53 55" fill="none" '+st.replace('stroke-width="2"','stroke-width="1.6"')+'/>'+
+'<path d="M45 60.5 Q50 63 55 60.5" fill="none" '+st+'/>';
+var arrugas=et==='mayor'?'<path d="M39 52 Q38 56 40 59 M61 52 Q62 56 60 59 M39 34.5 Q50 32 61 34.5" fill="none" '+st.replace('stroke-width="2"','stroke-width="1.2"')+' opacity=".7"/>':'';
+var hombros='<path d="M12 101 C14 84 28 78 42 75 Q50 82 58 75 C72 78 86 84 88 101 Z" fill="'+PIEL+'" '+st+'/>';
+var cuerpo=back+hombros+rostro+extra+ojos+arrugas+front;
+if(et==='nino')cuerpo='<g transform="translate(50 101) scale(.84) translate(-50 -101)">'+cuerpo+'</g>';
+var desc=(sexo==='m'?'Mujer':(sexo==='h'?'Hombre':'Persona'))+' sin foto';
+return '<svg class="av-dib" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+desc+'"><rect width="100" height="100" fill="#FBF7F0"/>'+cuerpo+'</svg>';
+}
+function cajaArbol(per,claseExtra,clicable,rol){
 if(!per)return'<div class="fac-box fac-empty">?</div>';
 var attrs=clicable!==false?' onclick="event.stopPropagation();irAFicha(\''+safeId(per.ID)+'\')"':'';
-return'<div class="fac-box '+(claseExtra||'')+'"'+attrs+' title="'+escAttr(fn(per))+'"><span class="fac-nombre">'+esc(fn(per))+'</span><span class="fac-anio">'+esc(textoAniosCajaArbol(per))+'</span></div>';
+var av='<div class="fac-av">'+(per.FOTO?'<img src="'+escAttr(per.FOTO)+'" alt="">':avatarDibujoSVG(per,rol))+'</div>';
+return'<div class="fac-box '+(claseExtra||'')+'"'+attrs+' title="'+escAttr(fn(per))+'">'+av+'<span class="fac-nombre">'+esc(fn(per))+'</span><span class="fac-anio">'+esc(textoAniosCajaArbol(per))+'</span></div>';
 }
 function htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos){
 if(!padreObj&&!madreObj)return'';
 function abueloDe(etq){var m=abuelos.filter(function(a){return a[0]===etq;});return m.length?m[0][1]:null;}
-var filaAbuelos='<div class="fac-row">'+cajaArbol(abueloDe('Abuelo paterno'))+cajaArbol(abueloDe('Abuela paterna'))+cajaArbol(abueloDe('Abuelo materno'))+cajaArbol(abueloDe('Abuela materna'))+'</div>';
-var filaPadres='<div class="fac-row">'+cajaArbol(padreObj)+cajaArbol(madreObj)+'</div>';
+var filaAbuelos='<div class="fac-row">'+cajaArbol(abueloDe('Abuelo paterno'),'',undefined,'mayor')+cajaArbol(abueloDe('Abuela paterna'),'',undefined,'mayor')+cajaArbol(abueloDe('Abuelo materno'),'',undefined,'mayor')+cajaArbol(abueloDe('Abuela materna'),'',undefined,'mayor')+'</div>';
+var filaPadres='<div class="fac-row">'+cajaArbol(padreObj,'',undefined,'adulto')+cajaArbol(madreObj,'',undefined,'adulto')+'</div>';
 var filaPersona='<div class="fac-row">'+cajaArbol(p,'fac-self',false)+'</div>';
 return'<div class="fic-arbol-caja"><div class="fac-titulo">Árbol genealógico</div>'+(abuelos.length?filaAbuelos+'<div class="fac-connector"></div>':'')+filaPadres+'<div class="fac-connector"></div>'+filaPersona+'</div>';
 }
@@ -9143,7 +9209,7 @@ var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
-h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':ini(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+(p.FOTO?'':' fa-dib')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':avatarDibujoSVG(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO&&p.FOTO_RECON)h+='<div style="font-size:12px;font-weight:700;color:#7a3f6a;margin:-8px 0 12px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Imagen reconstruida: no es una fotografía real de la persona.</div>';else if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 if(p.BORRAR==='1')h+='<div style="background:#fdecea;border:1px solid #c0392b;color:#922b21;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin:0 0 12px"><i class="fa-solid fa-flag" aria-hidden="true"></i> Marcada para borrar. Se eliminará cuando el administrador ejecute el borrado masivo en el Gestor de datos.</div>';
 var etqsFicha=etiquetasArray(p);
@@ -15450,7 +15516,7 @@ var MANUAL_EMBLEMA_SVG = '<svg width="140" height="140" viewBox="0 0 140 140" xm
 var MANUAL_ADMIN_BORRADOR=[
 {titulo:'Bienvenida y primeros pasos',soloAdmin:false,html:'<p>El Libro de los Ancestros es la aplicacion de genealogia de la familia: reune en un unico arbol los datos, fotografias, documentos y observaciones de mas de 15.000 personas. Funciona enteramente en el navegador, sin instalacion previa, y guarda los datos en el propio dispositivo, mientras usa Google Drive como almacen compartido de fotos, documentos, copias de seguridad y el registro de cambios entre colaboradores.</p><p>Para entrar basta con abrir la direccion web de la aplicacion. La primera vez que se carga en un dispositivo nuevo puede tardar unos segundos mientras descarga la base de datos y calcula los anos estimados pendientes; una barra de progreso bajo el buscador informa de este proceso.</p><p>Hay dos niveles de uso muy distintos:</p><ul><li><strong>Consultar</strong> (buscar personas, ver fichas, navegar el arbol, generar informes): las personas fallecidas se pueden consultar sin conectar ninguna cuenta, ya que son el contenido historico del arbol. Las personas <strong>vivas</strong> solo son visibles para quien tiene alcance sobre ellas segun su perfil (el administrador ve todo; un colaborador ve el arbol principal y sus propias ramas vinculadas; un amigo ve su propia rama completa) — fuera de ese alcance, una persona viva aparece oculta.</li><li><strong>Modificar</strong> (editar una ficha, crear una persona, fusionar duplicados, subir documentos...) exige tener conectada una cuenta de Google, para poder atribuir cada cambio a quien lo hizo.</li></ul><div class="manual-tip">Si solo vas a consultar el arbol, no hace falta que conectes tu cuenta de Google en ningun momento.</div><div class="manual-tip">Si es la primera vez que un familiar se conecta con Google Drive en un dispositivo nuevo, es mejor seguir la «Guia de primer acceso» (Herramientas → Ayuda), pensada paso a paso para ese momento concreto; este manual cubre el resto del uso habitual de la aplicacion.</div><p>La aplicacion puede instalarse como una app independiente en el ordenador o el movil (vease la seccion «Limpiar cache e instalar como aplicacion»), lo que permite abrirla con un icono propio, igual que cualquier otra aplicacion.</p>'},
 {titulo:'Buscar una persona',soloAdmin:false,html:'<p>La pantalla Inicio (el icono con forma de casa) es la puerta de entrada al arbol. Escribe en el cuadro de busqueda un nombre y/o apellidos (en cualquier orden; no hace falta escribir «de», «la»...): los resultados aparecen al instante, ordenados por relevancia. Este cuadro, igual que la lupa del cabecero, busca solo por nombre y apellidos; para buscar por ID, por texto de las observaciones, por lugar o por etiqueta usa el panel de filtros.</p><p>Cada resultado muestra un circulo de color (azul si la persona esta viva, marron oscuro si ha fallecido), su nombre completo y su ano de nacimiento; si ese ano es una estimacion automatica del motor ANOCALC, aparece en cursiva y con el simbolo ≈ delante.</p><p>El icono del embudo, junto al buscador, abre el panel de <strong>filtros avanzados</strong>, que se pueden combinar libremente con el texto de busqueda:</p><ul><li><strong>Lugar</strong>: filtra por lugar de nacimiento o de defuncion.</li><li><strong>Etiqueta</strong>: muestra solo las personas que llevan una etiqueta concreta.</li><li><strong>ID</strong>: busca por numero de ID exacto (puedes poner varios separados por coma).</li><li><strong>Observaciones contienen</strong>: busca palabras dentro de las observaciones de la ficha (sin importar tildes) y muestra un fragmento del texto.</li><li><strong>Ano desde / hasta</strong>: acota por rango de ano de nacimiento, real o estimado.</li><li><strong>Vivos / Fallecidos</strong>: permite mostrar solo un grupo o el otro.</li></ul><p>El contador junto a «Limpiar filtros» indica cuantas personas cumplen los criterios activos. Si la busqueda devuelve mas de 80 resultados, la aplicacion muestra los 80 mas relevantes y un boton «Ver mas» para seguir.</p><p>Pulsando sobre cualquier persona de la lista se abre directamente su posicion en el arbol genealogico.</p>'},
-{titulo:'La ficha de una persona',soloAdmin:false,html:'<p>La ficha es la vista central de cada persona: reune todo lo que la aplicacion sabe de ella. Se abre pulsando sobre un resultado de busqueda, sobre cualquier casilla del arbol, o sobre el icono de identificacion de cada casilla.</p><p>La ficha se organiza en bloques:</p><ul><li><strong>Cabecera</strong>: fotografia (o inicial de su nombre si no tiene), nombre completo, ID interno, sexo, fecha de nacimiento y de defuncion.</li><li><strong>Datos</strong>: nombre, apellidos, nacimiento (con lugar) y defuncion (con lugar).</li><li><strong>Ano estimado automaticamente</strong>: solo aparece si la persona no tiene ningun ano propio; muestra el ano calculado (≈) y el boton «Ver calculo».</li><li><strong>Familia</strong>: padre, madre y hasta dos conyuges, con su fecha y lugar de matrimonio si constan.</li><li><strong>Hermanos</strong> e <strong>Hijos</strong>, ordenados por edad (los de ano desconocido, al final).</li><li><strong>Documentos</strong>: archivos guardados en Google Drive asociados a esta persona.</li><li><strong>Observaciones</strong>: notas libres.</li></ul><p>Si el motor de consistencia detecta algo raro en esta ficha (por ejemplo, una edad de progenitor imposible, o un matrimonio posterior a una defuncion), aparece un recuadro rojo «Posible error» en la parte superior, con un boton «Solucionar» cuando la correccion es segura y reversible, o «Revisar en el Gestor» para los casos que requieren juicio humano. La aplicacion nunca corrige nada por si sola: siempre presenta el hallazgo como una sugerencia.</p><div class="manual-tip">Desde la ficha puedes saltar directamente a la Cronologia de la persona o calcular su Parentesco con cualquier otra, con los botones de la barra superior.</div>'},
+{titulo:'La ficha de una persona',soloAdmin:false,html:'<p>La ficha es la vista central de cada persona: reune todo lo que la aplicacion sabe de ella. Se abre pulsando sobre un resultado de busqueda, sobre cualquier casilla del arbol, o sobre el icono de identificacion de cada casilla.</p><p>La ficha se organiza en bloques:</p><ul><li><strong>Cabecera</strong>: fotografia (o, si no tiene, un dibujo de hombre o de mujer segun su sexo y su edad), nombre completo, ID interno, sexo, fecha de nacimiento y de defuncion.</li><li><strong>Datos</strong>: nombre, apellidos, nacimiento (con lugar) y defuncion (con lugar).</li><li><strong>Ano estimado automaticamente</strong>: solo aparece si la persona no tiene ningun ano propio; muestra el ano calculado (≈) y el boton «Ver calculo».</li><li><strong>Familia</strong>: padre, madre y hasta dos conyuges, con su fecha y lugar de matrimonio si constan.</li><li><strong>Hermanos</strong> e <strong>Hijos</strong>, ordenados por edad (los de ano desconocido, al final).</li><li><strong>Documentos</strong>: archivos guardados en Google Drive asociados a esta persona.</li><li><strong>Observaciones</strong>: notas libres.</li></ul><p>Si el motor de consistencia detecta algo raro en esta ficha (por ejemplo, una edad de progenitor imposible, o un matrimonio posterior a una defuncion), aparece un recuadro rojo «Posible error» en la parte superior, con un boton «Solucionar» cuando la correccion es segura y reversible, o «Revisar en el Gestor» para los casos que requieren juicio humano. La aplicacion nunca corrige nada por si sola: siempre presenta el hallazgo como una sugerencia.</p><div class="manual-tip">Desde la ficha puedes saltar directamente a la Cronologia de la persona o calcular su Parentesco con cualquier otra, con los botones de la barra superior.</div>'},
 {titulo:'El arbol genealogico interactivo',soloAdmin:false,html:'<p>La pantalla Arbol dibuja, alrededor de la persona seleccionada, hasta cuatro generaciones de antepasados (padres, abuelos, bisabuelos y tatarabuelos) a la derecha, y sus descendientes directos (hijos y nietos) a la izquierda.</p><p>Herramientas disponibles en la parte superior:</p><ul><li><strong>Zoom (− / +)</strong>: aleja o acerca la vista en pasos del 10%, entre el 60% y el 140%.</li><li><strong>Centrar</strong>: vuelve a situar en el centro de la pantalla a la persona principal.</li><li><strong>Ver 2/4 generaciones</strong>: alterna entre una vista compacta y la vista completa.</li></ul><p>Cada casilla del arbol muestra el nombre, el ano de nacimiento (o el ano estimado con ≈) y, si consta, el lugar de nacimiento. Las casillas de las personas vivas se pintan en azul. El icono de ficha en la esquina de cada casilla abre directamente su ficha completa sin cambiar de posicion en el arbol.</p><p>Los nietos se muestran como pequenas etiquetas bajo cada hijo, en lugar de casillas completas, para no saturar la vista; un clic sobre cualquiera de ellas navega el arbol hasta esa persona.</p><div class="manual-tip">Si una rama no tiene padre o madre registrados, la aplicacion muestra una casilla vacia con un signo de interrogacion en su lugar: es la senal de que ahi falta investigar.</div>'},
 {titulo:'Editar una ficha, paso a paso',soloAdmin:false,html:'<p>Para editar cualquier ficha, abrela y pulsa el boton <strong>Editar</strong> en la parte superior. Se convierte en un formulario con los mismos bloques que la vista de solo lectura, mas algunos controles adicionales.</p><ul><li><strong>Foto</strong>: «Subir foto» abre el selector de archivos de tu dispositivo; «Pegar del portapapeles» usa una imagen ya copiada (p.ej. clic derecho → Copiar imagen en el navegador), igual que en Investigacion; la imagen se redimensiona automaticamente antes de guardarse. «Quitar» elimina la foto actual.</li><li><strong>Datos personales</strong>: apellidos, nombre, sexo, fecha de nacimiento y de defuncion. Marca o desmarca la casilla «Fallecido» para revelar u ocultar los campos de defuncion.</li><li><strong>Etiquetas</strong>: anade o quita etiquetas libres.</li><li><strong>Familia</strong>: enlaces a padre, madre y hasta dos conyuges, con sus botones de vincular, crear o desvincular.</li><li><strong>Descendientes</strong>: lista de hijos ya registrados, con acceso rapido para editarlos, y botones para anadir un descendiente nuevo (con o sin pareja).</li><li><strong>Observaciones</strong>: un cuadro de texto libre para cualquier anotacion.</li></ul><p>Al pulsar <strong>Guardar</strong>, la aplicacion exige tener conectada una identidad de Google: si aun no lo esta, se abrira automaticamente la ventana de conexion de Google antes de completar el guardado. Sin esa identidad, ningun cambio se guarda: no existe un modo de edicion anonimo.</p><div class="manual-warn">Salir de una ficha en modo edicion sin pulsar Guardar descarta todos los cambios realizados en el formulario.</div><p>Al guardar, la aplicacion tambien aplica dos ayudas automaticas: si has cambiado la fecha o el lugar del matrimonio con un conyuge, refleja el mismo dato en la ficha reciproca de esa persona; y si has cambiado el primer apellido, te ofrece propagarlo a los descendientes que lo llevan heredado, siguiendo la convencion espanola de apellidos.</p>'},
 {titulo:'Vincular personas: padres y conyuges',soloAdmin:false,html:'<p>Junto a los campos Padre, Madre, Conyuge 1 y Conyuge 2 del formulario de edicion hay tres botones:</p><ul><li><strong>E (Editar)</strong>: abre la ficha de la persona ya vinculada, en modo edicion.</li><li><strong>Lupa (Elegir persona existente)</strong>: abre un buscador emergente para vincular a alguien que ya existe en la base de datos.</li><li><strong>N (Crear nuevo)</strong>: crea una persona nueva y la vincula automaticamente en ese campo.</li></ul><p>Los conyuges, y tambien el padre y la madre, tienen ademas un boton para <strong>quitar el vinculo</strong> (icono de eslabon roto), que separa a las dos personas sin borrar ninguna ficha: util para corregir un enlace equivocado.</p><p>Cuando creas una persona nueva vinculada, o un descendiente, la aplicacion te pide elegir su ID: en lugar de asignar directamente el siguiente numero libre, muestra primero los <strong>huecos</strong> que hayan quedado en la numeracion (por ejemplo, de fichas eliminadas en el pasado), ofreciendo el hueco mas bajo como opcion destacada.</p><div class="manual-tip">Al vincular un conyuge se comprueba automaticamente que el enlace sea reciproco en ambas fichas, para que nunca quede una relacion «a medias».</div>'},
