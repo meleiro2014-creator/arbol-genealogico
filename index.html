@@ -4491,6 +4491,7 @@ return {
 }
 
 async function catalogoAnadirPersonaAlMaestro(id,nombrePersona){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 if(typeof XLSX==='undefined'){toast('Todavía se está cargando el componente de Excel; espera un segundo y vuelve a intentarlo.',true);return;}
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
 if(!tokenDriveValido()){try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}}
@@ -4531,6 +4532,7 @@ toast('No se pudo actualizar el catálogo: '+err.message,true);
 }
 
 async function catalogoAbrirEnDrive(){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 try{
 if(!tokenDriveValido()){await conectarGoogleDrive();}
 var fileId=await catalogoBuscarArchivoMaestro();
@@ -5327,6 +5329,7 @@ if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive ca
 if(!r.ok&&r.status!==404)throw new Error('Drive respondió '+r.status);
 }
 async function docExplorerEliminarArchivo(idx,btn){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
 if(!(await exigirIdentidadGoogle()))return;
@@ -5385,6 +5388,7 @@ if(r.status===401){driveAccessToken=null;throw new Error('la sesión de Drive ca
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 }
 async function docExplorerRenombrar(idx,btn){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el)return;
 if(!(await exigirIdentidadGoogle()))return;
@@ -5420,6 +5424,7 @@ finally{botonCargando(btn,false);}
    documental familiar puede completarla más adelante (OCR, fecha exacta...)
    sin perder lo que aquí se guarde: el driveFileId es siempre el mismo. */
 async function docExplorerCrearFicha(idx,btn){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 var el=DOC_EXPLORER_ARCHIVOS[idx];
 if(!el||el.tieneSidecar)return;
 if(!(await exigirIdentidadGoogle()))return;
@@ -5456,6 +5461,7 @@ finally{botonCargando(btn,false);}
 }
 
 async function abrirCarpetaEnDrive(id,btn){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
 if(!tokenDriveValido()){
 try{await conectarGoogleDrive();}catch(err){toast('No se pudo conectar con Google Drive: '+err.message,true);return;}
@@ -10383,6 +10389,7 @@ try{bIdx(D);rGesLigero();}catch(e2){}
 finally{ocultarProgresoAccion();}
 }
 async function eliminarFicha(id){
+if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 var persona=PI[id];
 if(!persona){toast('Ficha no encontrada',true);return;}
