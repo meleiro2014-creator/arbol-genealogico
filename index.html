@@ -1211,6 +1211,7 @@ var datosLocalesListos=false;
 var APP_VERSION = '2026.11.04.1';
 var APP_CHANGELOG = [
   { version:'2026.11.04.1', fecha:'2026-11-04', cambios:[
+    'Fotos: nuevo botón «Traer foto de otra ficha» directamente en la ficha, debajo de la foto (y también en Editar → Foto). Eliges una ficha que tenga foto y se la pasas a la ficha abierta, con la opción de quitarla de la otra para moverla en vez de copiarla. Sirve para quedarse con la foto de una persona duplicada. Al fusionar dos fichas, la foto de la eliminada pasa ahora a la conservada también en Drive (carpeta FOTO, con el ID de la conservada).',
     'Registro de conexiones: ahora muestra el nombre y apellidos de la ficha vinculada a cada usuario (si no tiene ficha vinculada, sigue mostrando el nombre de su cuenta de Google o el correo).',
     'Guía del lector renovada (Herramientas → Ayuda): ahora lleva capturas de pantalla e integra en la primera sección la instalación en el móvil (iPhone con Safari y desde la propia app). Explica los estados de la abeja y el contador de sesión, las dos pantallas de permisos de Google, los filtros avanzados, el Rompecabezas, el zoom y las generaciones del árbol, la leyenda de la Cronología, el uso del Parentesco, los archivos «Sin ficha» y el visor de Google, y los dos avisos de las fotos reconstruidas.'
   ]},
@@ -9006,7 +9007,10 @@ if(w)try{w.close();}catch(e){}
 toast(err.message,true);
 }
 }
+/* Foto traída de otra ficha (botón «Traer foto de otra ficha»): id de la ficha de origen mientras se edita. */
+var fotoOrigenId=null;
 function htmlFotoEditForm(id,p){
+fotoOrigenId=null;
 var h='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">';
 h+='<div id="ef-foto-preview" class="ef-foto-drop" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="handleFotoDrop(event)" onclick="document.getElementById(\'ef-foto-input\').click()" style="width:130px;height:130px;border-radius:16px;overflow:hidden;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0">';
 h+=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain">':'<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
@@ -9014,6 +9018,8 @@ h+='</div><div>';
 h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" onchange="handleFotoSeleccionada(event)">';
 h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'ef-foto-input\').click()"><i class="fa-solid fa-camera"></i> Subir foto</button>';
 h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesFicha()"><i class="fa-solid fa-paste"></i> Pegar del portapapeles</button>';
+h+=' <button type="button" class="ef-btn ghost" onclick="abrirSelectorFotoOrigen(\''+safeId(id)+'\')"><i class="fa-solid fa-people-arrows"></i> Traer foto de otra ficha</button>';
+h+='<div id="ef-foto-origen" style="display:none;margin-top:8px;font-size:12px"><div id="ef-foto-origen-txt" style="color:var(--muted);margin-bottom:4px"></div><label class="ef-check"><input type="checkbox" id="ef-foto-origen-quitar"> Quitar la foto de la otra ficha (moverla en lugar de copiarla)</label></div>';
 if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
 h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
 h+='</div></div>';
@@ -9125,6 +9131,7 @@ var cbR=document.getElementById('ef-foto-recon'),recon=cbR?(cbR.checked?'1':''):
 if(fotoPendiente===undefined&&recon===(p.FOTO_RECON||'')){editSec.foto=false;rFic(id);finOperacionFicha(btn);return;}
 var antesCambio=clonarPersona(p);
 var antesGuardadoParcial=mapaPersonas(D);
+var antesOrigenFoto=null,origenFotoMovida=null;
 if(fotoPendiente!==undefined){
 p.FOTO=fotoPendiente;
 p.FOTO_FECHA=new Date().toISOString();
@@ -9132,6 +9139,16 @@ var fotoParaDrive=fotoPendiente,idParaDrive=id;
 fotoPendiente=undefined;
 if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
 else eliminarFotoPersonaDeDrive(idParaDrive);
+/* Foto traída de otra ficha: si se marcó «moverla», se quita de la ficha de origen. */
+var chkMover=document.getElementById('ef-foto-origen-quitar');
+var origenMover=(fotoOrigenId&&chkMover&&chkMover.checked&&fotoParaDrive&&PI[fotoOrigenId]&&String(fotoOrigenId)!==String(id))?PI[fotoOrigenId]:null;
+fotoOrigenId=null;
+if(origenMover){
+antesOrigenFoto=clonarPersona(origenMover);
+origenMover.FOTO='';origenMover.FOTO_FECHA=new Date().toISOString();origenMover.FOTO_RECON='';
+eliminarFotoPersonaDeDrive(origenMover.ID);
+origenFotoMovida=origenMover;
+}
 }
 p.FOTO_RECON=p.FOTO?recon:'';
 bIdx(D);
@@ -9140,8 +9157,9 @@ editSec.foto=false;
 FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
 rStats();
 rFic(id);
-toast('Foto guardada');
+toast(origenFotoMovida?'Foto guardada y quitada de la ficha de origen':'Foto guardada');
 registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
+if(origenFotoMovida&&antesOrigenFoto)registrarCambiosDesdeSnapshots([antesOrigenFoto],[origenFotoMovida],'editar');
 }).catch(function(err){toast('Error al guardar: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function guardarSeccionEtiquetas(id,btn){
@@ -9246,7 +9264,7 @@ var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
-h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+(p.FOTO?'':' fa-dib')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':avatarDibujoSVG(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+(p.FOTO?'':' fa-dib')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':avatarDibujoSVG(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+botonTraerFotoFichaHtml(id)+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO&&p.FOTO_RECON)h+='<div style="font-size:12px;font-weight:700;color:#7a3f6a;margin:-8px 0 12px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Imagen reconstruida: no es una fotografía real de la persona.</div>';else if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 if(p.BORRAR==='1')h+='<div style="background:#FBEDE6;border:1px solid #C4653A;color:#A9512C;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin:0 0 12px"><i class="fa-solid fa-flag" aria-hidden="true"></i> Marcada para borrar. Se eliminará cuando el administrador ejecute el borrado masivo en el Gestor de datos.</div>';
 var etqsFicha=etiquetasArray(p);
@@ -9631,7 +9649,8 @@ if(!file)return;
 if(!file.type||file.type.indexOf('image/')!==0){toast('El archivo seleccionado no es una imagen',true);return;}
 toast('Procesando imagen...');
 resizeImageToDataURL(file,600,0.85).then(function(dataUrl){
-fotoPendiente=dataUrl;
+fotoPendiente=dataUrl;fotoOrigenId=null;
+var cO=document.getElementById('ef-foto-origen');if(cO)cO.style.display='none';
 var prev=document.getElementById('ef-foto-preview');
 if(prev)prev.innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
 if(!document.getElementById('ef-foto-quitar-btn')){
@@ -9661,7 +9680,8 @@ else toast('No se pudo leer el portapapeles: '+err.message,true);
 }
 }
 function quitarFoto(){
-fotoPendiente='';
+fotoPendiente='';fotoOrigenId=null;
+var cO=document.getElementById('ef-foto-origen');if(cO)cO.style.display='none';
 var prev=document.getElementById('ef-foto-preview');
 if(prev)prev.innerHTML='<span style="color:var(--muted);font-size:10px;text-align:center">Sin foto</span>';
 var btn=document.getElementById('ef-foto-quitar-btn');
@@ -10600,6 +10620,67 @@ operacionFichaEnCurso=false;
 botonCargando(btn,false);
 if(operacionFichaProgresoMostrado){operacionFichaProgresoMostrado=false;ocultarProgresoAccion();}
 }
+/* Traer foto de otra ficha: reutiliza el selector de persona, mostrando solo las fichas que tienen foto. */
+/* Pasar la foto de otra ficha a la ficha abierta, directamente desde la ficha (sin abrir el formulario de edición). */
+function botonTraerFotoFichaHtml(id){
+if(!tokenDriveValido()||haySeccionEditando()||esLector())return '';
+return '<button type="button" onclick="abrirSelectorFotoOrigen(\''+safeId(id)+'\',true)" title="Traer la foto de otra ficha (por ejemplo, de un duplicado)" aria-label="Traer foto de otra ficha" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px"><i class="fa-solid fa-people-arrows" style="font-size:10px" aria-hidden="true"></i> Traer foto de otra ficha</button>';
+}
+async function traerFotoDirecta(idDestino,idOrigen){
+var p=PI[idDestino],o=PI[idOrigen];
+if(!p||!o||!o.FOTO){toast('La ficha de origen no tiene foto',true);return;}
+if(String(idDestino)===String(idOrigen)){toast('Elige otra ficha distinta',true);return;}
+if(typeof puedeVerPersona==='function'&&!puedeVerPersona(idOrigen)){toast('No tienes acceso a esa ficha',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+var nomO=fn(o).trim()+' (ID '+o.ID+')',nomD=fn(p).trim()+' (ID '+p.ID+')';
+var msg='Se pondrá la foto de '+nomO+' en la ficha de '+nomD+'.'+(p.FOTO?'\n\nEsta ficha ya tiene foto: será sustituida por la nueva.':'');
+if(!(await confirmarApp(msg,{titulo:'Traer foto de otra ficha',textoAceptar:'Continuar',textoCancelar:'Cancelar'})))return;
+var mover=await confirmarApp('¿Quieres quitar la foto de la ficha de origen ('+nomO+')?\n\n«Sí, moverla» la deja sin foto (útil si esa ficha es un duplicado). «No, dejarla» la copia y la otra ficha conserva la suya.',{titulo:'¿Mover o copiar?',textoAceptar:'Sí, moverla',textoCancelar:'No, dejarla'});
+var antes=mapaPersonas(D);
+var antesP=clonarPersona(p),antesO=clonarPersona(o);
+p.FOTO=o.FOTO;
+p.FOTO_FECHA=new Date().toISOString();
+p.FOTO_RECON=o.FOTO_RECON||'';
+subirFotoPersonaADrive(p.ID,p.FOTO);
+if(mover){
+o.FOTO='';o.FOTO_FECHA=new Date().toISOString();o.FOTO_RECON='';
+eliminarFotoPersonaDeDrive(o.ID);
+}
+bIdx(D);
+try{
+await sDesdeSnapshot(antes);
+FICHA_ULTIMO_GUARDADO[idDestino]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rStats();rFic(idDestino);
+toast(mover?'Foto pasada a esta ficha y quitada de la otra':'Foto copiada a esta ficha');
+registrarCambiosDesdeSnapshots([antesP],[p],'editar');
+if(mover)registrarCambiosDesdeSnapshots([antesO],[o],'editar');
+}catch(err){toast('Error al guardar: '+err.message,true);}
+}
+function abrirSelectorFotoOrigen(id,directo){
+selectorRelacion={id:id,campo:'FOTO_ORIGEN',directo:!!directo};
+var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
+if(tit)tit.textContent='Elegir la ficha de la que traer la foto';
+modal.style.display='flex';input.value='';filtrarRelacion();setTimeout(function(){input.focus();},0);
+}
+function elegirFotoOrigen(otroId){
+var sel=selectorRelacion,actual=sel&&PI[sel.id],otro=PI[otroId];
+if(!actual||!otro||!otro.FOTO){toast('Esa ficha no tiene foto',true);return;}
+if(sel.directo){cerrarSelectorRelacion();traerFotoDirecta(sel.id,otroId);return;}
+if(typeof puedeVerPersona==='function'&&!puedeVerPersona(otroId)){toast('No tienes acceso a esa ficha',true);return;}
+fotoPendiente=otro.FOTO;
+fotoOrigenId=String(otroId);
+var prev=document.getElementById('ef-foto-preview');
+if(prev)prev.innerHTML='<img src="'+escAttr(otro.FOTO)+'" style="width:100%;height:100%;object-fit:contain">';
+if(!document.getElementById('ef-foto-quitar-btn')&&prev&&prev.parentElement){
+var b=document.createElement('button');b.type='button';b.className='ef-btn ghost';b.id='ef-foto-quitar-btn';b.style.marginLeft='6px';b.textContent='Quitar';b.onclick=quitarFoto;prev.parentElement.appendChild(b);
+}
+var cont=document.getElementById('ef-foto-origen'),txt=document.getElementById('ef-foto-origen-txt'),chk=document.getElementById('ef-foto-origen-quitar');
+if(cont)cont.style.display='block';
+if(chk)chk.checked=false;
+if(txt)txt.textContent='Foto de '+fn(otro).trim()+' (ID '+otro.ID+'). Pulsa Guardar para ponérsela a esta ficha.';
+cerrarSelectorRelacion();
+toast('Foto cargada de '+fn(otro).trim()+'. Pulsa Guardar para conservarla.');
+}
 function abrirSelectorRelacion(id,campo){
 selectorRelacion={id:id,campo:campo};
 var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
@@ -10614,7 +10695,8 @@ if(!actual){lista.innerHTML='<p style="font-size:12px;color:var(--muted);padding
 var excluir={};excluir[actual.ID]=true;
 if(CAMPOS_CONYUGE.indexOf(campo)>=0){CAMPOS_CONYUGE.forEach(function(c){if(actual[c])excluir[actual[c]]=true;});}
 if(campo==='AMIGOS'){amigosIdsDe(actual).forEach(function(aid){excluir[aid]=true;});}
-var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!q||coincideBusqueda(fn(p),q)||String(p.ID).indexOf(q)>=0);}).slice(0,80);
+var soloConFoto=(campo==='FOTO_ORIGEN');
+var candidatos=D.filter(function(p){return !excluir[p.ID]&&(!soloConFoto||(p.FOTO&&(typeof puedeVerPersona!=='function'||puedeVerPersona(p.ID))))&&(!q||coincideBusqueda(fn(p),q)||String(p.ID).indexOf(q)>=0);}).slice(0,80);
 var html='';
 /* ===== MEJORA: el botón para crear una persona nueva (habitual al añadir un
    amigo, que por definición suele no estar todavía en el árbol) se muestra
@@ -10630,11 +10712,12 @@ html+='</div>';
 if(candidatos.length){
 html+=candidatos.map(function(p){var al=isAl(p);return '<div class="ri" onclick="elegirRelacion(\''+safeId(p.ID)+'\',this)">'+avatarHTML(p)+'<div style="min-width:0"><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span></div><div class="ry">'+esc(String(pdAnioTexto(p)||''))+'</div></div></div>';}).join('');
 }else{
-html+='<p style="font-size:12px;color:var(--muted);padding:10px 0">'+(campo==='AMIGOS'?'Nadie en el árbol coincide con esa búsqueda. Si es correcto, usa el botón de arriba para crear una persona nueva.':'No se encontraron personas.')+'</p>';
+html+='<p style="font-size:12px;color:var(--muted);padding:10px 0">'+(soloConFoto?'Ninguna ficha con foto coincide con esa búsqueda.':campo==='AMIGOS'?'Nadie en el árbol coincide con esa búsqueda. Si es correcto, usa el botón de arriba para crear una persona nueva.':'No se encontraron personas.')+'</p>';
 }
 lista.innerHTML=html;
 }
 async function elegirRelacion(otroId,btn){
+if(selectorRelacion&&selectorRelacion.campo==='FOTO_ORIGEN'){elegirFotoOrigen(otroId);return;}
 if(!iniciarOperacionFicha(btn,''))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesRelacion=mapaPersonas(D);
@@ -11427,12 +11510,22 @@ var pM=PI[idMantener],pE=PI[idEliminar];
 if(!pM||!pE)return false;
 if(idMantener===idEliminar)return false;
 var camposRellenar=['APROX','MotivoAprox','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','SEXO','NACD','NACM','NACA','DEFD','DEFM','DEFA','ML1','MF1','ML2','MF2','ML3','MF3','ML4','MF4','ML5','MF5','ML6','MF6','FALLECIDO','FOTO'];
+var fotoPasaAMantener=(!pM.FOTO&&!!pE.FOTO);
 camposRellenar.forEach(function(c){
 var vaM=pM[c],vaE=pE[c];
 var vacioM=(vaM===''||vaM===null||vaM===undefined);
 var vacioE=(vaE===''||vaE===null||vaE===undefined);
 if(vacioM&&!vacioE)pM[c]=vaE;
 });
+/* La foto de la ficha eliminada pasa a la conservada: se le pone fecha, se copia también la marca de
+   «imagen reconstruida» y se sube a Drive como <ID conservado>.jpg (la de la eliminada se manda a la papelera).
+   Es «mejor esfuerzo»: si no hay conexión con Drive, la foto se conserva igualmente en los datos. */
+if(fotoPasaAMantener){
+pM.FOTO_FECHA=pE.FOTO_FECHA||new Date().toISOString();
+if(!pM.FOTO_RECON&&pE.FOTO_RECON)pM.FOTO_RECON=pE.FOTO_RECON;
+try{subirFotoPersonaADrive(pM.ID,pM.FOTO);}catch(eFotoUp){}
+try{eliminarFotoPersonaDeDrive(idEliminar);}catch(eFotoDel){}
+}
 var etqUnion={};
 etiquetasArray(pM).forEach(function(t){etqUnion[t]=true;});
 etiquetasArray(pE).forEach(function(t){etqUnion[t]=true;});
