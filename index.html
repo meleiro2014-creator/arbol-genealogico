@@ -57,10 +57,23 @@ nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent
 main{max-width:100%;margin:0 auto;padding:14px}
 .view{display:none}.view.active{display:block}
 @media(min-width:1100px){
-main.ges-split{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(480px,46%);gap:16px;align-items:start}
-main.ges-split #vGes{grid-column:1;grid-row:1;min-width:0}
-main.ges-split #vFic{grid-column:2;grid-row:1;min-width:0;position:sticky;top:66px;max-height:calc(100vh - 80px);overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:6px 14px 14px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+html.ges-bloq,html.ges-bloq body{overflow:hidden}
+main.ges-split{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(480px,46%);grid-template-rows:minmax(0,1fr);gap:16px;align-items:stretch;height:calc(100vh - var(--ges-off,54px));height:calc(100dvh - var(--ges-off,54px));padding-bottom:12px;overflow:hidden}
+/* Izquierda: columna con cabecera fija + lista con SU barra de desplazamiento (queda en el centro) */
+main.ges-split #vGes.active{grid-column:1;grid-row:1;min-width:0;min-height:0;display:flex;flex-direction:column}
+main.ges-split #vGes .hero{flex:0 0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;text-align:left;padding:8px 12px;margin-bottom:8px;border-radius:12px;background:var(--card);border:1px solid var(--border);overflow:visible}
+main.ges-split #vGes .hero h1{font-size:17px;margin:0;white-space:nowrap}
+main.ges-split #vGes .hero #gesSubtitulo{display:none}
+main.ges-split #vGes .hero #gesBtnLimpiarIA{margin:0!important}
+main.ges-split #vGes .hero .ges-resumen{margin:0;flex:1;justify-content:flex-start;gap:6px}
+main.ges-split #gesPanel{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 10px 28px 2px;scrollbar-gutter:stable}
+/* El apartado abierto mantiene su cabecera pegada arriba mientras se recorren sus casos */
+main.ges-split .ges-cat.abierta>.ges-cat-head{position:sticky;top:0;z-index:6;background:var(--card);border-radius:9px 9px 0 0;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+main.ges-split .ges-lug-barra{top:var(--ges-head-h,66px)}
+/* Derecha: la ficha, con su propia barra en el borde derecho */
+main.ges-split #vFic{grid-column:2;grid-row:1;min-width:0;min-height:0;position:static;max-height:none;overflow-y:auto;overscroll-behavior:contain;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:6px 14px 14px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
 main.ges-split #vFic .ficha{max-width:none}
+main.ges-split #gesPanel,main.ges-split #vFic{scrollbar-color:#b9a283 rgba(0,0,0,.05)}
 main.ges-split .ges-cat{max-width:none}
 }
 .view.active.dir-fwd{animation:viewSlideFromRight .24s ease}
@@ -1208,8 +1221,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.04.1';
+var APP_VERSION = '2026.11.05.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.05.1', fecha:'2026-11-05', cambios:[
+    'Gestor de datos con la ficha abierta a la derecha (pantalla ancha): ahora son dos paneles independientes. La página ya no se desplaza; la lista de la izquierda tiene su propia barra (en el centro) y la ficha de la derecha la suya. Arriba a la izquierda queda fija una cabecera compacta (título, recuentos y «Recargar de Drive») y la cabecera del apartado que estás tratando se queda pegada mientras recorres sus casos, de modo que puedes cerrarlo sin subir. Al abrir o cerrar la ficha la lista se queda en el mismo sitio.'
+  ]},
   { version:'2026.11.04.1', fecha:'2026-11-04', cambios:[
     'Fotos: nuevo botón «Traer foto de otra ficha» dentro de Editar foto. Eliges una ficha que tenga foto, se previsualiza en esta ficha y se guarda al pulsar Guardar, con la casilla de quitarla de la otra ficha para moverla en vez de copiarla. Sirve para quedarse con la foto de una persona duplicada. Al fusionar dos fichas, la foto de la eliminada pasa ahora a la conservada también en Drive (carpeta FOTO, con el ID de la conservada).',
     'Registro de conexiones: ahora muestra el nombre y apellidos de la ficha vinculada a cada usuario (si no tiene ficha vinculada, sigue mostrando el nombre de su cuenta de Google o el correo).',
@@ -8494,9 +8510,54 @@ try{window.focus();}catch(e){}
    en la MISMA aplicación (mismos datos en memoria): lo que se guarda en la ficha queda al instante en
    el Gestor y la lista de problemas se recalcula sola. Al pulsar «Ver ficha» de otro problema, el panel
    cambia de persona. Si la pantalla es estrecha se usa la segunda ventana de siempre. */
+/* ===== Paneles independientes en el Gestor (pantalla ancha) =====
+   Con la ficha abierta a la derecha, la lista del Gestor (#gesPanel) y la ficha (#vFic) se desplazan cada una
+   por su lado y la página no se mueve. Estas funciones unifican «dónde estoy» tanto en ese modo como en el
+   normal (donde se desplaza la ventana). */
+function gesScroller(){return(__splitGes&&window.innerWidth>=1100)?document.getElementById('gesPanel'):null;}
+function gesScrollY(){var sc=gesScroller();return sc?sc.scrollTop:window.scrollY;}
+function gesScrollTo(y){var sc=gesScroller();if(sc)sc.scrollTop=y;else window.scrollTo(0,y);}
+function gesScrollAEl(el){if(!el)return;var sc=gesScroller();if(sc)sc.scrollTop=Math.max(0,el.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-4);else window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-60));}
+/* Al pasar de un modo a otro la lista cambia de «ventana» y se perdería el sitio: se recuerda un elemento
+   (el del botón pulsado o el primero visible) y se recoloca en la misma posición de pantalla. */
+function __gesAncla(){
+var panel=document.getElementById('gesPanel');if(!panel||window.innerWidth<1100)return null;
+var sc=gesScroller(),topRef=sc?sc.getBoundingClientRect().top:60,el=null;
+try{var ev=window.event;if(ev&&ev.target&&ev.target.closest){el=ev.target.closest('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.inc-row');if(el&&!panel.contains(el))el=null;}}catch(e){el=null;}
+if(!el){var els=panel.querySelectorAll('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.ges-cat');
+for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();if(r.top>=topRef-2&&r.top<window.innerHeight){el=els[i];break;}}}
+return el?{el:el,top:el.getBoundingClientRect().top}:null;
+}
+function __gesRestauraAncla(a){
+if(!a||!a.el||!a.el.isConnected)return;
+var d=a.el.getBoundingClientRect().top-a.top,sc=gesScroller();
+if(sc)sc.scrollTop+=d;else window.scrollBy(0,d);
+}
+/* Alto exacto del modo dividido = pantalla menos lo que hay encima (cabecera + barra de persona activa). */
+function gesAjustarAlto(){
+var m=document.getElementById('mainContent');if(!m||!__splitGes)return;
+var off=m.getBoundingClientRect().top+window.scrollY;
+m.style.setProperty('--ges-off',Math.round(off)+'px');
+}
+/* La barra «lugares seleccionados» se pega justo debajo de la cabecera pegada del apartado abierto. */
+function gesAjustarSticky(){
+var p=document.getElementById('gesPanel');if(!p)return;
+var h=0,hs=p.querySelectorAll('.ges-cat.abierta>.ges-cat-head');
+for(var i=0;i<hs.length;i++)h=Math.max(h,hs[i].offsetHeight);
+p.style.setProperty('--ges-head-h',(h||64)+'px');
+}
+window.addEventListener('resize',function(){if(__splitGes)gesAjustarAlto();gesAjustarSticky();});
+(function(){if(!window.ResizeObserver)return;var ro=new ResizeObserver(function(){if(__splitGes)gesAjustarAlto();});
+['activeBar'].forEach(function(id){var e=document.getElementById(id);if(e)ro.observe(e);});var h=document.querySelector('header');if(h)ro.observe(h);})();
 function __splitPosible(){var g=document.getElementById('vGes');return !!(g&&g.classList.contains('active'))&&window.innerWidth>=1100;}
 function __splitFirmaActual(){try{return cid&&PI[cid]?JSON.stringify(PI[cid])+'|'+((FICHA_ULTIMO_GUARDADO[cid]||{}).ts||''):'';}catch(e){return '';}}
-function __splitSalir(){if(!__splitGes)return;__splitGes=false;var m=document.getElementById('mainContent');if(m)m.classList.remove('ges-split');}
+function __splitSalir(){if(!__splitGes)return;
+var anc=__gesAncla();
+__splitGes=false;var m=document.getElementById('mainContent');
+if(m){m.classList.remove('ges-split');m.style.removeProperty('--ges-off');}
+document.documentElement.classList.remove('ges-bloq');
+var g=document.getElementById('vGes');if(anc&&g&&g.classList.contains('active'))__gesRestauraAncla(anc);
+}
 async function __splitAbrir(id){
 if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
@@ -8505,7 +8566,11 @@ if(__splitGes&&haySeccionEditando()){
 if(!(await confirmarApp('Tienes una sección en edición sin guardar en la ficha de la derecha. ¿Abrir la otra ficha y descartar lo que estás editando?')))return;
 }
 var m=document.getElementById('mainContent'),pn=document.getElementById('vFic');
-__splitGes=true;m.classList.add('ges-split');pn.classList.add('active');
+var anc=(!__splitGes)?__gesAncla():null;
+__splitGes=true;m.classList.add('ges-split');document.documentElement.classList.add('ges-bloq');pn.classList.add('active');
+gesAjustarAlto();
+if(anc){window.scrollTo(0,0);__gesRestauraAncla(anc);}
+gesAjustarSticky();
 cid=id;editSec={};__splitFirma=__splitFirmaActual();rFic(id);pn.scrollTop=0;
 }
 async function __splitCerrar(forzar){
@@ -12044,7 +12109,7 @@ var r=await subirArchivoDrive(GES_PERMISOS_ARCHIVO,JSON.stringify({formato:'Libr
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 toast(activo?'Apartado visado: los colaboradores lo verán la próxima vez que abran el Gestor':'Visado retirado: los colaboradores dejarán de ver este apartado');
 }catch(err){GES_PERMISOS_COLAB=ant;toast('No se pudo guardar el visado: '+err.message,true);}
-var y=window.scrollY;gesRender();window.scrollTo(0,y);
+var y=gesScrollY();gesRender();gesScrollTo(y);
 }
 /* Apartados que, para un colaborador, solo se pueden consultar (fusionar, borrar o recalcular
    siguen siendo del administrador). */
@@ -12645,7 +12710,7 @@ return h+'</div>';
 function gesRepintarCat(id){
 gesRender();
 var el=document.querySelector('.ges-cat[data-id="'+id+'"]');
-if(el)window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-60));
+gesScrollAEl(el);
 }
 function gesIrDesde(id,d){
 GES_UI.desde[id]=Math.max(0,d||0);
@@ -12798,9 +12863,9 @@ else GES_UI.lugSel[clave]=forma;
 gesLugActualizarUI();
 }
 function gesLugRepintar(){
-var y=window.scrollY;
+var y=gesScrollY();
 gesRender();
-window.scrollTo(0,y);
+gesScrollTo(y);
 }
 function gesLugMarcarNivelA(){
 var m=gesLugGruposPorClave(),n=0;
@@ -12989,9 +13054,9 @@ else GES_UI.apeSel[clave]=forma;
 gesApeActualizarUI();
 }
 function gesApeRepintar(){
-var y=window.scrollY;
+var y=gesScrollY();
 gesRender();
-window.scrollTo(0,y);
+gesScrollTo(y);
 }
 function gesApeMarcarNivelA(){
 var m=gesApeGruposPorClave(),n=0;
@@ -13154,7 +13219,7 @@ if(val){GES_UI.errTxt[clave]=val;GES_UI.errSel[clave]=val;if(radio)radio.checked
 else{delete GES_UI.errTxt[clave];if(anterior!==undefined&&GES_UI.errSel[clave]===anterior)delete GES_UI.errSel[clave];if(radio)radio.checked=false;}
 gesErrActualizarUI();
 }
-function gesErrRepintar(){var y=window.scrollY;gesRender();window.scrollTo(0,y);}
+function gesErrRepintar(){var y=gesScrollY();gesRender();gesScrollTo(y);}
 function gesErrMarcarTodos(modo){
 var m=gesErrCasosPorClave(),n=0;
 Object.keys(m).forEach(function(k){var e=m[k];GES_UI.errSel[k]=(modo==='prog')?e.deProg:e.propio;n++;});
@@ -13317,6 +13382,7 @@ grupoAnterior=c.grupo;
 h+=gesRenderCat(c);
 });
 cont.innerHTML=h;
+gesAjustarSticky();
 if(typeof gesLugActualizarUI==='function')gesLugActualizarUI();
 if(typeof gesApeActualizarUI==='function')gesApeActualizarUI();
 }
@@ -13377,10 +13443,10 @@ basta con recalcular las categorias con los datos ya actualizados y volver a pin
 el panel vacio, conservando ademas la posicion de scroll para poder seguir pulsando "Solucionar"
 linea a linea sin que la vista se mueva. */
 function rGesLigero(){
-var scrollAntes=window.scrollY;
+var scrollAntes=gesScrollY();
 GES_CACHE=construirCategoriasMantenimiento();
 gesRender();
-window.scrollTo(0,scrollAntes);
+gesScrollTo(scrollAntes);
 gesTrasRender();
 if(__splitGes)__splitRefrescarFicha();
 }
