@@ -208,8 +208,12 @@ html[data-tema="muelle"] .firma-ov{background:rgba(3,16,24,.75)}
 .firma-ctl input[type=range]{flex:1;accent-color:var(--accent)}
 .firma-pie{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .firma-aviso{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
+.firma-goma-marco{position:relative;border:1px solid var(--border);border-radius:10px;background:#FBF7F0;overflow:hidden;line-height:0;text-align:center;margin-bottom:6px}
+.firma-goma-marco canvas{display:block;margin:0 auto;touch-action:none;cursor:none;max-width:100%}
+.firma-goma-cursor{position:absolute;pointer-events:none;border:1.5px solid var(--accent);background:rgba(196,101,58,.14);border-radius:50%;transform:translate(-50%,-50%);display:none;box-sizing:border-box}
 .firma-visor-box{width:min(720px,100%);text-align:center}
 .firma-img-grande{max-width:100%;max-height:60vh;padding:10px 0}
+.firma-img,.firma-img-grande{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none}
 .firma-visor-pie{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.firma-revela{animation:none;-webkit-mask-image:none;mask-image:none}.firma-img{transition:none}}
 /* Botón de cambio de tema */
@@ -1324,8 +1328,17 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.05.8';
+var APP_VERSION = '2026.11.05.11';
 var APP_CHANGELOG = [
+  { version:'2026.11.05.11', fecha:'2026-11-05', cambios:[
+    'Firma de la persona fallecida: nuevo botón «Retocar» (administrador y colaborador). Abre la firma ya guardada en el editor para pasarle la goma y quitar trazos sobrantes sin volver a subir la imagen original; al guardar sustituye la firma anterior.'
+  ]},
+  { version:'2026.11.05.10', fecha:'2026-11-05', cambios:[
+    'Firma de la persona fallecida: al ampliarla ya no aparece el botón «Descargar PNG» (para ningún perfil), y se bloquea el menú de «Guardar imagen» y el arrastre sobre la firma.'
+  ]},
+  { version:'2026.11.05.9', fecha:'2026-11-05', cambios:[
+    'Firma de la persona fallecida: nueva goma en el editor. Si la imagen trae trazos, letras o dibujos que no son de la firma, se pasa la goma por encima (con el dedo o el ratón) para borrarlos. Se puede ajustar el tamaño de la goma, deshacer el último borrado o restaurar todo. Funciona junto con Contraste y Limpiar fondo. Si hay que girar la imagen, conviene girarla antes de borrar.'
+  ]},
   { version:'2026.11.05.8', fecha:'2026-11-05', cambios:[
     'Aportaciones recibidas: ahora también las puede revisar el perfil Colaborador (ver, elegir persona, pasar a su carpeta o descartar). Aparece en Herramientas, en el grupo «Aportaciones». Crear la carpeta APORTACIONES y «Dar acceso a todos» siguen siendo solo del administrador.'
   ]},
@@ -17120,9 +17133,9 @@ if(it){
 var nombre=DOC_EXPLORER_PERSONA.nombre;
 div.className='firma-card';
 div.innerHTML='<div class="firma-linea"><span><i class="fa-solid fa-feather-pointed"></i> Firma</span></div>'+
-'<div class="firma-marco"><img class="firma-img" id="firmaImg" alt="Firma de '+esc(nombre)+'" title="Pulsa para ampliar" style="visibility:hidden" onclick="firmaAbrirVisor(\''+sid+'\')"></div>'+
+'<div class="firma-marco"><img class="firma-img" id="firmaImg" draggable="false" oncontextmenu="return false" alt="Firma de '+esc(nombre)+'" title="Pulsa para ampliar" style="visibility:hidden" onclick="firmaAbrirVisor(\''+sid+'\')"></div>'+
 '<div class="firma-pie-txt">Firma de '+esc(nombre)+(p.DEFA?' · † '+esc(p.DEFA):'')+'</div>'+
-(puede?'<div class="firma-mini"><button type="button" onclick="firmaAbrirEditor(\''+sid+'\')"><i class="fa-solid fa-pen-nib"></i> Reemplazar</button>'+(esAdministrador()?'<button type="button" onclick="firmaQuitar(\''+sid+'\')"><i class="fa-solid fa-trash-can"></i> Quitar</button>':'')+'</div>':'');
+(puede?'<div class="firma-mini"><button type="button" onclick="firmaRetocar(\''+sid+'\')"><i class="fa-solid fa-eraser"></i> Retocar</button><button type="button" onclick="firmaAbrirEditor(\''+sid+'\')"><i class="fa-solid fa-pen-nib"></i> Reemplazar</button>'+(esAdministrador()?'<button type="button" onclick="firmaQuitar(\''+sid+'\')"><i class="fa-solid fa-trash-can"></i> Quitar</button>':'')+'</div>':'');
 host.insertBefore(div,host.firstChild);
 firmaObtenerUrl(id).then(function(url){
 var im=document.getElementById('firmaImg');if(!im)return;
@@ -17144,7 +17157,7 @@ firmaObtenerUrl(id).then(function(url){
 if(!url)return;
 var p=PI&&PI[id],nombre=DOC_EXPLORER_PERSONA?DOC_EXPLORER_PERSONA.nombre:'';
 var ov=document.createElement('div');ov.id='firmaVisor';ov.className='firma-ov';
-ov.innerHTML='<div class="firma-visor-box"><img class="firma-img-grande" src="'+url+'" alt="Firma"><div class="firma-visor-pie"><span>Firma de '+esc(nombre)+(p&&p.DEFA?' · † '+esc(p.DEFA):'')+'</span>'+(esLector()?'':'<a class="ef-btn ghost" href="'+url+'" download="firma-'+esc(id)+'.png"><i class="fa-solid fa-download"></i> Descargar PNG</a>')+'<button type="button" class="ef-btn ghost" onclick="firmaCerrarVisor()">Cerrar</button></div></div>';
+ov.innerHTML='<div class="firma-visor-box"><img class="firma-img-grande" src="'+url+'" alt="Firma" draggable="false" oncontextmenu="return false"><div class="firma-visor-pie"><span>Firma de '+esc(nombre)+(p&&p.DEFA?' · † '+esc(p.DEFA):'')+'</span>'+'<button type="button" class="ef-btn ghost" onclick="firmaCerrarVisor()">Cerrar</button></div></div>';
 ov.addEventListener('click',function(e){if(e.target===ov)firmaCerrarVisor();});
 document.body.appendChild(ov);
 });
@@ -17184,6 +17197,10 @@ ov.innerHTML='<div class="firma-box" role="dialog" aria-modal="true" aria-label=
 '<input type="file" id="firmaFile" accept="image/*" style="display:none" onchange="firmaDesdeInput(this)"><input type="file" id="firmaFoto" accept="image/*" capture="environment" style="display:none" onchange="firmaDesdeInput(this)"></div>'+
 '<div id="firmaAjustes" style="display:none">'+
 '<div class="firma-previas"><div class="firma-prev claro"><canvas id="firmaPrevC"></canvas><small>Tema clásico</small></div><div class="firma-prev oscuro"><canvas id="firmaPrevO"></canvas><small>Tema muelle</small></div></div>'+
+'<div class="firma-aviso" style="margin:0 0 4px"><i class="fa-solid fa-eraser"></i> Pasa la goma por encima de los trazos o letras que no sean de la firma.</div>'+
+'<div class="firma-goma-marco" id="firmaGomaMarco"><canvas id="firmaGoma"></canvas><div id="firmaGomaCursor" class="firma-goma-cursor"></div></div>'+
+'<div class="firma-ctl"><label for="firmaGomaTam">Tamaño goma</label><input type="range" id="firmaGomaTam" min="6" max="90" value="30"></div>'+
+'<div class="firma-acciones" style="justify-content:flex-start;margin:2px 0 8px"><button type="button" class="ef-btn ghost" id="firmaGomaUndo" disabled onclick="firmaGomaDeshacer()"><i class="fa-solid fa-rotate-left"></i> Deshacer borrado</button><button type="button" class="ef-btn ghost" id="firmaGomaReset" disabled onclick="firmaGomaRestaurar()"><i class="fa-solid fa-arrows-rotate"></i> Restaurar todo</button></div>'+
 '<div class="firma-ctl"><label for="firmaCont">Contraste</label><input type="range" id="firmaCont" min="0" max="100" value="50" oninput="firmaProgramarRecalculo()"></div>'+
 '<div class="firma-ctl"><label for="firmaLimp">Limpiar fondo</label><input type="range" id="firmaLimp" min="0" max="100" value="50" oninput="firmaProgramarRecalculo()"></div>'+
 '<div class="firma-acciones" style="justify-content:flex-start"><button type="button" class="ef-btn ghost" onclick="firmaGirar()"><i class="fa-solid fa-rotate-right"></i> Girar</button></div>'+
@@ -17191,7 +17208,23 @@ ov.innerHTML='<div class="firma-box" role="dialog" aria-modal="true" aria-label=
 '<div class="firma-pie"><button type="button" class="ef-btn ghost" onclick="firmaCerrarEditor()">Cancelar</button><button type="button" class="ef-btn" id="firmaBtnGuardar" disabled onclick="firmaGuardar()"><i class="fa-solid fa-floppy-disk"></i> Guardar firma</button></div></div>';
 ov.addEventListener('mousedown',function(e){if(e.target===ov)ov.dataset.cierra='1';else ov.dataset.cierra='';});
 ov.addEventListener('click',function(e){if(e.target===ov&&ov.dataset.cierra==='1'&&!FIRMA_ED.img)firmaCerrarEditor();});
-document.body.appendChild(ov);
+document.body.appendChild(ov);firmaGomaEnlazar();
+}
+/* Retocar: abre el editor con la firma YA guardada (PNG con transparencia) para pasar la goma
+   sin tener que volver a subir la imagen original. Contraste y Limpiar fondo empiezan en 0 para
+   no alterar el trazo; al guardar se sobrescribe el mismo archivo. */
+async function firmaRetocar(id){
+firmaAbrirEditor(id);
+if(!FIRMA_ED||FIRMA_ED.id!==id)return;
+try{
+var url=await firmaObtenerUrl(id);if(!url)throw new Error('no se pudo leer la firma guardada');
+if(!FIRMA_ED||FIRMA_ED.id!==id)return;
+var c=document.getElementById('firmaCont'),l=document.getElementById('firmaLimp');if(c)c.value=0;if(l)l.value=0;
+var im=new Image();
+im.onload=function(){if(!FIRMA_ED||FIRMA_ED.id!==id)return;FIRMA_ED.img=im;FIRMA_ED.rot=0;firmaPrepararFuente();document.getElementById('firmaAjustes').style.display='block';firmaRecalcular();};
+im.onerror=function(){toast('No se pudo abrir la firma para retocarla',true);};
+im.src=url;
+}catch(e){toast('No se pudo abrir la firma para retocarla: '+e.message,true);}
 }
 function firmaCerrarEditor(){var e=document.getElementById('firmaEditor');if(e)e.remove();if(FIRMA_ED&&FIRMA_ED.timer)clearTimeout(FIRMA_ED.timer);FIRMA_ED=null;}
 window.addEventListener('paste',function(ev){
@@ -17257,17 +17290,18 @@ var b=(bg2[ya*gx+xa]*(1-tx)+bg2[ya*gx+xb]*tx)*(1-ty)+(bg2[yb*gx+xa]*(1-tx)+bg2[y
 if(b<60)b=60;
 var dd=(b-L[y*w+x])/b;d[y*w+x]=dd>0?dd:0;}}
 }
-E.d=d;E.w=w;E.h=h;
+E.d=d;E.w=w;E.h=h;E.mask=new Uint8Array(n);E.undo=[];firmaGomaBotones();
 }
 function firmaRecalcular(){
 var E=FIRMA_ED;if(!E||!E.d)return;
 var con=+document.getElementById('firmaCont').value,lim=+document.getElementById('firmaLimp').value;
 var lo=0.03+lim/100*0.20,hi=lo+0.50*(1-con/100*0.8);
-var w=E.w,h=E.h,d=E.d,n=w*h,img=new ImageData(w,h),px=img.data,cols=new Uint16Array(w),filas=new Uint16Array(h),i,s,a;
+var M=E.mask,w=E.w,h=E.h,d=E.d,n=w*h,img=new ImageData(w,h),px=img.data,cols=new Uint16Array(w),filas=new Uint16Array(h),i,s,a;
 for(i=0;i<n;i++){
-s=(d[i]-lo)/(hi-lo);if(s<=0)continue;if(s>1)s=1;s=s*s*(3-2*s);a=Math.round(s*255);px[i*4+3]=a;
+if(M&&M[i])continue;s=(d[i]-lo)/(hi-lo);if(s<=0)continue;if(s>1)s=1;s=s*s*(3-2*s);a=Math.round(s*255);px[i*4+3]=a;
 if(a>40){cols[i%w]++;filas[(i/w)|0]++;}
 }
+firmaGomaPintar(img);
 var x0=0,x1=w-1,y0=0,y1=h-1;
 while(x0<w&&cols[x0]<2)x0++;while(x1>=0&&cols[x1]<2)x1--;while(y0<h&&filas[y0]<2)y0++;while(y1>=0&&filas[y1]<2)y1--;
 var btn=document.getElementById('firmaBtnGuardar'),aviso=document.getElementById('firmaAviso');
@@ -17287,6 +17321,67 @@ E.out=out;
 ['firmaPrevC','firmaPrevO'].forEach(function(id){var c=document.getElementById(id);if(!c)return;c.width=ow;c.height=oh;c.getContext('2d').drawImage(out,0,0);});
 if(btn)btn.disabled=false;
 if(aviso)aviso.textContent='Ajusta hasta que la firma se vea limpia en las dos paletas.';
+}
+/* ---- Goma: borra trazos que no son de la firma ----
+   Se guarda una máscara (1 = borrado) con el tamaño de la imagen de trabajo; firmaRecalcular la
+   respeta, así que el recorte final y las dos vistas previas ya salen sin lo borrado. */
+function firmaGomaEnlazar(){
+var c=document.getElementById('firmaGoma'),m=document.getElementById('firmaGomaMarco'),cur=document.getElementById('firmaGomaCursor');
+if(!c||!m||!cur)return;
+var dib=false,lx=0,ly=0;
+function pos(ev){var r=c.getBoundingClientRect();return{x:(ev.clientX-r.left)*(c.width/r.width),y:(ev.clientY-r.top)*(c.height/r.height),sx:c.width/r.width};}
+function cursor(ev){var t=+document.getElementById('firmaGomaTam').value,r=m.getBoundingClientRect();cur.style.width=cur.style.height=t+'px';cur.style.left=(ev.clientX-r.left)+'px';cur.style.top=(ev.clientY-r.top)+'px';cur.style.display='block';}
+c.addEventListener('pointerdown',function(ev){
+var E=FIRMA_ED;if(!E||!E.mask)return;
+ev.preventDefault();try{c.setPointerCapture(ev.pointerId);}catch(e){}
+E.undo.push(E.mask.slice());if(E.undo.length>15)E.undo.shift();
+dib=true;var p=pos(ev);lx=p.x;ly=p.y;firmaGomaSello(p.x,p.y,p.sx);cursor(ev);firmaGomaBotones();
+});
+c.addEventListener('pointermove',function(ev){
+cursor(ev);
+if(!dib)return;
+var p=pos(ev),dx=p.x-lx,dy=p.y-ly,rad=(+document.getElementById('firmaGomaTam').value)*p.sx/2,paso=Math.max(1,rad/2),n=Math.ceil(Math.hypot(dx,dy)/paso),k;
+for(k=1;k<=n;k++)firmaGomaSello(lx+dx*k/n,ly+dy*k/n,p.sx);
+lx=p.x;ly=p.y;firmaProgramarRecalculo();
+});
+function fin(ev){
+if(ev&&ev.pointerType==='touch')cur.style.display='none';
+if(!dib)return;dib=false;
+if(FIRMA_ED){clearTimeout(FIRMA_ED.timer);firmaRecalcular();firmaGomaBotones();}
+}
+c.addEventListener('pointerup',fin);c.addEventListener('pointercancel',fin);
+c.addEventListener('pointerleave',function(){if(!dib)cur.style.display='none';});
+}
+function firmaGomaSello(x,y,sx){
+var E=FIRMA_ED;if(!E||!E.mask)return;
+var r=(+document.getElementById('firmaGomaTam').value)*sx/2,w=E.w,h=E.h,M=E.mask,r2=r*r,
+x0=Math.max(0,Math.floor(x-r)),x1=Math.min(w-1,Math.ceil(x+r)),y0=Math.max(0,Math.floor(y-r)),y1=Math.min(h-1,Math.ceil(y+r)),i,j;
+for(j=y0;j<=y1;j++){for(i=x0;i<=x1;i++){if((i-x)*(i-x)+(j-y)*(j-y)<=r2)M[j*w+i]=1;}}
+var c=document.getElementById('firmaGoma');
+if(c){var g=c.getContext('2d');g.fillStyle='#FBF7F0';g.beginPath();g.arc(x,y,r,0,6.2832);g.fill();}
+}
+function firmaGomaPintar(img){
+var E=FIRMA_ED,c=document.getElementById('firmaGoma'),m=document.getElementById('firmaGomaMarco');
+if(!E||!c||!m)return;
+if(c.width!==E.w||c.height!==E.h){c.width=E.w;c.height=E.h;}
+var mw=m.clientWidth||300,esc=Math.min(mw/E.w,300/E.h);
+c.style.width=Math.round(E.w*esc)+'px';c.style.height=Math.round(E.h*esc)+'px';
+var t=document.createElement('canvas');t.width=E.w;t.height=E.h;t.getContext('2d').putImageData(img,0,0);
+var g=c.getContext('2d');g.fillStyle='#FBF7F0';g.fillRect(0,0,E.w,E.h);g.drawImage(t,0,0);
+}
+function firmaGomaBotones(){
+var E=FIRMA_ED,u=document.getElementById('firmaGomaUndo'),r=document.getElementById('firmaGomaReset');
+if(u)u.disabled=!(E&&E.undo&&E.undo.length);
+if(r)r.disabled=!(E&&E.mask&&E.mask.indexOf(1)>=0);
+}
+function firmaGomaDeshacer(){
+var E=FIRMA_ED;if(!E||!E.undo||!E.undo.length)return;
+E.mask=E.undo.pop();firmaRecalcular();firmaGomaBotones();
+}
+function firmaGomaRestaurar(){
+var E=FIRMA_ED;if(!E||!E.mask)return;
+E.undo.push(E.mask.slice());if(E.undo.length>15)E.undo.shift();
+E.mask.fill(0);firmaRecalcular();firmaGomaBotones();
 }
 async function firmaGuardar(){
 var E=FIRMA_ED;if(!E||!E.out||E.guardando)return;
