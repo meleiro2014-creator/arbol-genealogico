@@ -1324,8 +1324,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.05.7';
+var APP_VERSION = '2026.11.05.8';
 var APP_CHANGELOG = [
+  { version:'2026.11.05.8', fecha:'2026-11-05', cambios:[
+    'Aportaciones recibidas: ahora también las puede revisar el perfil Colaborador (ver, elegir persona, pasar a su carpeta o descartar). Aparece en Herramientas, en el grupo «Aportaciones». Crear la carpeta APORTACIONES y «Dar acceso a todos» siguen siendo solo del administrador.'
+  ]},
   { version:'2026.11.05.7', fecha:'2026-11-05', cambios:[
     'Relación entre dos personas: se muestran exactamente tantas pestañas como caminos se encuentran (una, dos, tres…), también cuando solo hay uno.'
   ]},
@@ -1333,7 +1336,7 @@ var APP_CHANGELOG = [
     'Relación entre dos personas: los caminos genealógicos se muestran ahora en pestañas como las del navegador y salen más caminos: además del más corto, los de sangre por cada antepasado común y el de matrimonio, aparecen hasta 3 «Otro camino» distintos (que no pasan por las mismas personas que los anteriores).'
   ]},
   { version:'2026.11.05.5', fecha:'2026-11-05', cambios:[
-    'Compartir fotos y documentos (todos los perfiles, también el Lector): Herramientas → «Compartir fotos o documentos» abre una ventana para elegir archivos (o hacer una foto) y escribir un comentario. Se guardan en una carpeta nueva de Drive, APORTACIONES, con su ficha de metadatos; DOCUMENTOS sigue siendo de solo lectura para el Lector. El administrador los revisa en Herramientas → «Aportaciones recibidas», elige la persona y pulsa «Pasar a su carpeta» para copiarlos a DOCUMENTOS con sus metadatos, o los descarta. Para que quienes ya estaban en la lista puedan enviar, el administrador pulsa una vez «Dar acceso a todos».'
+    'Compartir fotos y documentos (todos los perfiles, también el Lector): Herramientas → «Compartir fotos o documentos» abre una ventana para elegir archivos (o hacer una foto) y escribir un comentario. Se guardan en una carpeta nueva de Drive, APORTACIONES, con su ficha de metadatos; DOCUMENTOS sigue siendo de solo lectura para el Lector. El administrador o un colaborador los revisa en Herramientas → «Aportaciones recibidas», elige la persona y pulsa «Pasar a su carpeta» para copiarlos a DOCUMENTOS con sus metadatos, o los descarta. Para que quienes ya estaban en la lista puedan enviar, el administrador pulsa una vez «Dar acceso a todos».'
   ]},
   { version:'2026.11.05.4', fecha:'2026-11-05', cambios:[
     'Relación entre dos personas: el camino genealógico ya no es uno solo. Además del más corto (el de siempre), ahora aparecen en pestañas los caminos de sangre por cada antepasado común más cercano (hasta 6) y el más corto que pasa por un matrimonio. Cada pestaña lleva su propio mensaje: «Parentesco de sangre» con su parentesco y el antepasado común, o «Por matrimonio (no es de sangre)».'
@@ -1723,9 +1726,11 @@ botonCargando(btn,false);
 }
 /* ----- Bandeja del administrador ----- */
 var aportItems=[];
+function puedeRevisarAportaciones(){return esAdministrador()||esColaborador();}
 async function abrirAportaciones(){
-if(!esAdministrador()){toast('Solo el administrador puede revisar las aportaciones',true);return;}
+if(!puedeRevisarAportaciones()){toast('Solo el administrador o un colaborador puede revisar las aportaciones',true);return;}
 var m=document.getElementById('modalAportaciones');if(m)m.style.display='flex';
+var bt=document.getElementById('aportBtnAcceso');if(bt)bt.style.display=esAdministrador()?'':'none';
 await aportCargarLista();
 }
 function cerrarAportaciones(){var m=document.getElementById('modalAportaciones');if(m)m.style.display='none';}
@@ -1734,7 +1739,8 @@ var cont=document.getElementById('aportLista');if(!cont)return;
 cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
 try{
 if(!(await exigirIdentidadGoogle()))return;
-var folderId=await obtenerCarpetaAportacionesId(true);
+var folderId=await obtenerCarpetaAportacionesId(esAdministrador());
+if(!folderId){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">La carpeta APORTACIONES aún no existe. Pide al administrador que abra esta ventana una vez para crearla.</p>';return;}
 var tok={Authorization:'Bearer '+driveAccessToken};
 var jsons=[],pagina='';
 do{
@@ -1833,7 +1839,7 @@ await subirContenidoArchivoDrive(it.sidecarId,new Blob([JSON.stringify(it.meta,n
 }
 async function aportPasar(i,btn){
 var it=aportItems[i];if(!it)return;
-if(!esAdministrador()){toast('Solo el administrador puede pasar aportaciones',true);return;}
+if(!puedeRevisarAportaciones()){toast('Solo el administrador o un colaborador puede pasar aportaciones',true);return;}
 if(!it.destId||!PI[it.destId]){toast('Elige primero a qué persona corresponde',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
 var m=it.meta,destId=it.destId;
@@ -1863,7 +1869,7 @@ toast((copiado?'Se copió el archivo pero falló un paso posterior; no lo repita
 }
 async function aportDescartar(i,btn){
 var it=aportItems[i];if(!it)return;
-if(!esAdministrador()){toast('Solo el administrador puede descartar aportaciones',true);return;}
+if(!puedeRevisarAportaciones()){toast('Solo el administrador o un colaborador puede descartar aportaciones',true);return;}
 if(!(await confirmarApp('¿Descartar «'+(it.meta.nombreOriginal||'')+'»? Dejará de aparecer en la bandeja.')))return;
 if(!(await exigirIdentidadGoogle()))return;
 botonCargando(btn,true,'Descartando...');
@@ -1876,10 +1882,11 @@ toast('Aportación descartada');
 finally{botonCargando(btn,false);}
 }
 async function aportAbrirCarpetaDrive(){
-if(!esAdministrador())return;
+if(!puedeRevisarAportaciones())return;
 try{
 if(!(await exigirIdentidadGoogle()))return;
-var id=await obtenerCarpetaAportacionesId(true);
+var id=await obtenerCarpetaAportacionesId(esAdministrador());
+if(!id){toast('La carpeta APORTACIONES aún no existe. Pide al administrador que la cree.',true);return;}
 if(id)window.open('https://drive.google.com/drive/folders/'+encodeURIComponent(id),'_blank','noopener');
 }catch(err){toast('No se pudo abrir: '+err.message,true);}
 }
@@ -6549,6 +6556,8 @@ actualizarVisibilidadGestorColaborador();
 /* Bloque «Datos → Gestor de datos» de Herramientas para el perfil Colaborador (el administrador
    ya lo tiene dentro de su grupo «Solo administrador»). Solo con la sesion de Google vigente. */
 function actualizarVisibilidadGestorColaborador(){
+var ga=document.getElementById('herrAportColabGroup');
+if(ga)ga.style.display=((esColaborador()||esAdministrador())&&tokenDriveValido())?'block':'none';
 var g=document.getElementById('herrGestorColabGroup');
 if(!g)return;
 g.style.display=(esColaborador()&&tokenDriveValido())?'block':'none';
@@ -16392,7 +16401,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Crear personas y vincular familia',html:'<p>Junto a los campos Padre, Madre y Cónyuges del formulario hay tres botones:</p><ul><li><strong>E (Editar):</strong> abre la ficha de la persona ya vinculada.</li><li><strong>Lupa (Elegir persona existente):</strong> abre un buscador para vincular a alguien que ya está en el árbol.</li><li><strong>N (Crear nuevo):</strong> crea una persona nueva y la vincula en ese campo.</li></ul><p>También hay un botón con un eslabón roto para quitar un vínculo equivocado: separa a las dos personas sin borrar ninguna ficha. Al vincular un cónyuge, la app comprueba que el enlace sea recíproco en ambas fichas.</p><p>Al crear una persona nueva o un descendiente, la app te pide elegir su ID y te muestra primero los huecos que hayan quedado en la numeración, con el más bajo destacado.</p><div class="manual-tip">Antes de crear a alguien, búscalo: es la mejor manera de evitar duplicados. Una persona nueva también queda como propuesta pendiente de conformidad.</div>'},
 {titulo:'Fotografías',html:'<p><strong>La foto de una ficha.</strong> En el formulario de edición, «Subir foto» abre el selector de archivos de tu dispositivo y «Pegar del portapapeles» usa una imagen que hayas copiado. La imagen se redimensiona automáticamente antes de guardarse. «Quitar» elimina la foto actual.</p><p>Al guardar, la foto se conserva en tu dispositivo y, si Google Drive está disponible, se copia a la carpeta FOTO de Drive con el ID de la persona como nombre (por ejemplo, «1234.jpg»). El cambio de foto aparece en el registro de cambios como «foto nueva» o «foto cambiada», y espera la conformidad del administrador como cualquier otro cambio.</p><p>Si aparece el aviso de que la foto no se subió a Drive, vuelve a guardarla cuando la abeja esté en verde o avisa al administrador.</p><p><strong>Traer las fotos de los demás.</strong> Con la abeja en verde, el icono de las fotografías de Inicio («Importar fotos») busca la carpeta FOTO de Drive y asigna cada imagen a su persona. La coincidencia es siempre por nombre exacto: el nombre del archivo, sin la extensión, debe ser igual al ID de la persona. Nunca se hacen coincidencias aproximadas, para no poner una foto a quien no corresponde. Si la persona ya tenía foto, la nueva la sustituye. Al terminar verás un resumen con lo encontrado, lo asociado y lo que no tenía persona coincidente.</p><div class="manual-tip">Las imágenes con una varita mágica en la esquina son reconstrucciones, no fotografías reales. Siempre que puedas, prefiere la foto original.</div><div class="manual-warn">«Restaurar árbol oficial» no trae fotos. Las fotos se traen siempre con «Importar fotos».</div>'},
 {titulo:'Documentos: cómo añadirlos',html:'<p>Cada persona tiene su propia carpeta en Google Drive (DOCUMENTOS, con su ID) para guardar partidas, certificados, correspondencia, fotografías históricas y cualquier otro archivo. Los documentos <strong>se suben directamente a esa carpeta y no pasan por el registro de cambios</strong>: no necesitan la conformidad del administrador.</p><p>Para añadir documentos:</p><ul><li>Abre la ficha de la persona y pulsa <strong>Documentos</strong> (este botón aparece cuando la abeja está en verde). Se abre la pantalla Documentos con esa persona.</li><li>Comprueba que el nombre de la persona que aparece arriba es la correcta.</li><li>Arrastra los archivos a la zona de subida o pulsa <strong>Elegir archivos</strong>. En el móvil, <strong>Hacer foto</strong> abre la cámara y sube una copia JPG optimizada. <strong>Pegar del portapapeles</strong> crea un documento nuevo a partir de un texto o una imagen copiados y te deja elegir el nombre.</li><li>Verás una barra de progreso y, al terminar, el aviso «N archivo(s) subido(s)». La lista se actualiza sola.</li></ul><p>Cada documento se puede renombrar o eliminar desde la propia lista, y los botones <strong>Repasar carpeta</strong> y <strong>Abrir carpeta en Drive</strong> te ayudan a comprobar el contenido. El buscador de personas de esta pantalla también respeta el límite de tu perfil.</p><div class="manual-tip">Ponle al archivo un nombre que se entienda solo, por ejemplo «Partida de bautismo, Calvos de Randín, 1748.pdf». Dentro de unos años te lo agradecerás tú y quien venga después.</div><div class="manual-warn">Piénsalo antes de eliminar un documento: lo ven y lo usan también otros familiares.</div>'},
-{titulo:'Compartir fotos y documentos (Aportaciones)',html:'<p>Cualquier perfil, también el Lector, puede enviar una foto o un documento sin tocar las carpetas de las personas. En <strong>Herramientas → Compartir fotos o documentos</strong> eliges los archivos (o haces una foto), escribes un comentario (por ejemplo «en la playa, verano de 1975») y pulsas Enviar.</p><p>Los envíos van a una carpeta aparte de Drive llamada APORTACIONES, cada uno con su ficha de metadatos y el comentario. No aparecen en las fichas hasta que el administrador, en <strong>Herramientas → Aportaciones recibidas</strong>, los revisa, elige a qué persona corresponden y pulsa «Pasar a su carpeta», que los copia a DOCUMENTOS con su ficha. También puede descartarlos.</p><div class="manual-tip">DOCUMENTOS sigue siendo de solo lectura para el Lector: lo único que puede escribir es APORTACIONES.</div>'},
+{titulo:'Compartir fotos y documentos (Aportaciones)',html:'<p>Cualquier perfil, también el Lector, puede enviar una foto o un documento sin tocar las carpetas de las personas. En <strong>Herramientas → Compartir fotos o documentos</strong> eliges los archivos (o haces una foto), escribes un comentario (por ejemplo «en la playa, verano de 1975») y pulsas Enviar.</p><p>Los envíos van a una carpeta aparte de Drive llamada APORTACIONES, cada uno con su ficha de metadatos y el comentario. No aparecen en las fichas hasta que el administrador o un colaborador, en <strong>Herramientas → Aportaciones recibidas</strong>, los revisa, elige a qué persona corresponden y pulsa «Pasar a su carpeta», que los copia a DOCUMENTOS con su ficha. También puede descartarlos.</p><div class="manual-tip">DOCUMENTOS sigue siendo de solo lectura para el Lector: lo único que puede escribir es APORTACIONES.</div>'},
 {titulo:'Etiquetas, observaciones y fichas para borrar',html:'<p><strong>Etiquetas.</strong> Son palabras o frases cortas para clasificar a las personas («Migrante», «Línea materna confirmada», «Pendiente de partida de bautismo»…). Escríbelas en el campo de etiquetas y pulsa «Añadir» o Intro; para quitar una, pulsa la × de su chip. La app sugiere las que ya existen, para mantener los nombres homogéneos. En la ficha, al pulsar una etiqueta se abre Inicio con ese filtro ya aplicado.</p><p><strong>Observaciones.</strong> Es el sitio para anotar de dónde sale un dato: parroquia, libro, folio, fecha, archivo o quién te lo contó.</p><p><strong>Marcar para borrar.</strong> Si una ficha sobra (por ejemplo, un duplicado), usa el botón «Marcar para borrar» de la ficha. No borra nada: solo deja una señal visible, y será el administrador quien la elimine más tarde. Puedes quitar la marca con «Quitar marca de borrado».</p><div class="manual-tip">El botón «Eliminar» también existe, pero lo que hagas queda como propuesta pendiente igual que el resto. Marcar para borrar es la vía más prudente.</div>'},
 {titulo:'El Gestor de datos: tu parte',html:'<p>El Gestor de datos ayuda a unificar cosas que están escritas de varias formas. Se abre desde la caja de herramientas, en el bloque <strong>Datos</strong>. Como colaborador ves solo dos categorías (el resto son del administrador):</p><ul><li><strong>Apellidos con escritura no homogénea:</strong> grupos de apellidos que parecen el mismo escrito de formas distintas (por ejemplo, Fernández y Fernandez).</li><li><strong>Lugares con escritura no homogénea:</strong> grupos de topónimos que parecen el mismo lugar escrito de formas distintas en los campos de lugar de nacimiento y de defunción.</li></ul><p>Verás también, en solo lectura, los «Cónyuges con nombres parecidos»: si crees que son la misma persona, avisa al administrador, que es quien puede fusionarlas.</p><p>Cómo trabajar con un grupo:</p><ul><li>Cada grupo muestra las formas encontradas. Marca la que quieres conservar y pulsa «Aplicar selección».</li><li>El <strong>Nivel A</strong> son diferencias solo de mayúsculas, tildes, puntuación o espacios: la unificación es segura y puedes usar el botón «Unificar automáticamente los grupos de Nivel A».</li><li>El <strong>Nivel C</strong> son posibles erratas (una grafía muy poco usada parecida a otra frecuente): revísalo con calma antes de aplicar.</li></ul><p>Tus correcciones quedan registradas como cualquier otra edición: una propuesta por cada ficha afectada, pendiente de la conformidad del administrador. Cuando una categoría no tiene nada pendiente, desaparece.</p><div class="manual-tip">Una unificación grande genera muchas propuestas a la vez. Conviene avisar al administrador de que has hecho una tanda para que la revise sin sorpresas.</div>'},
 {titulo:'El registro de cambios: sigue tus propuestas',html:'<p>La pantalla <strong>Cambios</strong> (el icono del reloj, que aparece cuando estás conectado, o «Más → Registro de cambios») te permite seguir lo que ha pasado con tus propuestas y con las de los demás. Se comprueba con Drive en cuanto la abres.</p><ul><li><strong>Pendientes:</strong> propuestas que el administrador todavía no ha revisado. El número que acompaña al icono te dice cuántas hay.</li><li><strong>Historial:</strong> todos los cambios, incluidos los ya resueltos.</li></ul><p>Cada propuesta indica quién la hizo, cuándo, qué cambió y su estado:</p><ul><li><strong>Pendiente:</strong> espera la revisión del administrador.</li><li><strong>Conforme:</strong> el administrador la ha aceptado y la ha incorporado a su copia. Llegará a todos cuando publique el árbol oficial.</li><li><strong>Rechazado:</strong> queda registrado, pero no entra en el árbol oficial. Tu dispositivo puede seguir mostrándolo hasta que actualices desde el árbol oficial.</li></ul><p>Para ti es una pantalla de solo lectura: ves tus cambios y los de los demás, y el botón «Ver ficha» te lleva a la persona, pero solo el administrador puede dar conformidad, rechazar o eliminar registros. El botón «Sincronizar con Drive» sube tus cambios pendientes y trae los de los demás.</p><div class="manual-tip">Si no ves un cambio reciente, comprueba que la abeja esté en verde y pulsa «Sincronizar con Drive».</div>'},
@@ -19207,6 +19216,10 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead solo-no-lector">Investigación</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();sv('inv')"><div class="herr-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div><div class="herr-text"><div class="herr-title">Investigación</div><div class="herr-desc">Busca en archivos y hemerotecas externas, y encuentra fotos para la persona activa</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirFamilias()"><div class="herr-icon"><i class="fa-solid fa-people-roof"></i></div><div class="herr-text"><div class="herr-title">Familias</div><div class="herr-desc">Catálogo de familias y linajes (etiquetas): fichas, estadísticas y, para el administrador, gestión</div></div></button>
+<div id="herrAportColabGroup" style="display:none">
+<div class="herr-subhead">Aportaciones</div>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirAportaciones()"><div class="herr-icon"><i class="fa-solid fa-inbox"></i></div><div class="herr-text"><div class="herr-title">Aportaciones recibidas</div><div class="herr-desc">Fotos y documentos enviados por la familia: elige a qué persona corresponden y pásalos a su carpeta con sus metadatos</div></div></button>
+</div>
 <div id="herrGestorColabGroup" style="display:none">
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Revisa y unifica apellidos y lugares escritos de formas distintas. Tus correcciones quedan registradas para que las apruebe el administrador</div></div></button>
@@ -19218,7 +19231,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Administración</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo/lector) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Tabla con cada usuario, su última conexión y cuántas veces se ha conectado (también los lectores)</div></div></button>
-<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirAportaciones()"><div class="herr-icon"><i class="fa-solid fa-inbox"></i></div><div class="herr-text"><div class="herr-title">Aportaciones recibidas</div><div class="herr-desc">Fotos y documentos enviados por la familia: elige a qué persona corresponden y pásalos a su carpeta con sus metadatos</div></div></button>
+
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
@@ -19266,7 +19279,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <h2 id="modalAportacionesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-inbox" aria-hidden="true" style="color:var(--accent)"></i> Aportaciones recibidas</h2>
 <button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarAportaciones()">×</button>
 </div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button type="button" class="ef-btn ghost" onclick="aportCargarLista()"><i class="fa-solid fa-rotate"></i> Actualizar</button><button type="button" class="ef-btn ghost" onclick="aportAbrirCarpetaDrive()"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button><button type="button" class="ef-btn ghost" onclick="reforzarAccesosDriveUI()" title="Comparte APORTACIONES con los usuarios que ya estaban en la lista"><i class="fa-solid fa-user-check"></i> Dar acceso a todos</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button type="button" class="ef-btn ghost" onclick="aportCargarLista()"><i class="fa-solid fa-rotate"></i> Actualizar</button><button type="button" class="ef-btn ghost" onclick="aportAbrirCarpetaDrive()"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button><button type="button" id="aportBtnAcceso" class="ef-btn ghost" onclick="reforzarAccesosDriveUI()" title="Comparte APORTACIONES con los usuarios que ya estaban en la lista"><i class="fa-solid fa-user-check"></i> Dar acceso a todos</button></div>
 <div id="aportLista"></div>
 </div>
 </div>
