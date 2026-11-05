@@ -158,7 +158,6 @@ html[data-tema="muelle"] .cambios-tabs .ef-btn.active,
 html[data-tema="muelle"] .ef-btn,
 html[data-tema="muelle"] .evf-avatar-icono,
 html[data-tema="muelle"] .fic-tab-btn.active,
-html[data-tema="muelle"] .rel-tab-btn.active,
 html[data-tema="muelle"] .pbus-pill.pbus-activa,
 html[data-tema="muelle"] .rel-badge,
 html[data-tema="muelle"] .skip-link,
@@ -759,13 +758,14 @@ html[data-tema="muelle"] .tema-btn i{transform:rotate(180deg)}
 .rel-nodo.root{border-color:var(--accent);background:rgba(196,101,58,.06)}
 .rel-nodo-anio{font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
 .rel-flecha{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 0}
-.rel-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
-.rel-tab-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Lato',sans-serif;max-width:100%}
-.rel-tab-btn i{margin-right:3px}
-.rel-tab-btn:hover{border-color:var(--accent);color:var(--accent)}
-.rel-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.rel-tab-panel{display:none}
+.rel-tabs{display:flex;gap:3px;overflow-x:auto;border-bottom:1px solid var(--border);margin:0;padding:0 6px;align-items:flex-end;-webkit-overflow-scrolling:touch}
+.rel-tab-btn{flex:0 0 auto;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--bg);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:8px 14px 7px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Lato',sans-serif;position:relative;top:1px}
+.rel-tab-btn i{margin-right:4px}
+.rel-tab-btn:hover{color:var(--accent)}
+.rel-tab-btn.active{background:var(--card);color:var(--text);border-top:3px solid var(--accent);padding-top:6px;border-bottom:1px solid var(--card);cursor:default}
+.rel-tab-panel{display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:14px;background:var(--card)}
 .rel-tab-panel.active{display:block}
+.rel-tab-panel.solo{border:none;padding:0}
 .rel-tipo{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 10px;border-radius:10px;margin-bottom:8px;border:1px solid var(--border);color:var(--muted)}
 .rel-tipo.sangre{border-color:var(--accent);color:var(--accent)}
 .rel-nombres-completos{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
@@ -1324,8 +1324,17 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.05.4';
+var APP_VERSION = '2026.11.05.7';
 var APP_CHANGELOG = [
+  { version:'2026.11.05.7', fecha:'2026-11-05', cambios:[
+    'Relación entre dos personas: se muestran exactamente tantas pestañas como caminos se encuentran (una, dos, tres…), también cuando solo hay uno.'
+  ]},
+  { version:'2026.11.05.6', fecha:'2026-11-05', cambios:[
+    'Relación entre dos personas: los caminos genealógicos se muestran ahora en pestañas como las del navegador y salen más caminos: además del más corto, los de sangre por cada antepasado común y el de matrimonio, aparecen hasta 3 «Otro camino» distintos (que no pasan por las mismas personas que los anteriores).'
+  ]},
+  { version:'2026.11.05.5', fecha:'2026-11-05', cambios:[
+    'Compartir fotos y documentos (todos los perfiles, también el Lector): Herramientas → «Compartir fotos o documentos» abre una ventana para elegir archivos (o hacer una foto) y escribir un comentario. Se guardan en una carpeta nueva de Drive, APORTACIONES, con su ficha de metadatos; DOCUMENTOS sigue siendo de solo lectura para el Lector. El administrador los revisa en Herramientas → «Aportaciones recibidas», elige la persona y pulsa «Pasar a su carpeta» para copiarlos a DOCUMENTOS con sus metadatos, o los descarta. Para que quienes ya estaban en la lista puedan enviar, el administrador pulsa una vez «Dar acceso a todos».'
+  ]},
   { version:'2026.11.05.4', fecha:'2026-11-05', cambios:[
     'Relación entre dos personas: el camino genealógico ya no es uno solo. Además del más corto (el de siempre), ahora aparecen en pestañas los caminos de sangre por cada antepasado común más cercano (hasta 6) y el más corto que pasa por un matrimonio. Cada pestaña lleva su propio mensaje: «Parentesco de sangre» con su parentesco y el antepasado común, o «Por matrimonio (no es de sangre)».'
   ]},
@@ -1618,6 +1627,263 @@ var dc=await rc.json();
 driveConexionesFolderId=dc.id;
 return driveConexionesFolderId;
 }
+/* ========== APORTACIONES (colaborativo con seguridad) ==========
+   Cualquier perfil (también el Lector) puede enviar fotos o documentos con un comentario. No
+   van a DOCUMENTOS (que sigue siendo de solo lectura para el Lector) sino a una carpeta
+   aparte, APORTACIONES (hermana de DATOS), igual que CONEXIONES: ahí todos tienen permiso
+   de editor y en ningún otro sitio. Cada envío son dos archivos, el original y un .json con
+   sus metadatos (mismo formato que los demás documentos, más quién lo envía y el comentario).
+   El administrador los revisa en Herramientas → Aportaciones recibidas, elige a qué persona
+   corresponde y los PASA a DOCUMENTOS/<ID> con su ficha de metadatos. Pasar es COPIAR (la
+   copia queda a nombre del administrador) y después retirar el original de APORTACIONES:
+   si Drive no deja retirarlo (es de quien lo envió), el .json se marca como «pasada» y
+   desaparece de la bandeja igualmente. */
+var DRIVE_APORTACIONES_FOLDER_NOMBRE='APORTACIONES';
+var driveAportacionesFolderId=null;
+var APORT_MAX_BYTES=25*1024*1024;
+async function obtenerCarpetaAportacionesId(crear){
+if(driveAportacionesFolderId)return driveAportacionesFolderId;
+if(!driveRootFolderId)return null;
+var q="'"+driveRootFolderId+"' in parents and name='"+DRIVE_APORTACIONES_FOLDER_NOMBRE+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length){driveAportacionesFolderId=d.files[0].id;return driveAportacionesFolderId;}
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:DRIVE_APORTACIONES_FOLDER_NOMBRE,parents:[driveRootFolderId],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+DRIVE_APORTACIONES_FOLDER_NOMBRE);
+var dc=await rc.json();
+driveAportacionesFolderId=dc.id;
+return driveAportacionesFolderId;
+}
+/* ----- Envío (todos los perfiles) ----- */
+var aportElegidos=[];
+function abrirAportar(){
+if(!driveRootFolderId){toast('Configura primero la carpeta raíz de Google Drive',true);return;}
+aportElegidos=[];
+var c=document.getElementById('aportComentario');if(c)c.value='';
+aportPintarElegidos();
+var m=document.getElementById('modalAportar');if(m)m.style.display='flex';
+}
+function cerrarAportar(){var m=document.getElementById('modalAportar');if(m)m.style.display='none';}
+function aportAnadir(files){
+Array.prototype.forEach.call(files||[],function(f){
+if(f.size>APORT_MAX_BYTES){toast(f.name+': pesa más de 25 MB, no se puede enviar',true);return;}
+if(!f.size){toast(f.name+': está vacío',true);return;}
+aportElegidos.push(f);
+});
+aportPintarElegidos();
+}
+function aportQuitar(i){aportElegidos.splice(i,1);aportPintarElegidos();}
+function aportPintarElegidos(){
+var cont=document.getElementById('aportElegidos');if(!cont)return;
+if(!aportElegidos.length){cont.innerHTML='';return;}
+cont.innerHTML=aportElegidos.map(function(f,i){
+return '<div style="display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:12px"><i class="fa-solid '+docsIconoPorMime(f.type,f.name)+'" aria-hidden="true"></i><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name)+'</span><span style="color:var(--muted)">'+esc(docsTamanoTexto(f.size)||'')+'</span><button type="button" class="ef-nbtn" aria-label="Quitar" onclick="aportQuitar('+i+')">×</button></div>';
+}).join('');
+}
+function aportSello(){
+var d=new Date(),p=function(n){return String(n).padStart(2,'0');};
+return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
+}
+async function aportEnviar(btn){
+if(!aportElegidos.length){toast('Elige al menos un archivo',true);return;}
+if(!(await exigirIdentidadGoogle(true)))return;
+var comentario=((document.getElementById('aportComentario')||{}).value||'').trim();
+botonCargando(btn,true,'Enviando...');
+window.__aportacionEscribiendo=(window.__aportacionEscribiendo||0)+1;
+var enviados=0;
+try{
+var folderId=await obtenerCarpetaAportacionesId(esAdministrador());
+if(!folderId){toast('La carpeta APORTACIONES aún no existe. Pide al administrador que abra «Aportaciones recibidas» para crearla y compartirla.',true);return;}
+var sello=aportSello();
+for(var i=0;i<aportElegidos.length;i++){
+var f=aportElegidos[i];
+var ext=((f.name.match(/\.([a-z0-9]+)$/i)||[])[1]||'').toLowerCase();
+var base='APORT-'+sello+'-'+(i+1);
+var mime=f.type||'application/octet-stream';
+var esImagen=mime.indexOf('image/')===0;
+var idArch=await crearArchivoDriveVacioConMetadatos(base+(ext?'.'+ext:''),mime,folderId,undefined);
+await subirContenidoArchivoDrive(idArch,f,mime);
+var ahora=new Date().toISOString();
+var meta={origen:'aportacion',estado:'pendiente',personaId:null,driveFileId:idArch,nombreOriginal:f.name,esDocumento:!esImagen,tipo:esImagen?'fotografia':'documento',fecha:ahora,fechaEstimada:true,fuenteFecha:'aportacion',comentarios:comentario,aportadoPor:{email:(googleIdentidad&&googleIdentidad.email)||'',nombre:(googleIdentidad&&googleIdentidad.name)||''},archivoDrive:{tamano:f.size,mimeType:mime,creadoDrive:ahora},etiquetas:[],ocrProcesado:false,ocrConfianza:0,ocrTexto:'',sugerenciasGenealogicas:[]};
+var idSc=await crearArchivoDriveVacioConMetadatos(base+'.json','application/json',folderId,undefined);
+await subirContenidoArchivoDrive(idSc,new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),'application/json');
+enviados++;
+}
+toast(enviados===1?'Enviado. El administrador lo revisará antes de guardarlo.':'Enviados '+enviados+' archivos. El administrador los revisará antes de guardarlos.');
+cerrarAportar();
+}catch(err){
+toast('No se pudo enviar'+(enviados?' (se enviaron '+enviados+' antes del fallo)':'')+': '+(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message),true);
+}finally{
+window.__aportacionEscribiendo=Math.max(0,(window.__aportacionEscribiendo||0)-1);
+botonCargando(btn,false);
+}
+}
+/* ----- Bandeja del administrador ----- */
+var aportItems=[];
+async function abrirAportaciones(){
+if(!esAdministrador()){toast('Solo el administrador puede revisar las aportaciones',true);return;}
+var m=document.getElementById('modalAportaciones');if(m)m.style.display='flex';
+await aportCargarLista();
+}
+function cerrarAportaciones(){var m=document.getElementById('modalAportaciones');if(m)m.style.display='none';}
+async function aportCargarLista(){
+var cont=document.getElementById('aportLista');if(!cont)return;
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
+try{
+if(!(await exigirIdentidadGoogle()))return;
+var folderId=await obtenerCarpetaAportacionesId(true);
+var tok={Authorization:'Bearer '+driveAccessToken};
+var jsons=[],pagina='';
+do{
+var q="'"+folderId+"' in parents and trashed=false and name contains '.json'";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name)&pageSize=200&spaces=drive'+(pagina?'&pageToken='+encodeURIComponent(pagina):''),{headers:tok});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();jsons=jsons.concat(d.files||[]);pagina=d.nextPageToken||'';
+}while(pagina);
+var items=[],pos=0;
+async function trabajador(){
+while(pos<jsons.length){
+var j=jsons[pos++];
+try{
+var rr=await fetch('https://www.googleapis.com/drive/v3/files/'+j.id+'?alt=media',{headers:tok});
+if(!rr.ok)continue;
+var meta=await rr.json();
+if(meta&&meta.origen==='aportacion'&&meta.estado==='pendiente')items.push({sidecarId:j.id,sidecarNombre:j.name,meta:meta,destId:null});
+}catch(e){}
+}
+}
+await Promise.all([trabajador(),trabajador(),trabajador(),trabajador()]);
+items.sort(function(a,b){return String(a.meta.fecha||'').localeCompare(String(b.meta.fecha||''));});
+aportItems=items;
+aportPintarLista();
+}catch(err){
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">No se pudo cargar: '+esc(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message)+'</p>';
+}
+}
+function aportPintarLista(){
+var cont=document.getElementById('aportLista');if(!cont)return;
+if(!aportItems.length){cont.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:14px">No hay aportaciones pendientes.</p>';return;}
+cont.innerHTML=aportItems.map(function(it,i){
+var m=it.meta,por=(m.aportadoPor&&(m.aportadoPor.nombre||m.aportadoPor.email))||'alguien';
+var h='<div id="aportItem'+i+'" style="border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px">';
+h+='<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong style="font-size:13px;word-break:break-all"><i class="fa-solid '+docsIconoPorMime(m.archivoDrive&&m.archivoDrive.mimeType,m.nombreOriginal)+'" aria-hidden="true"></i> '+esc(m.nombreOriginal||'')+'</strong><span style="font-size:11px;color:var(--muted)">'+esc(String(m.fecha||'').slice(0,10))+(m.archivoDrive&&m.archivoDrive.tamano?' · '+esc(docsTamanoTexto(m.archivoDrive.tamano)||''):'')+'</span></div>';
+h+='<p style="font-size:12px;color:var(--muted);margin:2px 0 6px">Enviado por '+esc(por)+'</p>';
+h+=m.comentarios?'<p style="font-size:13px;margin:0 0 8px;background:var(--bg);border-radius:8px;padding:8px">'+esc(m.comentarios)+'</p>':'<p style="font-size:12px;color:var(--muted);margin:0 0 8px">Sin comentario.</p>';
+h+='<div id="aportVista'+i+'"></div>';
+h+='<button type="button" class="ef-btn ghost" onclick="aportVer('+i+')"><i class="fa-solid fa-eye"></i> Ver</button>';
+h+='<div class="ef-label" style="margin:10px 0 4px">¿A qué persona corresponde?</div>';
+h+='<div id="aportDest'+i+'" style="font-size:13px;font-weight:700;margin-bottom:4px">'+(it.destId&&PI[it.destId]?esc(fn(PI[it.destId]).trim()):'<span style="color:var(--muted);font-weight:400">Ninguna elegida</span>')+'</div>';
+h+='<div class="search-box" style="margin:0 0 6px"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input type="text" id="aportBus'+i+'" placeholder="Buscar persona..." autocomplete="off" oninput="aportBuscar('+i+',this.value)"></div>';
+h+='<div id="aportRes'+i+'"></div>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="ef-btn" onclick="aportPasar('+i+',this)"><i class="fa-solid fa-folder-tree"></i> Pasar a su carpeta</button><button type="button" class="ef-btn ghost" onclick="aportDescartar('+i+',this)"><i class="fa-solid fa-xmark"></i> Descartar</button></div>';
+return h+'</div>';
+}).join('');
+}
+function aportVer(i){
+var it=aportItems[i],host=document.getElementById('aportVista'+i);if(!it||!host)return;
+if(host.innerHTML){host.innerHTML='';return;}
+var m=it.meta;
+host.innerHTML='<div style="margin-bottom:8px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#000"><iframe src="https://drive.google.com/file/d/'+encodeURIComponent(m.driveFileId)+'/preview" style="width:100%;height:50vh;max-height:420px;border:0;display:block" allow="autoplay" loading="lazy" title="Vista previa"></iframe></div>';
+}
+function aportBuscar(i,q){
+var lista=document.getElementById('aportRes'+i);if(!lista)return;
+q=(q||'').toLowerCase().trim();
+if(!q){lista.innerHTML='';return;}
+var f=D.filter(function(p){return puedeVerPersona(p.ID)&&coincideBusqueda(sn(p)+' '+fn(p),q);});
+f.sort(function(a,b){return sn(a).localeCompare(sn(b));});
+f=f.slice(0,8);
+lista.innerHTML=f.length?f.map(function(p){var y=pdAnioTexto(p);return '<div class="ri" onclick="aportElegirPersona('+i+',\''+safeId(p.ID)+'\')">'+avatarHTML(p)+'<div><div class="rn">'+esc(fn(p))+'</div><div class="ry">'+esc(String(y))+'</div></div></div>';}).join(''):'<p style="text-align:center;color:var(--muted);padding:8px;font-size:12px">Sin resultados</p>';
+}
+function aportElegirPersona(i,id){
+var it=aportItems[i];if(!it||!PI[id])return;
+it.destId=id;
+var d=document.getElementById('aportDest'+i);if(d)d.textContent=fn(PI[id]).trim();
+var l=document.getElementById('aportRes'+i);if(l)l.innerHTML='';
+var b=document.getElementById('aportBus'+i);if(b)b.value='';
+}
+async function aportNombreLibre(folderId,base,ext){
+var n=base,k=1;
+while(true){
+var q="'"+folderId+"' in parents and trashed=false and (name='"+(n+ext).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"' or name='"+(n+'.json').replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"')";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(!d.files||!d.files.length)return n;
+k++;n=base+'-'+k;
+}
+}
+async function aportPapelera(ids){
+var quitados=0;
+for(var i=0;i<ids.length;i++){
+try{
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+ids[i],{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
+if(r.ok)quitados++;
+}catch(e){}
+}
+return quitados;
+}
+async function aportMarcar(it,estado,extra){
+it.meta.estado=estado;
+if(extra)Object.keys(extra).forEach(function(k){it.meta[k]=extra[k];});
+await subirContenidoArchivoDrive(it.sidecarId,new Blob([JSON.stringify(it.meta,null,2)],{type:'application/json'}),'application/json');
+}
+async function aportPasar(i,btn){
+var it=aportItems[i];if(!it)return;
+if(!esAdministrador()){toast('Solo el administrador puede pasar aportaciones',true);return;}
+if(!it.destId||!PI[it.destId]){toast('Elige primero a qué persona corresponde',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+var m=it.meta,destId=it.destId;
+botonCargando(btn,true,'Pasando...');
+var copiado=false;
+try{
+var destFolder=await obtenerCarpetaPersonaDocumentos(destId,true);
+var nombre=String(m.nombreOriginal||'aportacion');
+var ext=(nombre.match(/\.[a-z0-9]+$/i)||[''])[0];
+var baseFinal=await aportNombreLibre(destFolder,nombre.replace(/\.[^.]+$/,'')||'aportacion',ext);
+var rc=await fetch('https://www.googleapis.com/drive/v3/files/'+m.driveFileId+'/copy?fields=id',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:baseFinal+ext,parents:[destFolder]})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al copiar el archivo');
+var nuevoId=(await rc.json()).id;
+copiado=true;
+var por=(m.aportadoPor&&m.aportadoPor.nombre)||'';
+var contenido={personaId:destId,driveFileId:nuevoId,nombreOriginal:m.nombreOriginal,esDocumento:m.esDocumento,tipo:m.tipo,fecha:m.fecha,fechaEstimada:true,fuenteFecha:'aportacion',archivoDrive:m.archivoDrive,etiquetas:m.etiquetas||[],comentarios:m.comentarios||'',aportacion:{por:por,fecha:m.fecha},ocrProcesado:false,ocrConfianza:0,ocrTexto:'',sugerenciasGenealogicas:[]};
+var idSc=await crearArchivoDriveVacioConMetadatos(baseFinal+'.json','application/json',destFolder,undefined);
+await subirContenidoArchivoDrive(idSc,new Blob([JSON.stringify(contenido,null,2)],{type:'application/json'}),'application/json');
+await aportMarcar(it,'pasada',{destino:{personaId:destId,driveFileId:nuevoId,fecha:new Date().toISOString()}});
+var retirados=await aportPapelera([m.driveFileId,it.sidecarId]);
+aportItems.splice(i,1);aportPintarLista();
+toast('Pasado a la carpeta de '+fn(PI[destId]).trim()+(retirados<2?' (el original sigue en APORTACIONES pero ya no aparece en la bandeja)':''));
+}catch(err){
+toast((copiado?'Se copió el archivo pero falló un paso posterior; no lo repitas sin revisar la carpeta de la persona en Drive: ':'No se pudo pasar: ')+(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message),true);
+}finally{botonCargando(btn,false);}
+}
+async function aportDescartar(i,btn){
+var it=aportItems[i];if(!it)return;
+if(!esAdministrador()){toast('Solo el administrador puede descartar aportaciones',true);return;}
+if(!(await confirmarApp('¿Descartar «'+(it.meta.nombreOriginal||'')+'»? Dejará de aparecer en la bandeja.')))return;
+if(!(await exigirIdentidadGoogle()))return;
+botonCargando(btn,true,'Descartando...');
+try{
+await aportMarcar(it,'descartada',{descartada:new Date().toISOString()});
+await aportPapelera([it.meta.driveFileId,it.sidecarId]);
+aportItems.splice(i,1);aportPintarLista();
+toast('Aportación descartada');
+}catch(err){toast('No se pudo descartar: '+err.message,true);}
+finally{botonCargando(btn,false);}
+}
+async function aportAbrirCarpetaDrive(){
+if(!esAdministrador())return;
+try{
+if(!(await exigirIdentidadGoogle()))return;
+var id=await obtenerCarpetaAportacionesId(true);
+if(id)window.open('https://drive.google.com/drive/folders/'+encodeURIComponent(id),'_blank','noopener');
+}catch(err){toast('No se pudo abrir: '+err.message,true);}
+}
+/* ========== FIN APORTACIONES ========== */
 var BACKUP_HISTORICO_PREFIJO='backup-arbol-';
 var BACKUP_HISTORICO_MAX=5;
 /* Nombre exacto: backup-arbol-AAAA-MM-DD.json. Ancla ^...$ para no confundir con otros
@@ -2001,7 +2267,7 @@ window.fetch=function(input,init){
 try{
 var url=(typeof input==='string')?input:((input&&input.url)||'');
 var metodo=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
-if(metodo!=='GET'&&metodo!=='HEAD'&&metodo!=='OPTIONS'&&/googleapis\.com\/(upload\/)?drive\//.test(url)&&esLector()&&!window.__conexionEscribiendo){
+if(metodo!=='GET'&&metodo!=='HEAD'&&metodo!=='OPTIONS'&&/googleapis\.com\/(upload\/)?drive\//.test(url)&&esLector()&&!window.__conexionEscribiendo&&!(window.__aportacionEscribiendo&&metodo!=='DELETE')){
 return Promise.resolve(new Response(JSON.stringify({error:{code:403,message:'Perfil de solo lectura: no se puede modificar Drive'}}),{status:403,headers:{'Content-Type':'application/json'}}));
 }
 }catch(e){}
@@ -2168,6 +2434,7 @@ var carpetaDatos=await obtenerCarpetaDatosId(true);
 var carpetaFoto=await obtenerCarpetaFotoId(true);
 var carpetaDocs=await obtenerCarpetaDocumentosId(true);
 var carpetaConex=await obtenerCarpetaConexionesId(true);
+var carpetaAport=await obtenerCarpetaAportacionesId(true);
 var subcarpetas=[{id:carpetaDatos,nombre:'DATOS'},{id:carpetaFoto,nombre:'FOTO'},{id:carpetaDocs,nombre:'DOCUMENTOS'}];
 var errores=[];
 for(var i=0;i<subcarpetas.length;i++){
@@ -2184,6 +2451,9 @@ catch(e){errores.push(subcarpetas[i].nombre+': '+e.message);}
 /* CONEXIONES: editor para todos los perfiles (también el Lector), para que cada cual anote su propia conexión. */
 if(!carpetaConex){errores.push('CONEXIONES (no encontrada)');}
 else{try{await compartirPermisoDrive(carpetaConex,email,'writer',false);}catch(e2){errores.push('CONEXIONES: '+e2.message);}}
+/* APORTACIONES: editor para todos los perfiles (también el Lector), para poder enviar fotos y documentos. */
+if(!carpetaAport){errores.push('APORTACIONES (no encontrada)');}
+else{try{await compartirPermisoDrive(carpetaAport,email,'writer',false);}catch(e3){errores.push('APORTACIONES: '+e3.message);}}
 if(errores.length)throw new Error('carpeta raíz compartida (lector), pero falló al ajustar: '+errores.join('; '));
 return true;
 }
@@ -2252,11 +2522,13 @@ if(!ok)fallos.push(ids[i].n);
 /* Única excepción: CONEXIONES, donde el Lector puede escribir su propia anotación de conexión. */
 try{var idConex=await obtenerCarpetaConexionesId(true);if(idConex)await compartirPermisoDrive(idConex,email,'writer',false);else fallos.push('CONEXIONES (no encontrada)');}
 catch(eConex){fallos.push('CONEXIONES');}
+try{var idAport=await obtenerCarpetaAportacionesId(true);if(idAport)await compartirPermisoDrive(idAport,email,'writer',false);else fallos.push('APORTACIONES (no encontrada)');}
+catch(eAport){fallos.push('APORTACIONES');}
 if(fallos.length)toast('Permisos de Drive de '+email+': no se pudo dejar bien en '+fallos.join(', ')+'. Revísalo en drive.google.com.',true);
-else toast(email+' ahora solo tiene permiso de lector en Drive (salvo para anotar su conexión en CONEXIONES)');
+else toast(email+' ahora solo tiene permiso de lector en Drive (salvo CONEXIONES y APORTACIONES)');
 }else{
 await compartirCarpetaRaizConEmail(email,tipo);
-toast('Permisos de Drive de '+email+' restablecidos (editor en DATOS, FOTO, DOCUMENTOS y CONEXIONES)');
+toast('Permisos de Drive de '+email+' restablecidos (editor en DATOS, FOTO, DOCUMENTOS, CONEXIONES y APORTACIONES)');
 }
 }catch(err){toast('No se pudieron ajustar los permisos de Drive de '+email+': '+err.message+'. Revísalos en drive.google.com.',true);}
 }
@@ -14318,6 +14590,7 @@ if(relIdA&&relIdB)calcularYMostrarRelacion();
    Cada camino lleva su propio mensaje: el parentesco cambia según el camino, y los de
    matrimonio no son de sangre. */
 var REL_MAX_SANGRE=6;
+var REL_MAX_ALTERNATIVOS=3;
 var relTopeMatrimonio=false;
 function ascendientesConPrev(id,maxProf){
 maxProf=maxProf||30;
@@ -14408,6 +14681,31 @@ var pol=camino.length<=2?calcularParentescoPolitico(idA,idB):null;
 if(pol)return{corto:pol.corto,texto:pol.texto+' Este camino pasa por '+cuantos+', así que no es un parentesco de sangre.'};
 return{corto:'Por matrimonio',texto:'Las dos personas están unidas a través de '+cuantos+'. Este camino no es de sangre.'};
 }
+function buscarCaminoEvitando(idA,idB,vetados,vetarDirecto,maxProf){
+maxProf=maxProf||80;
+var tope=Math.max(60000,((typeof D!=='undefined'&&D&&D.length)||0)+1000);
+var visit={};visit[idA]=true;
+var est=[{id:idA,p:-1,d:0,tipo:null}];
+for(var qi=0;qi<est.length;qi++){
+if(qi>tope)return null;
+var e=est[qi];
+if(e.d>=maxProf)continue;
+var vec=vecinosParentesco(e.id);
+for(var i=0;i<vec.length;i++){
+var v=vec[i];
+if(visit[v.id]||vetados[v.id])continue;
+if(vetarDirecto&&e.id===idA&&v.id===idB)continue;
+visit[v.id]=true;
+est.push({id:v.id,p:qi,d:e.d+1,tipo:v.tipo});
+if(v.id===idB){
+var pasos=[],k=est.length-1;
+while(est[k].p>=0){pasos.unshift({desde:est[est[k].p].id,hasta:est[k].id,tipo:est[k].tipo});k=est[k].p;}
+return pasos;
+}
+}
+}
+return null;
+}
 function construirCaminosRel(idA,idB){
 var info=antepasadosComunesRel(idA,idB);
 var res={items:[],topeCorto:false,totalSangre:info.lista.length,topeMatrim:false};
@@ -14432,6 +14730,21 @@ var mat=buscarCaminoConMatrimonio(idA,idB,80);
 res.topeMatrim=relTopeMatrimonio;
 if(mat&&mat.length&&!vistos[claveCaminoRel(mat)]){
 res.items.push({titulo:'Por matrimonio',tipo:'mat',camino:mat,msg:mensajeMatrimonioRel(idA,idB,mat)});
+}
+var cercano=info.lista.length?mensajeSangreAncestro(info,idA,idB,info.lista[0],true):null;
+var vet={},vetarDirecto=false,ultimo=(corto&&corto.length)?corto:null;
+for(var na=0;na<REL_MAX_ALTERNATIVOS&&ultimo;na++){
+ultimo.forEach(function(p){if(p.hasta!==idB)vet[p.hasta]=true;});
+if(ultimo.length===1)vetarDirecto=true;
+var alt=buscarCaminoEvitando(idA,idB,vet,vetarDirecto,80);
+if(!alt||!alt.length)break;
+ultimo=alt;
+var ka=claveCaminoRel(alt);
+if(vistos[ka])continue;
+vistos[ka]=true;
+var altMat=pasosTieneMatrimonio(alt);
+var altMsg=altMat?mensajeMatrimonioRel(idA,idB,alt):{corto:cercano?cercano.corto:'De sangre',texto:'Otro camino distinto, también solo por vínculos de sangre (padres, hijos y hermanos).'+(cercano?' La relación de sangre más cercana entre las dos personas es: '+cercano.corto.toLowerCase()+'.':'')};
+res.items.push({titulo:'Otro camino '+(na+1),tipo:altMat?'mat':'sangre',camino:alt,msg:altMsg});
 }
 return res;
 }
@@ -14471,17 +14784,15 @@ if(!cs.items.length){
 h+='<p style="font-size:13px;color:var(--muted)">'+(cs.topeCorto?'La búsqueda se detuvo al alcanzar el límite de personas exploradas, así que no se puede asegurar que no exista camino.':'No se ha encontrado ningún camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.')+'</p>';
 }else{
 var n=cs.items.length;
-if(n>1){
 var nS=cs.items.filter(function(it){return it.tipo==='sangre';}).length,nM=n-nS,partes=[];
 if(nS)partes.push(nS+' de sangre');
 if(nM)partes.push(nM+' por matrimonio');
-h+='<p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">Hay '+n+' caminos distintos entre las dos personas ('+partes.join(' y ')+'). El parentesco que se indica cambia según el camino: elige una pestaña.</p>';
+if(n>1)h+='<p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">Hay '+n+' caminos distintos entre las dos personas ('+partes.join(' y ')+'). El parentesco que se indica cambia según el camino: elige una pestaña.</p>';
 h+='<div class="rel-tabs" role="tablist">';
 cs.items.forEach(function(it,i){
-h+='<button type="button" class="rel-tab-btn'+(i===0?' active':'')+'" role="tab" aria-selected="'+(i===0?'true':'false')+'" data-i="'+i+'" onclick="relMostrarTab('+i+')"><i class="fa-solid '+(it.tipo==='sangre'?'fa-dna':'fa-ring')+'"></i> '+esc(it.titulo)+'</button>';
+h+='<button type="button" class="rel-tab-btn'+(i===0?' active':'')+'" role="tab" aria-selected="'+(i===0?'true':'false')+'" data-i="'+i+'" title="'+escAttr(it.titulo)+'" onclick="relMostrarTab('+i+')"><i class="fa-solid '+(it.tipo==='sangre'?'fa-dna':'fa-ring')+'"></i> '+esc(it.titulo)+'</button>';
 });
 h+='</div>';
-}
 cs.items.forEach(function(it,i){
 h+='<div class="rel-tab-panel'+(i===0?' active':'')+'" data-i="'+i+'" role="tabpanel">';
 h+='<div class="rel-tipo '+it.tipo+'"><i class="fa-solid '+(it.tipo==='sangre'?'fa-dna':'fa-ring')+'"></i> '+(it.tipo==='sangre'?'Parentesco de sangre':'Por matrimonio (no es de sangre)')+'</div>';
@@ -16081,6 +16392,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Crear personas y vincular familia',html:'<p>Junto a los campos Padre, Madre y Cónyuges del formulario hay tres botones:</p><ul><li><strong>E (Editar):</strong> abre la ficha de la persona ya vinculada.</li><li><strong>Lupa (Elegir persona existente):</strong> abre un buscador para vincular a alguien que ya está en el árbol.</li><li><strong>N (Crear nuevo):</strong> crea una persona nueva y la vincula en ese campo.</li></ul><p>También hay un botón con un eslabón roto para quitar un vínculo equivocado: separa a las dos personas sin borrar ninguna ficha. Al vincular un cónyuge, la app comprueba que el enlace sea recíproco en ambas fichas.</p><p>Al crear una persona nueva o un descendiente, la app te pide elegir su ID y te muestra primero los huecos que hayan quedado en la numeración, con el más bajo destacado.</p><div class="manual-tip">Antes de crear a alguien, búscalo: es la mejor manera de evitar duplicados. Una persona nueva también queda como propuesta pendiente de conformidad.</div>'},
 {titulo:'Fotografías',html:'<p><strong>La foto de una ficha.</strong> En el formulario de edición, «Subir foto» abre el selector de archivos de tu dispositivo y «Pegar del portapapeles» usa una imagen que hayas copiado. La imagen se redimensiona automáticamente antes de guardarse. «Quitar» elimina la foto actual.</p><p>Al guardar, la foto se conserva en tu dispositivo y, si Google Drive está disponible, se copia a la carpeta FOTO de Drive con el ID de la persona como nombre (por ejemplo, «1234.jpg»). El cambio de foto aparece en el registro de cambios como «foto nueva» o «foto cambiada», y espera la conformidad del administrador como cualquier otro cambio.</p><p>Si aparece el aviso de que la foto no se subió a Drive, vuelve a guardarla cuando la abeja esté en verde o avisa al administrador.</p><p><strong>Traer las fotos de los demás.</strong> Con la abeja en verde, el icono de las fotografías de Inicio («Importar fotos») busca la carpeta FOTO de Drive y asigna cada imagen a su persona. La coincidencia es siempre por nombre exacto: el nombre del archivo, sin la extensión, debe ser igual al ID de la persona. Nunca se hacen coincidencias aproximadas, para no poner una foto a quien no corresponde. Si la persona ya tenía foto, la nueva la sustituye. Al terminar verás un resumen con lo encontrado, lo asociado y lo que no tenía persona coincidente.</p><div class="manual-tip">Las imágenes con una varita mágica en la esquina son reconstrucciones, no fotografías reales. Siempre que puedas, prefiere la foto original.</div><div class="manual-warn">«Restaurar árbol oficial» no trae fotos. Las fotos se traen siempre con «Importar fotos».</div>'},
 {titulo:'Documentos: cómo añadirlos',html:'<p>Cada persona tiene su propia carpeta en Google Drive (DOCUMENTOS, con su ID) para guardar partidas, certificados, correspondencia, fotografías históricas y cualquier otro archivo. Los documentos <strong>se suben directamente a esa carpeta y no pasan por el registro de cambios</strong>: no necesitan la conformidad del administrador.</p><p>Para añadir documentos:</p><ul><li>Abre la ficha de la persona y pulsa <strong>Documentos</strong> (este botón aparece cuando la abeja está en verde). Se abre la pantalla Documentos con esa persona.</li><li>Comprueba que el nombre de la persona que aparece arriba es la correcta.</li><li>Arrastra los archivos a la zona de subida o pulsa <strong>Elegir archivos</strong>. En el móvil, <strong>Hacer foto</strong> abre la cámara y sube una copia JPG optimizada. <strong>Pegar del portapapeles</strong> crea un documento nuevo a partir de un texto o una imagen copiados y te deja elegir el nombre.</li><li>Verás una barra de progreso y, al terminar, el aviso «N archivo(s) subido(s)». La lista se actualiza sola.</li></ul><p>Cada documento se puede renombrar o eliminar desde la propia lista, y los botones <strong>Repasar carpeta</strong> y <strong>Abrir carpeta en Drive</strong> te ayudan a comprobar el contenido. El buscador de personas de esta pantalla también respeta el límite de tu perfil.</p><div class="manual-tip">Ponle al archivo un nombre que se entienda solo, por ejemplo «Partida de bautismo, Calvos de Randín, 1748.pdf». Dentro de unos años te lo agradecerás tú y quien venga después.</div><div class="manual-warn">Piénsalo antes de eliminar un documento: lo ven y lo usan también otros familiares.</div>'},
+{titulo:'Compartir fotos y documentos (Aportaciones)',html:'<p>Cualquier perfil, también el Lector, puede enviar una foto o un documento sin tocar las carpetas de las personas. En <strong>Herramientas → Compartir fotos o documentos</strong> eliges los archivos (o haces una foto), escribes un comentario (por ejemplo «en la playa, verano de 1975») y pulsas Enviar.</p><p>Los envíos van a una carpeta aparte de Drive llamada APORTACIONES, cada uno con su ficha de metadatos y el comentario. No aparecen en las fichas hasta que el administrador, en <strong>Herramientas → Aportaciones recibidas</strong>, los revisa, elige a qué persona corresponden y pulsa «Pasar a su carpeta», que los copia a DOCUMENTOS con su ficha. También puede descartarlos.</p><div class="manual-tip">DOCUMENTOS sigue siendo de solo lectura para el Lector: lo único que puede escribir es APORTACIONES.</div>'},
 {titulo:'Etiquetas, observaciones y fichas para borrar',html:'<p><strong>Etiquetas.</strong> Son palabras o frases cortas para clasificar a las personas («Migrante», «Línea materna confirmada», «Pendiente de partida de bautismo»…). Escríbelas en el campo de etiquetas y pulsa «Añadir» o Intro; para quitar una, pulsa la × de su chip. La app sugiere las que ya existen, para mantener los nombres homogéneos. En la ficha, al pulsar una etiqueta se abre Inicio con ese filtro ya aplicado.</p><p><strong>Observaciones.</strong> Es el sitio para anotar de dónde sale un dato: parroquia, libro, folio, fecha, archivo o quién te lo contó.</p><p><strong>Marcar para borrar.</strong> Si una ficha sobra (por ejemplo, un duplicado), usa el botón «Marcar para borrar» de la ficha. No borra nada: solo deja una señal visible, y será el administrador quien la elimine más tarde. Puedes quitar la marca con «Quitar marca de borrado».</p><div class="manual-tip">El botón «Eliminar» también existe, pero lo que hagas queda como propuesta pendiente igual que el resto. Marcar para borrar es la vía más prudente.</div>'},
 {titulo:'El Gestor de datos: tu parte',html:'<p>El Gestor de datos ayuda a unificar cosas que están escritas de varias formas. Se abre desde la caja de herramientas, en el bloque <strong>Datos</strong>. Como colaborador ves solo dos categorías (el resto son del administrador):</p><ul><li><strong>Apellidos con escritura no homogénea:</strong> grupos de apellidos que parecen el mismo escrito de formas distintas (por ejemplo, Fernández y Fernandez).</li><li><strong>Lugares con escritura no homogénea:</strong> grupos de topónimos que parecen el mismo lugar escrito de formas distintas en los campos de lugar de nacimiento y de defunción.</li></ul><p>Verás también, en solo lectura, los «Cónyuges con nombres parecidos»: si crees que son la misma persona, avisa al administrador, que es quien puede fusionarlas.</p><p>Cómo trabajar con un grupo:</p><ul><li>Cada grupo muestra las formas encontradas. Marca la que quieres conservar y pulsa «Aplicar selección».</li><li>El <strong>Nivel A</strong> son diferencias solo de mayúsculas, tildes, puntuación o espacios: la unificación es segura y puedes usar el botón «Unificar automáticamente los grupos de Nivel A».</li><li>El <strong>Nivel C</strong> son posibles erratas (una grafía muy poco usada parecida a otra frecuente): revísalo con calma antes de aplicar.</li></ul><p>Tus correcciones quedan registradas como cualquier otra edición: una propuesta por cada ficha afectada, pendiente de la conformidad del administrador. Cuando una categoría no tiene nada pendiente, desaparece.</p><div class="manual-tip">Una unificación grande genera muchas propuestas a la vez. Conviene avisar al administrador de que has hecho una tanda para que la revise sin sorpresas.</div>'},
 {titulo:'El registro de cambios: sigue tus propuestas',html:'<p>La pantalla <strong>Cambios</strong> (el icono del reloj, que aparece cuando estás conectado, o «Más → Registro de cambios») te permite seguir lo que ha pasado con tus propuestas y con las de los demás. Se comprueba con Drive en cuanto la abres.</p><ul><li><strong>Pendientes:</strong> propuestas que el administrador todavía no ha revisado. El número que acompaña al icono te dice cuántas hay.</li><li><strong>Historial:</strong> todos los cambios, incluidos los ya resueltos.</li></ul><p>Cada propuesta indica quién la hizo, cuándo, qué cambió y su estado:</p><ul><li><strong>Pendiente:</strong> espera la revisión del administrador.</li><li><strong>Conforme:</strong> el administrador la ha aceptado y la ha incorporado a su copia. Llegará a todos cuando publique el árbol oficial.</li><li><strong>Rechazado:</strong> queda registrado, pero no entra en el árbol oficial. Tu dispositivo puede seguir mostrándolo hasta que actualices desde el árbol oficial.</li></ul><p>Para ti es una pantalla de solo lectura: ves tus cambios y los de los demás, y el botón «Ver ficha» te lleva a la persona, pero solo el administrador puede dar conformidad, rechazar o eliminar registros. El botón «Sincronizar con Drive» sube tus cambios pendientes y trae los de los demás.</p><div class="manual-tip">Si no ves un cambio reciente, comprueba que la abeja esté en verde y pulsa «Sincronizar con Drive».</div>'},
@@ -18881,6 +19193,8 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-section">Uso general</div>
 <div class="herr-subhead">Ayuda</div>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalAyuda()"><div class="herr-icon"><i class="fa-solid fa-circle-question"></i></div><div class="herr-text"><div class="herr-title">Ayuda y privacidad</div><div class="herr-desc">Guías de uso, guía de primer acceso y política de privacidad</div></div></button>
+<div class="herr-subhead herr-req-drive">Colaborar</div>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirAportar()"><div class="herr-icon"><i class="fa-solid fa-share-nodes"></i></div><div class="herr-text"><div class="herr-title">Compartir fotos o documentos</div><div class="herr-desc">Envía fotos o documentos con un comentario. El administrador los revisa antes de guardarlos en su carpeta</div></div></button>
 <div class="herr-subhead">Dispositivo</div>
 <button class="herr-item" id="herrInstalarBtn" onclick="instalarPWA()"><div class="herr-icon"><i class="fa-solid fa-arrow-down"></i></div><div class="herr-text"><div class="herr-title">Instalar aplicación</div><div class="herr-desc">Añade Libro de los Ancestros como app independiente en este dispositivo</div></div></button>
 <div id="driveOpProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
@@ -18904,6 +19218,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Administración</div>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (administrador/colaborador/amigo/lector) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Tabla con cada usuario, su última conexión y cuántas veces se ha conectado (también los lectores)</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirAportaciones()"><div class="herr-icon"><i class="fa-solid fa-inbox"></i></div><div class="herr-text"><div class="herr-title">Aportaciones recibidas</div><div class="herr-desc">Fotos y documentos enviados por la familia: elige a qué persona corresponden y pásalos a su carpeta con sus metadatos</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
@@ -18924,6 +19239,35 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();abrirDiagnosticoMemoria()"><div class="herr-icon"><i class="fa-solid fa-memory"></i></div><div class="herr-text"><div class="herr-title">Diagnóstico de memoria</div><div class="herr-desc">Qué ocupa más en la pestaña (fotos y textos gigantes) cuando la app se queda sin memoria al hacer copias</div></div></button>
 </div>
 </div>
+</div>
+</div>
+<div id="modalAportar" role="dialog" aria-modal="true" aria-labelledby="modalAportarTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:480px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h2 id="modalAportarTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-share-nodes" aria-hidden="true" style="color:var(--accent)"></i> Compartir fotos o documentos</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarAportar()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Se guardan en una carpeta aparte, con tu comentario. No aparecen en ninguna ficha hasta que el administrador los revise y los pase a la carpeta que corresponda.</p>
+<div id="aportDropZone" class="iz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');aportAnadir(event.dataTransfer.files)" style="padding:16px;margin:0 0 12px">
+<p style="margin-bottom:8px"><i class="fa-solid fa-cloud-arrow-up"></i> Arrastra aquí fotos o documentos (hasta 25 MB cada uno)</p>
+<input type="file" id="aportInputArchivos" multiple style="display:none" onchange="aportAnadir(this.files);this.value=''">
+<input type="file" id="aportInputCamara" accept="image/*" capture="environment" style="display:none" onchange="aportAnadir(this.files);this.value=''">
+<button type="button" class="ef-btn ghost" onclick="document.getElementById('aportInputArchivos').click()"><i class="fa-solid fa-file-circle-plus"></i> Elegir archivos</button> <button type="button" class="ef-btn ghost" onclick="document.getElementById('aportInputCamara').click()"><i class="fa-solid fa-camera"></i> Hacer foto</button>
+</div>
+<div id="aportElegidos"></div>
+<label for="aportComentario" style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Comentario (opcional)</label>
+<textarea id="aportComentario" class="ef-input" rows="3" maxlength="1000" style="width:100%" placeholder="Ej. En la playa, verano de 1975; la de la izquierda es la abuela Carmen"></textarea>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cerrarAportar()">Cancelar</button><button type="button" class="ef-btn" onclick="aportEnviar(this)"><i class="fa-solid fa-paper-plane"></i> Enviar</button></div>
+</div>
+</div>
+<div id="modalAportaciones" role="dialog" aria-modal="true" aria-labelledby="modalAportacionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h2 id="modalAportacionesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-inbox" aria-hidden="true" style="color:var(--accent)"></i> Aportaciones recibidas</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarAportaciones()">×</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button type="button" class="ef-btn ghost" onclick="aportCargarLista()"><i class="fa-solid fa-rotate"></i> Actualizar</button><button type="button" class="ef-btn ghost" onclick="aportAbrirCarpetaDrive()"><i class="fa-brands fa-google-drive"></i> Abrir carpeta en Drive</button><button type="button" class="ef-btn ghost" onclick="reforzarAccesosDriveUI()" title="Comparte APORTACIONES con los usuarios que ya estaban en la lista"><i class="fa-solid fa-user-check"></i> Dar acceso a todos</button></div>
+<div id="aportLista"></div>
 </div>
 </div>
 <div id="modalEstimaciones" role="dialog" aria-modal="true" aria-labelledby="modalEstimacionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
