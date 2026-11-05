@@ -158,6 +158,7 @@ html[data-tema="muelle"] .cambios-tabs .ef-btn.active,
 html[data-tema="muelle"] .ef-btn,
 html[data-tema="muelle"] .evf-avatar-icono,
 html[data-tema="muelle"] .fic-tab-btn.active,
+html[data-tema="muelle"] .rel-tab-btn.active,
 html[data-tema="muelle"] .pbus-pill.pbus-activa,
 html[data-tema="muelle"] .rel-badge,
 html[data-tema="muelle"] .skip-link,
@@ -758,6 +759,15 @@ html[data-tema="muelle"] .tema-btn i{transform:rotate(180deg)}
 .rel-nodo.root{border-color:var(--accent);background:rgba(196,101,58,.06)}
 .rel-nodo-anio{font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
 .rel-flecha{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 0}
+.rel-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.rel-tab-btn{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Lato',sans-serif;max-width:100%}
+.rel-tab-btn i{margin-right:3px}
+.rel-tab-btn:hover{border-color:var(--accent);color:var(--accent)}
+.rel-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.rel-tab-panel{display:none}
+.rel-tab-panel.active{display:block}
+.rel-tipo{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 10px;border-radius:10px;margin-bottom:8px;border:1px solid var(--border);color:var(--muted)}
+.rel-tipo.sangre{border-color:var(--accent);color:var(--accent)}
 .rel-nombres-completos{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .rel-nombre-completo{background:linear-gradient(135deg,rgba(196,101,58,.06),rgba(196,101,58,.02));border:1.5px solid var(--border);border-radius:12px;padding:10px 14px}
 .rel-nombre-completo-label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:3px}
@@ -1314,8 +1324,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.05.3';
+var APP_VERSION = '2026.11.05.4';
 var APP_CHANGELOG = [
+  { version:'2026.11.05.4', fecha:'2026-11-05', cambios:[
+    'Relación entre dos personas: el camino genealógico ya no es uno solo. Además del más corto (el de siempre), ahora aparecen en pestañas los caminos de sangre por cada antepasado común más cercano (hasta 6) y el más corto que pasa por un matrimonio. Cada pestaña lleva su propio mensaje: «Parentesco de sangre» con su parentesco y el antepasado común, o «Por matrimonio (no es de sangre)».'
+  ]},
   { version:'2026.11.05.3', fecha:'2026-11-05', cambios:[
     'Documentos: la firma de la persona fallecida aparece arriba del panel (carpeta FIRMAS de Drive, un PNG por persona). Colaboradores y administradores pueden añadirla o reemplazarla pegando una imagen, eligiendo un archivo o haciendo una foto; la app quita el fondo y refuerza el trazo con vista previa en los dos temas. En el tema oscuro se pinta en blanco. Solo el administrador puede quitarla.'
   ]},
@@ -14294,27 +14307,136 @@ var lista=document.getElementById('rlRel'+letra);if(lista)lista.innerHTML='';
 var input=document.getElementById('siRel'+letra);if(input)input.value='';
 if(relIdA&&relIdB)calcularYMostrarRelacion();
 }
-function calcularYMostrarRelacion(){
-if(!relIdA){toast('Elige primero una persona activa (arriba a la izquierda)',true);return;}
-if(!relIdB){toast('Busca y elige la Persona B',true);return;}
-var cont=document.getElementById('relResultado');
-if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
-var parentesco=calcularParentesco(relIdA,relIdB);
-var camino=buscarCaminoParentesco(relIdA,relIdB,80);
-var h='<div class="cro-life"><h3>Parentesco</h3>';
-if(parentesco){
-h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
-h+='<p style="font-size:13px;margin-top:10px;line-height:1.5">'+esc(parentesco.texto)+'</p>';
-}else{
-h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún antepasado común conocido entre '+esc(fn(PI[relIdA]).trim())+' y '+esc(fn(PI[relIdB]).trim())+'. '+(camino&&camino.length?'No hay parentesco de sangre; están unidos por matrimonio, como muestra el camino genealógico de abajo.':'Puede que no haya relación de sangre, o que falten datos de ascendencia en alguna de las ramas.')+'</p>';
+/* ===== Varios caminos entre dos personas (pestañas) =====
+   buscarCaminoParentesco() devuelve UN solo camino: el de menos pasos contando cada vínculo
+   (padre, madre, hijo, hermano, cónyuge) como un paso. Eso no tiene por qué ser el parentesco
+   de sangre más cercano, y puede haber otros caminos distintos. Aquí se calculan:
+   1) el más corto de todos (el de siempre),
+   2) uno de sangre por cada antepasado común más cercano (el que no tiene por encima otro
+      antepasado común), hasta REL_MAX_SANGRE,
+   3) el más corto que pasa por al menos un matrimonio.
+   Cada camino lleva su propio mensaje: el parentesco cambia según el camino, y los de
+   matrimonio no son de sangre. */
+var REL_MAX_SANGRE=6;
+var relTopeMatrimonio=false;
+function ascendientesConPrev(id,maxProf){
+maxProf=maxProf||30;
+var dist={},prev={};dist[id]=0;
+var queue=[id],qi=0;
+while(qi<queue.length){
+var pid=queue[qi++],d=dist[pid];
+if(d>=maxProf)continue;
+var pers=PI[pid];if(!pers)continue;
+[pers.PADRE,pers.MADRE].forEach(function(anc){
+if(anc&&PI[anc]&&dist[anc]===undefined){dist[anc]=d+1;prev[anc]=pid;queue.push(anc);}
+});
 }
-h+='</div><div class="cro-life"><h3>Camino genealógico</h3>';
-if(camino===null){
-h+='<p style="font-size:13px;color:var(--muted)">'+(caminoTopeAlcanzado?'La búsqueda se detuvo al alcanzar el límite de personas exploradas, así que no se puede asegurar que no exista camino.':'No se ha encontrado ningún camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.')+'</p>';
-}else if(!camino.length){
-h+='<p style="font-size:13px;color:var(--muted)">Es la misma persona.</p>';
-}else{
-h+='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]).trim())+relNodoAnioHTML(PI[relIdA])+'</div>';
+return{dist:dist,prev:prev};
+}
+function nodosAncestroPrev(prev,origen,destino){
+var arr=[destino],n=destino,guard=0;
+while(n!==origen){n=prev[n];if(n===undefined||++guard>200)return null;arr.push(n);}
+return arr.reverse();
+}
+function antepasadosComunesRel(idA,idB){
+var a=ascendientesConPrev(idA),b=ascendientesConPrev(idB);
+var comunes=Object.keys(a.dist).filter(function(k){return b.dist[k]!==undefined;});
+var dom={},queue=[],qi=0;
+comunes.forEach(function(c){var p=PI[c];[p.PADRE,p.MADRE].forEach(function(x){if(x&&PI[x]&&!dom[x]){dom[x]=true;queue.push(x);}});});
+while(qi<queue.length){var p2=PI[queue[qi++]];[p2.PADRE,p2.MADRE].forEach(function(x){if(x&&PI[x]&&!dom[x]){dom[x]=true;queue.push(x);}});}
+var lista=comunes.filter(function(c){return!dom[c];}).map(function(c){return{id:c,dA:a.dist[c],dB:b.dist[c]};});
+lista.sort(function(x,y){return(x.dA+x.dB)-(y.dA+y.dB)||Math.abs(x.dA-x.dB)-Math.abs(y.dA-y.dB);});
+return{a:a,b:b,comunes:comunes,lista:lista};
+}
+function caminoSangrePorAncestro(info,idA,idB,c){
+var na=nodosAncestroPrev(info.a.prev,idA,c),nb=nodosAncestroPrev(info.b.prev,idB,c);
+if(!na||!nb)return null;
+var pasos=[],i;
+for(i=0;i<na.length-1;i++)pasos.push({desde:na[i],hasta:na[i+1],tipo:(PI[na[i]].PADRE===na[i+1]?'padre':'madre')});
+nb.reverse();
+for(i=0;i<nb.length-1;i++)pasos.push({desde:nb[i],hasta:nb[i+1],tipo:'hijo'});
+return pasos;
+}
+function buscarCaminoConMatrimonio(idA,idB,maxProf){
+maxProf=maxProf||80;relTopeMatrimonio=false;
+if(idA===idB)return null;
+var tope=2*Math.max(60000,((typeof D!=='undefined'&&D&&D.length)||0)+1000);
+var est=[{id:idA,f:0,p:-1,d:0,tipo:null}],visit={};visit[idA+'|0']=true;
+for(var qi=0;qi<est.length;qi++){
+if(qi>tope){relTopeMatrimonio=true;return null;}
+var e=est[qi];
+if(e.d>=maxProf)continue;
+var vec=vecinosParentesco(e.id);
+for(var i=0;i<vec.length;i++){
+var v=vec[i],nf=(e.f||v.tipo==='conyuge')?1:0,key=v.id+'|'+nf;
+if(visit[key])continue;
+visit[key]=true;
+est.push({id:v.id,f:nf,p:qi,d:e.d+1,tipo:v.tipo});
+if(v.id===idB&&nf===1){
+var pasos=[],k=est.length-1;
+while(est[k].p>=0){pasos.unshift({desde:est[est[k].p].id,hasta:est[k].id,tipo:est[k].tipo});k=est[k].p;}
+return pasos;
+}
+}
+}
+return null;
+}
+function pasosTieneMatrimonio(c){return c.some(function(p){return p.tipo==='conyuge';});}
+function claveCaminoRel(c){return c.map(function(p){return p.hasta;}).join('>');}
+function nombreTabRel(id){
+if(!puedeVerPersona(id))return'persona no visible';
+var s=fn(PI[id]).trim();
+return s.length>30?s.slice(0,29)+'…':s;
+}
+function textoGeneraciones(n){return n+(n===1?' generación':' generaciones');}
+function mensajeSangreAncestro(info,idA,idB,x,masCercano){
+var cuenta=0;
+info.comunes.forEach(function(c){if(info.a.dist[c]===x.dA&&info.b.dist[c]===x.dB)cuenta++;});
+var r=nombrarParentesco(x.dA,x.dB,cuenta,idA,idB);
+var texto=r.texto;
+if(x.dA>0&&x.dB>0){
+var anc=puedeVerPersona(x.id)?fn(PI[x.id]).trim():'una persona no visible';
+texto+=' El antepasado común de este camino es '+anc+' (a '+textoGeneraciones(x.dA)+' de '+fn(PI[idA]).trim()+' y a '+textoGeneraciones(x.dB)+' de '+fn(PI[idB]).trim()+').';
+}
+if(masCercano)texto+=' Es la relación de sangre más cercana que se ha encontrado.';
+return{corto:r.corto,texto:texto};
+}
+function mensajeMatrimonioRel(idA,idB,camino){
+var n=camino.filter(function(p){return p.tipo==='conyuge';}).length;
+var cuantos=n===1?'un matrimonio':(n+' matrimonios');
+var pol=camino.length<=2?calcularParentescoPolitico(idA,idB):null;
+if(pol)return{corto:pol.corto,texto:pol.texto+' Este camino pasa por '+cuantos+', así que no es un parentesco de sangre.'};
+return{corto:'Por matrimonio',texto:'Las dos personas están unidas a través de '+cuantos+'. Este camino no es de sangre.'};
+}
+function construirCaminosRel(idA,idB){
+var info=antepasadosComunesRel(idA,idB);
+var res={items:[],topeCorto:false,totalSangre:info.lista.length,topeMatrim:false};
+var vistos={};
+var corto=buscarCaminoParentesco(idA,idB,80);
+res.topeCorto=caminoTopeAlcanzado;
+if(corto&&corto.length){
+var conMat=pasosTieneMatrimonio(corto);
+var m=conMat?mensajeMatrimonioRel(idA,idB,corto):(info.lista.length?mensajeSangreAncestro(info,idA,idB,info.lista[0],true):{corto:'De sangre',texto:'Este camino va solo por padres, hijos y hermanos, es decir, por vínculos de sangre.'});
+vistos[claveCaminoRel(corto)]=true;
+res.items.push({titulo:'Más corto',tipo:conMat?'mat':'sangre',camino:corto,msg:m});
+}
+info.lista.slice(0,REL_MAX_SANGRE).forEach(function(x){
+var cam=caminoSangrePorAncestro(info,idA,idB,x.id);
+if(!cam||!cam.length)return;
+var k=claveCaminoRel(cam);
+if(vistos[k])return;
+vistos[k]=true;
+res.items.push({titulo:(x.dA===0||x.dB===0)?'Línea directa':('Por '+nombreTabRel(x.id)),tipo:'sangre',camino:cam,msg:mensajeSangreAncestro(info,idA,idB,x,(x.dA+x.dB)===(info.lista[0].dA+info.lista[0].dB))});
+});
+var mat=buscarCaminoConMatrimonio(idA,idB,80);
+res.topeMatrim=relTopeMatrimonio;
+if(mat&&mat.length&&!vistos[claveCaminoRel(mat)]){
+res.items.push({titulo:'Por matrimonio',tipo:'mat',camino:mat,msg:mensajeMatrimonioRel(idA,idB,mat)});
+}
+return res;
+}
+function htmlCaminoRel(camino){
+var h='<div class="rel-camino"><div class="rel-nodo root" onclick="selP(\''+safeId(relIdA)+'\')">'+esc(fn(PI[relIdA]).trim())+relNodoAnioHTML(PI[relIdA])+'</div>';
 camino.forEach(function(paso){
 var vis=puedeVerPersona(paso.hasta);
 h+='<div class="rel-flecha"><i class="fa-solid fa-arrow-down"></i><span>'+esc(etiquetaPaso(paso))+'</span></div>';
@@ -14324,7 +14446,53 @@ h+='<div class="rel-nodo'+(paso.hasta===relIdB?' root':'')+'" onclick="selP(\''+
 h+='<div class="rel-nodo" style="cursor:default;font-style:italic;color:var(--muted)" title="No tienes acceso a esta ficha">Persona no visible</div>';
 }
 });
+return h+'</div>';
+}
+function relMostrarTab(i){
+document.querySelectorAll('#relResultado .rel-tab-btn').forEach(function(b){var on=b.getAttribute('data-i')===String(i);b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+document.querySelectorAll('#relResultado .rel-tab-panel').forEach(function(p){p.classList.toggle('active',p.getAttribute('data-i')===String(i));});
+}
+function calcularYMostrarRelacion(){
+if(!relIdA){toast('Elige primero una persona activa (arriba a la izquierda)',true);return;}
+if(!relIdB){toast('Busca y elige la Persona B',true);return;}
+var cont=document.getElementById('relResultado');
+if(relIdA===relIdB){cont.innerHTML='<div class="cro-life"><p style="font-size:13px;color:var(--muted)">Has seleccionado la misma persona en ambos campos.</p></div>';return;}
+var parentesco=calcularParentesco(relIdA,relIdB);
+var cs=construirCaminosRel(relIdA,relIdB);
+var h='<div class="cro-life"><h3>Parentesco</h3>';
+if(parentesco){
+h+='<div class="rel-badge">'+esc(parentesco.corto)+'</div>';
+h+='<p style="font-size:13px;margin-top:10px;line-height:1.5">'+esc(parentesco.texto)+'</p>';
+}else{
+h+='<p style="font-size:13px;color:var(--muted)">No se ha encontrado ningún antepasado común conocido entre '+esc(fn(PI[relIdA]).trim())+' y '+esc(fn(PI[relIdB]).trim())+'. '+(cs.items.length?'No hay parentesco de sangre; están unidos por matrimonio, como muestra el camino genealógico de abajo.':'Puede que no haya relación de sangre, o que falten datos de ascendencia en alguna de las ramas.')+'</p>';
+}
+h+='</div><div class="cro-life"><h3>Camino genealógico</h3>';
+if(!cs.items.length){
+h+='<p style="font-size:13px;color:var(--muted)">'+(cs.topeCorto?'La búsqueda se detuvo al alcanzar el límite de personas exploradas, así que no se puede asegurar que no exista camino.':'No se ha encontrado ningún camino de parentesco (ni de sangre ni por matrimonio) entre ambas personas dentro de los datos disponibles.')+'</p>';
+}else{
+var n=cs.items.length;
+if(n>1){
+var nS=cs.items.filter(function(it){return it.tipo==='sangre';}).length,nM=n-nS,partes=[];
+if(nS)partes.push(nS+' de sangre');
+if(nM)partes.push(nM+' por matrimonio');
+h+='<p style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">Hay '+n+' caminos distintos entre las dos personas ('+partes.join(' y ')+'). El parentesco que se indica cambia según el camino: elige una pestaña.</p>';
+h+='<div class="rel-tabs" role="tablist">';
+cs.items.forEach(function(it,i){
+h+='<button type="button" class="rel-tab-btn'+(i===0?' active':'')+'" role="tab" aria-selected="'+(i===0?'true':'false')+'" data-i="'+i+'" onclick="relMostrarTab('+i+')"><i class="fa-solid '+(it.tipo==='sangre'?'fa-dna':'fa-ring')+'"></i> '+esc(it.titulo)+'</button>';
+});
 h+='</div>';
+}
+cs.items.forEach(function(it,i){
+h+='<div class="rel-tab-panel'+(i===0?' active':'')+'" data-i="'+i+'" role="tabpanel">';
+h+='<div class="rel-tipo '+it.tipo+'"><i class="fa-solid '+(it.tipo==='sangre'?'fa-dna':'fa-ring')+'"></i> '+(it.tipo==='sangre'?'Parentesco de sangre':'Por matrimonio (no es de sangre)')+'</div>';
+h+='<div><span class="rel-badge" style="font-size:14px;padding:6px 14px">'+esc(it.msg.corto)+'</span></div>';
+h+='<p style="font-size:13px;margin:8px 0 4px;line-height:1.5">'+esc(it.msg.texto)+'</p>';
+h+='<p style="font-size:11px;color:var(--muted);margin-bottom:10px">'+it.camino.length+(it.camino.length===1?' paso':' pasos')+'</p>';
+h+=htmlCaminoRel(it.camino);
+h+='</div>';
+});
+if(cs.totalSangre>REL_MAX_SANGRE)h+='<p style="font-size:11px;color:var(--muted);margin-top:12px">Hay '+cs.totalSangre+' antepasados comunes más cercanos; se muestran los '+REL_MAX_SANGRE+' de camino más corto.</p>';
+if(cs.topeMatrim)h+='<p style="font-size:11px;color:var(--muted);margin-top:8px">La búsqueda de un camino por matrimonio se detuvo al alcanzar el límite de personas exploradas, así que puede que exista alguno que no se muestra.</p>';
 }
 h+='</div>';
 cont.innerHTML=h;
@@ -15887,7 +16055,7 @@ var MANUAL_ADMIN_BORRADOR=[
 {titulo:'Documentos y fotografias de cada persona',soloAdmin:false,html:'<p>Cada persona puede tener asociados, en Google Drive, tanto una fotografia como cualquier numero de documentos (partidas, certificados, correspondencia, fotografias historicas...). La seccion Documentos de la ficha permite gestionarlos sin salir de la aplicacion.</p><ul><li><strong>Subir</strong>: arrastra los archivos sobre la zona de subida, o pulsa «Elegir archivos»; se puede anadir una categoria libre (con sugerencias) para agruparlos.</li><li><strong>Buscar</strong>: en cuanto una persona acumula mas de 8 documentos aparece un buscador para filtrarlos por nombre o categoria.</li><li><strong>Renombrar</strong> y <strong>Eliminar</strong>: disponibles en cada documento, sin necesidad de entrar en Drive.</li><li><strong>Abrir carpeta en Drive</strong>: acceso directo a la carpeta de Drive de esa persona.</li></ul><p>Gestionar documentos requiere tener la cuenta de Google conectada, pero esta disponible para cualquier colaborador, no solo para el administrador.</p><p>El buscador de personas de la pantalla Documentos tambien respeta el limite de perfil: no aparece en los resultados una persona viva fuera de tu alcance (vease «Los tres perfiles»).</p><p>La fotografia de perfil se gestiona desde el formulario de edicion de la ficha: al guardarla, se guarda siempre en el dispositivo y, si Google Drive esta disponible en ese momento, tambien se sincroniza en segundo plano con la carpeta FOTO, sin bloquear el guardado si Drive falla.</p>'},
 {titulo:'Importacion masiva de fotografias',soloAdmin:false,html:'<p>Cuando hay muchas fotografias que asociar de golpe, es mas rapido usar la importacion masiva que subirlas una a una desde cada ficha. Hay dos vias, ambas accesibles desde Herramientas:</p><ul><li><strong>Desde una carpeta del ordenador</strong>: no requiere conexion con Google. Elige una carpeta local; cada archivo de imagen debe llamarse exactamente igual que el ID de la persona (por ejemplo «1234.jpg» para la persona con ID 1234).</li><li><strong>Desde Google Drive</strong>: requiere identidad de Google conectada. Busca la carpeta FOTO dentro de la carpeta raiz configurada y asigna cada imagen siguiendo el mismo criterio del nombre exacto.</li></ul><p>En ambos casos la asociacion es <strong>siempre por coincidencia exacta</strong> del nombre de archivo (sin extension) con el ID: nunca se hacen coincidencias aproximadas, para evitar asignar una foto a la persona equivocada. Si una persona ya tenia foto, la nueva la sustituye.</p><p>Al terminar, se muestra un resumen con archivos encontrados, imagenes reconocidas, fotografias asociadas, archivos sin persona coincidente y errores, todo explicado en lenguaje sencillo.</p><div class="manual-warn">No se puede iniciar una nueva importacion mientras otra esta en curso; espera a que termine antes de lanzar la siguiente.</div>'},
 {titulo:'Cronologia de una persona',soloAdmin:false,html:'<p>La Cronologia dibuja la <strong>linea de vida</strong> de una persona: nacimiento, matrimonios, nacimiento de cada hijo y defuncion, ordenados en el tiempo. Si algun evento resulta incoherente (por ejemplo, un hijo nacido antes del nacimiento de la propia persona, o despues de su defuncion), se marca en rojo con una etiqueta de aviso.</p><p>Debajo, la <strong>comparativa familiar</strong> situa en un mismo eje temporal a la persona junto con sus padres, hermanos, conyuges e hijos, en forma de barras horizontales: cada barra va del ano de nacimiento al de defuncion (o al ano actual, si sigue viva). El boton «Ampliar generaciones» anade tambien abuelos y nietos a la comparativa.</p><p>La leyenda inferior explica el codigo de colores: fallecido, vivo, posible edad incoherente con el progenitor mostrado, nacimiento de un hijo (marcador verde) y ano estimado automaticamente (barra con borde discontinuo).</p><p>Se puede acceder a la cronologia de cualquier persona desde el boton «Cronologia» de su ficha, o buscandola directamente desde la propia pantalla.</p><p>El buscador de esta pantalla, la comparativa familiar y la linea de vida respetan el mismo limite de perfil que el resto de la aplicacion: una persona viva fuera de tu alcance no aparece en la busqueda ni se menciona por su nombre en la comparativa (vease «Los tres perfiles»).</p>'},
-{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». La <strong>Persona A es siempre la persona activa</strong> (la que aparece en la cabecera; se llega aqui normalmente pulsando «Parentesco» desde su ficha, y puede cambiarse con el boton «Cambiar persona activa» de esta misma pantalla, con la lupa del cabecero, o abriendo otra ficha). Busca y elige a la <strong>Persona B</strong> con su buscador; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> completo entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>La Persona A, la Persona B y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
+{titulo:'Relacion entre dos personas',soloAdmin:false,html:'<p>Esta herramienta responde a la pregunta «¿que parentesco tienen estas dos personas?». La <strong>Persona A es siempre la persona activa</strong> (la que aparece en la cabecera; se llega aqui normalmente pulsando «Parentesco» desde su ficha, y puede cambiarse con el boton «Cambiar persona activa» de esta misma pantalla, con la lupa del cabecero, o abriendo otra ficha). Busca y elige a la <strong>Persona B</strong> con su buscador; en cuanto ambas estan seleccionadas, la relacion se calcula automaticamente.</p><p>La aplicacion devuelve dos resultados:</p><ul><li>El <strong>parentesco exacto</strong> en lenguaje natural (hermanos, primos hermanos, tio y sobrina, bisabuelo y bisnieto...), calculado a partir del antepasado comun mas cercano.</li><li>El <strong>camino genealogico</strong> entre ambas, paso a paso (padre de, madre de, conyuge de, hermano de...), con cada persona intermedia pulsable para abrir su ficha. Puede haber varios caminos, y se muestran en pestañas: el <strong>mas corto</strong>, uno <strong>de sangre</strong> por cada antepasado comun mas cercano y el mas corto <strong>por matrimonio</strong>. Cada pestaña tiene su propio mensaje: en las de sangre indica el parentesco y el antepasado comun; en las de matrimonio avisa de que no es parentesco de sangre.</li></ul><p>Si no existe ningun antepasado comun conocido entre ambas —porque realmente no hay parentesco de sangre, o porque faltan datos de ascendencia en alguna rama—, la aplicacion lo indica claramente en vez de forzar una respuesta.</p><p>La Persona A, la Persona B y el camino genealogico respetan el limite de perfil habitual: no se puede elegir a una persona viva fuera de tu alcance, y si el camino pasa por alguien fuera de tu alcance, aparece como «Persona no visible» en vez de con su nombre (vease «Los tres perfiles»).</p>'},
 {titulo:'Informes imprimibles y en PDF',soloAdmin:false,html:'<p>La pantalla Informes genera documentos listos para imprimir o guardar como PDF sobre la persona seleccionada (o sobre un apellido concreto, en el ultimo caso). Cada informe tiene dos botones: «Imprimir» (abre el dialogo de impresion del navegador) y «Descargar PDF» (genera directamente un archivo PDF, sin pasar por ese dialogo).</p><ul><li><strong>Informe de una persona</strong>: ficha completa e imprimible: datos, familia, conyuges, hijos y observaciones.</li><li><strong>Arbol descendente</strong>: lista todos los descendientes de la persona, generacion por generacion, en formato de arbol grafico.</li><li><strong>Informe de una rama</strong>: situa a la persona como cabeza de una rama familiar (indicando de quien es hija) y detalla todos sus descendientes.</li><li><strong>Informe de ascendientes</strong> e <strong>informe de descendientes</strong>: listados detallados generacion por generacion, con posibilidad de filtrar por numero de generaciones o por vivos/fallecidos.</li><li><strong>Informe cronologico</strong>: la linea de vida y la comparativa familiar de la cronologia, en formato imprimible.</li><li><strong>Informe por apellido</strong>: todas las personas de la base de datos con un apellido concreto, ordenadas por ano de nacimiento.</li></ul><div class="manual-tip">Si por cualquier motivo la descarga directa de PDF no esta disponible (por ejemplo, sin conexion), sigue funcionando «Imprimir», eligiendo «Guardar como PDF» en el dialogo del navegador.</div><p>El buscador de personas de esta pantalla y todos estos informes -incluidos los PDF- respetan el mismo limite de perfil que el resto de la aplicacion: no se puede elegir ni aparece detallada en un informe una persona viva fuera de tu alcance (vease «Los tres perfiles»). Los tres informes de mantenimiento (datos faltantes, inconsistencias y duplicados), que recorren toda la base sin ese filtro, son exclusivos del administrador.</p>'},
 {titulo:'Posters ascendentes A3 para enmarcar',soloAdmin:false,html:'<p>Ademas de los informes de texto, la aplicacion puede generar dos versiones de un <strong>poster genealogico en abanico</strong> con ocho generaciones de ascendientes, pensado para imprimirse en tamano A3 apaisado y enmarcarse.</p><ul><li><strong>Poster clasico</strong>: plantilla fija sin fotografias, con el color de fondo a elegir entre ocho tonos.</li><li><strong>Poster mejorado</strong>: igual que el anterior, pero con letra mas grande en la persona principal, sus padres, abuelos y bisabuelos, e incorporando su fotografia (sin recortar) cuando exista en esas cuatro generaciones; ademas anade una casilla con foto para el conyuge de la persona principal.</li></ul><p>Los dos se generan desde Informes, tras elegir el color de fondo en la ventana emergente. Al imprimir, selecciona papel A3, orientacion horizontal (apaisada) y tamano real al 100%, sin la opcion «ajustar a la pagina», para que las proporciones del poster salgan correctas.</p><p>Ademas existe el <strong>poster vertical (cuadro familiar)</strong>: cuatro generaciones (la persona, sus padres, abuelos y bisabuelos) con foto en todas las casillas, un arbol de fondo y un marco ornamental. Se imprime en papel A3 en <strong>orientacion vertical</strong> (tamano real al 100%). Las ramas sin datos aparecen como «Por investigar».</p><p>Hay una segunda variante vertical, con <strong>fotos en óvalo y ramas de olivo</strong>, que muestra bajo cada nombre los años de nacimiento y defunción y permite poner las fotos en <strong>sepia</strong> (solo en el poster; las fotos guardadas no cambian) o recortarlas para llenar el óvalo. Se imprime igual: A3 vertical, tamano real al 100%.</p><div class="manual-warn">A diferencia del resto de la aplicacion, los dos posteres horizontales (clasico y mejorado) todavia no filtran persona por persona segun tu perfil: evita generarlos para una rama ascendente que incluya a alguien fuera de tu alcance (por ejemplo, la rama de otro colaborador). Los dos posters verticales si lo hacen: una persona fuera de tu alcance aparece como «Persona no visible», sin foto, y no se sigue subiendo por su rama.</div>'},
 {titulo:'El motor de anos estimados (ANOCALC)',soloAdmin:false,html:'<p>No todas las personas del arbol tienen un ano de nacimiento confirmado. Cuando falta, la aplicacion puede <strong>estimarlo automaticamente</strong> a partir de las diferencias de edad reales que existen entre padres, madres, hijos, hermanos y conyuges dentro de tu propio arbol. Ese ano estimado se marca siempre con el simbolo <strong>≈</strong> delante, para distinguirlo claramente de un ano confirmado, y se guarda en un campo aparte que nunca sustituye ni sobrescribe el ano de nacimiento real.</p><p>Una regla se respeta siempre sin excepcion: un ano estimado nunca sirve de base para calcular otro ano estimado. El motor solo parte de anos reales (de nacimiento o aproximados) y los propaga por el arbol.</p><p>Desde la ficha de cualquier persona con ano estimado, el boton <strong>«Ver calculo (de donde sale este ano)»</strong> abre una vista de depuracion que muestra el camino completo de propagacion, persona por persona, el origen real del que parte todo, y la diferencia de edad aplicada en cada paso.</p><p>En Herramientas → Solo administrador, <strong>«Configurar anos estimados (ANOCALC)»</strong> permite al administrador fijar manualmente, por tipo de parentesco (padre, madre, hermanos, conyuges), la diferencia media de edad que usa el motor. Si se deja en blanco, sigue funcionando el calculo automatico a partir de los datos reales del arbol (o un valor por defecto razonable si no hay datos suficientes).</p>'},
