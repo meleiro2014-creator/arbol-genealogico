@@ -17431,11 +17431,11 @@ function firmaAnPrompt(id){var p=PI[id]||{};return [
 '2. Distingue la convención caligráfica de la época o escuela de los rasgos personales. Si es convención, no la interpretes como carácter.',
 '3. Es la lectura de la grafología tradicional, sin certezas. Prohibido: diagnósticos y términos clínicos, inferencias sobre salud o creencias, y datos biográficos no deducibles de la imagen.',
 '4. Si la imagen no basta (recorte, baja resolución, posible copia), dilo en la nota y baja la confianza.',
-'5. Español sobrio, apto para descendientes. Respeta ESTRICTAMENTE los límites de caracteres, porque el texto debe caber junto a la firma.',
-'6. Responde SOLO con JSON válido, sin texto antes ni después y sin bloques de código:','',
-'{',' "resumen": "máx. 200 caracteres: perfil de personalidad",',' "rasgos": [{"rasgo": "1-3 palabras: rasgo de carácter", "lectura": "máx. 70 caracteres", "origen": "personal|convencion"}],',' "nota": "máx. 120 caracteres: confianza y limitación principal",',' "confianza": "alta|media|baja"','}','','Exactamente 4 rasgos.'].join('\n');}
+'5. LÍMITES DE LONGITUD (obligatorios, el texto debe caber junto a la firma): resumen máx. 180 caracteres, cada rasgo máx. 25, cada lectura máx. 60, nota máx. 100. Cuenta los caracteres de cada campo antes de responder y acorta los que se pasen. Frases telegráficas, sin adornos. Mejor corto que largo.','6. Español sobrio, apto para descendientes.',
+'7. Responde ÚNICAMENTE con el JSON: tu respuesta debe empezar por { y terminar por }. Nada de explicación, saludo, comentarios, bloque de código ni campos extra. Estructura:','',
+'{',' "resumen": "máx. 180 caracteres: perfil de personalidad",',' "rasgos": [{"rasgo": "máx. 25 caracteres", "lectura": "máx. 60 caracteres", "origen": "personal|convencion"}],',' "nota": "máx. 100 caracteres: confianza y limitación principal",',' "confianza": "alta|media|baja"','}','','Exactamente 4 rasgos.'].join('\n');}
 function firmaAnValidar(t){var j,er=[],M=FIRMA_AN_MAX;
-try{j=JSON.parse(String(t).replace(/```(?:json)?/g,'').trim());}catch(e){return{e:'No es un JSON válido: '+e.message};}
+try{var q=String(t),a=q.indexOf('{'),z=q.lastIndexOf('}');j=JSON.parse(a>=0&&z>a?q.slice(a,z+1):q);}catch(e){return{e:'No es un JSON válido: '+e.message};}
 function ch(s,mx,n){if(typeof s!=='string'||!s.trim())er.push(n+' vacío');else if(s.length>mx)er.push(n+': '+s.length+' caracteres (máx. '+mx+')');}
 ch(j.resumen,M.resumen,'resumen');ch(j.nota,M.nota,'nota');
 if(!Array.isArray(j.rasgos)||j.rasgos.length<1||j.rasgos.length>4)er.push('rasgos: debe haber entre 1 y 4');
@@ -17494,7 +17494,7 @@ await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);toast('Ima
 }catch(e){toast('No se pudo copiar la imagen: '+e.message,true);}}
 async function firmaAnGuardar(id){
 var msg=document.getElementById('firmaAnMsg'),btn=document.getElementById('firmaAnBtn'),v=firmaAnValidar(document.getElementById('firmaAnJson').value);
-if(v.e){msg.textContent=v.e;return;}msg.textContent='';
+if(v.e){msg.textContent=v.e+' ';var bf=document.createElement('button');bf.type='button';bf.className='ef-btn ghost';bf.textContent='Copiar mensaje para que la IA lo acorte';bf.onclick=function(){navigator.clipboard.writeText('Tu JSON supera los límites de longitud: '+v.e+'. Acorta esos campos (apunta a 10 caracteres menos del máximo). Responde ÚNICAMENTE con el JSON corregido: empieza por { y termina por }, sin nada más.').then(function(){toast('Mensaje copiado. Pégalo en la IA');});};msg.appendChild(bf);return;}msg.textContent='';
 var it=FIRMAS_IDX&&FIRMAS_IDX[id];
 if(!it||!(driveRootFolderId&&tokenDriveValido())){toast('Conecta con Google Drive para guardar el análisis',true);return;}
 var j=v.j,est=document.getElementById('firmaAnEstado').value==='revisado'?'revisado':'borrador',em=(googleIdentidad&&googleIdentidad.email)||'';
