@@ -17427,13 +17427,13 @@ function firmaAnPrompt(id){var p=PI[id]||{};return [
 '- '+fn(p).trim()+' · '+(p.NACA||'?')+' – '+(p.DEFA||'?')+' · sexo: '+(p.SEXO||'no consta'),
 '- Procedencia de la firma: no consta','',
 'Reglas:',
-'1. Observa antes de interpretar: tamaño, inclinación, espaciado, continuidad, legibilidad, rúbrica.',
+'1. Observa antes de interpretar (tamaño, inclinación, espaciado, continuidad, legibilidad, rúbrica) y deduce un perfil de personalidad en lenguaje corriente.',
 '2. Distingue la convención caligráfica de la época o escuela de los rasgos personales. Si es convención, no la interpretes como carácter.',
-'3. Es la lectura de la grafología tradicional, sin certezas. Prohibido: diagnósticos médicos o psicológicos, inferencias sobre salud o creencias, y datos biográficos no deducibles de la imagen.',
+'3. Es la lectura de la grafología tradicional, sin certezas. Prohibido: diagnósticos y términos clínicos, inferencias sobre salud o creencias, y datos biográficos no deducibles de la imagen.',
 '4. Si la imagen no basta (recorte, baja resolución, posible copia), dilo en la nota y baja la confianza.',
 '5. Español sobrio, apto para descendientes. Respeta ESTRICTAMENTE los límites de caracteres, porque el texto debe caber junto a la firma.',
 '6. Responde SOLO con JSON válido, sin texto antes ni después y sin bloques de código:','',
-'{',' "resumen": "máx. 200 caracteres",',' "rasgos": [{"rasgo": "1-3 palabras", "lectura": "máx. 70 caracteres", "origen": "personal|convencion"}],',' "nota": "máx. 120 caracteres: confianza y limitación principal",',' "confianza": "alta|media|baja"','}','','Exactamente 4 rasgos.'].join('\n');}
+'{',' "resumen": "máx. 200 caracteres: perfil de personalidad",',' "rasgos": [{"rasgo": "1-3 palabras: rasgo de carácter", "lectura": "máx. 70 caracteres", "origen": "personal|convencion"}],',' "nota": "máx. 120 caracteres: confianza y limitación principal",',' "confianza": "alta|media|baja"','}','','Exactamente 4 rasgos.'].join('\n');}
 function firmaAnValidar(t){var j,er=[],M=FIRMA_AN_MAX;
 try{j=JSON.parse(String(t).replace(/```(?:json)?/g,'').trim());}catch(e){return{e:'No es un JSON válido: '+e.message};}
 function ch(s,mx,n){if(typeof s!=='string'||!s.trim())er.push(n+' vacío');else if(s.length>mx)er.push(n+': '+s.length+' caracteres (máx. '+mx+')');}
@@ -17453,7 +17453,7 @@ if(!j||!card||card.classList.contains('firma-dos')||!DOC_EXPLORER_PERSONA||DOC_E
 if(j.estado!=='revisado'&&!firmaPuedeSubir())return;
 var an=document.createElement('div'),l=[];an.className='firma-an';
 function E(tag,cls){var e=document.createElement(tag);e.className=cls;an.appendChild(e);return e;}
-E('div','firma-an-cab').textContent='Lectura grafológica (interpretación tradicional)'+(j.estado==='revisado'?'':' · BORRADOR');
+E('div','firma-an-cab').textContent='Perfil grafológico de personalidad (interpretación tradicional, no científica)'+(j.estado==='revisado'?'':' · BORRADOR');
 l.push([E('p','firma-an-res'),String(j.resumen||'')]);
 var ul=E('ul','firma-an-ras');
 (j.rasgos||[]).forEach(function(r){var li=document.createElement('li'),b=document.createElement('b'),s=document.createElement('span');b.textContent=String(r.rasgo||'')+': ';li.appendChild(b);li.appendChild(s);if(r.origen==='convencion')li.className='conv';ul.appendChild(li);l.push([s,String(r.lectura||'')]);});
