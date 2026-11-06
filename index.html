@@ -110,6 +110,8 @@ main.ges-split .ges-cat{max-width:none}
 .rp-niv{display:flex;gap:6px}
 .rp-cuenta{font-size:12px;color:var(--muted)}
 .rp-ayuda{font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.4}
+.fic-id{display:inline-flex;align-items:center;gap:5px;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:800;letter-spacing:.3px;cursor:pointer;font-family:inherit;vertical-align:middle}
+.fic-id:hover{filter:brightness(1.1)}.fic-id i{font-size:11px;opacity:.85}
 .pz-tablero{--pz-ratio:1;display:grid;gap:3px;margin:8px auto 4px;width:min(100%,calc(66vh*var(--pz-ratio)));aspect-ratio:var(--pz-ratio);user-select:none;-webkit-user-select:none}
 .pz-tablero.pz-hecho{gap:0;border-radius:10px;overflow:hidden;box-shadow:0 0 0 2px var(--green)}
 .pz-pieza{background-image:var(--pz-img);background-repeat:no-repeat;border-radius:4px;cursor:grab;touch-action:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 1px 3px rgba(0,0,0,.25);min-width:0;min-height:0;outline:none;transition:transform .12s,box-shadow .12s}
@@ -1337,8 +1339,14 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.05.11';
+var APP_VERSION = '2026.11.06.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.06.1', fecha:'2026-11-06', cambios:[
+    'Ficha → Editar → Familia: nuevo apartado «Fusionar con otra ficha». Eliges una ficha emisora y una receptora (desde la propia ficha, en cualquiera de los dos sentidos): los hijos y los cónyuges de la emisora pasan a la receptora (con la fecha y el lugar de matrimonio) y la emisora queda marcada para borrar, sin borrarse hasta el borrado masivo del Gestor de datos. Se avisa antes de nada de lo que se va a mover y se impide la fusión si crearía un ciclo en el árbol o la receptora no tiene huecos de cónyuge.',
+    'Fusionar fichas: además de hijos y cónyuges, a la receptora se le copian los datos que no tenga (fechas, lugares, padres, foto, observaciones, etiquetas) sin sobrescribir los suyos; un cónyuge que ya era de la receptora no se duplica.',
+    'Ficha: el ID aparece destacado junto al nombre y, al pulsarlo, se copia al portapapeles.',
+    'Buscar → Rompecabezas: el fondo liso de la foto se sustituye por un fondo psicodélico para distinguir mejor las piezas.'
+  ]},
   { version:'2026.11.05.11', fecha:'2026-11-05', cambios:[
     'Firma de la persona fallecida: nuevo botón «Retocar» (administrador y colaborador). Abre la firma ya guardada en el editor para pasarle la goma y quitar trazos sobrantes sin volver a subir la imagen original; al guardar sustituye la firma anterior.'
   ]},
@@ -9536,6 +9544,7 @@ for(var _cn2=conyVisibles+1;_cn2<=6;_cn2++)h+=bloqueConyugeEdit(_cn2);
 h+='</details>';
 }
 h+=htmlAmigosEdit(id);
+h+=htmlFusionFamiliaEdit(id,p);
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'familia\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionFamilia(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
@@ -9744,7 +9753,7 @@ var nacTexto=textoNacimientoFicha(p);
 var nacEsEstimado=esAnioEstimado(p)&&!fDate(p.NACD,p.NACM,p.NACA);
 var infoEdad=edadOAlFallecer(p);
 var textoEdadSub=infoEdad?(' ('+infoEdad.edad+' años'+(infoEdad.alFallecer?' al fallecer':'')+(infoEdad.estimado?' \u2248':'')+')'):'';
-h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+(p.FOTO?'':' fa-dib')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':avatarDibujoSVG(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub">'+esc(p.ID)+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
+h+='<div class="fh"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0"><div class="fa '+(al?'al':'de')+(p.FOTO?'':' fa-dib')+'"'+(p.FOTO?' style="padding:0"':'')+'>'+(p.FOTO?'<img src="'+escAttr(p.FOTO)+'" style="width:100%;height:100%;object-fit:contain;border-radius:16px">':avatarDibujoSVG(p))+'</div>'+(tokenDriveValido()&&!haySeccionEditando()?'<button type="button" onclick="iniciarEdicionSeccion(\''+safeId(id)+'\',\'foto\')" title="Editar foto" aria-label="Editar foto" style="display:flex;align-items:center;gap:4px;background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--accent);font-size:11px;font-family:\'Lato\',sans-serif"><i class="fa-solid fa-pen" style="font-size:10px" aria-hidden="true"></i> Editar foto</button>':'')+'</div><div class="ft"><h2 style="color:'+(al?'var(--alive)':'var(--dead)')+'">'+esc(fn(p))+'</h2><div class="sub"><button type="button" class="fic-id" title="Pulsa para copiar el ID" aria-label="Copiar el ID '+escAttr(p.ID)+'" onclick="copiarIdFicha(\''+safeId(p.ID)+'\',this)">ID '+esc(p.ID)+' <i class="fa-regular fa-copy" aria-hidden="true"></i></button>'+(p.SEXO?' · '+esc(p.SEXO):'')+(nacCabecera?' · Nac: '+(nacEsEstimado?'<span class="anocalc-tag">'+esc(nacCabecera)+'</span>':esc(nacCabecera)):'')+(fDate(p.DEFD,p.DEFM,p.DEFA)?' · Def: '+esc(fDate(p.DEFD,p.DEFM,p.DEFA)):'')+'</div></div></div>';
 if(p.FOTO&&p.FOTO_RECON)h+='<div style="font-size:12px;font-weight:700;color:#7a3f6a;margin:-8px 0 12px"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Imagen reconstruida: no es una fotografía real de la persona.</div>';else if(p.FOTO)h+='<div style="font-size:10px;color:var(--muted);margin:-8px 0 12px"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Algunas fotos están restauradas o coloreadas digitalmente y pueden no ser fieles al original.</div>';
 if(p.BORRAR==='1')h+='<div style="background:#FBEDE6;border:1px solid #C4653A;color:#A9512C;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin:0 0 12px"><i class="fa-solid fa-flag" aria-hidden="true"></i> Marcada para borrar. Se eliminará cuando el administrador ejecute el borrado masivo en el Gestor de datos.</div>';
 var etqsFicha=etiquetasArray(p);
@@ -10651,6 +10660,183 @@ p.BORRAR=antesCambio.BORRAR||'';
 toast('No se pudo guardar la marca: '+err.message,true);
 }
 }
+/* ===== FUSIONAR DOS FICHAS DESDE LA EDICIÓN DE LA FICHA (sección Familia) =====
+   Procedimiento: la ficha EMISORA entrega sus hijos y sus cónyuges a la ficha RECEPTORA y queda marcada
+   para borrar (campo BORRAR='1', como «Marcar para borrar»: no se borra hasta el borrado masivo del
+   Gestor de datos). Solo se pasan hijos y cónyuges (con su fecha y lugar de matrimonio); el resto de datos
+   de la emisora no se copia. Se valida todo antes de tocar nada y, si falla el guardado, se deshace. */
+async function copiarIdFicha(id,btn){
+var txt=String(id),ok=false;
+try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(txt);ok=true;}}catch(e){}
+if(!ok){try{var ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';document.body.appendChild(ta);ta.focus();ta.select();ok=document.execCommand('copy');document.body.removeChild(ta);}catch(e2){}}
+if(ok){toast('ID '+txt+' copiado al portapapeles');if(btn){var ic=btn.querySelector('i');if(ic){ic.className='fa-solid fa-check';setTimeout(function(){ic.className='fa-regular fa-copy';},1500);}}}
+else toast('No se pudo copiar el ID',true);
+}
+function htmlFusionFamiliaEdit(id,p){
+if(!puedeMarcarBorrar())return '';
+var nh=(HD[id]||[]).length,nc=CAMPOS_CONYUGE.filter(function(c){return p[c]&&PI[p[c]];}).length;
+var h='<details class="ef-conyuges-extra" style="margin-top:12px"><summary><i class="fa-solid fa-code-merge" aria-hidden="true"></i> Fusionar con otra ficha (pasar hijos y cónyuges)</summary>';
+h+='<p style="font-size:12px;color:var(--muted);margin:8px 0">Los hijos y los cónyuges de la ficha <b>emisora</b> pasan a la ficha <b>receptora</b>, y la emisora queda marcada para borrar (no se borra hasta que el administrador ejecute el borrado masivo en el Gestor de datos). A la receptora también se le copian los datos que no tenga (fechas, lugares, padres, foto, observaciones, etiquetas), sin sobrescribir los que ya tiene. Esta ficha tiene '+nh+(nh===1?' hijo':' hijos')+' y '+nc+(nc===1?' cónyuge':' cónyuges')+'.</p>';
+h+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+h+='<button type="button" class="ef-btn ghost" onclick="abrirSelectorFusionFamilia(\''+safeId(id)+'\',\'FUSION_EMISORA\')"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Esta ficha es la emisora: pasar a otra…</button>';
+h+='<button type="button" class="ef-btn ghost" onclick="abrirSelectorFusionFamilia(\''+safeId(id)+'\',\'FUSION_RECEPTORA\')"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i> Esta ficha es la receptora: traer de otra…</button>';
+h+='</div></details>';
+return h;
+}
+function abrirSelectorFusionFamilia(id,campo){
+selectorRelacion={id:id,campo:campo};
+var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
+if(tit)tit.textContent=campo==='FUSION_EMISORA'?'Elegir la ficha RECEPTORA (recibirá los hijos y cónyuges de esta)':'Elegir la ficha EMISORA (entregará sus hijos y cónyuges a esta)';
+modal.style.display='flex';input.value='';filtrarRelacion();setTimeout(function(){input.focus();},0);
+}
+function elegirFusionFamilia(otroId){
+var sel=selectorRelacion;if(!sel)return;
+var idActual=String(sel.id),esEmisora=(sel.campo==='FUSION_EMISORA');
+cerrarSelectorRelacion();
+if(esEmisora)pasarFamiliaAFicha(idActual,String(otroId),idActual);
+else pasarFamiliaAFicha(String(otroId),idActual,idActual);
+}
+function fusionEsDescendiente(idAnc,idDesc){
+var vis={},cola=[idAnc],n=0;
+while(cola.length&&n<200000){
+var k=cola.pop();n++;
+var hs=HD[k]||[];
+for(var i=0;i<hs.length;i++){var h=String(hs[i]);if(h===String(idDesc))return true;if(!vis[h]){vis[h]=1;cola.push(h);}}
+}
+return false;
+}
+async function pasarFamiliaAFicha(idEm,idRe,idFichaAbierta){
+if(!puedeMarcarBorrar()){toast('No tienes permiso para fusionar fichas',true);return;}
+if(!(await exigirIdentidadGoogle()))return;
+var pE=PI[idEm],pR=PI[idRe];
+if(!pE||!pR){toast('Ficha no encontrada',true);return;}
+if(String(idEm)===String(idRe)){toast('La emisora y la receptora son la misma ficha',true);return;}
+var nomE=fn(pE).replace(/\s+/g,' ').trim()||'(sin nombre)',nomR=fn(pR).replace(/\s+/g,' ').trim()||'(sin nombre)';
+/* --- hijos --- */
+var hijos=[];
+D.forEach(function(x){
+if(!x||String(x.ID)===String(idEm))return;
+var cs=[];if(String(x.PADRE)===String(idEm))cs.push('PADRE');if(String(x.MADRE)===String(idEm))cs.push('MADRE');
+if(cs.length)hijos.push({p:x,campos:cs});
+});
+if(hijos.some(function(h){return String(h.p.ID)===String(idRe);})){toast('La receptora es hija de la emisora: no se pueden fusionar así (quedaría como su propia madre/padre)',true);return;}
+var ciclo=hijos.filter(function(h){return fusionEsDescendiente(h.p.ID,idRe);});
+if(ciclo.length){toast('La receptora desciende de '+fn(ciclo[0].p).trim()+', hijo/a de la emisora: se crearía un ciclo en el árbol',true);return;}
+var avisoSexo=0;
+hijos.forEach(function(h){h.campos.forEach(function(c){if((c==='PADRE'&&pR.SEXO==='Mujer')||(c==='MADRE'&&pR.SEXO==='Hombre'))avisoSexo++;});});
+/* --- cónyuges --- */
+var conys=[],hayEntreAmbas=false;
+CAMPOS_CONYUGE.forEach(function(c){
+var sid=pE[c];if(!sid||!PI[sid])return;
+if(String(sid)===String(idRe)){hayEntreAmbas=true;return;}
+if(conys.some(function(x){return String(x.id)===String(sid);}))return;
+conys.push({id:String(sid),n:c.slice(1),ya:CAMPOS_CONYUGE.some(function(rc){return String(pR[rc])===String(sid);})});
+});
+/* --- datos que a la receptora le faltan y la emisora sí tiene (nunca se sobrescribe nada) --- */
+function fusVacio(v){return v===''||v===null||v===undefined;}
+function fusVacioF(v){return fusVacio(v)||v===false;}
+var rellenar=[];
+[['Nombre',['NOMBRE']],['Primer apellido',['APELLIDO1']],['Segundo apellido',['APELLIDO2']],['Sexo',['SEXO']],
+['Fecha de nacimiento',['NACD','NACM','NACA']],['Lugar de nacimiento',['LUGARNAC']],
+['Fecha de defunción',['DEFD','DEFM','DEFA','FALLECIDO']],['Lugar de defunción',['LUGARDEF']],['Padre',['PADRE']],['Madre',['MADRE']]].forEach(function(g){
+var cs=g[1];
+if(!cs.every(function(c){return fusVacioF(pR[c]);}))return;
+if(!cs.some(function(c){return !fusVacioF(pE[c]);}))return;
+if((g[0]==='Padre'||g[0]==='Madre')){var v=pE[cs[0]];if(String(v)===String(idRe)||!PI[v]||fusionEsDescendiente(idRe,v))return;}
+rellenar.push({etq:g[0],campos:cs});
+});
+if(fusVacio(pR.FOTO)&&!fusVacio(pE.FOTO))rellenar.push({etq:'Foto',campos:['FOTO','FOTO_FECHA','FOTO_RECON']});
+var etqNuevas=etiquetasArray(pE).filter(function(t){return etiquetasArray(pR).indexOf(t)<0;});
+if(etqNuevas.length)rellenar.push({etq:'Etiquetas',campos:['ETIQUETAS']});
+var obsE=(pE.OBSERVACIONES||'').trim(),obsR=(pR.OBSERVACIONES||'').trim();
+if(obsE&&obsR.indexOf(obsE)<0)rellenar.push({etq:'Observaciones',campos:['OBSERVACIONES']});
+var libres=CAMPOS_CONYUGE.filter(function(c){return !pR[c]||String(pR[c])===String(idEm);}).length;
+var necesarios=conys.filter(function(x){return !x.ya;}).length;
+if(necesarios>libres){toast('La receptora no tiene huecos de cónyuge suficientes: necesita '+necesarios+' y solo quedan '+libres,true);return;}
+if(!hijos.length&&!conys.length&&!hayEntreAmbas&&!rellenar.length){
+if(!(await confirmarApp('La ficha emisora no tiene hijos ni cónyuges que pasar.\nEmisora: '+nomE+' (ID '+idEm+')\nReceptora: '+nomR+' (ID '+idRe+')\nSolo quedará marcada para borrar. ¿Continuar?',{titulo:'Fusionar fichas',textoAceptar:'Marcar para borrar'})))return;
+}else{
+var lh=hijos.slice(0,8).map(function(h){return '  · '+(fn(h.p).replace(/\s+/g,' ').trim()||'(sin nombre)')+' (ID '+h.p.ID+')';}).join('\n')+(hijos.length>8?'\n  · … y '+(hijos.length-8)+' más':'');
+var lc=conys.map(function(x){return '  · '+(fn(PI[x.id]).replace(/\s+/g,' ').trim()||'(sin nombre)')+' (ID '+x.id+')'+(x.ya?' — ya es cónyuge de la receptora':'');}).join('\n');
+var msg='Emisora (se marcará para borrar): '+nomE+' (ID '+idEm+')\nReceptora (recibe): '+nomR+' (ID '+idRe+')\n\n'+
+'Hijos que pasan a la receptora: '+hijos.length+(lh?'\n'+lh:'')+'\n\nCónyuges que pasan a la receptora: '+conys.length+(lc?'\n'+lc:'')+
+(hayEntreAmbas?'\n\nLa emisora y la receptora figuran como cónyuges entre sí: ese vínculo se quitará.':'')+
+'\n\nDatos de la emisora que se copian porque a la receptora le faltan: '+(rellenar.length?rellenar.map(function(r){return r.etq;}).join(', '):'ninguno')+'.'+
+(avisoSexo?'\n\nATENCIÓN: '+avisoSexo+' hijo(s) quedarían con un padre/madre cuyo sexo no coincide con el de la receptora.':'')+
+'\n\nLo que la receptora ya tiene no se sobrescribe. La emisora no se borra: queda marcada y se elimina desde el Gestor de datos.';
+if(!(await confirmarApp(msg,{titulo:'Fusionar fichas',textoAceptar:'Fusionar'})))return;
+}
+if(!(await exigirIdentidadGoogle()))return;
+/* --- aplicar (guardando copia de lo que se toca para poder deshacer) --- */
+var antes={},tocadas={};
+function tocar(x){var k=String(x.ID);if(!antes[k]){antes[k]=clonarPersona(x);tocadas[k]=x;}}
+mostrarProgresoAccion('Fusionando las fichas...');
+try{
+await cederPantalla();
+var camposPrevios=capturarCamposEdicionSiProcede(idFichaAbierta);
+if(camposPrevios)['ef-ml1','ef-mf1','ef-ml2','ef-mf2'].forEach(function(k){delete camposPrevios[k];});
+tocar(pE);tocar(pR);
+hijos.forEach(function(h){tocar(h.p);h.campos.forEach(function(c){h.p[c]=String(idRe);});});
+/* vínculo entre las dos: se quita de ambas */
+CAMPOS_CONYUGE.forEach(function(c,i){
+if(String(pE[c])===String(idRe)){pE[c]='';pE['ML'+(i+1)]='';pE['MF'+(i+1)]='';}
+if(String(pR[c])===String(idEm)){pR[c]='';pR['ML'+(i+1)]='';pR['MF'+(i+1)]='';}
+});
+conys.forEach(function(x){
+var s=PI[x.id];tocar(s);
+var ml=pE['ML'+x.n]||'',mf=pE['MF'+x.n]||'';
+/* hueco de la receptora: el que ya tiene a este cónyuge o el primero libre */
+var slotR=null;
+CAMPOS_CONYUGE.some(function(c){if(String(pR[c])===x.id){slotR=c;return true;}return false;});
+if(!slotR)CAMPOS_CONYUGE.some(function(c){if(!pR[c]){slotR=c;return true;}return false;});
+pR[slotR]=x.id;
+var nr=slotR.slice(1);
+if(!pR['ML'+nr]&&ml)pR['ML'+nr]=ml;
+if(!pR['MF'+nr]&&mf)pR['MF'+nr]=mf;
+/* en el cónyuge: la referencia a la emisora pasa a la receptora (sin duplicar si ya la tenía) */
+var yaTieneRe=CAMPOS_CONYUGE.some(function(c){return String(s[c])===String(idRe);});
+var hecho=false;
+CAMPOS_CONYUGE.forEach(function(c){
+if(String(s[c])!==String(idEm))return;
+if(!hecho&&!yaTieneRe){s[c]=String(idRe);s['ML'+c.slice(1)]=pR['ML'+nr]||'';s['MF'+c.slice(1)]=pR['MF'+nr]||'';hecho=true;}
+else{s[c]='';s['ML'+c.slice(1)]='';s['MF'+c.slice(1)]='';}
+});
+if(!hecho&&!yaTieneRe){
+var libre=null;CAMPOS_CONYUGE.some(function(c){if(!s[c]){libre=c;return true;}return false;});
+if(libre){s[libre]=String(idRe);s['ML'+libre.slice(1)]=pR['ML'+nr]||'';s['MF'+libre.slice(1)]=pR['MF'+nr]||'';}
+}
+});
+/* datos que faltaban en la receptora */
+rellenar.forEach(function(r){
+if(r.etq==='Etiquetas'){var u={};etiquetasArray(pR).concat(etiquetasArray(pE)).forEach(function(t){u[t]=true;});pR.ETIQUETAS=Object.keys(u).join('|');}
+else if(r.etq==='Observaciones'){pR.OBSERVACIONES=(obsR?obsR+'\n---\n':'')+obsE;}
+else if(r.etq==='Foto'){pR.FOTO=pE.FOTO;pR.FOTO_FECHA=pE.FOTO_FECHA||new Date().toISOString();if(pE.FOTO_RECON)pR.FOTO_RECON=pE.FOTO_RECON;try{subirFotoPersonaADrive(pR.ID,pR.FOTO);}catch(eF){}}
+else r.campos.forEach(function(c){if(!fusVacio(pE[c]))pR[c]=pE[c];});
+});
+/* la emisora se queda sin cónyuges y se marca para borrar */
+CAMPOS_CONYUGE.forEach(function(c,i){pE[c]='';pE['ML'+(i+1)]='';pE['MF'+(i+1)]='';});
+pE.BORRAR='1';
+var hoy=new Date(),f=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+pE.FechaEdicion=f;pR.FechaEdicion=f;
+bIdx(D);
+actualizarProgresoAccion('Guardando los cambios...');
+await sPersonas(Object.keys(tocadas));
+Object.keys(tocadas).forEach(function(k){FICHA_ULTIMO_GUARDADO[k]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};});
+rStats();
+if(PI[idFichaAbierta]){rFic(idFichaAbierta);restaurarCamposEdicion(camposPrevios);}
+toast('Hijos y cónyuges pasados a '+nomR+'. «'+nomE+'» queda marcada para borrar.');
+try{await registrarCambiosDesdeSnapshots(Object.keys(antes).map(function(k){return antes[k];}),Object.keys(tocadas).map(function(k){return tocadas[k];}),'fusionar');}catch(errReg){}
+}catch(err){
+/* deshacer en memoria lo que se había tocado */
+Object.keys(tocadas).forEach(function(k){
+var vivo=tocadas[k],orig=antes[k];
+Object.keys(vivo).forEach(function(c){delete vivo[c];});
+Object.keys(orig).forEach(function(c){vivo[c]=orig[c];});
+});
+try{bIdx(D);}catch(e2){}
+toast('No se pudo fusionar: '+err.message,true);
+}finally{ocultarProgresoAccion();}
+}
 /* --- Borrado masivo de las fichas marcadas (Gestor de datos) --- */
 function gesBorrarConstruir(ids){
 /* ids: objeto {ID:true}. Devuelve el nuevo array de personas y cuántos vínculos se desvincularon. */
@@ -11163,6 +11349,7 @@ lista.innerHTML=html;
 }
 async function elegirRelacion(otroId,btn){
 if(selectorRelacion&&selectorRelacion.campo==='FOTO_ORIGEN'){elegirFotoOrigen(otroId);return;}
+if(selectorRelacion&&(selectorRelacion.campo==='FUSION_EMISORA'||selectorRelacion.campo==='FUSION_RECEPTORA')){elegirFusionFamilia(otroId);return;}
 if(!iniciarOperacionFicha(btn,''))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
 var antesRelacion=mapaPersonas(D);
@@ -18594,6 +18781,86 @@ do{for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];
 while(a.every(function(v,k){return v===k;}));
 return a;
 }
+/* ===== Fondo psicodélico para el rompecabezas =====
+   Las fotos de fondo liso hacen que las piezas sean casi idénticas. Antes de cortar la foto
+   se detecta su fondo (relleno desde los bordes, tolerando degradados suaves) y se sustituye
+   por un patrón psicodélico de remolinos de color, que varía por toda la imagen y así cada
+   pieza es distinta. La persona queda intacta encima. Si no se puede aislar un fondo claro
+   (o el navegador no deja leer los píxeles), se tiñe toda la foto con el patrón por mezcla. */
+function pzlPsiPixeles(W,H){
+var d=new Uint8ClampedArray(W*H*4),x,y,i=0,asp=W/H;
+for(y=0;y<H;y++){for(x=0;x<W;x++){
+var u=((x/W)-.5)*2*(asp>1?asp:1),v=((y/H)-.5)*2*(asp<1?1/asp:1);
+var r=Math.sqrt(u*u+v*v),a=Math.atan2(v,u);
+var t=a*3/(2*Math.PI)+r*2.4+.55*Math.sin(u*4.2+v*2.6)+.55*Math.sin(v*5.1-u*1.7)+.35*Math.sin(r*11+a*2);
+var h=((t%1)+1)%1*6,l=.55+.2*Math.sin(r*14+a*4),s=1;
+var c=(1-Math.abs(2*l-1))*s,xx=c*(1-Math.abs(h%2-1)),m=l-c/2,R,G,B;
+if(h<1){R=c;G=xx;B=0;}else if(h<2){R=xx;G=c;B=0;}else if(h<3){R=0;G=c;B=xx;}else if(h<4){R=0;G=xx;B=c;}else if(h<5){R=xx;G=0;B=c;}else{R=c;G=0;B=xx;}
+d[i++]=Math.round((R+m)*255);d[i++]=Math.round((G+m)*255);d[i++]=Math.round((B+m)*255);d[i++]=255;
+}}
+return d;
+}
+/* Devuelve un Float32Array (1=fondo, 0=persona) o null si el fondo no es claramente aislable. */
+function pzlMascaraFondo(px,W,H){
+var N=W*H,vis=new Uint8Array(N),cola=new Int32Array(N),ini=0,fin=0,i,x,y;
+function lum(k){return px[k*4]+px[k*4+1]+px[k*4+2];}
+var bs=[[],[],[]];
+for(x=0;x<W;x++){[x,(H-1)*W+x].forEach(function(k){for(var c=0;c<3;c++)bs[c].push(px[k*4+c]);});}
+for(y=0;y<H;y++){[y*W,y*W+W-1].forEach(function(k){for(var c=0;c<3;c++)bs[c].push(px[k*4+c]);});}
+var ref=bs.map(function(a){a.sort(function(p,q){return p-q;});return a[a.length>>1];});
+function dRef(k){return Math.abs(px[k*4]-ref[0])+Math.abs(px[k*4+1]-ref[1])+Math.abs(px[k*4+2]-ref[2]);}
+function dVec(k,j){return Math.abs(px[k*4]-px[j*4])+Math.abs(px[k*4+1]-px[j*4+1])+Math.abs(px[k*4+2]-px[j*4+2]);}
+var TOL_REF=150,TOL_PASO=26;
+function semilla(k){if(!vis[k]&&dRef(k)<=TOL_REF){vis[k]=1;cola[fin++]=k;}}
+for(x=0;x<W;x++){semilla(x);semilla((H-1)*W+x);}
+for(y=0;y<H;y++){semilla(y*W);semilla(y*W+W-1);}
+while(ini<fin){
+var k=cola[ini++],cx=k%W,cy=(k/W)|0,vs=[];
+if(cx>0)vs.push(k-1);if(cx<W-1)vs.push(k+1);if(cy>0)vs.push(k-W);if(cy<H-1)vs.push(k+W);
+for(i=0;i<vs.length;i++){var j=vs[i];if(!vis[j]&&dRef(j)<=TOL_REF&&dVec(k,j)<=TOL_PASO){vis[j]=1;cola[fin++]=j;}}
+}
+var frac=fin/N;
+if(frac<.12||frac>.88)return null;
+var m=new Float32Array(N);
+for(i=0;i<N;i++)m[i]=vis[i]?1:0;
+/* el fondo avanza 1 px sobre el borde para evitar el halo del color original, y se suaviza */
+var m2=new Float32Array(N);
+for(y=0;y<H;y++)for(x=0;x<W;x++){var k2=y*W+x,mx=m[k2];
+if(x>0&&m[k2-1]>mx)mx=m[k2-1];if(x<W-1&&m[k2+1]>mx)mx=m[k2+1];if(y>0&&m[k2-W]>mx)mx=m[k2-W];if(y<H-1&&m[k2+W]>mx)mx=m[k2+W];m2[k2]=mx;}
+var p;for(p=0;p<2;p++){
+var m3=new Float32Array(N);
+for(y=0;y<H;y++)for(x=0;x<W;x++){var s=0,c=0,dx,dy;
+for(dy=-1;dy<=1;dy++)for(dx=-1;dx<=1;dx++){var xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H){s+=m2[yy*W+xx];c++;}}
+m3[y*W+x]=s/c;}
+m2=m3;}
+return m2;
+}
+function pzlPsicodelica(img){
+try{
+var w0=img.naturalWidth||img.width||1,h0=img.naturalHeight||img.height||1;
+var esc=Math.min(1,640/Math.max(w0,h0));
+var W=Math.max(2,Math.round(w0*esc)),H=Math.max(2,Math.round(h0*esc));
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+var cx=cv.getContext('2d');
+cx.drawImage(img,0,0,W,H);
+var id=cx.getImageData(0,0,W,H),px=id.data;
+var psi=pzlPsiPixeles(W,H);
+var m=pzlMascaraFondo(px,W,H),i,N=W*H;
+if(m){
+for(i=0;i<N;i++){var a=m[i],q=i*4;if(a>0){var b=1-a;
+px[q]=px[q]*b+psi[q]*a;px[q+1]=px[q+1]*b+psi[q+1]*a;px[q+2]=px[q+2]*b+psi[q+2]*a;px[q+3]=255;}}
+}else{
+/* sin fondo claro: se tiñe toda la foto con el patrón (mezcla suave conservando el detalle) */
+for(i=0;i<N;i++){var q2=i*4;
+for(var c=0;c<3;c++){var f=px[q2+c]/255,g=psi[q2+c]/255;
+var sl=g<=.5?(2*f*g):(1-2*(1-f)*(1-g));
+px[q2+c]=Math.round(255*(.45*f+.55*(.5*sl+.5*g)));}
+px[q2+3]=255;}
+}
+cx.putImageData(id,0,0);
+return cv.toDataURL('image/jpeg',.9);
+}catch(e){return null;}
+}
 function pzlCandidatas(excluirVistos){
 var anio=new Date().getFullYear();
 return D.filter(function(p){
@@ -18620,7 +18887,8 @@ img.onload=function(){
 if(tk!==PZL.token)return;
 var w=img.naturalWidth||img.width||1,h=img.naturalHeight||img.height||1;
 PZL.ratio=Math.max(.3,Math.min(3,w/h));
-PZL.cssUrl='url("'+String(p.FOTO).replace(/"/g,'%22')+'")';
+var fotoPsi=pzlPsicodelica(img);
+PZL.cssUrl='url("'+String(fotoPsi||p.FOTO).replace(/"/g,'%22')+'")';
 PZL.cargando=false;PZL.intentos=0;
 pzlPreparar();
 };
