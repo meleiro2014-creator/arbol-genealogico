@@ -867,13 +867,13 @@ body{background:#fff}
 .ges-items .inc-row{margin:0;padding:0;border-bottom:0}
 .ges-mas{text-align:center;padding-top:10px}
 .ges-masiva{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
-.ges-lugar,.ges-ape,.ges-err{border:1.5px dashed var(--border);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.ges-lugar,.ges-ape,.ges-err,.ges-apc{border:1.5px dashed var(--border);border-radius:10px;padding:10px 12px;background:var(--bg)}
 .ges-nivel{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:6px}
 .ges-var{display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:3px 9px;font-size:12px;margin:2px 0}
 .ges-var em{color:var(--muted);font-style:normal;font-size:11px}
 .ges-var.canonica{border-color:var(--green);background:rgba(90,138,60,.07);font-weight:700}
 .ges-var-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.ges-lugar.sel,.ges-ape.sel,.ges-err.sel{border-style:solid;border-color:var(--green);background:rgba(90,138,60,.07)}
+.ges-lugar.sel,.ges-ape.sel,.ges-err.sel,.ges-apc.sel{border-style:solid;border-color:var(--green);background:rgba(90,138,60,.07)}
 .ges-opt{display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:8px;cursor:pointer;margin:1px 0}
 .ges-opt:hover{background:rgba(0,0,0,.04)}
 .ges-opt-propio{cursor:default}
@@ -1339,8 +1339,14 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.08.1';
+var APP_VERSION = '2026.11.08.3';
 var APP_CHANGELOG = [
+  { version:'2026.11.08.3', fecha:'2026-11-08', cambios:[
+    'Ficha, pestaña Datos: nuevo visto «Ficha revisada» al final de Datos personales. El administrador y el colaborador lo marcan o lo quitan con un clic (queda guardado y registrado como cualquier otro cambio); el resto de perfiles solo ven la marca cuando la ficha está revisada.'
+  ]},
+  { version:'2026.11.08.2', fecha:'2026-11-08', cambios:[
+    'Gestor de datos, apellidos: dos categorías nuevas para apellidos mal partidos entre Primer y Segundo apellido. «Primer apellido acaba en «de», «de la»…» detecta partículas sueltas al final del primer apellido (Pérez de / Torre) y propone pasarlas al segundo (Pérez / de la Torre). «Dos apellidos juntos en el primero» detecta primeros apellidos con dos apellidos seguidos (García López) cuando no son un compuesto real: no hay segundo apellido y el del padre no es compuesto, o el padre o la madre tienen justo una de las dos partes; no avisa si el padre tiene el mismo compuesto ni si otras fichas lo usan igual. En cada caso se marca una opción (separar, completar con el apellido de la madre, «Otra forma» o «No es un error») y se aplican todas de una vez. Para dar acceso a colaboradores hay que activar su visado.'
+  ]},
   { version:'2026.11.08.1', fecha:'2026-11-08', cambios:[
     'Buscar → Rompecabezas: el fondo de la foto ahora es un cielo amarillento con nubes bien definidas (más fácil distinguir las piezas) y el contorno de la persona se difumina con el cielo, sin la línea blanca del recorte.'
   ]},
@@ -3503,7 +3509,7 @@ var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicio
 var CAMBIOS_LABELS={
 ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',M3:'Cónyuge 3',M4:'Cónyuge 4',M5:'Cónyuge 5',M6:'Cónyuge 6',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas',BORRAR:'Marcada para borrar'
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas',BORRAR:'Marcada para borrar',REVISADA:'Ficha revisada'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -3573,7 +3579,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{await refrescarCambiosDesdeDrive();var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO','BORRAR'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO','BORRAR','REVISADA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -8949,8 +8955,8 @@ function gesScrollAEl(el){if(!el)return;var sc=gesScroller();if(sc)sc.scrollTop=
 function __gesAncla(){
 var panel=document.getElementById('gesPanel');if(!panel||window.innerWidth<1100)return null;
 var sc=gesScroller(),topRef=sc?sc.getBoundingClientRect().top:60,el=null;
-try{var ev=window.event;if(ev&&ev.target&&ev.target.closest){el=ev.target.closest('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.inc-row');if(el&&!panel.contains(el))el=null;}}catch(e){el=null;}
-if(!el){var els=panel.querySelectorAll('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.ges-cat');
+try{var ev=window.event;if(ev&&ev.target&&ev.target.closest){el=ev.target.closest('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.ges-apc,.inc-row');if(el&&!panel.contains(el))el=null;}}catch(e){el=null;}
+if(!el){var els=panel.querySelectorAll('.ges-items>li,.ges-lugar,.ges-ape,.ges-err,.ges-apc,.ges-cat');
 for(var i=0;i<els.length;i++){var r=els[i].getBoundingClientRect();if(r.top>=topRef-2&&r.top<window.innerHeight){el=els[i];break;}}}
 return el?{el:el,top:el.getBoundingClientRect().top}:null;
 }
@@ -9777,6 +9783,7 @@ var secDatosPersonales=seccionHeaderHtml('Datos personales',id,'datos',!haySecci
 if(!editSec.datos){
 if(esAnioEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-calculator"></i> Año estimado</span><span class="fv anocalc-tag">\u2248 '+esc(p.ANOCALC)+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionANOCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del año</button></div></div>';
 if(esLugarEstimado(p))secDatosPersonales+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-map-location-dot"></i> Lugar estimado</span><span class="fv fic-lugarcalc-tag">\u2248 '+esc(p.LUGARCALC)+'</span></div><div class="fr" style="margin-top:2px"><span class="fl">Confianza</span><span class="fv" style="font-weight:400">'+esc(etiquetaConfianzaLugar(p.LUGARCALC_CONFIANZA))+'</span></div><div style="margin-top:6px"><button type="button" class="ef-btn ghost" style="padding:5px 12px;font-size:11px" onclick="abrirDepuracionLUGARCALC(\''+safeId(id)+'\')"><i class="fa-solid fa-magnifying-glass-chart"></i> Ver cálculo del lugar</button></div></div>';
+secDatosPersonales+=htmlRevisadaFicha(id,p);
 }
 var secFoto=editSec.foto?(seccionHeaderHtml('Foto',id,'foto',false)+htmlFotoEditForm(id,p)):'';
 var etqActuales=etiquetasArray(p);
@@ -10643,6 +10650,39 @@ if(!puedeMarcarBorrar())return '';
 var p=PI[id];if(!p)return '';
 var m=p.BORRAR==='1';
 return '<button class="ef-btn ghost" title="'+(m?'Quita la señal de borrado de esta ficha':'Deja la ficha señalada; se borrará cuando el administrador ejecute el borrado masivo en el Gestor de datos')+'" onclick="alternarMarcaBorrar(\''+safeId(id)+'\')"><i class="fa-solid '+(m?'fa-rotate-left':'fa-flag')+'"></i> '+(m?'Quitar marca de borrado':'Marcar para borrar')+'</button>';
+}
+/* ===== «Ficha revisada» (visto en la pestaña Datos) =====
+   Campo REVISADA ('1' = revisada, '' = no). Lo marcan o quitan el administrador y el colaborador con un clic en la
+   pestaña Datos de la ficha; el resto de perfiles solo ve la marca si la ficha está revisada. Se guarda y se registra
+   como cualquier otro cambio de la ficha (mismo mecanismo que «Marcar para borrar»). */
+function puedeMarcarRevisada(){return esAdministrador()||esColaborador();}
+function htmlRevisadaFicha(id,p){
+var rev=p.REVISADA==='1',puede=puedeMarcarRevisada();
+if(!puede&&!rev)return '';
+var caja=puede
+?'<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;'+(rev?'color:var(--green)':'color:var(--muted)')+'" title="'+(rev?'Quitar el visto de revisada':'Marcar esta ficha como revisada')+'"><input type="checkbox" '+(rev?'checked ':'')+'onchange="alternarRevisada(\''+safeId(id)+'\',this)" style="width:18px;height:18px;accent-color:var(--green);cursor:pointer"> '+(rev?'Revisada':'Sin revisar')+'</label>'
+:'<span style="font-weight:700;color:var(--green)"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Revisada</span>';
+return '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)"><div class="fr"><span class="fl"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i> Ficha</span><span class="fv">'+caja+'</span></div></div>';
+}
+async function alternarRevisada(id,chk){
+if(!puedeMarcarRevisada()){toast('No tienes permiso para marcar fichas como revisadas',true);if(chk)chk.checked=!chk.checked;return;}
+if(!(await exigirIdentidadGoogle())){if(chk)chk.checked=!chk.checked;return;}
+var p=PI[id];
+if(!p){toast('Ficha no encontrada',true);return;}
+var marcar=p.REVISADA!=='1';
+var antesCambio=clonarPersona(p);
+p.REVISADA=marcar?'1':'';
+try{
+await sPersonas([id],{marcarANOCALCSucio:false});
+FICHA_ULTIMO_GUARDADO[id]={estado:esAdministrador()?'guardado':'pendiente',ts:Date.now()};
+rFic(id);
+toast(marcar?'Ficha marcada como revisada':'Visto de revisada quitado');
+try{await registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');}catch(errReg){}
+}catch(err){
+p.REVISADA=antesCambio.REVISADA||'';
+if(chk)chk.checked=p.REVISADA==='1';
+toast('No se pudo guardar la marca: '+err.message,true);
+}
 }
 async function alternarMarcaBorrar(id){
 if(!puedeMarcarBorrar()){toast('No tienes permiso para marcar fichas para borrar',true);return;}
@@ -12256,7 +12296,7 @@ APE_PROG_ANIO_MIN:1900,/* apellido muy distinto al del padre/madre: solo persona
 APE_PROG_DIST_MIN:3,   /* ...con al menos tantas ediciones de diferencia (Levenshtein, sin tildes ni espacios)... */
 APE_PROG_RATIO:0.4     /* ...y que esa diferencia sea al menos esta fraccion de la longitud del apellido mas largo */
 };
-var GES_UI={fuerza:{},pag:{},desde:{},tam:{},lugSel:{},lugTxt:{},apeSel:{},apeTxt:{},errSel:{},errTxt:{}};
+var GES_UI={fuerza:{},pag:{},desde:{},tam:{},lugSel:{},lugTxt:{},apeSel:{},apeTxt:{},errSel:{},errTxt:{},apc:{},apcTxt:{}};
 var GES_LUG_RADIO_N=0;
 var GES_CACHE=null;
 /* ===== Snapshot de años calculados (ANOCALC) para el Gestor de datos =====
@@ -12901,6 +12941,26 @@ items:lista.map(function(pr){return{verId:pr.verId,verId2:pr.verId2,ver2:pr.ver2
 accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:null
 });
 });
+/* §4.0c Apellidos mal partidos entre Primer y Segundo apellido (ver apcDetectar) */
+try{
+var apc=apcDetectar();
+if(apc.part.length)cats.push({
+id:'ape_particula_final',fuente:'ape_part',grupo:'apellidos',
+titulo:'Primer apellido acaba en «de», «de la»…',
+icono:'fa-right-left',severidad:'revision',
+descripcion:apc.part.length+' persona(s) con una partícula suelta («de», «del», «de la», «de los»…) al final del Primer apellido. Esa partícula pertenece al segundo apellido («Pérez de» + «Torre» debería ser «Pérez» + «de la Torre»). En cada caso se propone pasarla al segundo apellido; si no hay segundo apellido se ofrece completarlo con el de la madre o quitar la partícula. Marca una opción por caso (o escribe otra forma, o «No es un error») y pulsa «Aplicar selección»: se aplican todas de una vez.',
+items:apc.part.map(function(c){return{tipo:'apc',caso:c,verId:c.pid};}),
+accionMasiva:null
+});
+if(apc.junt.length)cats.push({
+id:'ape_juntos_en_primero',fuente:'ape_junt',grupo:'apellidos',
+titulo:'Dos apellidos juntos en el primero',
+icono:'fa-scissors',severidad:'revision',
+descripcion:apc.junt.length+' persona(s) con dos apellidos seguidos en el Primer apellido («García López») que no parecen un apellido compuesto: no tienen segundo apellido y el primero de su padre no es compuesto (o no hay padre), o el padre o la madre tienen justo una de las dos partes. No se avisa si el padre tiene exactamente el mismo apellido compuesto, si hay 3 o más fichas con ese compuesto y segundo apellido, si lleva guion, ni de personas portuguesas o anglosajonas. Los casos con evidencia alta (el padre o la madre confirman una de las partes) llevan opción recomendada. Marca una opción por caso (o «Otra forma», o «No es un error», que se recuerda en este dispositivo) y pulsa «Aplicar selección».',
+items:apc.junt.map(function(c){return{tipo:'apc',caso:c,verId:c.pid};}),
+accionMasiva:null
+});
+}catch(eApc){}
 /* §4.1 Inconsistencias: agrupadas por `etiqueta`, sin tocar detectarInconsistencias().
 El Gestor de datos pasa getYearDesdeSnapshot para que las comprobaciones de edad usen
 exclusivamente el año calculado tal y como quedó guardado en Drive al pulsar "Recalcular",
@@ -13929,19 +13989,292 @@ rGesLigero();
 }catch(err){toast('No se pudo guardar: '+err.message,true);}
 finally{ocultarProgresoAccion();}
 }
+/* ===== Apellidos mal partidos entre Primer y Segundo apellido =====
+Dos categorías del Gestor (grupo «Apellidos»), con la misma mecánica que «Posible errata en apellido heredado»:
+en cada caso se marca una opción (o se escribe otra forma) y un único botón aplica todas las elegidas a la vez.
+ · ape_particula_final: el Primer apellido termina en una partícula suelta («Pérez de», «García de la»). Esa partícula
+   pertenece al segundo apellido: se propone pasarla («Pérez» + «de la Torre»).
+ · ape_juntos_en_primero: el Primer apellido contiene dos apellidos seguidos («García López») cuando NO es un compuesto
+   real. Se considera compuesto real (y no se avisa) si el primer apellido del padre es idéntico, o si otras 3 o más
+   fichas con segundo apellido lo usan igual. Se avisa si falta el segundo apellido y el del padre no es compuesto (o no
+   hay padre), o si el padre/la madre tienen justo una de las dos partes. Se ignoran los guiones («Pérez-Reverte»), los
+   nombres con «San/Santa/Mac...» y las personas portuguesas o anglosajonas (mismo criterio que el resto de avisos).
+ · «No es un error» se recuerda en este dispositivo (APC_IGNORADOS) y reaparece solo si cambian los apellidos. */
+var APC_PART_UNI={'de':1,'del':1,'da':1,'do':1,'das':1,'dos':1,'di':1};
+var APC_PART_DOS={'de la':1,'de las':1,'de los':1,'de lo':1};
+var APC_PARTIC={'de':1,'del':1,'la':1,'las':1,'los':1,'lo':1,'da':1,'do':1,'das':1,'dos':1,'di':1,'van':1,'von':1,'der':1,'y':1};
+var APC_PREFIJOS_NOMBRE={'san':1,'santa':1,'santo':1,'sant':1,'sao':1,'mc':1,'mac':1,'saint':1,'st':1,'don':1,'dona':1};
+var APC_IGNORADOS={};
+var GES_APC_RADIO_N=0;
+function apcLimpia(s){return String(s||'').replace(/\s+/g,' ').trim();}
+function apcTokens(s){return apcLimpia(s).split(' ').filter(Boolean);}
+function apcClaveIgn(p){return String(p.ID)+'|'+normTxt(p.APELLIDO1)+'|'+normTxt(p.APELLIDO2);}
+async function gesCargarIgnoradosApc(){
+try{var v=await leerValorCFG('apcIgnorados');if(v&&typeof v==='object')APC_IGNORADOS=v;}catch(e){}
+}
+/* Si el primer apellido termina en partícula suelta devuelve {base, part}; si no, null. */
+function apcParticulaFinal(a1){
+var t=apcTokens(a1);
+if(t.length<2)return null;
+if(t.length>=3){
+var d=normTxt(t[t.length-2]+' '+t[t.length-1]);
+if(APC_PART_DOS[d])return{base:t.slice(0,-2).join(' '),part:t.slice(-2).join(' ').toLowerCase()};
+}
+if(APC_PART_UNI[normTxt(t[t.length-1])])return{base:t.slice(0,-1).join(' '),part:t[t.length-1].toLowerCase()};
+return null;
+}
+function apcNomP(p){return p?fn(p).replace(/\s+/g,' ').trim():'';}
+function apcCasoParticula(p,a1,a2,pf,m){
+var ops=[],nota='',pn=normTxt(pf.part);
+if(a2){
+var a2n=normTxt(a2);
+var nuevoA2=(a2n===pn||a2n.indexOf(pn+' ')===0)?a2:pf.part+' '+a2;
+ops.push({id:'mover',etq:'Pasar «'+pf.part+'» al segundo apellido',a1:pf.base,a2:nuevoA2,recom:true});
+}else{
+var mA1=m?apcLimpia(m.APELLIDO1):'';
+if(mA1){
+var primera=normTxt(apcTokens(mA1)[0]);
+var a2m=APC_PARTIC[primera]?mA1:pf.part+' '+mA1;
+ops.push({id:'madre',etq:'Completar el segundo apellido con el de su madre',a1:pf.base,a2:a2m});
+}
+ops.push({id:'quitar',etq:'Quitar «'+pf.part+'» y dejarlo sin segundo apellido',a1:pf.base,a2:''});
+nota='No tiene segundo apellido: la partícula no tiene a qué unirse (probablemente falta el segundo apellido).';
+}
+return{clave:String(p.ID)+'|part',kind:'part',pid:String(p.ID),a1:a1,a2:a2,ops:ops,nota:nota,evid:[],nivel:a2?'alta':'media',recom:!!a2};
+}
+/* Devuelve {part:[casos], junt:[casos]} */
+function apcDetectar(){
+var part=[],junt=[];
+var contA2={};
+D.forEach(function(p){if(p.APELLIDO1&&p.APELLIDO2){var k=normTxt(p.APELLIDO1);contA2[k]=(contA2[k]||0)+1;}});
+D.forEach(function(p){
+var a1=apcLimpia(p.APELLIDO1),a2=apcLimpia(p.APELLIDO2);
+if(!a1||!/\s/.test(a1))return;
+if(APC_IGNORADOS[apcClaveIgn(p)])return;
+var f=p.PADRE?PI[p.PADRE]:null,m=p.MADRE?PI[p.MADRE]:null;
+var pf=apcParticulaFinal(a1);
+if(pf){part.push(apcCasoParticula(p,a1,a2,pf,m));return;}
+if(a1.indexOf('-')>=0)return;
+if(apeContextoPais(p,f,APE_PAISES_ANGLO)||apeContextoPais(p,f,APE_PAISES_LUSOS))return;
+var t=apcTokens(a1);
+var fn1=f?normTxt(f.APELLIDO1):'',mn1=m?normTxt(m.APELLIDO1):'';
+if(fn1&&fn1===normTxt(a1))return; /* compuesto heredado del padre */
+if((contA2[normTxt(a1)]||0)>=3)return; /* compuesto habitual en el árbol */
+var iPart=-1;
+t.forEach(function(x,i){if(iPart<0&&APC_PARTIC[normTxt(x)])iPart=i;});
+var X,Y,nucleoY,tipo;
+if(iPart<0){
+if(t.length!==2)return;
+if(APC_PREFIJOS_NOMBRE[normTxt(t[0])])return;
+if(t.some(function(x){return normTxt(x).replace(/ /g,'').length<2;}))return;
+X=t[0];Y=t[1];nucleoY=normTxt(Y);tipo='plano';
+}else{
+if(iPart===0)return;
+if(APC_PARTIC[normTxt(t[t.length-1])])return;
+X=t.slice(0,iPart).join(' ');Y=t.slice(iPart).join(' ');
+nucleoY=normTxt(t.slice(iPart).filter(function(x){return !APC_PARTIC[normTxt(x)];}).join(' '));tipo='particula';
+}
+var altaPadre=!!fn1&&fn1===normTxt(X);
+var altaMadre=!!mn1&&(mn1===normTxt(Y)||mn1===nucleoY);
+var padreSimple=!!f&&!!fn1&&fn1.indexOf(' ')<0;
+var cond;
+if(!a2){
+cond=(tipo==='plano')?(altaPadre||altaMadre||!f||!fn1||padreSimple):(altaPadre||altaMadre);
+}else{
+cond=altaPadre&&!!mn1&&mn1===normTxt(a2);
+}
+if(!cond)return;
+var evid=[];
+if(altaPadre)evid.push('Su padre ('+apcNomP(f)+') tiene «'+apcLimpia(f.APELLIDO1)+'» como primer apellido.');
+else if(padreSimple&&!a2)evid.push('El primer apellido de su padre ('+apcNomP(f)+'), «'+apcLimpia(f.APELLIDO1)+'», no es compuesto.');
+if(altaMadre)evid.push('El primer apellido de su madre ('+apcNomP(m)+') es «'+apcLimpia(m.APELLIDO1)+'».');
+if(!a2)evid.push('No tiene segundo apellido.');
+if(!f)evid.push('No tiene padre registrado para compararlo.');
+var ops=[],nota='';
+var alta=altaPadre||altaMadre;
+if(!a2){
+ops.push({id:'separar',etq:'Separar en dos apellidos',a1:X,a2:Y,recom:alta});
+}else{
+nota='Ya tiene segundo apellido («'+a2+'»): decide tú qué hacer con «'+Y+'» (usa «Otra forma»).';
+}
+junt.push({clave:String(p.ID)+'|junt',kind:'junt',pid:String(p.ID),a1:a1,a2:a2,ops:ops,nota:nota,evid:evid,nivel:alta?'alta':'media',recom:alta&&!a2,sugX:X,sugY:Y});
+});
+function orden(a,b){return (a.nivel===b.nivel?0:(a.nivel==='alta'?-1:1));}
+part.sort(orden);junt.sort(orden);
+return{part:part,junt:junt};
+}
+function gesApcCasos(kind){
+var m={},cat=gesCatPorId(kind==='part'?'ape_particula_final':'ape_juntos_en_primero');
+if(cat)cat.items.forEach(function(it){if(it.caso)m[it.caso.clave]=it.caso;});
+return m;
+}
+function gesRenderApc(it){
+var e=it.caso,p=PI[e.pid];
+if(!p)return gesRenderItemDef(null,it);
+var sel=GES_UI.apc[e.clave],nr='ac'+(++GES_APC_RADIO_N);
+var d0=e.ops[0];
+var txt=GES_UI.apcTxt[e.clave]||(e.sugX!==undefined?{a1:e.sugX,a2:(e.a2||e.sugY)}:(d0?{a1:d0.a1,a2:d0.a2}:{a1:e.a1,a2:e.a2}));
+var h='<div class="ges-apc'+(sel?' sel':'')+'" data-clave="'+escAttr(e.clave)+'" data-kind="'+e.kind+'"><span class="ges-nivel">'+(e.kind==='part'?'Partícula suelta al final del primer apellido':'Dos apellidos juntos en el primero')+' · evidencia '+e.nivel+'</span>';
+h+='<div style="font-size:13px;margin:2px 0 4px"><b>'+esc(apcNomP(p))+'</b> (ID '+esc(e.pid)+') · Primer apellido: <b>«'+esc(e.a1)+'»</b> · Segundo: <b>'+(e.a2?'«'+esc(e.a2)+'»':'—')+'</b></div>';
+if(e.evid&&e.evid.length)h+='<div class="ges-lug-ayuda" style="margin:0 0 4px">'+e.evid.map(esc).join(' ')+'</div>';
+if(e.nota)h+='<div class="ges-lug-ayuda" style="margin:0 0 4px">'+esc(e.nota)+'</div>';
+h+='<div style="margin:4px 0 2px">';
+e.ops.forEach(function(op){
+h+='<label class="ges-opt"><input type="radio" name="'+nr+'" data-opt="'+escAttr(op.id)+'"'+((sel&&sel.opt===op.id)?' checked':'')+' onclick="gesApcElegir(this)"><span class="ges-var'+(op.recom?' canonica':'')+'">'+esc(op.etq)+': Primer «'+esc(op.a1)+'» · Segundo '+(op.a2?'«'+esc(op.a2)+'»':'—')+(op.recom?' <i class="fa-solid fa-check" style="color:var(--green)"></i> <em>recomendada</em>':'')+'</span></label>';
+});
+h+='<label class="ges-opt"><input type="radio" name="'+nr+'" data-opt="ign"'+((sel&&sel.opt==='ign')?' checked':'')+' onclick="gesApcElegir(this)"><span class="ges-var">No es un error <em>· se deja igual y no se vuelve a avisar</em></span></label>';
+h+='<div class="ges-opt ges-opt-propio" style="flex-wrap:wrap"><input type="radio" name="'+nr+'" data-opt="otra"'+((sel&&sel.opt==='otra')?' checked':'')+' onclick="gesApcOtraClick(this)" aria-label="Otra forma"><span class="ges-var">Otra forma:</span>'+
+'<input type="text" class="ges-lug-propio" data-c="a1" maxlength="120" placeholder="Primer apellido" value="'+escAttr(txt.a1)+'" oninput="gesApcOtraEscribir(this)" aria-label="Primer apellido">'+
+'<input type="text" class="ges-lug-propio" data-c="a2" maxlength="120" placeholder="Segundo apellido" value="'+escAttr(txt.a2)+'" oninput="gesApcOtraEscribir(this)" aria-label="Segundo apellido"></div>';
+h+='</div><div class="ges-lug-ayuda">Marca una opción; no se cambia nada hasta pulsar «Aplicar selección». Vuelve a pulsar la marcada para quitarla.</div>';
+h+='<div class="inc-actions" style="margin-top:6px"><button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(e.pid)+'\')">Ver ficha</button>';
+if(p.PADRE&&PI[p.PADRE])h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(p.PADRE)+'\')">Ver padre</button>';
+if(p.MADRE&&PI[p.MADRE])h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(p.MADRE)+'\')">Ver madre</button>';
+h+='</div></div>';
+return h;
+}
+function gesApcBarraHtml(kind){
+return '<div class="ges-lug-barra" id="gesApcBarra_'+kind+'" data-kind="'+kind+'"><div class="ges-lug-cuenta"></div>'+
+'<button class="ef-btn" data-apc-aplicar disabled onclick="gesApcAplicarSeleccion(\''+kind+'\')"><i class="fa-solid fa-check-double"></i> Aplicar selección</button>'+
+'<button class="ef-btn ghost" onclick="gesApcMarcarRecom(\''+kind+'\')"><i class="fa-solid fa-list-check"></i> Marcar todos con la opción recomendada</button>'+
+'<button class="ef-btn ghost" data-apc-limpiar disabled onclick="gesApcLimpiar(\''+kind+'\')"><i class="fa-solid fa-xmark"></i> Quitar selección</button></div>';
+}
+/* Valores finales {a1,a2} de una elección, o null si no hay nada válido que aplicar */
+function gesApcValores(e,s){
+if(!s)return null;
+if(s.opt==='otra'){var a1=apcLimpia(s.a1);if(!a1)return null;return{a1:a1,a2:apcLimpia(s.a2)};}
+var op=e.ops.filter(function(o){return o.id===s.opt;})[0];
+return op?{a1:op.a1,a2:op.a2}:null;
+}
+function gesApcResumenSel(kind){
+var m=gesApcCasos(kind),n=0,mod=0,ign=0;
+Object.keys(GES_UI.apc).forEach(function(k){
+var e=m[k];if(!e)return;
+var s=GES_UI.apc[k];n++;
+if(s.opt==='ign'){ign++;return;}
+var v=gesApcValores(e,s),pp=PI[e.pid];
+if(v&&pp&&(apcLimpia(pp.APELLIDO1)!==v.a1||apcLimpia(pp.APELLIDO2)!==v.a2))mod++;
+});
+return{casos:n,fichas:mod,ign:ign};
+}
+function gesApcActualizarUI(){
+['part','junt'].forEach(function(kind){
+var b=document.getElementById('gesApcBarra_'+kind);if(!b)return;
+var r=gesApcResumenSel(kind);
+var t=b.querySelector('.ges-lug-cuenta');
+if(t)t.innerHTML=r.casos?('<b>'+r.casos+'</b> caso'+(r.casos===1?'':'s')+' elegido'+(r.casos===1?'':'s')+' · <b>'+r.fichas+'</b> ficha'+(r.fichas===1?'':'s')+' se modificarán'+(r.ign?' · '+r.ign+' marcado'+(r.ign===1?'':'s')+' como correcto'+(r.ign===1?'':'s'):'')):'Marca en cada caso una opción y pulsa «Aplicar selección».';
+var ba=b.querySelector('[data-apc-aplicar]');
+if(ba){ba.disabled=!r.casos;ba.innerHTML='<i class="fa-solid fa-check-double"></i> Aplicar selección'+(r.casos?' ('+r.casos+')':'');}
+var bl=b.querySelector('[data-apc-limpiar]');if(bl)bl.disabled=!r.casos;
+});
+var els=document.querySelectorAll('.ges-apc[data-clave]');
+for(var i=0;i<els.length;i++)els[i].classList.toggle('sel',!!GES_UI.apc[els[i].getAttribute('data-clave')]);
+}
+function gesApcElegir(inp){
+var cont=inp.closest('.ges-apc');if(!cont)return;
+var clave=cont.getAttribute('data-clave'),opt=inp.getAttribute('data-opt');
+if(GES_UI.apc[clave]&&GES_UI.apc[clave].opt===opt){delete GES_UI.apc[clave];inp.checked=false;}
+else GES_UI.apc[clave]={opt:opt};
+gesApcActualizarUI();
+}
+function gesApcLeerOtra(cont){
+var i1=cont.querySelector('input[data-c="a1"]'),i2=cont.querySelector('input[data-c="a2"]');
+return{a1:apcLimpia(i1?i1.value:''),a2:apcLimpia(i2?i2.value:'')};
+}
+function gesApcOtraClick(radio){
+var cont=radio.closest('.ges-apc');if(!cont)return;
+var clave=cont.getAttribute('data-clave'),v=gesApcLeerOtra(cont);
+if(!v.a1){radio.checked=false;var i1=cont.querySelector('input[data-c="a1"]');if(i1)i1.focus();return;}
+if(GES_UI.apc[clave]&&GES_UI.apc[clave].opt==='otra'){delete GES_UI.apc[clave];radio.checked=false;}
+else{GES_UI.apc[clave]={opt:'otra',a1:v.a1,a2:v.a2};GES_UI.apcTxt[clave]=v;}
+gesApcActualizarUI();
+}
+function gesApcOtraEscribir(inp){
+var cont=inp.closest('.ges-apc');if(!cont)return;
+var clave=cont.getAttribute('data-clave'),radio=cont.querySelector('input[data-opt="otra"]'),v=gesApcLeerOtra(cont);
+GES_UI.apcTxt[clave]=v;
+if(v.a1){GES_UI.apc[clave]={opt:'otra',a1:v.a1,a2:v.a2};if(radio)radio.checked=true;}
+else{if(GES_UI.apc[clave]&&GES_UI.apc[clave].opt==='otra')delete GES_UI.apc[clave];if(radio)radio.checked=false;}
+gesApcActualizarUI();
+}
+function gesApcRepintar(){var y=gesScrollY();gesRender();gesScrollTo(y);}
+function gesApcMarcarRecom(kind){
+var m=gesApcCasos(kind),n=0;
+Object.keys(m).forEach(function(k){
+var e=m[k];
+var op=e.ops.filter(function(o){return o.recom;})[0];
+if(op){GES_UI.apc[k]={opt:op.id};n++;}
+});
+if(!n){toast('No hay casos con opción recomendada: marca cada uno a mano',true);return;}
+gesApcRepintar();
+}
+function gesApcLimpiar(kind){
+var m=gesApcCasos(kind);
+Object.keys(m).forEach(function(k){delete GES_UI.apc[k];delete GES_UI.apcTxt[k];});
+gesApcRepintar();
+}
+/* Aplica de una vez los casos elegidos de una categoría: una confirmación con vista previa, una reindexación, un guardado
+parcial SOLO de las fichas tocadas y un único registro de cambios (igual que errata, lugares y apellidos). */
+async function gesApcAplicarSeleccion(kind){
+if(!(await exigirIdentidadGoogle()))return;
+var m=gesApcCasos(kind),cambios=[],ign=[],resumen=[],idsLista=[];
+Object.keys(GES_UI.apc).forEach(function(k){
+var e=m[k];if(!e)return;
+var s=GES_UI.apc[k];
+if(s.opt==='ign'){ign.push(e);resumen.push({e:e,k:k,txt:'«'+e.a1+'» · «'+e.a2+'» → se deja igual (no es un error)'});return;}
+var v=gesApcValores(e,s),pp=PI[e.pid];
+if(!v||!pp)return;
+if(apcLimpia(pp.APELLIDO1)===v.a1&&apcLimpia(pp.APELLIDO2)===v.a2)return;
+cambios.push({id:e.pid,a1:v.a1,a2:v.a2});idsLista.push(e.pid);
+resumen.push({e:e,k:k,txt:'«'+e.a1+'» · «'+(e.a2||'—')+'» → «'+v.a1+'» · «'+(v.a2||'—')+'»'});
+});
+if(!resumen.length){toast('No hay ningún caso elegido',true);return;}
+if(!cambios.length&&!ign.length){toast('No hay nada que cambiar con la selección actual',true);return;}
+var preview=resumen.slice(0,12).map(function(r){return '  · '+apcNomP(PI[r.e.pid])+': '+r.txt;}).join('\n');
+var extra=resumen.length>12?('\n  … y '+(resumen.length-12)+' caso(s) más'):'';
+if(!(await confirmarApp('Se aplicarán '+resumen.length+' caso(s): '+cambios.length+' ficha(s) cambiarán de apellidos y '+ign.length+' se marcarán como correctas.\n\n'+preview+extra,{titulo:'Aplicar corrección de apellidos',textoAceptar:'Aplicar'})))return;
+mostrarProgresoAccion('Corrigiendo apellidos en '+cambios.length+' ficha(s)...');
+try{
+await cederPantalla();
+if(ign.length){
+ign.forEach(function(e){if(PI[e.pid])APC_IGNORADOS[apcClaveIgn(PI[e.pid])]=1;});
+try{await guardarValorCFG('apcIgnorados',APC_IGNORADOS);}catch(eIg){}
+}
+if(cambios.length){
+var antes=idsLista.map(function(id){return clonarPersona(PI[id]);});
+cambios.forEach(function(c){PI[c.id].APELLIDO1=c.a1;PI[c.id].APELLIDO2=c.a2;});
+bIdx(D);
+actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
+await cederPantalla();
+await sPersonas(idsLista);
+rStats();
+try{
+actualizarProgresoAccion('Registrando el cambio...');
+await registrarCambiosDesdeSnapshots(antes,idsLista.map(function(id){return PI[id];}),'editar');
+}catch(errReg){}
+}
+toast('Apellidos corregidos: '+cambios.length+' ficha(s) actualizada(s)'+(ign.length?' · '+ign.length+' marcada(s) como correcta(s)':''));
+resumen.forEach(function(r){delete GES_UI.apc[r.k];delete GES_UI.apcTxt[r.k];});
+actualizarProgresoAccion('Actualizando el Gestor de datos...');
+await cederPantalla();
+rGesLigero();
+}catch(err){toast('No se pudo guardar: '+err.message,true);}
+finally{ocultarProgresoAccion();}
+}
 function gesRenderItems(c){
 var total=c.items.length;
 var tam=gesTam(c.id);
 var desde=gesDesde(c.id,total);
 var vistos=c.items.slice(desde,desde+tam);
 var nav=gesNavHtml(c,desde,tam,total);
-var h=(c.fuente==='borrar'?gesBorrarBarraHtml(c):'')+(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():(c.fuente==='errata_prog'?gesErrBarraHtml():'')))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
+var h=(c.fuente==='borrar'?gesBorrarBarraHtml(c):'')+(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():(c.fuente==='errata_prog'?gesErrBarraHtml():(c.fuente==='ape_part'?gesApcBarraHtml('part'):(c.fuente==='ape_junt'?gesApcBarraHtml('junt'):'')))))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
 vistos.forEach(function(it,j){
 var i=desde+j; /* indice ABSOLUTO dentro de c.items: los botones Solucionar/Fusionar lo usan */
 h+='<li>';
 if(it.tipo==='lugar')h+=gesRenderLugar(it.grupo);
 else if(it.tipo==='apellido')h+=gesRenderApellido(it.grupo);
 else if(it.tipo==='errata')h+=gesRenderErrata(it);
+else if(it.tipo==='apc')h+=gesRenderApc(it);
 else if(it.tipo==='dup')h+=gesRenderItemDup(c,it,i);
 else if(it.tipo==='borrar')h+=gesRenderBorrar(it);
 else if(it.tipo==='conyuges')h+=gesRenderConyuges(c,it,i);
@@ -14074,6 +14407,7 @@ var cont=document.getElementById('gesPanel'),res=document.getElementById('gesRes
 if(res)res.innerHTML='';
 if(cont)cont.innerHTML='';
 await gesCargarPermisosColab();
+await gesCargarIgnoradosApc();
 if(esAdministrador()||(GES_PERMISOS_COLAB||[]).some(function(i){return GES_PERMISOS_DEFECTO.indexOf(i)<0;})){
 try{
 var snap=await cargarAniosCalculadosDrive(forzar);
