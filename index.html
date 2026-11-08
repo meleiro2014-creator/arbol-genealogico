@@ -1339,8 +1339,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.06.1';
+var APP_VERSION = '2026.11.08.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.08.1', fecha:'2026-11-08', cambios:[
+    'Buscar → Rompecabezas: el fondo de la foto ahora es un cielo amarillento con nubes bien definidas (más fácil distinguir las piezas) y el contorno de la persona se difumina con el cielo, sin la línea blanca del recorte.'
+  ]},
   { version:'2026.11.06.1', fecha:'2026-11-06', cambios:[
     'Ficha → Editar → Familia: nuevo botón «Unir con un duplicado» (administrador y colaborador). Desde la ficha receptora buscas la donante (se proponen los posibles duplicados y también se busca por nombre o ID) y pulsas «Unir»: sus hijos y cónyuges pasan a la receptora, se copian los datos que a esta le falten y la donante queda marcada para borrar (no se borra hasta el borrado masivo del Gestor de datos). Se impide si crearía un ciclo o la receptora no tiene huecos de cónyuge.',
     'Fusionar fichas: además de hijos y cónyuges, a la receptora se le copian los datos que no tenga (fechas, lugares, padres, foto, observaciones, etiquetas) sin sobrescribir los suyos; un cónyuge que ya era de la receptora no se duplica.',
@@ -18837,20 +18840,24 @@ do{for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];
 while(a.every(function(v,k){return v===k;}));
 return a;
 }
-/* ===== Fondo romántico y melancólico, según la época, para el rompecabezas =====
+/* ===== Cielo amarillento con nubes definidas, según la época, para el rompecabezas =====
    Las fotos de fondo liso hacen que las piezas sean casi idénticas. Antes de cortar la foto
    se detecta su fondo (relleno desde los bordes, tolerando degradados suaves) y se sustituye
-   por un cielo cubierto de nubes grises y tristes cuya paleta depende
-   de la época de la persona. Varía suavemente por toda la imagen, así cada pieza es distinta.
-   La persona queda intacta encima. Si no se puede aislar un fondo claro (o el navegador no
-   deja leer los píxeles), se tiñe toda la foto con una mezcla muy suave. */
+   por un cielo dorado con nubes de bordes bien marcados (blancas y crema por la parte iluminada,
+   ocre por debajo) cuya paleta varía ligeramente según la época de la persona. Cada zona de la
+   imagen es distinta, así cada pieza se distingue de las demás.
+   El contorno de la persona se trata aparte: se come la franja clara que deja el recorte original
+   (la «línea blanca»), los colores del borde se rehacen con los del interior de la persona y el
+   paso a cielo es un degradado suave, con un leve reflejo de luz del cielo sobre el filo.
+   Si no se puede aislar un fondo claro (o el navegador no deja leer los píxeles), se tiñe toda la
+   foto con una mezcla suave. */
 var PZL_EPOCAS=[
-/* cielo cubierto y triste: gris plomo con un matiz según la época · c0 sombra, c1 media, c2 luz */
-{hasta:1800,c0:[40,38,42],c1:[100,98,102],c2:[170,166,164]},
-{hasta:1870,c0:[36,42,54],c1:[92,100,114],c2:[168,172,180]},
-{hasta:1920,c0:[44,42,44],c1:[104,102,104],c2:[176,172,168]},
-{hasta:1960,c0:[38,42,48],c1:[96,102,110],c2:[170,174,180]},
-{hasta:9999,c0:[42,42,50],c1:[98,100,112],c2:[172,174,184]}
+/* ci0 cielo arriba · ci1 cielo en el horizonte · nL nube iluminada · nM nube media · nS base de la nube */
+{hasta:1800,ci0:[214,166,70],ci1:[236,206,128],nL:[255,250,236],nM:[238,224,192],nS:[190,164,120]},
+{hasta:1870,ci0:[222,174,76],ci1:[240,212,134],nL:[255,251,240],nM:[240,228,198],nS:[194,168,124]},
+{hasta:1920,ci0:[230,182,74],ci1:[244,218,138],nL:[255,252,242],nM:[242,231,204],nS:[198,172,128]},
+{hasta:1960,ci0:[236,188,78],ci1:[247,222,142],nL:[255,253,246],nM:[244,234,208],nS:[202,176,132]},
+{hasta:9999,ci0:[242,194,84],ci1:[250,228,150],nL:[255,254,250],nM:[246,237,214],nS:[206,180,136]}
 ];
 function pzlPaletaEpoca(anio){
 var i;for(i=0;i<PZL_EPOCAS.length;i++){if(anio!==null&&anio<=PZL_EPOCAS[i].hasta)return PZL_EPOCAS[i];}
@@ -18865,25 +18872,51 @@ var u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
 var a=pzlRuido(xi,yi,sem),b=pzlRuido(xi+1,yi,sem),c=pzlRuido(xi,yi+1,sem),d=pzlRuido(xi+1,yi+1,sem);
 return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
 }
+function pzlPaso(a,b,x){var t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);}
 function pzlPsiPixeles(W,H,anio){
 var pal=pzlPaletaEpoca(anio),d=new Uint8ClampedArray(W*H*4),x,y,i=0,asp=W/H;
-var sem=Math.random()*50,ox=Math.random()*10,oy=Math.random()*10,ang=Math.random()*Math.PI*2,ca=Math.cos(ang),sa=Math.sin(ang);
+var sem=Math.random()*50,ox=Math.random()*10,oy=Math.random()*10;
+/* 1) densidad de nube a media resolución (rápido) y ampliada con suavidad */
+var Wc=Math.max(2,Math.ceil(W/2)),Hc=Math.max(2,Math.ceil(H/2)),fc=new Float32Array(Wc*Hc);
+for(y=0;y<Hc;y++){for(x=0;x<Wc;x++){
+var u=((x/(Wc-1))-.5)*2*(asp>1?asp:1),v=((y/(Hc-1))-.5)*2*(asp<1?1/asp:1);
+var qx=u*2.4+ox,qy=v*2.4+oy;
+var wx=pzlRuidoSuave(qx*.8+3.1,qy*.8+1.7,sem)-.5,wy=pzlRuidoSuave(qx*.8+8.3,qy*.8+2.8,sem)-.5;
+var f=.58*pzlRuidoSuave(qx+wx*1.8,qy+wy*1.8,sem)+.26*pzlRuidoSuave(qx*2.1+wy*1.2,qy*2.1+wx*1.2,sem+7)+.12*pzlRuidoSuave(qx*4.3+wx,qy*4.3+wy,sem+13)+.04*pzlRuidoSuave(qx*8.7,qy*8.7,sem+19);
+fc[y*Wc+x]=(f-.5)*2.3+.5;
+}}
+var fF=new Float32Array(W*H);
+for(y=0;y<H;y++){var gy=y/(H-1)*(Hc-1),y0=Math.floor(gy),y1=Math.min(Hc-1,y0+1),ty=gy-y0;
+for(x=0;x<W;x++){var gx=x/(W-1)*(Wc-1),x0=Math.floor(gx),x1=Math.min(Wc-1,x0+1),tx=gx-x0;
+var a0=fc[y0*Wc+x0]+(fc[y0*Wc+x1]-fc[y0*Wc+x0])*tx,a1=fc[y1*Wc+x0]+(fc[y1*Wc+x1]-fc[y1*Wc+x0])*tx;
+fF[y*W+x]=a0+(a1-a0)*ty;}}
+/* 2) color: cielo dorado + nubes de borde marcado, luz desde arriba a la izquierda */
+var TH=.54,sc=Math.max(1,Math.max(W,H)/640),ox2=Math.max(1,Math.round(5*sc)),oy2=Math.max(1,Math.round(6*sc));
+var tintX=Math.random()*10,tintY=Math.random()*10;
 for(y=0;y<H;y++){for(x=0;x<W;x++){
-var u=((x/W)-.5)*2*(asp>1?asp:1),v=((y/H)-.5)*2*(asp<1?1/asp:1);
-/* nubes cargadas: ruido fractal deformado, con más contraste para que se vean masas de nube */
-var qx=u*1.3+ox,qy=v*1.3+oy;
-var wx=pzlRuidoSuave(qx+3.1,qy+1.7,sem)-.5,wy=pzlRuidoSuave(qx+8.3,qy+2.8,sem)-.5;
-var f=.55*pzlRuidoSuave(qx+wx*2.4,qy+wy*2.4,sem)+.33*pzlRuidoSuave(qx*2+wy*1.4,qy*2+wx*1.4,sem+7)+.12*pzlRuidoSuave(qx*3.6+wx,qy*3.6+wy,sem+13);
-f=Math.max(0,Math.min(1,(f-.22)/.56));
-/* tenue claro que se abre arriba, el resto oscuro y pesado */
-var g=(u*ca+v*sa)*.25+.5;
-var t=Math.max(0,Math.min(1,.8*f+.2*g));
-t=t*t*(3-2*t);
-var R,G,B,k;
-if(t<.5){k=t*2;R=pal.c0[0]+(pal.c1[0]-pal.c0[0])*k;G=pal.c0[1]+(pal.c1[1]-pal.c0[1])*k;B=pal.c0[2]+(pal.c1[2]-pal.c0[2])*k;}
-else{k=(t-.5)*2;R=pal.c1[0]+(pal.c2[0]-pal.c1[0])*k;G=pal.c1[1]+(pal.c2[1]-pal.c1[1])*k;B=pal.c1[2]+(pal.c2[2]-pal.c1[2])*k;}
-/* viñeta suave y grano fino de película */
-var vg=1-.28*Math.min(1,(u*u+v*v)*.45),gr=(pzlRuido(x,y,sem+21)-.5)*9;
+var k=y*W+x,fv=fF[k],ty2=y/(H-1);
+/* cielo: degradado vertical + ligera variación de tono a gran escala + brillo de sol difuso */
+var tn=pzlRuidoSuave(x/W*2.2+tintX,y/H*2.2+tintY,sem+31)-.5;
+var gv=Math.max(0,Math.min(1,ty2*.9+tn*.35));
+var sr=pal.ci0[0]+(pal.ci1[0]-pal.ci0[0])*gv,sg=pal.ci0[1]+(pal.ci1[1]-pal.ci0[1])*gv,sb=pal.ci0[2]+(pal.ci1[2]-pal.ci0[2])*gv;
+/* nube: cobertura con borde nítido pero sin dientes de sierra */
+var cov=pzlPaso(TH-.06,TH+.06,fv);
+var haze=pzlPaso(TH-.24,TH-.02,fv)*.16*(1-cov);
+sr+=(255-sr)*haze;sg+=(252-sg)*haze;sb+=(236-sb)*haze;
+var R=sr,G=sg,B=sb;
+if(cov>0){
+var xl=Math.max(0,x-ox2),yl=Math.max(0,y-oy2),fl=fF[yl*W+xl];
+var s2=26*sc,dt=pzlRuidoSuave(x/s2+tintX,y/s2+tintY,sem+41),dtl=pzlRuidoSuave((x-ox2)/s2+tintX,(y-oy2)/s2+tintY,sem+41);
+var lit=Math.max(0,Math.min(1,.5+(fv-fl)*5+(dt-dtl)*2.2));
+var grueso=Math.max(0,Math.min(1,(fv-TH)/.5));
+var luz=Math.max(0,Math.min(1,.3+lit*.62-grueso*.2-ty2*.06));
+var cr=pal.nM[0]+(pal.nL[0]-pal.nM[0])*luz,cg=pal.nM[1]+(pal.nL[1]-pal.nM[1])*luz,cb=pal.nM[2]+(pal.nL[2]-pal.nM[2])*luz;
+var som=grueso*(1-lit)*.55+ty2*.05;
+cr+=(pal.nS[0]-cr)*som;cg+=(pal.nS[1]-cg)*som;cb+=(pal.nS[2]-cb)*som;
+R=sr+(cr-sr)*cov;G=sg+(cg-sg)*cov;B=sb+(cb-sb)*cov;
+}
+/* viñeta muy suave y grano fino */
+var uu=(x/W-.5)*2,vv=(y/H-.5)*2,vg=1-.12*Math.min(1,(uu*uu+vv*vv)*.5),gr=(pzlRuido(x,y,sem+21)-.5)*6;
 d[i++]=Math.max(0,Math.min(255,Math.round(R*vg+gr)));
 d[i++]=Math.max(0,Math.min(255,Math.round(G*vg+gr)));
 d[i++]=Math.max(0,Math.min(255,Math.round(B*vg+gr)));
@@ -18891,10 +18924,10 @@ d[i++]=255;
 }}
 return d;
 }
-/* Devuelve un Float32Array (1=fondo, 0=persona) o null si el fondo no es claramente aislable. */
+/* Devuelve {vis, dist, N} con vis=1 en el fondo y dist = distancia en píxeles de cada pixel al fondo,
+   o null si el fondo no es claramente aislable. */
 function pzlMascaraFondo(px,W,H){
 var N=W*H,vis=new Uint8Array(N),cola=new Int32Array(N),ini=0,fin=0,i,x,y;
-function lum(k){return px[k*4]+px[k*4+1]+px[k*4+2];}
 var bs=[[],[],[]];
 for(x=0;x<W;x++){[x,(H-1)*W+x].forEach(function(k){for(var c=0;c<3;c++)bs[c].push(px[k*4+c]);});}
 for(y=0;y<H;y++){[y*W,y*W+W-1].forEach(function(k){for(var c=0;c<3;c++)bs[c].push(px[k*4+c]);});}
@@ -18912,19 +18945,18 @@ for(i=0;i<vs.length;i++){var j=vs[i];if(!vis[j]&&dRef(j)<=TOL_REF&&dVec(k,j)<=TO
 }
 var frac=fin/N;
 if(frac<.12||frac>.88)return null;
-var m=new Float32Array(N);
-for(i=0;i<N;i++)m[i]=vis[i]?1:0;
-/* el fondo avanza 1 px sobre el borde para evitar el halo del color original, y se suaviza */
-var m2=new Float32Array(N);
-for(y=0;y<H;y++)for(x=0;x<W;x++){var k2=y*W+x,mx=m[k2];
-if(x>0&&m[k2-1]>mx)mx=m[k2-1];if(x<W-1&&m[k2+1]>mx)mx=m[k2+1];if(y>0&&m[k2-W]>mx)mx=m[k2-W];if(y<H-1&&m[k2+W]>mx)mx=m[k2+W];m2[k2]=mx;}
-var p;for(p=0;p<2;p++){
-var m3=new Float32Array(N);
-for(y=0;y<H;y++)for(x=0;x<W;x++){var s=0,c=0,dx,dy;
-for(dy=-1;dy<=1;dy++)for(dx=-1;dx<=1;dx++){var xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H){s+=m2[yy*W+xx];c++;}}
-m3[y*W+x]=s/c;}
-m2=m3;}
-return m2;
+/* distancia de cada pixel de la persona al fondo (chamfer en dos pasadas) */
+var dist=new Float32Array(N),BIG=1e6,D2=1.4142;
+for(i=0;i<N;i++)dist[i]=vis[i]?0:BIG;
+for(y=0;y<H;y++)for(x=0;x<W;x++){var q=y*W+x,m=dist[q];
+if(x>0&&dist[q-1]+1<m)m=dist[q-1]+1;
+if(y>0){if(dist[q-W]+1<m)m=dist[q-W]+1;if(x>0&&dist[q-W-1]+D2<m)m=dist[q-W-1]+D2;if(x<W-1&&dist[q-W+1]+D2<m)m=dist[q-W+1]+D2;}
+dist[q]=m;}
+for(y=H-1;y>=0;y--)for(x=W-1;x>=0;x--){var q2=y*W+x,m2=dist[q2];
+if(x<W-1&&dist[q2+1]+1<m2)m2=dist[q2+1]+1;
+if(y<H-1){if(dist[q2+W]+1<m2)m2=dist[q2+W]+1;if(x<W-1&&dist[q2+W+1]+D2<m2)m2=dist[q2+W+1]+D2;if(x>0&&dist[q2+W-1]+D2<m2)m2=dist[q2+W-1]+D2;}
+dist[q2]=m2;}
+return {vis:vis,dist:dist,N:N};
 }
 function pzlPsicodelica(img,anio){
 try{
@@ -18936,20 +18968,64 @@ var cx=cv.getContext('2d');
 cx.drawImage(img,0,0,W,H);
 var id=cx.getImageData(0,0,W,H),px=id.data;
 var psi=pzlPsiPixeles(W,H,(typeof anio==="number"&&isFinite(anio))?anio:null);
-var m=pzlMascaraFondo(px,W,H),i,N=W*H;
-if(m){
-for(i=0;i<N;i++){var a=m[i],q=i*4;if(a>0){var b=1-a;
-px[q]=px[q]*b+psi[q]*a;px[q+1]=px[q+1]*b+psi[q+1]*a;px[q+2]=px[q+2]*b+psi[q+2]*a;px[q+3]=255;}}
+var mk=pzlMascaraFondo(px,W,H),i,N=W*H,x,y;
+if(mk){
+var dist=mk.dist,vis=mk.vis,u=Math.max(.6,Math.max(W,H)/640);
+var E0=1.8*u,F=3.2*u;          /* alpha de persona: 0 hasta E0 del fondo, 1 a E0+F */
+var DC=5.5*u;                   /* hasta esta distancia los colores del borde se rehacen desde dentro */
+var DLUZ=7*u;                   /* alcance del reflejo de luz del cielo sobre el filo */
+/* colores limpios del borde: se propagan hacia fuera los colores del interior (d>=DC) */
+var cl=new Float32Array(N*3),ok=new Uint8Array(N),k,c;
+for(k=0;k<N;k++){if(!vis[k]&&dist[k]>=DC){ok[k]=1;cl[k*3]=px[k*4];cl[k*3+1]=px[k*4+1];cl[k*3+2]=px[k*4+2];}}
+var it,iters=Math.ceil(DC)+2;
+for(it=0;it<iters;it++){
+var nuevos=[];
+for(y=0;y<H;y++)for(x=0;x<W;x++){k=y*W+x;
+if(vis[k]||ok[k]||dist[k]>=DC)continue;
+var sr=0,sg=0,sb=0,n=0,dx,dy;
+for(dy=-1;dy<=1;dy++){var yy=y+dy;if(yy<0||yy>=H)continue;
+for(dx=-1;dx<=1;dx++){var xx=x+dx;if(xx<0||xx>=W)continue;
+var j=yy*W+xx;if(ok[j]){sr+=cl[j*3];sg+=cl[j*3+1];sb+=cl[j*3+2];n++;}}}
+if(n>0)nuevos.push(k,sr/n,sg/n,sb/n);
+}
+for(i=0;i<nuevos.length;i+=4){k=nuevos[i];ok[k]=1;cl[k*3]=nuevos[i+1];cl[k*3+1]=nuevos[i+2];cl[k*3+2]=nuevos[i+3];}
+if(!nuevos.length)break;
+}
+/* alpha de persona (1=persona) suavizado con una pasada de desenfoque 3x3 para quitar escalones */
+var ap=new Float32Array(N);
+for(k=0;k<N;k++){ap[k]=vis[k]?0:Math.max(0,Math.min(1,(dist[k]-E0)/F));ap[k]=ap[k]*ap[k]*(3-2*ap[k]);}
+var ap2=new Float32Array(N);
+for(y=0;y<H;y++)for(x=0;x<W;x++){var s=0,cn=0,ddx,ddy;
+for(ddy=-1;ddy<=1;ddy++){var y2=y+ddy;if(y2<0||y2>=H)continue;
+for(ddx=-1;ddx<=1;ddx++){var x2=x+ddx;if(x2<0||x2>=W)continue;s+=ap[y2*W+x2];cn++;}}
+ap2[y*W+x]=s/cn;}
+for(k=0;k<N;k++){
+var q=k*4,a=ap2[k];
+if(a>=.999&&dist[k]>=DLUZ)continue;          /* interior: intacto */
+var r0=px[q],g0=px[q+1],b0=px[q+2];
+/* 1) quitar la franja clara del recorte: color del borde = color del interior cercano */
+if(!vis[k]&&ok[k]&&dist[k]<DC){
+var w=1-pzlPaso(3*u,DC,dist[k]);
+r0+=(cl[k*3]-r0)*w;g0+=(cl[k*3+1]-g0)*w;b0+=(cl[k*3+2]-b0)*w;
+}
+/* 2) reflejo suave de la luz del cielo sobre el filo */
+var wr=vis[k]?0:.14*Math.max(0,1-dist[k]/DLUZ);
+if(wr>0){r0+=(psi[q]-r0)*wr;g0+=(psi[q+1]-g0)*wr;b0+=(psi[q+2]-b0)*wr;}
+/* 3) mezcla con el cielo según el alpha difuminado */
+var bgA=1-a;
+px[q]=r0*a+psi[q]*bgA;px[q+1]=g0*a+psi[q+1]*bgA;px[q+2]=b0*a+psi[q+2]*bgA;px[q+3]=255;
+}
 }else{
-/* sin fondo claro: se tiñe toda la foto con una mezcla muy suave */
+/* sin fondo claro: se tiñe toda la foto con una mezcla suave */
+N=W*H;
 for(i=0;i<N;i++){var q2=i*4;
-for(var c=0;c<3;c++){var f=px[q2+c]/255,g=psi[q2+c]/255;
+for(var c2=0;c2<3;c2++){var f=px[q2+c2]/255,g=psi[q2+c2]/255;
 var sl=g<=.5?(2*f*g):(1-2*(1-f)*(1-g));
-px[q2+c]=Math.round(255*(.7*f+.3*(.5*sl+.5*g)));}
+px[q2+c2]=Math.round(255*(.68*f+.32*(.5*sl+.5*g)));}
 px[q2+3]=255;}
 }
 cx.putImageData(id,0,0);
-return cv.toDataURL('image/jpeg',.9);
+return cv.toDataURL('image/jpeg',.92);
 }catch(e){return null;}
 }
 function pzlCandidatas(excluirVistos){
