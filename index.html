@@ -832,32 +832,26 @@ body>*:not(.print-area){display:none!important}
 .print-area{position:static!important;left:auto!important}
 body{background:#fff}
 }
-/* ===== COMPARADOR DE FICHAS A | B (Registro de cambios) ===== */
-.cmp-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;justify-content:center;align-items:stretch}
-.cmp-box{background:var(--bg);color:var(--text);width:min(1200px,100%);height:100%;display:flex;flex-direction:column;min-height:0;box-shadow:0 0 30px rgba(0,0,0,.35)}
-@media(min-width:900px){.cmp-overlay{padding:18px}.cmp-box{border-radius:14px;overflow:hidden}}
-.cmp-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)}
-.cmp-titulo{font-size:16px;font-weight:700}.cmp-resumen{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}
-.cmp-top-btns{display:flex;gap:6px;flex-wrap:wrap}
-.cmp-scroll{flex:1 1 auto;overflow:auto;overscroll-behavior:contain;padding:0 12px 24px}
-.cmp-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-.cmp-head{position:sticky;top:0;z-index:3;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--border)}
-.cmp-hcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.cmp-hfila{display:flex;align-items:center;gap:8px;min-width:0}
-.cmp-letra{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
-.cmp-hcard.b .cmp-letra{background:var(--blue)}
-.cmp-hnom{font-weight:700;font-size:14px;line-height:1.2;overflow-wrap:anywhere}
-.cmp-hsub{font-size:10px;color:var(--muted)}
-.cmp-aviso{font-size:10px;font-weight:700;color:#A9512C}
-.cmp-sec{margin:14px 0 0;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
-.cmp-lab{font-size:10px;font-weight:700;color:var(--muted);margin:8px 0 3px}
-.cmp-cell{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;font-weight:600;overflow-wrap:anywhere;min-height:30px;min-width:0}
-.cmp-cell.dif{background:rgba(196,101,58,.13);border-color:var(--accent)}
-.cmp-cell.vacio{color:var(--muted);font-weight:400}
-.cmp-cell .cmp-li{margin:0 0 3px;font-weight:600}.cmp-cell .cmp-li small{color:var(--muted);font-weight:400}
-.cmp-cell img{max-width:100%;max-height:150px;object-fit:contain;border-radius:10px;display:block;margin:0 auto}
-.cmp-cell.obs{font-weight:400;font-size:12px;line-height:1.45;white-space:pre-wrap}
-@media(max-width:520px){.cmp-cell{font-size:12px;padding:5px 7px}.cmp-hnom{font-size:12px}.cmp-letra{width:26px;height:26px;font-size:14px}.cmp-scroll{padding:0 8px 20px}.cmp-cols{gap:6px}}
+/* ===== DOS FICHAS A | B A LA VEZ (desde el Gestor de datos) ===== */
+html.dual-bloq,html.dual-bloq body{overflow:hidden}
+.dual-ov{position:fixed;inset:0;z-index:180;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+.dual-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--card)}
+.dual-tit{font-weight:700;font-size:15px}
+.dual-acc{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dual-tabs{display:none;gap:6px}
+.dual-tabs .ef-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dual-cols{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:10px}
+.dual-pane{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--card);border:2px solid var(--border);border-radius:14px;overflow:hidden}
+.dual-pane.act{border-color:var(--accent)}
+.dual-pane[data-dual-pane="B"].act{border-color:var(--blue)}
+.dual-cab{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--bg);min-width:0}
+.dual-letra{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}
+.dual-pane[data-dual-pane="B"] .dual-letra{background:var(--blue)}
+.dual-nom{flex:1 1 auto;min-width:0;font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dual-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 12px 16px}
+.dual-pane .ficha{max-width:none}
+.dual-pane .ficha .bb{display:none}
+@media(max-width:820px){.dual-tabs{display:flex}.dual-cols{grid-template-columns:minmax(0,1fr);padding:6px}.dual-pane:not(.act){display:none}}
 /* ===== REGISTRO DE CAMBIOS ===== */
 .cambios-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 auto 14px;max-width:900px}
 .cambios-tabs{display:flex;gap:6px;flex-wrap:wrap}.cambios-tabs .ef-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -1368,7 +1362,7 @@ var datosLocalesListos=false;
 var APP_VERSION = '2026.11.09.1';
 var APP_CHANGELOG = [
   { version:'2026.11.09.1', fecha:'2026-11-09', cambios:[
-    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Comparar A | B» en cada pareja. Abre las dos fichas una al lado de la otra, con A y B en la cabecera, marca en color los datos que difieren (nombre, fechas, lugares, padres, cónyuges, hijos, etiquetas, observaciones…), permite intercambiar A y B y abrir cualquiera de las dos fichas completas.'
+    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Fichas A | B» en cada pareja. Abre las dos fichas completas una al lado de la otra, con A y B en la cabecera. Cada una funciona como una ficha normal: se puede editar, usar «Unir con un duplicado» y moverse por padres, cónyuges e hijos (con su botón Atrás). Además, «Unir B en A» y «Unir A en B» fusionan directamente desde esta pantalla, y «Intercambiar» cambia el orden. En pantallas estrechas se muestra una ficha cada vez con las pestañas A y B.'
   ] },
   { version:'2026.11.08.3', fecha:'2026-11-08', cambios:[
     'Ficha, pestaña Datos: nuevo visto «Ficha revisada» al final de Datos personales. El administrador y el colaborador lo marcan o lo quitan con un clic (queda guardado y registrado como cualquier otro cambio); el resto de perfiles solo ven la marca cuando la ficha está revisada.'
@@ -3565,108 +3559,138 @@ function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{da
 async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios del archivo cambios-arbol.json de Drive.')))return;try{var arr=await refrescarCambiosDesdeDrive();var i=arr.findIndex(function(x){return x.id===id;});if(i<0)return;arr.splice(i,1);await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro eliminado');}catch(err){toast('No se pudo eliminar el registro: '+err.message,true);}}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editSec={};sv('fic');}
 
-/* ===== COMPARAR DOS FICHAS (A | B) desde el Gestor de datos =====
-   El botón «Comparar A | B» de cada pareja de duplicados abre las dos fichas en paralelo y
-   marca lo que difiere. Solo lectura. */
-/* Datos de una persona para comparar. Si la ficha ya no existe (p. ej. la donante de una
-   fusión) se reconstruye con los valores «antes» guardados en el registro de cambios. */
-function cmpDatosPersona(id){
-  if(PI[id])return {p:PI[id],existe:true};
-  var regs=(CAMBIOS_CACHE||[]).filter(function(r){return r&&r.personaId===id&&Array.isArray(r.campos);}).sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});
-  if(!regs.length)return null;
-  var s={ID:id};
-  regs.forEach(function(r){r.campos.forEach(function(k){s[k.campo]=k.antes;});});
-  return {p:s,existe:false};
+/* ===== DOS FICHAS A | B A LA VEZ =====
+   Cada panel es una ficha real (editable, con «Unir con un duplicado», navegación por padres, cónyuges e
+   hijos…). Comparten los datos (PI/D) pero cada panel guarda su propia persona, su estado de edición y su
+   historial. Las variables globales cid/editSec siempre corresponden al panel ACTIVO (el último donde se ha
+   pulsado o escrito); el código de la ficha pinta en ficEl(), que apunta al panel que toca. Para que los
+   formularios (getElementById) no se confundan entre paneles, solo el panel activo conserva los id de sus
+   elementos; los del otro se guardan en data-pid y se restituyen al activarlo. */
+var __dualAb=false;
+var __dual={act:'A',tgt:null,p:{A:{id:null,editSec:{},hist:[]},B:{id:null,editSec:{},hist:[]}}};
+function ficEl(){return __dualAb?document.getElementById('dualFic'+(__dual.tgt||__dual.act)):document.getElementById('fco');}
+function dualOtro(k){return k==='A'?'B':'A';}
+function dualEditando(k){var e=__dual.p[k].editSec||{};for(var x in e)if(e[x])return true;return false;}
+function dualQuitarIds(raiz){if(raiz)raiz.querySelectorAll('[id]').forEach(function(e){e.setAttribute('data-pid',e.id);e.removeAttribute('id');});}
+function dualPonerIds(raiz){if(raiz)raiz.querySelectorAll('[data-pid]').forEach(function(e){e.id=e.getAttribute('data-pid');e.removeAttribute('data-pid');});}
+function dualIds(){['A','B'].forEach(function(k){var r=document.getElementById('dualFic'+k);if(k===__dual.act)dualPonerIds(r);else dualQuitarIds(r);});}
+function dualCab(k){
+  var P=__dual.p[k],p=PI[P.id];
+  var n=document.getElementById('dualNom'+k);
+  if(n)n.textContent=p?((fn(p).replace(/\s+/g,' ').trim()||'(sin nombre)')+' · ID '+P.id):'Ficha no encontrada';
+  var at=document.getElementById('dualAtras'+k);if(at)at.disabled=!P.hist.length;
+  var pn=document.getElementById('dualPane'+k);if(pn)pn.classList.toggle('act',k===__dual.act);
+  var tb=document.getElementById('dualTab'+k);if(tb){tb.classList.toggle('active',k===__dual.act);tb.classList.toggle('ghost',k!==__dual.act);}
 }
-function cmpNom(q){return q?fn(q).replace(/\s+/g,' ').trim():'';}
-function cmpAnio(q){try{return pdAnioTexto(q)||'';}catch(e){return '';}}
-function cmpPersonaLi(id){
-  var q=PI[id];if(!q)return {h:'<div class="cmp-li">ID '+esc(id)+' <small>(no existe)</small></div>',t:'id '+id};
-  var a=cmpAnio(q);
-  return {h:'<div class="cmp-li">'+esc(cmpNom(q)||('ID '+id))+(a?' <small>('+esc(a)+')</small>':'')+'</div>',t:cmpNom(q).toLowerCase()+'|'+a};
-}
-/* Devuelve la ficha como lista de secciones con filas {l:etiqueta, h:html, t:texto para comparar} */
-function cmpFilas(d){
-  var p=d.p,id=String(p.ID||''),al=isAl(p);
-  var T=function(l,v){var s=(v==null?'':String(v));return {l:l,h:esc(s),t:s.trim().toLowerCase()};};
-  var nac=fDate(p.NACD,p.NACM,p.NACA)||cmpAnio(p);
-  var def=al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)');
-  var rel=function(l,rid){if(!rid)return {l:l,h:'',t:''};var x=cmpPersonaLi(rid);return {l:l,h:x.h,t:x.t};};
-  var cony=[],conyT=[];
-  CAMPOS_CONYUGE.forEach(function(c,i){
-    var cid=p[c];if(!cid)return;
-    var x=cmpPersonaLi(cid),n=i+1,f=p['MF'+n]||'',lu=p['ML'+n]||'';
-    var extra=[f,lu].filter(Boolean).join(' · ');
-    cony.push(x.h.replace('</div>',(extra?' <small>— '+esc(extra)+'</small>':'')+'</div>'));
-    conyT.push(x.t+'|'+String(f).toLowerCase()+'|'+String(lu).toLowerCase());
-  });
-  var hijos=[],hijosT=[];
-  if(d.existe){
-    var hs=(HD[id]||[]).slice();
-    try{hs=ordenarIdsPorEdad(hs);}catch(e){}
-    hs.forEach(function(h){var x=cmpPersonaLi(h);hijos.push(x.h);hijosT.push(x.t);});
+function dualPintar(k){
+  var P=__dual.p[k],act=(k===__dual.act),g0=null,t0=__dual.tgt;
+  if(act){cid=P.id;editSec=P.editSec;}else{g0=[cid,editSec];cid=P.id;editSec=P.editSec;}
+  __dual.tgt=k;
+  try{
+    if(P.id&&PI[P.id])rFicView(P.id);
+    else{var el=ficEl();if(el)el.innerHTML='<p style="padding:14px;color:var(--muted)">Esta ficha ya no existe.</p>';}
+  }finally{
+    __dual.tgt=t0;P.editSec=editSec;
+    if(!act){cid=g0[0];editSec=g0[1];}else{P.id=cid;}
   }
-  var foto=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" alt="">':'';
-  var obs=p.OBSERVACIONES?String(p.OBSERVACIONES):'';
-  return [
-    {s:'Identificación',f:[
-      {l:'ID',h:esc(id),t:'__id'},
-      {l:'Fotografía',h:foto,t:p.FOTO?'foto':'',cls:'foto'},
-      T('Nombre',p.NOMBRE),T('Primer apellido',p.APELLIDO1),T('Segundo apellido',p.APELLIDO2),T('Sexo',p.SEXO)]},
-    {s:'Datos personales',f:[
-      T('Nacimiento',nac),T('Lugar de nacimiento',p.LUGARNAC),T('Defunción',def),T('Lugar de defunción',p.LUGARDEF)]},
-    {s:'Familia',f:[
-      rel('Padre',p.PADRE),rel('Madre',p.MADRE),
-      {l:'Cónyuges',h:cony.join(''),t:conyT.join('#')},
-      {l:'Hijos'+(d.existe?' ('+hijos.length+')':''),h:d.existe?hijos.join(''):'',t:hijosT.join('#')}]},
-    {s:'Otros',f:[
-      T('Etiquetas',etiquetasArray(p).join(', ')),
-      {l:'Observaciones',h:esc(obs).replace(/&#10;/g,'<br>'),t:obs.trim().toLowerCase(),cls:'obs',raw:obs},
-      T('Marcada para borrar',p.BORRAR==='1'?'Sí':''),T('Ficha revisada',(p.REVISADA===true||p.REVISADA==='1'||p.REVISADA==='-1')?'Sí':'')]}
-  ];
+  dualIds();dualCab(k);
 }
-function cmpHtml(A,B,idA,idB){
-  var SA=cmpFilas(A),SB=cmpFilas(B),ndif=0,cuerpo='';
-  SA.forEach(function(sec,i){
-    cuerpo+='<div class="cmp-sec">'+esc(sec.s)+'</div>';
-    sec.f.forEach(function(fa,j){
-      var fb=SB[i].f[j];
-      var dif=(fa.t!==fb.t)&&fa.t!=='__id';
-      if(dif)ndif++;
-      var celda=function(f,dd){
-        var vacio=!f.h;
-        var obsTxt=f.cls==='obs'&&f.raw?'<span style="white-space:pre-wrap">'+esc(f.raw).replace(/&#10;/g,'\n')+'</span>':f.h;
-        return '<div class="cmp-cell'+(dd?' dif':'')+(vacio?' vacio':'')+(f.cls==='obs'?' obs':'')+'">'+(vacio?'—':(f.cls==='obs'?obsTxt:f.h))+'</div>';
-      };
-      cuerpo+='<div class="cmp-lab">'+esc(fa.l)+(dif?' · <span style="color:var(--accent)">distinto</span>':'')+'</div><div class="cmp-cols">'+celda(fa,dif)+celda(fb,dif)+'</div>';
-    });
-  });
-  var cab=function(d,letra,id,cls){
-    var p=d.p;
-    return '<div class="cmp-hcard '+cls+'"><div class="cmp-hfila"><span class="cmp-letra">'+letra+'</span><div style="min-width:0"><div class="cmp-hnom">'+esc(cmpNom(p)||('ID '+id))+'</div><div class="cmp-hsub">ID '+esc(id)+'</div></div></div>'+
-      (d.existe?'<button type="button" class="ef-btn ghost" style="font-size:11px;padding:4px 8px" onclick="cerrarComparadorFichas();(typeof abrirFichaEnPestana==\'function\'?abrirFichaEnPestana:verPersonaCambio)(\''+safeId(id)+'\')"><i class="fa-solid fa-id-card"></i> Abrir ficha '+letra+'</button>':'<div class="cmp-aviso"><i class="fa-solid fa-triangle-exclamation"></i> Esta ficha ya no existe (eliminada o fusionada). Se muestran sus datos de antes del cambio.</div>')+'</div>';
-  };
-  return '<div class="cmp-box"><div class="cmp-top"><div class="cmp-titulo"><i class="fa-solid fa-table-columns"></i> Comparar fichas<span class="cmp-resumen">'+(ndif?ndif+' campo(s) distinto(s), marcados en color':'Las dos fichas coinciden en todo lo comparado')+'</span></div><div class="cmp-top-btns"><button type="button" class="ef-btn ghost" onclick="abrirComparadorFichas(\''+safeId(idB)+'\',\''+safeId(idA)+'\')" title="Cambiar el orden"><i class="fa-solid fa-right-left"></i> Intercambiar A y B</button><button type="button" class="ef-btn" id="cmpCerrar" onclick="cerrarComparadorFichas()"><i class="fa-solid fa-xmark"></i> Cerrar</button></div></div>'+
-    '<div class="cmp-scroll"><div class="cmp-head"><div class="cmp-cols">'+cab(A,'A',idA,'a')+cab(B,'B',idB,'b')+'</div></div>'+cuerpo+'</div></div>';
+function dualRefrescar(id){
+  id=String(id);
+  var a=__dual.act,o=dualOtro(a),P=__dual.p[a],navega=false;
+  if(P.id!==id&&__dual.p[o].id!==id){
+    if(P.id)P.hist.push(P.id);
+    P.id=id;P.editSec=editSec;navega=true;
+  }else P.editSec=editSec;
+  dualPintar(a);
+  if(!navega&&!dualEditando(o))dualPintar(o);
+  try{actualizarBarraActiva();}catch(e){}
 }
-function cmpTecla(e){if(e.key==='Escape')cerrarComparadorFichas();}
-function cerrarComparadorFichas(){
-  var ov=document.getElementById('cmpOverlay');if(ov)ov.remove();
-  document.removeEventListener('keydown',cmpTecla);
+function dualActivar(k){
+  if(!__dualAb||k===__dual.act)return;
+  var A=__dual.p[__dual.act];A.id=cid;A.editSec=editSec;
+  __dual.act=k;var P=__dual.p[k];cid=P.id;editSec=P.editSec;
+  dualIds();dualCab('A');dualCab('B');
+  try{actualizarBarraActiva();}catch(e){}
 }
-function abrirComparadorFichas(idA,idB){
-  var A=cmpDatosPersona(idA),B=cmpDatosPersona(idB);
-  if(!A||!B){toast('No se encuentra alguna de las dos fichas',true);return;}
-  if((A.existe&&!puedeVerPersona(idA))||(B.existe&&!puedeVerPersona(idB))){toast('No tienes acceso a alguna de esas fichas',true);return;}
-  cerrarComparadorFichas();
+function dualAtras(k){
+  var P=__dual.p[k];if(!P.hist.length)return;
+  P.id=P.hist.pop();P.editSec={};
+  if(k===__dual.act){cid=P.id;editSec=P.editSec;}
+  dualPintar(k);
+}
+function dualIntercambiar(){
+  if(dualEditando('A')||dualEditando('B')){toast('Termina o cancela la edición antes de intercambiar A y B',true);return;}
+  var A=__dual.p[__dual.act];A.id=cid;A.editSec=editSec;
+  var t=__dual.p.A;__dual.p.A=__dual.p.B;__dual.p.B=t;
+  var P=__dual.p[__dual.act];cid=P.id;editSec=P.editSec;
+  dualPintar('A');dualPintar('B');
+}
+function dualUnir(kDonante){
+  if(!puedeMarcarBorrar()){toast('No tienes permiso para fusionar fichas',true);return;}
+  var kRec=dualOtro(kDonante),A=__dual.p[__dual.act];A.id=cid;A.editSec=editSec;
+  var idD=__dual.p[kDonante].id,idR=__dual.p[kRec].id;
+  if(!idD||!idR||!PI[idD]||!PI[idR]){toast('Falta una de las dos fichas',true);return;}
+  /* misma operación que «Unir con un duplicado» de la ficha: la receptora recibe hijos, cónyuges y datos */
+  pasarFamiliaAFicha(idD,idR,idR);
+}
+function dualTecla(e){
+  if(e.key!=='Escape')return;
+  var t=e.target;if(t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))return;
+  var ds=document.querySelectorAll('[role="dialog"]');
+  for(var i=0;i<ds.length;i++){if(ds[i].id!=='dualOv'&&getComputedStyle(ds[i]).display!=='none')return;}
+  cerrarDual();
+}
+function dualCerrarYa(){
+  if(!__dualAb)return;
+  var A=__dual.p[__dual.act];A.id=cid;
+  var ov=document.getElementById('dualOv');
+  __dualAb=false;
+  if(ov)ov.remove();
+  document.documentElement.classList.remove('dual-bloq');
+  document.removeEventListener('keydown',dualTecla,true);
+  dualPonerIds(document.getElementById('fco'));
+  cid=A.id;editSec={};
+  try{actualizarBarraActiva();}catch(e){}
+  try{var g=document.getElementById('vGes');if(g&&g.classList.contains('active'))rGesLigero();}catch(e){}
+  try{var vf=document.getElementById('vFic');if(vf&&vf.classList.contains('active')&&PI[cid])rFic(cid);}catch(e){}
+}
+async function cerrarDual(){
+  if(dualEditando('A')||dualEditando('B')){
+    if(!(await confirmarApp('Hay una sección en edición sin guardar. ¿Cerrar las fichas y descartar lo que estás editando?')))return;
+  }
+  dualCerrarYa();
+}
+async function abrirDual(idA,idB){
+  idA=String(idA);idB=String(idB);
+  if(!PI[idA]||!PI[idB]){toast('No se encuentra alguna de las dos fichas',true);return;}
+  if(!puedeVerPersona(idA)||!puedeVerPersona(idB)){toast('No tienes acceso a alguna de esas fichas',true);return;}
+  if(__dualAb)dualCerrarYa();
+  if(__splitGes){await __splitCerrar(false);if(__splitGes)return;}
+  var puede=puedeMarcarBorrar();
+  var pane=function(k){return '<section class="dual-pane'+(k==='A'?' act':'')+'" id="dualPane'+k+'" data-dual-pane="'+k+'"><div class="dual-cab"><span class="dual-letra">'+k+'</span><span class="dual-nom" id="dualNom'+k+'"></span><button type="button" class="ef-btn ghost" id="dualAtras'+k+'" style="padding:3px 9px;font-size:11px" title="Volver a la ficha anterior de este panel" onclick="dualAtras(\''+k+'\')"><i class="fa-solid fa-arrow-left"></i> Atrás</button></div><div class="dual-scroll"><div class="ficha" id="dualFic'+k+'"></div></div></section>';};
   var ov=document.createElement('div');
-  ov.id='cmpOverlay';ov.className='cmp-overlay';
-  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Comparar fichas A y B');
-  ov.innerHTML=cmpHtml(A,B,idA,idB);
-  ov.addEventListener('click',function(e){if(e.target===ov)cerrarComparadorFichas();});
+  ov.id='dualOv';ov.className='dual-ov';ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Fichas A y B');
+  ov.innerHTML='<div class="dual-top"><div class="dual-tit"><i class="fa-solid fa-table-columns"></i> Fichas A | B</div>'+
+    '<div class="dual-tabs"><button type="button" class="ef-btn active" id="dualTabA" onclick="dualActivar(\'A\')">A</button><button type="button" class="ef-btn ghost" id="dualTabB" onclick="dualActivar(\'B\')">B</button></div>'+
+    '<div class="dual-acc">'+(puede?'<button type="button" class="ef-btn" title="B es la donante: sus hijos, cónyuges y datos pasan a A" onclick="dualUnir(\'B\')"><i class="fa-solid fa-code-merge"></i> Unir B en A</button><button type="button" class="ef-btn" title="A es la donante: sus hijos, cónyuges y datos pasan a B" onclick="dualUnir(\'A\')"><i class="fa-solid fa-code-merge"></i> Unir A en B</button>':'')+
+    '<button type="button" class="ef-btn ghost" onclick="dualIntercambiar()"><i class="fa-solid fa-right-left"></i> Intercambiar</button><button type="button" class="ef-btn" onclick="cerrarDual()"><i class="fa-solid fa-xmark"></i> Cerrar</button></div></div>'+
+    '<div class="dual-cols">'+pane('A')+pane('B')+'</div>';
+  ['pointerdown','focusin','touchstart'].forEach(function(t){
+    ov.addEventListener(t,function(e){var n=e.target&&e.target.closest?e.target.closest('[data-dual-pane]'):null;if(n)dualActivar(n.getAttribute('data-dual-pane'));},true);
+  });
+  /* los id de la ficha que ya hubiera pintada en la pantalla de debajo no deben chocar con los de los paneles */
+  dualQuitarIds(document.getElementById('fco'));
   document.body.appendChild(ov);
-  document.addEventListener('keydown',cmpTecla);
-  var b=document.getElementById('cmpCerrar');if(b)b.focus();
+  document.documentElement.classList.add('dual-bloq');
+  document.addEventListener('keydown',dualTecla,true);
+  __dualAb=true;
+  __dual.act='A';
+  __dual.p={A:{id:idA,editSec:{},hist:[]},B:{id:idB,editSec:{},hist:[]}};
+  cid=idA;editSec={};
+  dualPintar('B');dualPintar('A');
+  dualIds();dualCab('A');dualCab('B');
+  try{actualizarBarraActiva();}catch(e){}
 }
 async function obtenerArchivoCambiosDrive(){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&orderBy='+encodeURIComponent('modifiedTime desc')+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 /* Acepta el formato real {cambios:[...]} y también una lista suelta [...]; cada registro se normaliza:
@@ -6551,6 +6575,7 @@ function actualizarBotonesNavHist(){
   if(f)f.disabled=(__navPos>=__navStack.length-1);
 }
 function sv(v){
+  if(__dualAb){if(v==='fic'){rFic(cid);return;}dualCerrarYa();}
   if(v==='fic'&&__splitGes){editSec={};rFic(cid);var pn=document.getElementById('vFic');if(pn)pn.scrollTop=0;return;}
   if(v==='ges'&&!puedeUsarGestorDatos()){toast('El Gestor de datos no está disponible para tu perfil',true);return;}
   if(esLector()&&(v==='inf'||v==='cam'||v==='inv'||v==='ges')){toast('Esta pantalla no está disponible para tu perfil de solo lectura',true);return;}
@@ -9162,6 +9187,7 @@ if(haySeccionEditando())return;
 __splitFirma=__splitFirmaActual();rFic(cid);
 }
 function abrirFichaEnPestana(id){
+if(__dualAb){if(PI[id]&&puedeVerPersona(id)){cid=id;editSec={};rFic(id);}return;}
 if(__splitGes||__splitPosible()){__splitAbrir(id);return;}
 if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}
 if(!puedeVerPersona(id)){abrirFichaDesdeArbol(id);return;}
@@ -9201,6 +9227,7 @@ cid=id;editSec={};sv('fic');
 }
 function abrirFichaDesdeArbol(id){if(!puedeVerPersona(id)){if(necesitaConectarParaVer()){toast('Conecta tu cuenta de Google para ver esta ficha (toca la pastilla de Google Drive)',true);}else{toast('No tienes acceso a esa ficha',true);}return;}cid=id;editSec={};sv('fic');}
 function rFic(id){
+if(__dualAb){dualRefrescar(id);return;}
 rFicView(id);
 actualizarBarraActiva();
 if(__splitGes)__splitTrasPintar();
@@ -9345,8 +9372,8 @@ return'<div class="fic-arbol-caja"><div class="fac-titulo">Árbol genealógico</
    fichas distintas. */
 function fichaTabActivaGuardada(){try{return localStorage.getItem('fichaTabActiva')||'datos';}catch(e){return'datos';}}
 function fSelTab(tab){
-document.querySelectorAll('#fco .fic-tab-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab);});
-document.querySelectorAll('#fco .fic-tab-panel').forEach(function(pn){pn.classList.toggle('active',pn.getAttribute('data-tab')===tab);});
+ficEl().querySelectorAll('.fic-tab-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-tab')===tab);});
+ficEl().querySelectorAll('.fic-tab-panel').forEach(function(pn){pn.classList.toggle('active',pn.getAttribute('data-tab')===tab);});
 try{localStorage.setItem('fichaTabActiva',tab);}catch(e){}
 }
 function seccionHeaderHtml(titulo,id,sec,mostrarBoton){
@@ -9865,7 +9892,7 @@ registrarCambiosDesdeSnapshots([antesCambio],[p],'editar');
 }
 function rFicView(id){
 var p=PI[id];
-if(!p){document.getElementById('fco').innerHTML='<p>No encontrada</p>';return;}
+if(!p){ficEl().innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='';
 h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
@@ -9992,7 +10019,7 @@ var htmlTabFamilia='<div class="fs">'+secFamiliaRelaciones+'</div><div class="fs
 h+='<div class="fic-tab-panel'+(tabInicial==='datos'?' active':'')+'" data-tab="datos">'+htmlTabDatos+'</div>';
 h+='<div class="fic-tab-panel'+(tabInicial==='familia'?' active':'')+'" data-tab="familia">'+htmlTabFamilia+'</div>';
 h+='<div class="fs fic-tab-panel'+(tabInicial==='extendida'?' active':'')+'" data-tab="extendida"><h3>Familia extendida</h3>'+secExtendida+'</div>';
-document.getElementById('fco').innerHTML=h;
+ficEl().innerHTML=h;
 cid=id;
 if(editSec.etiquetas){actualizarDatalistEtiquetas();efRenderEtiquetas();}
 actualizarAvisoConexionEdicion();
@@ -11262,7 +11289,7 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-people-
 '<div class="inc-actions">'+
 (esAdministrador()?'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>':'')+
 (esAdministrador()?'<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarConyuges(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>':'')+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" title="Ver las dos fichas una al lado de la otra" onclick="abrirComparadorFichas(\''+safeId(it.aId)+'\',\''+safeId(it.bId)+'\')"><i class="fa-solid fa-table-columns"></i> Comparar A | B</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" title="Abrir las dos fichas una al lado de la otra para editarlas y unirlas" onclick="abrirDual(\''+safeId(it.aId)+'\',\''+safeId(it.bId)+'\')"><i class="fa-solid fa-table-columns"></i> Fichas A | B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.aId)+'\')">Ver A</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.bId)+'\')">Ver B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.ownerId)+'\')">Ver persona</button>'+
@@ -13604,7 +13631,7 @@ return '<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-user-gr
 '<div class="inc-actions">'+btnArreglar+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',false)"><i class="fa-solid fa-code-merge"></i> Fusionar en A</button>'+
 '<button class="ef-btn" style="padding:4px 10px;font-size:11px" onclick="gesFusionarDup(\''+c.id+'\','+idx+',true)"><i class="fa-solid fa-code-merge"></i> Fusionar en B</button>'+
-'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" title="Ver las dos fichas una al lado de la otra" onclick="abrirComparadorFichas(\''+safeId(it.aId)+'\',\''+safeId(it.bId)+'\')"><i class="fa-solid fa-table-columns"></i> Comparar A | B</button>'+
+'<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" title="Abrir las dos fichas una al lado de la otra para editarlas y unirlas" onclick="abrirDual(\''+safeId(it.aId)+'\',\''+safeId(it.bId)+'\')"><i class="fa-solid fa-table-columns"></i> Fichas A | B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.aId)+'\')">Ver A</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.bId)+'\')">Ver B</button>'+
 '<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesIgnorarDup(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> No es duplicado</button>'+
