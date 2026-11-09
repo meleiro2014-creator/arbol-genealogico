@@ -1362,7 +1362,7 @@ var datosLocalesListos=false;
 var APP_VERSION = '2026.11.09.1';
 var APP_CHANGELOG = [
   { version:'2026.11.09.1', fecha:'2026-11-09', cambios:[
-    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Fichas A | B» en cada pareja. Abre las dos fichas completas una al lado de la otra, con A y B en la cabecera. Cada una funciona como una ficha normal: se puede editar, usar «Unir con un duplicado» y moverse por padres, cónyuges e hijos (con su botón Atrás). Además, «Unir B en A» y «Unir A en B» fusionan directamente desde esta pantalla, y «Intercambiar» cambia el orden. En pantallas estrechas se muestra una ficha cada vez con las pestañas A y B.'
+    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Fichas A | B» en cada pareja. Abre las dos fichas completas una al lado de la otra, con A y B en la cabecera. Cada una funciona como una ficha normal: se puede editar, usar «Unir con un duplicado» y moverse por padres, cónyuges e hijos (con su botón Atrás). Además, «Unir B en A» y «Unir A en B» fusionan directamente desde esta pantalla, y «Intercambiar» cambia el orden. En pantallas estrechas se muestra una ficha cada vez con las pestañas A y B. Los botones que cambian de pantalla (Documentos, Cronología, Parentesco, Revisar en el Gestor) preguntan antes de cerrar las fichas A | B.'
   ] },
   { version:'2026.11.08.3', fecha:'2026-11-08', cambios:[
     'Ficha, pestaña Datos: nuevo visto «Ficha revisada» al final de Datos personales. El administrador y el colaborador lo marcan o lo quitan con un clic (queda guardado y registrado como cualquier otro cambio); el resto de perfiles solo ven la marca cuando la ficha está revisada.'
@@ -3593,6 +3593,9 @@ function dualPintar(k){
     __dual.tgt=t0;P.editSec=editSec;
     if(!act){cid=g0[0];editSec=g0[1];}else{P.id=cid;}
   }
+  P.avisos=window._inconsistenciasFichaActual||[];
+  if(act)window._inconsistenciasFichaActual=P.avisos;
+  else window._inconsistenciasFichaActual=__dual.p[__dual.act].avisos||[];
   dualIds();dualCab(k);
 }
 function dualRefrescar(id){
@@ -3609,7 +3612,7 @@ function dualRefrescar(id){
 function dualActivar(k){
   if(!__dualAb||k===__dual.act)return;
   var A=__dual.p[__dual.act];A.id=cid;A.editSec=editSec;
-  __dual.act=k;var P=__dual.p[k];cid=P.id;editSec=P.editSec;
+  __dual.act=k;var P=__dual.p[k];cid=P.id;editSec=P.editSec;window._inconsistenciasFichaActual=P.avisos||[];
   dualIds();dualCab('A');dualCab('B');
   try{actualizarBarraActiva();}catch(e){}
 }
@@ -3624,7 +3627,7 @@ function dualIntercambiar(){
   var A=__dual.p[__dual.act];A.id=cid;A.editSec=editSec;
   var t=__dual.p.A;__dual.p.A=__dual.p.B;__dual.p.B=t;
   var P=__dual.p[__dual.act];cid=P.id;editSec=P.editSec;
-  dualPintar('A');dualPintar('B');
+  dualPintar('A');dualPintar('B');window._inconsistenciasFichaActual=__dual.p[__dual.act].avisos||[];
 }
 function dualUnir(kDonante){
   if(!puedeMarcarBorrar()){toast('No tienes permiso para fusionar fichas',true);return;}
@@ -3633,6 +3636,17 @@ function dualUnir(kDonante){
   if(!idD||!idR||!PI[idD]||!PI[idR]){toast('Falta una de las dos fichas',true);return;}
   /* misma operación que «Unir con un duplicado» de la ficha: la receptora recibe hijos, cónyuges y datos */
   pasarFamiliaAFicha(idD,idR,idR);
+}
+var __dualSalidaPend=false;
+/* Botones de la ficha como «Documentos», «Cronología», «Parentesco» o «Revisar en el Gestor» cambian de pantalla
+   y no caben dentro de las fichas A | B: antes de cerrarlas se pregunta, para no perder la comparación por un toque. */
+async function dualPedirSalida(v){
+  if(__dualSalidaPend)return;__dualSalidaPend=true;
+  try{
+    var nombres={doc:'Documentos',cro:'la Cronología',rel:'Parentesco',ges:'el Gestor de datos',bus:'Buscar',arb:'el Árbol',inf:'Informes',cam:'el Registro de cambios',inv:'Investigación'};
+    var ok=await confirmarApp('Para abrir '+(nombres[v]||'esa pantalla')+' se cerrarán las fichas A | B, y lo que tengas sin guardar se perderá. ¿Quieres salir?',{titulo:'Salir de las fichas A | B'});
+    if(ok){dualCerrarYa();sv(v);}
+  }finally{__dualSalidaPend=false;}
 }
 function dualTecla(e){
   if(e.key!=='Escape')return;
@@ -6575,7 +6589,7 @@ function actualizarBotonesNavHist(){
   if(f)f.disabled=(__navPos>=__navStack.length-1);
 }
 function sv(v){
-  if(__dualAb){if(v==='fic'){rFic(cid);return;}dualCerrarYa();}
+  if(__dualAb){if(v==='fic'){rFic(cid);return;}dualPedirSalida(v);return;}
   if(v==='fic'&&__splitGes){editSec={};rFic(cid);var pn=document.getElementById('vFic');if(pn)pn.scrollTop=0;return;}
   if(v==='ges'&&!puedeUsarGestorDatos()){toast('El Gestor de datos no está disponible para tu perfil',true);return;}
   if(esLector()&&(v==='inf'||v==='cam'||v==='inv'||v==='ges')){toast('Esta pantalla no está disponible para tu perfil de solo lectura',true);return;}
@@ -6674,6 +6688,7 @@ bar.style.display='none';
    Un familiar no técnico no sabe por qué esa barra cambia sola ni qué pasa si la toca;
    se muestra una única vez (marca en localStorage) un aviso breve explicándolo. */
 function mostrarAyudaPersonaActivaSiToca(){
+if(__dualAb)return;
 try{if(localStorage.getItem('lb_ayuda_activebar_vista'))return;}catch(e){return;}
 if(document.querySelector('.activebar-ayuda-popover'))return;
 var bar=document.getElementById('activeBar');
@@ -9242,6 +9257,7 @@ if(__splitGes)__splitTrasPintar();
    la pantalla activa es una ficha, la redibuja para que aparezcan de inmediato
    los botones/avisos que dependen de estar conectado. */
 function refrescarFichaTrasConectar(){
+if(__dualAb){if(!dualEditando('A')&&!dualEditando('B')){dualPintar('B');dualPintar('A');}else actualizarAvisoConexionEdicion();return;}
 if(typeof __vistaActual==='undefined'||__vistaActual!=='fic'||!cid)return;
 /* Si hay una seccion en edicion NO se redibuja (se perderia lo escrito); solo se actualiza el aviso de conexion. */
 if(haySeccionEditando()){actualizarAvisoConexionEdicion();return;}
@@ -9381,6 +9397,7 @@ return '<div style="display:flex;justify-content:space-between;align-items:cente
 }
 function haySeccionEditando(){for(var k in editSec)if(editSec[k])return true;return false;}
 function iniciarEdicionSeccion(id,sec){
+if(__dualAb&&(sec==='foto'||sec==='etiquetas')){var oo=__dual.p[dualOtro(__dual.act)].editSec||{};if(oo[sec]){toast('Termina o cancela primero la edición de '+(sec==='foto'?'la foto':'las etiquetas')+' en la otra ficha',true);return;}}
 if(!tokenDriveValido()){toast('Conéctate primero a Google Drive para poder editar (toca la abeja de Google Drive arriba) — así se evita escribir cambios que luego no se puedan guardar.',true);return;}
 if(sec==='etiquetas'){var pp=PI[id];efEtiquetasEdit=pp?etiquetasArray(pp).slice():[];}
 if(sec==='foto'){fotoPendiente=undefined;try{localStorage.setItem('fichaTabActiva','datos');}catch(e){}}
@@ -11369,7 +11386,7 @@ return copia;
 actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
 await cederPantalla();
 await sAll(nuevos);
-D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);if(__splitGes){__splitCerrar(true);rGesLigero();}else sv('bus');actualizarBarraActiva();
+D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);if(__dualAb){var __Pd=__dual.p[__dual.act];__Pd.editSec={};editSec=__Pd.editSec;cid=__Pd.id;dualPintar(__dual.act);}else if(__splitGes){__splitCerrar(true);rGesLigero();}else sv('bus');actualizarBarraActiva();
 toast('Ficha eliminada correctamente');
 try{
 actualizarProgresoAccion('Registrando el cambio...');
