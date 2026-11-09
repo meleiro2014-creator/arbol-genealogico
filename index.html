@@ -1362,7 +1362,7 @@ var datosLocalesListos=false;
 var APP_VERSION = '2026.11.09.1';
 var APP_CHANGELOG = [
   { version:'2026.11.09.1', fecha:'2026-11-09', cambios:[
-    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Fichas A | B» en cada pareja. Abre las dos fichas completas una al lado de la otra, con A y B en la cabecera. Cada una funciona como una ficha normal: se puede editar, usar «Unir con un duplicado» y moverse por padres, cónyuges e hijos (con su botón Atrás). Además, «Unir B en A» y «Unir A en B» fusionan directamente desde esta pantalla, y «Intercambiar» cambia el orden. En pantallas estrechas se muestra una ficha cada vez con las pestañas A y B. Los botones que cambian de pantalla (Documentos, Cronología, Parentesco, Revisar en el Gestor) preguntan antes de cerrar las fichas A | B.'
+    'Gestor de datos → Posibles duplicados (y cónyuges con nombres parecidos): nuevo botón «Fichas A | B» en cada pareja. También, en cualquier ficha (solo administrador y colaborador), el botón «Abrir otra ficha» pide elegir a otra persona y abre las dos fichas A | B. En el Registro de cambios, los cambios que afectan a dos personas (fusiones, uniones de duplicados, vínculos familiares) llevan el mismo botón «Fichas A | B» y se abre con las personas en liza. Abre las dos fichas completas una al lado de la otra, con A y B en la cabecera. Cada una funciona como una ficha normal: se puede editar, usar «Unir con un duplicado» y moverse por padres, cónyuges e hijos (con su botón Atrás). Además, «Unir B en A» y «Unir A en B» fusionan directamente desde esta pantalla, y «Intercambiar» cambia el orden. En pantallas estrechas se muestra una ficha cada vez con las pestañas A y B. Los botones que cambian de pantalla (Documentos, Cronología, Parentesco, Revisar en el Gestor) preguntan antes de cerrar las fichas A | B.'
   ] },
   { version:'2026.11.08.3', fecha:'2026-11-08', cambios:[
     'Ficha, pestaña Datos: nuevo visto «Ficha revisada» al final de Datos personales. El administrador y el colaborador lo marcan o lo quitan con un clic (queda guardado y registrado como cualquier otro cambio); el resto de perfiles solo ven la marca cuando la ficha está revisada.'
@@ -3558,6 +3558,37 @@ function actualizarContadorCambios(){listarCambios().then(function(arr){var n=ar
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios del archivo cambios-arbol.json de Drive.')))return;try{var arr=await refrescarCambiosDesdeDrive();var i=arr.findIndex(function(x){return x.id===id;});if(i<0)return;arr.splice(i,1);await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro eliminado');}catch(err){toast('No se pudo eliminar el registro: '+err.message,true);}}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editSec={};sv('fic');}
+/* ===== Registro de cambios: abrir las fichas A | B de las personas en liza =====
+   Un cambio afecta a dos personas cuando (a) en la misma operación (mismo usuario y misma fecha exacta) se registraron
+   cambios en otra ficha —fusión o unión de duplicados, vínculos…— o (b) cambia un enlace familiar (padre, madre,
+   cónyuge) hacia otra persona. La ficha del cambio es A; la otra, B. Se abren las fichas reales, editables. */
+function cambioPersonasEnLiza(c,arr){
+  var ids=[],vistos={};vistos[String(c.personaId)]=1;
+  var anadir=function(x){x=x==null?'':String(x);if(!x||vistos[x]||!PI[x])return;vistos[x]=1;ids.push(x);};
+  (arr||[]).forEach(function(o){
+    if(!o||o===c||!o.personaId||o.estado==='eliminado')return;
+    if(o.usuario===c.usuario&&o.fecha===c.fecha)anadir(o.personaId);
+  });
+  /* los enlaces familiares solo cuentan si no hay otra ficha tocada en la misma operación */
+  if(!ids.length){
+    var enlaces=['PADRE','MADRE'].concat(typeof CAMPOS_CONYUGE!=='undefined'?CAMPOS_CONYUGE:[]);
+    (c.campos||[]).forEach(function(k){
+      if(!k||enlaces.indexOf(k.campo)<0)return;
+      anadir(k.despues);anadir(k.antes);
+    });
+  }
+  /* operaciones masivas (más de 3 personas) no son una comparación A | B */
+  return ids.length&&ids.length<=3?ids:[];
+}
+function botonFichasCambio(c,arr){
+  if(!c||!c.personaId||!PI[c.personaId]||!puedeMarcarBorrar())return '';
+  var otros=cambioPersonasEnLiza(c,arr);
+  return otros.map(function(idB){
+    var nom=fn(PI[idB]).replace(/\s+/g,' ').trim()||('ID '+idB);
+    var txt=otros.length>1?('Fichas A | B con '+nom):'Fichas A | B';
+    return '<button type="button" class="ef-btn ghost" title="Abrir las dos fichas una al lado de la otra para editarlas o unirlas" onclick="abrirDual(\''+safeId(c.personaId)+'\',\''+safeId(idB)+'\')"><i class="fa-solid fa-table-columns"></i> '+esc(txt)+'</button>';
+  }).join('');
+}
 
 /* ===== DOS FICHAS A | B A LA VEZ =====
    Cada panel es una ficha real (editable, con «Unir con un duplicado», navegación por padres, cónyuges e
@@ -3667,6 +3698,7 @@ function dualCerrarYa(){
   cid=A.id;editSec={};
   try{actualizarBarraActiva();}catch(e){}
   try{var g=document.getElementById('vGes');if(g&&g.classList.contains('active'))rGesLigero();}catch(e){}
+  try{var vc=document.getElementById('vCam');if(vc&&vc.classList.contains('active')){setTimeout(function(){var h=document.getElementById('btnCambiosHist');mostrarCambios(h&&h.classList.contains('active')?'historial':'pendientes');},400);}}catch(e){}
   try{var vf=document.getElementById('vFic');if(vf&&vf.classList.contains('active')&&PI[cid])rFic(cid);}catch(e){}
 }
 async function cerrarDual(){
@@ -9913,7 +9945,7 @@ if(!p){ficEl().innerHTML='<p>No encontrada</p>';return;}
 var al=isAl(p);
 var h='';
 h+='<div class="bb" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</div>';
-h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+botonMarcaBorrarHtml(id)+(tokenDriveValido()&&!esLector()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
+h+='<div class="fic-toolbar"><div></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(tokenDriveValido()?'<button class="ef-btn ghost" onclick="docId=\''+safeId(id)+'\';sv(\'doc\')"><i class="fa-solid fa-folder-open"></i> Documentos</button>':'')+'<button class="ef-btn ghost" onclick="croId=\''+safeId(id)+'\';sv(\'cro\')"><i class="fa-solid fa-timeline"></i> Cronología</button><button class="ef-btn ghost" onclick="sv(\'rel\')"><i class="fa-solid fa-people-arrows"></i> Parentesco</button>'+botonAbrirOtraFichaHtml(id)+botonMarcaBorrarHtml(id)+(tokenDriveValido()&&!esLector()?'<button class="ef-btn ghost" onclick="eliminarFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-trash-can"></i> Eliminar</button>':'')+'</div></div>';
 h+='<div id="efConexionAviso" style="display:none"></div>';
 var estadoGuardado=FICHA_ULTIMO_GUARDADO[id];
 if(estadoGuardado&&(Date.now()-estadoGuardado.ts)<20*60*1000){
@@ -10822,6 +10854,31 @@ var FICHA_ULTIMO_GUARDADO={};
    3) Gestor de datos (solo administrador): categoría «Cónyuges con nombres parecidos»: personas
       con dos o más cónyuges cuyos nombres son iguales o casi iguales (probable cónyuge duplicado). */
 function puedeMarcarBorrar(){return esAdministrador()||esColaborador();}
+/* ===== Abrir una segunda ficha junto a la actual (A | B) — solo administrador y colaborador =====
+   El botón de la barra de la ficha pide elegir la otra persona (se proponen los posibles duplicados) y abre las dos
+   fichas completas una al lado de la otra: se editan, se unen y se navega por parientes como en cualquier ficha. */
+function botonAbrirOtraFichaHtml(id){
+  if(__dualAb||!puedeMarcarBorrar()||!PI[id])return '';
+  return '<button class="ef-btn ghost" title="Abre una segunda ficha al lado de esta para editarlas o unirlas" onclick="abrirOtraFicha(\''+safeId(id)+'\')"><i class="fa-solid fa-table-columns"></i> Abrir otra ficha</button>';
+}
+function abrirOtraFicha(id){
+  if(!puedeMarcarBorrar()){toast('Solo el administrador y los colaboradores pueden abrir dos fichas a la vez',true);return;}
+  if(__dualAb)return;
+  if(!PI[id]){toast('Ficha no encontrada',true);return;}
+  if(haySeccionEditando()){toast('Guarda o cancela la edición de esta ficha antes de abrir otra',true);return;}
+  selectorRelacion={id:id,campo:'FICHA_B'};
+  var modal=document.getElementById('modalConyuge'),input=document.getElementById('buscarConyuge'),tit=document.getElementById('modalRelacionTitulo');
+  if(tit)tit.textContent='Abrir otra ficha: se verán las dos, A | B';
+  modal.style.display='flex';input.value='';filtrarRelacion();setTimeout(function(){input.focus();},0);
+}
+function elegirOtraFicha(otroId){
+  var sel=selectorRelacion;if(!sel)return;
+  var idA=String(sel.id);
+  cerrarSelectorRelacion();
+  if(String(otroId)===idA){toast('Elige una persona distinta',true);return;}
+  if(typeof puedeVerPersona==='function'&&!puedeVerPersona(otroId)){toast('No tienes acceso a esa ficha',true);return;}
+  abrirDual(idA,String(otroId));
+}
 function botonMarcaBorrarHtml(id){
 if(!puedeMarcarBorrar())return '';
 var p=PI[id];if(!p)return '';
@@ -10920,7 +10977,7 @@ if(ev&&ev.score!==undefined)ins+=' <span style="background:var(--accent);color:#
 if(p.BORRAR==='1')ins+=' <span style="background:#C4653A;color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700">Ya marcada para borrar</span>';
 var det=ev&&ev.motivos&&ev.motivos.length?'<div class="ry" style="white-space:normal;color:var(--alive)">'+esc(ev.motivos.join(' · '))+'</div>':'';
 var conf=ev&&ev.conflictos&&ev.conflictos.length?'<div class="ry" style="white-space:normal;color:#C4653A">'+esc(ev.conflictos.join(' · '))+'</div>':'';
-return '<div class="ri" onclick="elegirRelacion(\''+safeId(p.ID)+'\',this)">'+avatarHTML(p)+'<div style="min-width:0"><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span>'+ins+'</div><div class="ry" style="white-space:normal">'+esc(partes.join(' · '))+'</div>'+det+conf+'</div><span style="margin-left:auto;flex-shrink:0;align-self:center;background:var(--accent);color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700"><i class="fa-solid fa-code-merge" aria-hidden="true"></i> Unir</span></div>';
+return '<div class="ri" onclick="elegirRelacion(\''+safeId(p.ID)+'\',this)">'+avatarHTML(p)+'<div style="min-width:0"><div class="rn">'+esc(fn(p))+' <span style="color:var(--muted);font-weight:400;font-size:11px">(ID '+esc(p.ID)+')</span>'+ins+'</div><div class="ry" style="white-space:normal">'+esc(partes.join(' · '))+'</div>'+det+conf+'</div><span style="margin-left:auto;flex-shrink:0;align-self:center;background:var(--accent);color:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700">'+(selectorRelacion&&selectorRelacion.campo==='FICHA_B'?'<i class="fa-solid fa-table-columns" aria-hidden="true"></i> Abrir':'<i class="fa-solid fa-code-merge" aria-hidden="true"></i> Unir')+'</span></div>';
 }
 /* Búsqueda de la donante: sin escribir nada propone los posibles duplicados de esta ficha (mismo nombre y apellidos,
    ordenados por la puntuación del detector de duplicados); escribiendo, busca por nombre o ID poniendo primero los más parecidos. */
@@ -10948,7 +11005,7 @@ parc.sort(function(u,v){var yu=getYear(u.p),yv=getYear(v.p);return (ya&&yu?Math.
 sel.sug=full.concat(parc).slice(0,20);
 }
 items=sel.sug;
-html+='<p style="font-size:12px;color:var(--muted);margin:0 0 8px">'+(items.length?'<b>Posibles duplicados de '+esc(fn(actual).replace(/\s+/g,' ').trim())+'</b> (mismo nombre y primer apellido). Pulsa «Unir» en el que sea la donante, o escribe arriba un nombre o un ID para buscar a otra persona.':'No hay candidatos evidentes. Escribe arriba el nombre o el ID de la ficha donante.')+'</p>';
+html+='<p style="font-size:12px;color:var(--muted);margin:0 0 8px">'+(items.length?'<b>Posibles duplicados de '+esc(fn(actual).replace(/\s+/g,' ').trim())+'</b> (mismo nombre y primer apellido). '+(sel.campo==='FICHA_B'?'Pulsa «Abrir» en el que quieras ver junto a esta ficha, o escribe arriba un nombre o un ID para buscar a otra persona.':'Pulsa «Unir» en el que sea la donante, o escribe arriba un nombre o un ID para buscar a otra persona.'):(sel.campo==='FICHA_B'?'No hay candidatos evidentes. Escribe arriba el nombre o el ID de la ficha que quieres abrir.':'No hay candidatos evidentes. Escribe arriba el nombre o el ID de la ficha donante.'))+'</p>';
 }else{
 var ids=[];
 D.forEach(function(x){
@@ -11599,7 +11656,7 @@ function filtrarRelacion(){
 if(!selectorRelacion)return;
 var q=document.getElementById('buscarConyuge').value.toLowerCase().trim(),actual=PI[selectorRelacion.id],campo=selectorRelacion.campo,lista=document.getElementById('listaConyuges');
 if(!actual){lista.innerHTML='<p style="font-size:12px;color:var(--muted);padding:10px 0">Persona no encontrada.</p>';return;}
-if(campo==='FUSION_EMISORA'||campo==='FUSION_RECEPTORA'){filtrarDonanteFusion(actual,q,lista);return;}
+if(campo==='FUSION_EMISORA'||campo==='FUSION_RECEPTORA'||campo==='FICHA_B'){filtrarDonanteFusion(actual,q,lista);return;}
 var excluir={};excluir[actual.ID]=true;
 if(CAMPOS_CONYUGE.indexOf(campo)>=0){CAMPOS_CONYUGE.forEach(function(c){if(actual[c])excluir[actual[c]]=true;});}
 if(campo==='AMIGOS'){amigosIdsDe(actual).forEach(function(aid){excluir[aid]=true;});}
@@ -11626,6 +11683,7 @@ lista.innerHTML=html;
 }
 async function elegirRelacion(otroId,btn){
 if(selectorRelacion&&selectorRelacion.campo==='FOTO_ORIGEN'){elegirFotoOrigen(otroId);return;}
+if(selectorRelacion&&selectorRelacion.campo==='FICHA_B'){elegirOtraFicha(otroId);return;}
 if(selectorRelacion&&(selectorRelacion.campo==='FUSION_EMISORA'||selectorRelacion.campo==='FUSION_RECEPTORA')){elegirFusionFamilia(otroId);return;}
 if(!iniciarOperacionFicha(btn,''))return;
 if(!(await exigirIdentidadGoogle())){finOperacionFicha(btn);return;}
@@ -20250,7 +20308,7 @@ if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibili
 if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial();
 if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
-function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#C4653A;border-color:#C4653A" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#C4653A">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#C4653A;border-color:#C4653A" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}acciones+=botonFichasCambio(c,arr);if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#C4653A">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var puedeSyncCam=!!(driveRootFolderId&&tokenDriveValido());
 CAMBIOS_CARGANDO=puedeSyncCam;
 /* La barra (con la abeja) se enseña YA, nada mas abrir la pantalla, y no se oculta hasta que
