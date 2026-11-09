@@ -832,6 +832,32 @@ body>*:not(.print-area){display:none!important}
 .print-area{position:static!important;left:auto!important}
 body{background:#fff}
 }
+/* ===== COMPARADOR DE FICHAS A | B (Registro de cambios) ===== */
+.cmp-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;justify-content:center;align-items:stretch}
+.cmp-box{background:var(--bg);color:var(--text);width:min(1200px,100%);height:100%;display:flex;flex-direction:column;min-height:0;box-shadow:0 0 30px rgba(0,0,0,.35)}
+@media(min-width:900px){.cmp-overlay{padding:18px}.cmp-box{border-radius:14px;overflow:hidden}}
+.cmp-top{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)}
+.cmp-titulo{font-size:16px;font-weight:700}.cmp-resumen{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px}
+.cmp-top-btns{display:flex;gap:6px;flex-wrap:wrap}
+.cmp-scroll{flex:1 1 auto;overflow:auto;overscroll-behavior:contain;padding:0 12px 24px}
+.cmp-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.cmp-head{position:sticky;top:0;z-index:3;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--border)}
+.cmp-hcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cmp-hfila{display:flex;align-items:center;gap:8px;min-width:0}
+.cmp-letra{flex:0 0 auto;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
+.cmp-hcard.b .cmp-letra{background:var(--blue)}
+.cmp-hnom{font-weight:700;font-size:14px;line-height:1.2;overflow-wrap:anywhere}
+.cmp-hsub{font-size:10px;color:var(--muted)}
+.cmp-aviso{font-size:10px;font-weight:700;color:#A9512C}
+.cmp-sec{margin:14px 0 0;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+.cmp-lab{font-size:10px;font-weight:700;color:var(--muted);margin:8px 0 3px}
+.cmp-cell{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;font-weight:600;overflow-wrap:anywhere;min-height:30px;min-width:0}
+.cmp-cell.dif{background:rgba(196,101,58,.13);border-color:var(--accent)}
+.cmp-cell.vacio{color:var(--muted);font-weight:400}
+.cmp-cell .cmp-li{margin:0 0 3px;font-weight:600}.cmp-cell .cmp-li small{color:var(--muted);font-weight:400}
+.cmp-cell img{max-width:100%;max-height:150px;object-fit:contain;border-radius:10px;display:block;margin:0 auto}
+.cmp-cell.obs{font-weight:400;font-size:12px;line-height:1.45;white-space:pre-wrap}
+@media(max-width:520px){.cmp-cell{font-size:12px;padding:5px 7px}.cmp-hnom{font-size:12px}.cmp-letra{width:26px;height:26px;font-size:14px}.cmp-scroll{padding:0 8px 20px}.cmp-cols{gap:6px}}
 /* ===== REGISTRO DE CAMBIOS ===== */
 .cambios-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 auto 14px;max-width:900px}
 .cambios-tabs{display:flex;gap:6px;flex-wrap:wrap}.cambios-tabs .ef-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -1339,8 +1365,11 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.08.3';
+var APP_VERSION = '2026.11.09.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.09.1', fecha:'2026-11-09', cambios:[
+    'Registro de cambios: cuando un cambio afecta a dos personas (fusión o unión de duplicados, vínculos entre dos fichas…) la tarjeta muestra el botón «Comparar fichas A | B». Abre las dos fichas una al lado de la otra, con A y B en la cabecera, marca en color los datos que difieren (nombre, fechas, lugares, padres, cónyuges, hijos, etiquetas, observaciones…), permite intercambiar A y B y abrir cualquiera de las dos fichas completas. Si una de las fichas ya no existe (fusionada o eliminada), se muestran sus datos de antes del cambio.'
+  ] },
   { version:'2026.11.08.3', fecha:'2026-11-08', cambios:[
     'Ficha, pestaña Datos: nuevo visto «Ficha revisada» al final de Datos personales. El administrador y el colaborador lo marcan o lo quitan con un clic (queda guardado y registrado como cualquier otro cambio); el resto de perfiles solo ven la marca cuando la ficha está revisada.'
   ]},
@@ -3535,6 +3564,131 @@ function actualizarContadorCambios(){listarCambios().then(function(arr){var n=ar
 function formatoFechaCambio(f){try{return new Date(f).toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});}catch(e){return f||'';}}
 async function eliminarRegistroCambio(id){if(!(await confirmarApp('Se eliminará este registro de cambios del archivo cambios-arbol.json de Drive.')))return;try{var arr=await refrescarCambiosDesdeDrive();var i=arr.findIndex(function(x){return x.id===id;});if(i<0)return;arr.splice(i,1);await guardarCambiosArbolCompleto(arr);actualizarContadorCambios();mostrarCambios('pendientes');toast('Registro eliminado');}catch(err){toast('No se pudo eliminar el registro: '+err.message,true);}}
 function verPersonaCambio(id){if(!PI[id]){toast('La persona ya no existe en esta base de datos',true);return;}if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;editSec={};sv('fic');}
+
+/* ===== COMPARAR DOS FICHAS (A | B) DESDE EL REGISTRO DE CAMBIOS =====
+   Un cambio "afecta a dos personas" cuando en la misma operación (mismo usuario y misma
+   fecha exacta) se han registrado cambios en dos fichas: fusionar duplicados, unir con un
+   duplicado, vincular padre/hijo, etc. Entonces la tarjeta muestra el botón «Comparar
+   fichas A | B», que abre las dos fichas en paralelo y marca lo que difiere. Solo lectura. */
+function cambiosParejas(c,arr){
+  var otros=[],vistos={};vistos[c.personaId]=1;
+  (arr||[]).forEach(function(o){
+    if(!o||o===c||!o.personaId||vistos[o.personaId])return;
+    if(o.usuario!==c.usuario||o.fecha!==c.fecha||o.estado==='eliminado')return;
+    vistos[o.personaId]=1;otros.push(o);
+  });
+  /* Operaciones masivas (más de 3 fichas a la vez) no son una comparación A/B */
+  return otros.length&&otros.length<=3?otros:[];
+}
+function botonCompararFichas(c,arr){
+  if(!c||!c.personaId)return'';
+  var otros=cambiosParejas(c,arr);
+  return otros.map(function(o){
+    var nom=o.personaNombre||(PI[o.personaId]?fn(PI[o.personaId]).replace(/\s+/g,' ').trim():('ID '+o.personaId));
+    var txt=otros.length>1?('Comparar con '+nom):'Comparar fichas A | B';
+    return '<button type="button" class="ef-btn ghost" title="Ver las dos fichas una al lado de la otra" onclick="abrirComparadorFichas(\''+safeId(c.personaId)+'\',\''+safeId(o.personaId)+'\')"><i class="fa-solid fa-table-columns"></i> '+esc(txt)+'</button>';
+  }).join('');
+}
+/* Datos de una persona para comparar. Si la ficha ya no existe (p. ej. la donante de una
+   fusión) se reconstruye con los valores «antes» guardados en el registro de cambios. */
+function cmpDatosPersona(id){
+  if(PI[id])return {p:PI[id],existe:true};
+  var regs=(CAMBIOS_CACHE||[]).filter(function(r){return r&&r.personaId===id&&Array.isArray(r.campos);}).sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});
+  if(!regs.length)return null;
+  var s={ID:id};
+  regs.forEach(function(r){r.campos.forEach(function(k){s[k.campo]=k.antes;});});
+  return {p:s,existe:false};
+}
+function cmpNom(q){return q?fn(q).replace(/\s+/g,' ').trim():'';}
+function cmpAnio(q){try{return pdAnioTexto(q)||'';}catch(e){return '';}}
+function cmpPersonaLi(id){
+  var q=PI[id];if(!q)return {h:'<div class="cmp-li">ID '+esc(id)+' <small>(no existe)</small></div>',t:'id '+id};
+  var a=cmpAnio(q);
+  return {h:'<div class="cmp-li">'+esc(cmpNom(q)||('ID '+id))+(a?' <small>('+esc(a)+')</small>':'')+'</div>',t:cmpNom(q).toLowerCase()+'|'+a};
+}
+/* Devuelve la ficha como lista de secciones con filas {l:etiqueta, h:html, t:texto para comparar} */
+function cmpFilas(d){
+  var p=d.p,id=String(p.ID||''),al=isAl(p);
+  var T=function(l,v){var s=(v==null?'':String(v));return {l:l,h:esc(s),t:s.trim().toLowerCase()};};
+  var nac=fDate(p.NACD,p.NACM,p.NACA)||cmpAnio(p);
+  var def=al?'Vivo':(fDate(p.DEFD,p.DEFM,p.DEFA)||'Fallecido (sin fecha registrada)');
+  var rel=function(l,rid){if(!rid)return {l:l,h:'',t:''};var x=cmpPersonaLi(rid);return {l:l,h:x.h,t:x.t};};
+  var cony=[],conyT=[];
+  CAMPOS_CONYUGE.forEach(function(c,i){
+    var cid=p[c];if(!cid)return;
+    var x=cmpPersonaLi(cid),n=i+1,f=p['MF'+n]||'',lu=p['ML'+n]||'';
+    var extra=[f,lu].filter(Boolean).join(' · ');
+    cony.push(x.h.replace('</div>',(extra?' <small>— '+esc(extra)+'</small>':'')+'</div>'));
+    conyT.push(x.t+'|'+String(f).toLowerCase()+'|'+String(lu).toLowerCase());
+  });
+  var hijos=[],hijosT=[];
+  if(d.existe){
+    var hs=(HD[id]||[]).slice();
+    try{hs=ordenarIdsPorEdad(hs);}catch(e){}
+    hs.forEach(function(h){var x=cmpPersonaLi(h);hijos.push(x.h);hijosT.push(x.t);});
+  }
+  var foto=p.FOTO?'<img src="'+escAttr(p.FOTO)+'" alt="">':'';
+  var obs=p.OBSERVACIONES?String(p.OBSERVACIONES):'';
+  return [
+    {s:'Identificación',f:[
+      {l:'ID',h:esc(id),t:'__id'},
+      {l:'Fotografía',h:foto,t:p.FOTO?'foto':'',cls:'foto'},
+      T('Nombre',p.NOMBRE),T('Primer apellido',p.APELLIDO1),T('Segundo apellido',p.APELLIDO2),T('Sexo',p.SEXO)]},
+    {s:'Datos personales',f:[
+      T('Nacimiento',nac),T('Lugar de nacimiento',p.LUGARNAC),T('Defunción',def),T('Lugar de defunción',p.LUGARDEF)]},
+    {s:'Familia',f:[
+      rel('Padre',p.PADRE),rel('Madre',p.MADRE),
+      {l:'Cónyuges',h:cony.join(''),t:conyT.join('#')},
+      {l:'Hijos'+(d.existe?' ('+hijos.length+')':''),h:d.existe?hijos.join(''):'',t:hijosT.join('#')}]},
+    {s:'Otros',f:[
+      T('Etiquetas',etiquetasArray(p).join(', ')),
+      {l:'Observaciones',h:esc(obs).replace(/&#10;/g,'<br>'),t:obs.trim().toLowerCase(),cls:'obs',raw:obs},
+      T('Marcada para borrar',p.BORRAR==='1'?'Sí':''),T('Ficha revisada',(p.REVISADA===true||p.REVISADA==='1'||p.REVISADA==='-1')?'Sí':'')]}
+  ];
+}
+function cmpHtml(A,B,idA,idB){
+  var SA=cmpFilas(A),SB=cmpFilas(B),ndif=0,cuerpo='';
+  SA.forEach(function(sec,i){
+    cuerpo+='<div class="cmp-sec">'+esc(sec.s)+'</div>';
+    sec.f.forEach(function(fa,j){
+      var fb=SB[i].f[j];
+      var dif=(fa.t!==fb.t)&&fa.t!=='__id';
+      if(dif)ndif++;
+      var celda=function(f,dd){
+        var vacio=!f.h;
+        var obsTxt=f.cls==='obs'&&f.raw?'<span style="white-space:pre-wrap">'+esc(f.raw).replace(/&#10;/g,'\n')+'</span>':f.h;
+        return '<div class="cmp-cell'+(dd?' dif':'')+(vacio?' vacio':'')+(f.cls==='obs'?' obs':'')+'">'+(vacio?'—':(f.cls==='obs'?obsTxt:f.h))+'</div>';
+      };
+      cuerpo+='<div class="cmp-lab">'+esc(fa.l)+(dif?' · <span style="color:var(--accent)">distinto</span>':'')+'</div><div class="cmp-cols">'+celda(fa,dif)+celda(fb,dif)+'</div>';
+    });
+  });
+  var cab=function(d,letra,id,cls){
+    var p=d.p;
+    return '<div class="cmp-hcard '+cls+'"><div class="cmp-hfila"><span class="cmp-letra">'+letra+'</span><div style="min-width:0"><div class="cmp-hnom">'+esc(cmpNom(p)||('ID '+id))+'</div><div class="cmp-hsub">ID '+esc(id)+'</div></div></div>'+
+      (d.existe?'<button type="button" class="ef-btn ghost" style="font-size:11px;padding:4px 8px" onclick="cerrarComparadorFichas();verPersonaCambio(\''+safeId(id)+'\')"><i class="fa-solid fa-id-card"></i> Abrir ficha '+letra+'</button>':'<div class="cmp-aviso"><i class="fa-solid fa-triangle-exclamation"></i> Esta ficha ya no existe (eliminada o fusionada). Se muestran sus datos de antes del cambio.</div>')+'</div>';
+  };
+  return '<div class="cmp-box"><div class="cmp-top"><div class="cmp-titulo"><i class="fa-solid fa-table-columns"></i> Comparar fichas<span class="cmp-resumen">'+(ndif?ndif+' campo(s) distinto(s), marcados en color':'Las dos fichas coinciden en todo lo comparado')+'</span></div><div class="cmp-top-btns"><button type="button" class="ef-btn ghost" onclick="abrirComparadorFichas(\''+safeId(idB)+'\',\''+safeId(idA)+'\')" title="Cambiar el orden"><i class="fa-solid fa-right-left"></i> Intercambiar A y B</button><button type="button" class="ef-btn" id="cmpCerrar" onclick="cerrarComparadorFichas()"><i class="fa-solid fa-xmark"></i> Cerrar</button></div></div>'+
+    '<div class="cmp-scroll"><div class="cmp-head"><div class="cmp-cols">'+cab(A,'A',idA,'a')+cab(B,'B',idB,'b')+'</div></div>'+cuerpo+'</div></div>';
+}
+function cmpTecla(e){if(e.key==='Escape')cerrarComparadorFichas();}
+function cerrarComparadorFichas(){
+  var ov=document.getElementById('cmpOverlay');if(ov)ov.remove();
+  document.removeEventListener('keydown',cmpTecla);
+}
+function abrirComparadorFichas(idA,idB){
+  var A=cmpDatosPersona(idA),B=cmpDatosPersona(idB);
+  if(!A||!B){toast('No se encuentra alguna de las dos fichas',true);return;}
+  if((A.existe&&!puedeVerPersona(idA))||(B.existe&&!puedeVerPersona(idB))){toast('No tienes acceso a alguna de esas fichas',true);return;}
+  cerrarComparadorFichas();
+  var ov=document.createElement('div');
+  ov.id='cmpOverlay';ov.className='cmp-overlay';
+  ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');ov.setAttribute('aria-label','Comparar fichas A y B');
+  ov.innerHTML=cmpHtml(A,B,idA,idB);
+  ov.addEventListener('click',function(e){if(e.target===ov)cerrarComparadorFichas();});
+  document.body.appendChild(ov);
+  document.addEventListener('keydown',cmpTecla);
+  var b=document.getElementById('cmpCerrar');if(b)b.focus();
+}
 async function obtenerArchivoCambiosDrive(){var folderId=await obtenerCarpetaDatosId(true)||driveRootFolderId;var q="'"+folderId+"' in parents and name='"+CAMBIOS_SYNC_FILENAME+"' and trashed=false";var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&orderBy='+encodeURIComponent('modifiedTime desc')+'&fields=files(id,name,modifiedTime)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}if(r.status===404)return null;if(!r.ok)throw new Error('Drive respondió '+r.status);var d=await r.json();return d.files&&d.files.length?d.files[0]:null;}
 /* Acepta el formato real {cambios:[...]} y también una lista suelta [...]; cada registro se normaliza:
    personaId como texto (si falta, se toma id), campos de objeto {CAMPO:{antes,despues}} -> lista [{campo,antes,despues}],
@@ -20071,7 +20225,7 @@ if(typeof actualizarVisibilidadHerramientasDrive==='function')actualizarVisibili
 if(typeof actualizarFechaArbolOficial==='function')actualizarFechaArbolOficial();
 if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();
 }
-function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#C4653A;border-color:#C4653A" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#C4653A">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
+function mostrarCambios(modo){var esAdmin=esAdministrador();listarCambios().then(function(arr){var avisoSinConexion=tokenDriveValido()?'':'<div class="cambio-card cambio-empty" style="font-size:11px"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Sin conexión con Drive ahora mismo: esta lista es solo lo último leído de cambios-arbol.json en esta sesión (no se guarda nada en este dispositivo) y puede no incluir cambios recientes de otros colaboradores. Conecta y pulsa «Sincronizar con Drive» para ponerla al día.</div>';arr.sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));});var lista=document.getElementById('listaCambios');var pend=arr.filter(function(c){return c.estado==='pendiente';});var resueltosHistorial=arr.filter(function(c){return c.estado==='conforme'||c.estado==='rechazado'||c.estado==='confirmado';});document.getElementById('btnCambiosPend').classList.toggle('active',modo==='pendientes');document.getElementById('btnCambiosHist').classList.toggle('active',modo==='historial');var mostrar=modo==='pendientes'?pend:arr.filter(function(c){return c.estado!=='eliminado';});if(!mostrar.length&&CAMBIOS_CARGANDO){lista.innerHTML='<div class="cambio-card cambio-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Comprobando los cambios en Google Drive…</div>';return;}if(!mostrar.length){lista.innerHTML=avisoSinConexion+'<div class="cambio-card cambio-empty">'+(modo==='pendientes'?'No hay cambios pendientes de revisar.':'Todavía no hay cambios en el historial.')+'</div>';return;}var extra='';if(modo==='pendientes'&&esAdmin&&pend.length>1)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="eliminarTodosCambiosPendientes()"><i class="fa-solid fa-trash"></i> Eliminar todos ('+pend.length+')</button> <button class="ef-btn save" onclick="aprobarTodosCambios()"><i class="fa-solid fa-check-double"></i> Conforme a todos ('+pend.length+')</button></div>';if(modo==='pendientes'&&!esAdmin)extra='<div style="max-width:900px;margin:0 auto 10px;font-size:11px;color:var(--muted);text-align:center">Vista de solo lectura: aquí ves el estado de los cambios (tuyos y de otros colaboradores), pero solo el administrador puede dar conformidad, rechazar o eliminar registros.</div>';if(modo==='historial'&&esAdmin&&resueltosHistorial.length)extra='<div style="max-width:900px;margin:0 auto 10px;text-align:right"><button class="ef-btn ghost" style="color:#C4653A;border-color:#C4653A" onclick="vaciarHistorialResueltoCambios()"><i class="fa-solid fa-broom"></i> Vaciar historial resuelto ('+resueltosHistorial.length+')</button></div>';lista.innerHTML=avisoSinConexion+extra+mostrar.map(function(c){var acciones='';if(modo==='pendientes'&&esAdmin){acciones+='<button class="ef-btn save" onclick="aprobarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-check"></i> Conforme</button>';acciones+='<button class="ef-btn" style="background:#C4653A;border-color:#C4653A" onclick="rechazarCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-xmark"></i> Rechazar</button>';acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}if(modo==='historial'&&esAdmin&&c.estado!=='pendiente'){acciones+='<button class="ef-btn ghost" onclick="eliminarRegistroCambio(\''+safeId(c.id)+'\')"><i class="fa-solid fa-trash"></i> Eliminar registro</button>';}acciones+=botonCompararFichas(c,arr);if(c.personaId&&PI[c.personaId])acciones+='<button class="ef-btn ghost" onclick="verPersonaCambio(\''+safeId(c.personaId)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button>';var estadoTxt='';if(c.estado==='conforme')estadoTxt=' · <strong style="color:var(--green)">CONFORME</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(c.estado==='rechazado')estadoTxt=' · <strong style="color:#C4653A">RECHAZADO</strong>'+(c.resueltoPor?' <span style="color:var(--muted)">por '+esc(c.resueltoPor)+'</span>':'');else if(modo==='historial'&&c.estado==='confirmado')estadoTxt=' · confirmado';return '<div class="cambio-card"><div class="cambio-head"><div><span class="cambio-user">'+esc(c.usuario||'Usuario')+'</span> · <strong>'+esc(c.tipo||'cambio')+'</strong></div><div class="cambio-date">'+esc(formatoFechaCambio(c.fecha))+estadoTxt+'</div></div><div class="cambio-desc">'+esc(c.descripcion||'Cambio sin descripción')+'</div><div class="cambio-actions">'+acciones+'</div></div>';}).join('');}).catch(function(err){toast('No se pudo leer el registro de cambios: '+err.message,true);});}
 function initCambios(){actualizarContadorCambios();actualizarDriveStatusPill();var t=document.getElementById('usuarioCamTxt');if(t)t.textContent=googleIdentidad?((googleIdentidad.name||googleIdentidad.email)+(esAdministrador()?' · admin':' · colaborador')):'Sin conectar';var puedeSyncCam=!!(driveRootFolderId&&tokenDriveValido());
 CAMBIOS_CARGANDO=puedeSyncCam;
 /* La barra (con la abeja) se enseña YA, nada mas abrir la pantalla, y no se oculta hasta que
