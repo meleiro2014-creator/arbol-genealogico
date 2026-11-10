@@ -17613,21 +17613,88 @@ if(p.PADRE)recopilarIdsAscendientes(p.PADRE,visitados);
 if(p.MADRE)recopilarIdsAscendientes(p.MADRE,visitados);
 return visitados;
 }
+/* ===== AMPLIADO (2026-11-10): GEDCOM de la RAMA COMPLETA de la persona activa =====
+   Además de los antepasados directos (siempre hasta el origen), incluye los
+   parientes colaterales: para cada antepasado hasta la generación \"niv\"
+   (1=padres, 2=abuelos, 3=bisabuelos...) se añaden sus hermanos (también
+   medio-hermanos) y TODA la descendencia de esos hermanos (sobrinos, primos,
+   sobrinos segundos...). También se incluye la descendencia propia de la
+   persona activa, los cónyuges de todos los incluidos (cuñados por
+   matrimonio de hermanos, tíos políticos...), los hermanos de los cónyuges
+   de la persona activa y el otro progenitor de cada colateral (para no dejar
+   medio-hermanos con un solo padre). Los vínculos que apuntan fuera del
+   conjunto se anulan en una COPIA de cada ficha, para que el .ged no tenga
+   referencias @I..@ colgantes y sin tocar los datos reales. */
+function recopilarRamaColateral(id,niv){
+var ids={},cat={};
+function marca(x,c){if(!x||!PI[x]||ids[x])return false;ids[x]=true;cat[x]=c;return true;}
+var gen={};gen[id]=0;
+var cola=[id];
+while(cola.length){
+var a=cola.shift(),pa=PI[a];if(!pa)continue;
+[pa.PADRE,pa.MADRE].forEach(function(q){if(q&&PI[q]&&gen[q]===undefined){gen[q]=gen[a]+1;cola.push(q);}});
+}
+Object.keys(gen).forEach(function(k){marca(k,k===String(id)?'activa':'ascendiente');});
+function hermanosDe(x){
+var px=PI[x],r={};
+[px.PADRE,px.MADRE].forEach(function(q){if(q&&PI[q])(HD[q]||[]).forEach(function(h){if(h!==x)r[h]=true;});});
+return Object.keys(r);
+}
+function descendientes(x,c,vis){
+vis=vis||{};if(vis[x])return;vis[x]=true;
+(HD[x]||[]).forEach(function(h){marca(h,c);descendientes(h,c,vis);});
+}
+Object.keys(gen).forEach(function(a){
+if(gen[a]>niv)return;
+hermanosDe(a).forEach(function(h){
+marca(h,'colateral');
+descendientes(h,'colateral');
+});
+});
+descendientes(id,'descendiente');
+var sangre=Object.keys(ids);
+sangre.forEach(function(x){
+if(cat[x]==='colateral'||cat[x]==='descendiente'){
+var px=PI[x];
+[px.PADRE,px.MADRE].forEach(function(q){marca(q,'pareja');});
+}
+});
+Object.keys(ids).slice().forEach(function(x){
+conyugesDe(x).forEach(function(c){marca(c,'pareja');});
+});
+conyugesDe(id).forEach(function(c){
+hermanosDe(c).forEach(function(h){marca(h,'cuñado');});
+});
+return{ids:ids,cat:cat};
+}
 async function expGedAscendientes(){
 if(!await exigirIdentidadGoogle())return;
 if(!esAdministrador()){toast('Solo el administrador puede exportar GEDCOM',true);return;}
-if(!cid||!PI[cid]){toast('Selecciona antes una persona activa (icono de la lupa) para exportar sus antepasados',true);return;}
-var idsSet=recopilarIdsAscendientes(cid);
-var subconjunto=D.filter(function(p){return idsSet[p.ID];});
-if(subconjunto.length<=1){toast(fn(PI[cid])+' no tiene antepasados registrados en el árbol',true);return;}
-toast('Generando GEDCOM de antepasados...');
-mostrarProgresoDrive('Generando GEDCOM de antepasados...','globalTrabajoWrap');
+if(!cid||!PI[cid]){toast('Selecciona antes una persona activa (icono de la lupa) para exportar su rama',true);return;}
+var resp=prompt('¿Hasta qué generación de antepasados quieres incluir a sus hermanos y a toda la descendencia de éstos?\n\n1 = padres (tíos y primos)\n2 = abuelos (tíos abuelos y sus descendientes)\n3 = bisabuelos (hermanos de bisabuelos)\n4 = tatarabuelos ...\n0 = todas las generaciones (puede ser muy grande)\n\nLos antepasados directos se incluyen siempre hasta el origen.','3');
+if(resp===null)return;
+var niv=parseInt(String(resp).trim(),10);
+if(isNaN(niv)||niv<0){toast('Número de generación no válido',true);return;}
+if(niv===0)niv=Infinity;
+var rama=recopilarRamaColateral(cid,niv);
+var idsSet=rama.ids,cat=rama.cat;
+var subconjunto=D.filter(function(p){return idsSet[p.ID];}).map(function(p){
+var c=Object.assign({},p);
+if(c.PADRE&&!idsSet[c.PADRE])c.PADRE='';
+if(c.MADRE&&!idsSet[c.MADRE])c.MADRE='';
+CAMPOS_CONYUGE.forEach(function(k){if(c[k]&&!idsSet[c[k]])c[k]='';});
+return c;
+});
+if(subconjunto.length<=1){toast(fn(PI[cid])+' no tiene parientes registrados en el árbol',true);return;}
+var cnt={};Object.keys(cat).forEach(function(k){cnt[cat[k]]=(cnt[cat[k]]||0)+1;});
+toast('Generando GEDCOM de la rama...');
+mostrarProgresoDrive('Generando GEDCOM de la rama...','globalTrabajoWrap');
 setTimeout(function(){
 var r=construirGedcomTexto(subconjunto);
-var base=(fn(PI[cid])||'ANTEPASADOS').trim().replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'ANTEPASADOS';
-descargarGedTexto(r.ged,'ANTEPASADOS_'+base+'.ged');
+var base=(fn(PI[cid])||'RAMA').trim().replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'RAMA';
+descargarGedTexto(r.ged,'RAMA_'+base+'.ged');
 ocultarProgresoDrive('globalTrabajoWrap');
-toast('GEDCOM descargado: '+(r.total-1)+' antepasado(s) de '+fn(PI[cid]));
+toast('GEDCOM descargado: '+r.total+' personas ('+(cnt.ascendiente||0)+' antepasados, '+(cnt.colateral||0)+' colaterales y su descendencia, '+(cnt.descendiente||0)+' descendientes, '+((cnt.pareja||0)+(cnt['cuñado']||0))+' cónyuges/cuñados)');
 if(r.indeterminado>0)toast(r.indeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
@@ -20445,7 +20512,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
-<button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de antepasados</div><div class="herr-desc">Descarga un .ged solo con los antepasados de la persona activa (la de la barra "Viendo a")</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de la rama</div><div class="herr-desc">Descarga un .ged con los antepasados de la persona activa (la de la barra "Viendo a") y sus parientes colaterales: hermanos, cuñados, tíos, primos, sobrinos y tíos abuelos</div></div></button>
 <div class="herr-subhead">Fotos</div>
 <div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas). Puedes elegir importar todas o solo las que han cambiado</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
 <div class="herr-subhead">Copias de seguridad</div>
