@@ -129,6 +129,17 @@ main.ges-split .ges-cat{max-width:none}
 .rp-msg{width:100%;text-align:center;font-size:13px;font-weight:700}.rp-msg-ok{color:var(--green)}.rp-msg-mal{color:#b3402f}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
+.frase-dia{max-width:460px;margin:2px auto 0;padding:2px 6px;cursor:pointer;text-align:center;transition:opacity .25s ease;-webkit-tap-highlight-color:transparent;user-select:none}
+.frase-dia .frase-txt{display:block;font-style:italic;font-size:15px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.frase-dia .frase-aut{display:none;font-size:12px;margin-top:3px;color:var(--accent);font-weight:700}
+.frase-dia:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+@media(prefers-reduced-motion:reduce){.frase-dia{transition:none}}
+.frase-item{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.frase-item.off{opacity:.6}
+.frase-item textarea,.frase-item input[type=text],.frases-nueva textarea,.frases-nueva input[type=text],#frasesVarias{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);resize:vertical}
+.frase-chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;min-height:32px}
+.frase-chk input{width:20px;height:20px;accent-color:var(--accent)}
+.frase-del{align-self:flex-end;padding:6px 12px;min-height:34px;font-size:12px}
 .search-box{max-width:460px;margin:14px auto 0;position:relative}
 .search-box input{width:100%;padding:12px 16px 12px 44px;border:2px solid var(--border);border-radius:14px;font-size:15px;font-family:'Lato',sans-serif;background:var(--card);color:var(--text);outline:none;transition:border-color .2s}
 .search-box input:focus{border-color:var(--accent)}
@@ -1032,7 +1043,8 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <div class="view active" id="vBus">
 <div class="hero">
 <h1>Libro de los Ancestros</h1>
-<p>Tu árbol genealógico familiar</p>
+<p id="subtituloInicio">Tu árbol genealógico familiar</p>
+<div id="fraseDia" class="frase-dia" style="display:none" role="button" tabindex="0" onclick="frasesSiguiente()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();frasesSiguiente();}" aria-label="Frase de la portada. Pulsa para ver la siguiente"><span class="frase-txt" id="fraseDiaTxt"></span><span class="frase-aut" id="fraseDiaAut"></span></div>
 <div style="text-align:center">
 <div class="drive-status-row">
 <div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div>
@@ -1360,9 +1372,189 @@ var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],P
    buscar, así que se avisa de que se está cargando en vez de dar a entender
    que la búsqueda ha fallado. */
 var datosLocalesListos=false;
+/* ===== FRASES DE LA PORTADA =====
+   Frases (con autor opcional) que sustituyen al subtítulo de la portada y van rotando solas.
+   · Dónde viven: Datos/frases.json en Drive. Todos los perfiles lo leen; solo el Archivero lo escribe
+     (Herramientas → Frases de la portada). Cada cambio se guarda solo, sin preguntar.
+   · Formato: {formato, version, minutos, fecha, frases:[{texto, autor, activa}]}. También se acepta
+     una lista de textos sueltos y «activa:false» para ocultar una frase sin borrarla.
+   · Rotación: se calcula con el reloj (bloques de N minutos desde 1970), no con un temporizador que
+     el móvil pueda pausar. Así toda la familia ve la misma frase a la vez y, al volver a abrir la app,
+     ya sale la que toca. Tocar la frase pasa a la siguiente solo hasta el próximo cambio de bloque.
+   · Copia en el dispositivo (localStorage, solo comodidad): la frase sale al instante al abrir, también
+     sin conexión o antes de que conecte Drive. Si Drive no se pudo leer, no se sobrescribe nada. */
+var FRASES_ARCHIVO='frases.json',FRASES_CACHE_KEY='lb_frases_cache',FRASES_MIN_DEF=10;
+var FRASES={lista:[],minutos:FRASES_MIN_DEF,leidoOk:false,fileId:null,folderId:null,ultimaCarga:0,cargando:false};
+var frasesToques=0,frasesBloqueToques=-1,frasesClave='',frasesTimerGuardar=null,frasesBorrarPend=-1,frasesTimerBorrar=null;
+function frasesNormalizar(x){
+var arr=Array.isArray(x)?x:(x&&Array.isArray(x.frases)?x.frases:[]);
+var lista=[];
+arr.forEach(function(f){
+var t,a='',act=true;
+if(typeof f==='string'){t=f;}
+else if(f&&typeof f==='object'){t=f.texto!=null?f.texto:(f.frase!=null?f.frase:'');a=f.autor!=null?f.autor:'';act=!(f.activa===false||f.activa==='false'||f.activa===0);}
+t=String(t==null?'':t).replace(/\s+/g,' ').trim();
+if(!t)return;
+lista.push({texto:t,autor:String(a==null?'':a).replace(/\s+/g,' ').trim(),activa:act});
+});
+var m=parseInt(x&&x.minutos,10);
+return{lista:lista,minutos:(m>=1&&m<=1440)?m:FRASES_MIN_DEF};
+}
+function frasesLeerCache(){
+try{var raw=localStorage.getItem(FRASES_CACHE_KEY);if(!raw)return;var n=frasesNormalizar(JSON.parse(raw));FRASES.lista=n.lista;FRASES.minutos=n.minutos;}catch(e){}
+}
+function frasesGuardarCache(){
+try{localStorage.setItem(FRASES_CACHE_KEY,JSON.stringify({minutos:FRASES.minutos,frases:FRASES.lista}));}catch(e){}
+}
+function frasesActivas(){return FRASES.lista.filter(function(f){return f.activa;});}
+function frasesBloque(){return Math.floor(Date.now()/(FRASES.minutos*60000));}
+function frasesPintar(forzar){
+var cont=document.getElementById('fraseDia'),sub=document.getElementById('subtituloInicio');
+if(!cont)return;
+var act=frasesActivas();
+if(!act.length){cont.style.display='none';if(sub)sub.style.display='';frasesClave='';return;}
+var b=frasesBloque();
+if(b!==frasesBloqueToques){frasesToques=0;frasesBloqueToques=b;}
+var idx=(b+frasesToques)%act.length,f=act[idx];
+var clave=idx+'|'+f.texto+'|'+f.autor;
+if(!forzar&&clave===frasesClave&&cont.style.display!=='none')return;
+var primera=(frasesClave===''||cont.style.display==='none');
+frasesClave=clave;
+var tx=document.getElementById('fraseDiaTxt'),au=document.getElementById('fraseDiaAut');
+function poner(){tx.textContent=f.texto;au.textContent=f.autor?'— '+f.autor:'';au.style.display=f.autor?'block':'none';cont.style.opacity='1';}
+cont.style.display='block';if(sub)sub.style.display='none';
+if(primera){poner();return;}
+cont.style.opacity='0';setTimeout(poner,260);
+}
+function frasesSiguiente(){
+if(frasesActivas().length<2)return;
+frasesBloqueToques=frasesBloque();frasesToques++;frasesPintar(true);
+}
+async function frasesCargarDrive(forzar){
+if(FRASES.cargando)return;
+if(!forzar&&Date.now()-FRASES.ultimaCarga<300000)return;
+if(!driveRootFolderId||!tokenDriveValido())return;
+FRASES.cargando=true;
+try{
+var folderId=await obtenerCarpetaDatosId(false);
+if(!folderId)return;
+var q="'"+folderId+"' in parents and name='"+FRASES_ARCHIVO+"' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+FRASES.folderId=folderId;
+if(d.files&&d.files.length){
+FRASES.fileId=d.files[0].id;
+var rf=await fetch('https://www.googleapis.com/drive/v3/files/'+FRASES.fileId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!rf.ok)throw new Error('Drive respondió '+rf.status);
+var n=frasesNormalizar(await rf.json());
+FRASES.lista=n.lista;FRASES.minutos=n.minutos;
+}else{FRASES.fileId=null;FRASES.lista=[];FRASES.minutos=FRASES_MIN_DEF;}
+FRASES.leidoOk=true;FRASES.ultimaCarga=Date.now();
+frasesGuardarCache();frasesPintar(false);frasesRefrescarEditor();
+}catch(e){console.warn('No se pudo leer frases.json:',e&&e.message);}
+finally{FRASES.cargando=false;}
+}
+function frasesGuardarDrive(){
+if(!esAdministrador())return;
+clearTimeout(frasesTimerGuardar);
+frasesEstado('Guardando…');
+frasesTimerGuardar=setTimeout(frasesGuardarAhora,700);
+}
+async function frasesGuardarAhora(){
+if(!esAdministrador())return;
+if(!tokenDriveValido()||!driveRootFolderId){frasesEstado('Sin conexión con Drive: no se ha guardado',true);return;}
+if(!FRASES.leidoOk){frasesEstado('No se guarda: no se pudo leer frases.json antes (evita sobrescribirlo)',true);return;}
+try{
+var folderId=FRASES.folderId||await obtenerCarpetaDatosId(true)||driveRootFolderId;
+var doc={formato:'Libro de los Ancestros - frases',version:1,minutos:FRASES.minutos,fecha:new Date().toISOString(),frases:FRASES.lista.map(function(f){return{texto:f.texto,autor:f.autor,activa:f.activa};})};
+var r=await subirArchivoDrive(FRASES_ARCHIVO,JSON.stringify(doc,null,1),'application/json',folderId,FRASES.fileId);
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+if(!FRASES.fileId){try{var j=await r.json();if(j&&j.id)FRASES.fileId=j.id;}catch(e){}}
+FRASES.folderId=folderId;FRASES.ultimaCarga=Date.now();
+frasesEstado('Guardado ✓');
+}catch(e){frasesEstado('No se pudo guardar: '+e.message,true);}
+}
+/* ---- Editor (Herramientas → Frases de la portada, solo Archivero) ---- */
+function frasesEstado(t,err){var el=document.getElementById('frasesEstado');if(!el)return;el.textContent=t;el.style.color=err?'#C4653A':'var(--muted)';}
+function frasesAbrirEditor(){
+if(!esAdministrador()){toast('Solo el Archivero puede editar las frases',true);return;}
+document.getElementById('modalFrases').style.display='flex';
+frasesRefrescarEditor();
+if(tokenDriveValido()&&!FRASES.leidoOk)frasesCargarDrive(true);
+}
+function frasesCerrarEditor(){var m=document.getElementById('modalFrases');if(m)m.style.display='none';}
+function frasesRefrescarEditor(){
+var m=document.getElementById('modalFrases');
+if(!m||m.style.display==='none')return;
+var ae=document.activeElement;
+if(ae&&ae.closest&&ae.closest('#frasesLista')&&ae.tagName!=='BUTTON')return; /* no pisar lo que se está escribiendo */
+var inp=document.getElementById('frasesMinutos');if(inp&&document.activeElement!==inp)inp.value=FRASES.minutos;
+var cont=document.getElementById('frasesLista');
+var act=FRASES.lista.filter(function(f){return f.activa;}).length;
+document.getElementById('frasesResumen').textContent=FRASES.lista.length?(FRASES.lista.length+' frase(s), '+act+' activa(s)'):'Todavía no hay frases.';
+if(!FRASES.lista.length){cont.innerHTML='';return;}
+cont.innerHTML=FRASES.lista.map(function(f,i){
+return '<div class="frase-item'+(f.activa?'':' off')+'">'
++'<label class="frase-chk"><input type="checkbox" '+(f.activa?'checked':'')+' onchange="frasesAlternar('+i+',this.checked)" aria-label="Mostrar esta frase"><span>'+(f.activa?'Se muestra':'Oculta')+'</span></label>'
++'<textarea rows="2" maxlength="500" oninput="frasesEditar('+i+',\'texto\',this.value)" aria-label="Frase">'+esc(f.texto)+'</textarea>'
++'<input type="text" maxlength="120" placeholder="Autor (opcional)" value="'+esc(f.autor)+'" oninput="frasesEditar('+i+',\'autor\',this.value)" aria-label="Autor">'
++'<button type="button" class="ef-btn ghost frase-del" onclick="frasesBorrar('+i+',this)" aria-label="Borrar la frase"><i class="fa-solid fa-trash" aria-hidden="true"></i> Borrar</button>'
++'</div>';
+}).join('');
+}
+function frasesDespuesDeCambio(forzarPintar){frasesGuardarCache();frasesPintar(!!forzarPintar);frasesGuardarDrive();}
+function frasesAlternar(i,v){if(!FRASES.lista[i])return;FRASES.lista[i].activa=!!v;frasesDespuesDeCambio(true);frasesRefrescarEditor();}
+function frasesEditar(i,campo,v){
+var f=FRASES.lista[i];if(!f)return;
+v=String(v).replace(/\s+/g,' ');
+if(campo==='texto'){if(!v.trim())return;f.texto=v.trim();}else f.autor=v.trim();
+frasesDespuesDeCambio(false);
+}
+function frasesBorrar(i,btn){
+if(frasesBorrarPend!==i){
+frasesBorrarPend=i;btn.innerHTML='<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Pulsa otra vez para borrar';
+clearTimeout(frasesTimerBorrar);frasesTimerBorrar=setTimeout(function(){frasesBorrarPend=-1;frasesRefrescarEditor();},3000);return;
+}
+frasesBorrarPend=-1;clearTimeout(frasesTimerBorrar);
+FRASES.lista.splice(i,1);frasesDespuesDeCambio(true);frasesRefrescarEditor();
+}
+function frasesAnadir(){
+var t=document.getElementById('frasesNuevaTxt'),a=document.getElementById('frasesNuevaAut');
+var texto=t.value.replace(/\s+/g,' ').trim();
+if(!texto){toast('Escribe la frase',true);t.focus();return;}
+FRASES.lista.push({texto:texto,autor:a.value.replace(/\s+/g,' ').trim(),activa:true});
+t.value='';a.value='';frasesDespuesDeCambio(true);frasesRefrescarEditor();
+var l=document.getElementById('frasesLista');if(l&&l.lastElementChild&&l.lastElementChild.scrollIntoView)l.lastElementChild.scrollIntoView({block:'nearest'});
+}
+function frasesAnadirVarias(){
+var ta=document.getElementById('frasesVarias'),n=0;
+ta.value.split(/\r?\n/).forEach(function(linea){
+linea=linea.replace(/\s+/g,' ').trim();if(!linea)return;
+var texto=linea,autor='',m=linea.match(/^(.*\S)\s+(?:—|\|)\s+(.+)$/);
+if(m){texto=m[1];autor=m[2];}
+FRASES.lista.push({texto:texto,autor:autor,activa:true});n++;
+});
+if(!n){toast('No hay nada que añadir',true);return;}
+ta.value='';frasesDespuesDeCambio(true);frasesRefrescarEditor();toast(n+' frase(s) añadidas');
+}
+function frasesCambiarMinutos(v){
+var m=parseInt(v,10);if(!(m>=1&&m<=1440))return;
+FRASES.minutos=m;frasesDespuesDeCambio(true);
+}
+function frasesIniciar(){
+frasesLeerCache();frasesPintar(true);
+setInterval(function(){frasesPintar(false);},20000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden){frasesPintar(false);frasesCargarDrive(false);}});
+window.addEventListener('pageshow',function(){frasesPintar(false);});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',frasesIniciar);else frasesIniciar();
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.11.3';
+var APP_VERSION = '2026.11.12.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.12.1', fecha:'2026-11-12', cambios:[
+    'Frases en la portada: el subtítulo «Tu árbol genealógico familiar» pasa a mostrar frases (con autor opcional) que rotan solas cada 10 minutos, iguales para toda la familia, y al tocarlas sale la siguiente. Si no hay frases activas se sigue viendo el subtítulo de siempre. El Archivero las gestiona en Herramientas → «Frases de la portada»: añadir una o varias de golpe, marcar o desmarcar cada una para que salga o no, editarlas, borrarlas y cambiar los minutos. Todo se guarda solo en Datos/frases.json de Drive, sin preguntar; el resto de perfiles solo las ven. La app guarda una copia en el dispositivo para que la frase aparezca al instante, incluso sin conexión.'
+  ]},
   { version:'2026.11.11.3', fecha:'2026-11-11', cambios:[
     'Gestor de datos, apellidos: nueva categoría «Primer apellido compuesto, sin segundo y padre sin compuesto». Reúne a las personas cuyo Primer apellido es compuesto («García López»), no tienen Segundo apellido y cuyo padre no tiene ese compuesto: puede faltar el segundo apellido o estar los dos juntos en el primero. En cada caso, «Fichas A | B» abre las dos fichas a la vez (A = la persona, B = su padre), con «Ver A» y «Ver B» en pestañas nuevas, y se ofrece «Separar» o «No es un error».',
     'Gestor de datos, otros idiomas: nueva categoría «Nombre o apellido en otro alfabeto (árabe, etc.)». Detecta nombres y apellidos en árabe, hebreo, cirílico, griego o asiático y propone la transcripción al alfabeto latino cuando es segura (nombres árabes habituales, cirílico y griego), guardando el original en Observaciones. Esas personas ya no generan avisos de «apellido distinto al del padre». Los apellidos árabes en letras latinas (Ben Ali, El Fassi, Al-Idrissi) dejan de marcarse como guion sobrante o apellido mal partido.',
@@ -18618,6 +18810,7 @@ remotoFotosMod=(d.files&&d.files.length)?d.files[0].modifiedTime:null;
    Drive en buscarArchivoBackupDrive). Falla en silencio si no hay conexión:
    no debe bloquear ni ensuciar la pantalla principal por un fallo de red. */
 async function actualizarFechaArbolOficial(){
+try{frasesCargarDrive(false);}catch(e){}
 var el=document.getElementById('arbolOficialFechaTxt');
 var btn=document.getElementById('restaurarArbolPrincipalBtn');
 var btnFotos=document.getElementById('importarFotosPrincipalBtn');
@@ -20615,6 +20808,31 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div id="listaHuecosId" style="overflow:auto;padding-right:2px"></div>
 </div>
 </div>
+<div id="modalFrases" role="dialog" aria-modal="true" aria-labelledby="modalFrasesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:226;align-items:center;justify-content:center;padding:12px;" onclick="if(event.target===this)frasesCerrarEditor()">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:18px;max-width:520px;width:100%;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+<h2 id="modalFrasesTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-quote-left" aria-hidden="true" style="color:var(--accent)"></i> Frases de la portada</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="frasesCerrarEditor()">×</button>
+</div>
+<p style="font-size:12px;color:var(--muted);margin:0 0 8px">Las frases marcadas rotan en la portada; desmarca una para que no salga. Todo se guarda solo en <b>Datos/frases.json</b> de Drive.</p>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;margin-bottom:6px">
+<label for="frasesMinutos">Cambiar cada</label><input type="number" id="frasesMinutos" min="1" max="1440" value="10" style="width:70px;font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text)" onchange="frasesCambiarMinutos(this.value)"><span>minutos</span>
+<span id="frasesEstado" role="status" aria-live="polite" style="margin-left:auto;font-size:12px;color:var(--muted)"></span>
+</div>
+<div class="frases-nueva" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+<textarea id="frasesNuevaTxt" rows="2" maxlength="500" placeholder="Nueva frase…" aria-label="Nueva frase"></textarea>
+<input type="text" id="frasesNuevaAut" maxlength="120" placeholder="Autor (opcional)" aria-label="Autor de la nueva frase">
+<button type="button" class="ef-btn" onclick="frasesAnadir()" style="align-self:flex-start"><i class="fa-solid fa-plus" aria-hidden="true"></i> Añadir</button>
+</div>
+<details style="margin-bottom:8px;font-size:13px"><summary style="cursor:pointer;font-weight:700">Pegar varias de golpe</summary>
+<p style="font-size:12px;color:var(--muted);margin:6px 0">Una por línea. Para poner autor, sepáralo con « — » o « | » (ej.: <i>Recordar es volver a vivir — Anónimo</i>).</p>
+<textarea id="frasesVarias" rows="4" placeholder="Una frase por línea" aria-label="Varias frases, una por línea"></textarea>
+<button type="button" class="ef-btn ghost" onclick="frasesAnadirVarias()" style="margin-top:6px"><i class="fa-solid fa-list" aria-hidden="true"></i> Añadir todas</button>
+</details>
+<div id="frasesResumen" style="font-size:12px;color:var(--muted);margin-bottom:6px"></div>
+<div id="frasesLista"></div>
+</div>
+</div>
 <div id="modalHerramientas" role="dialog" aria-modal="true" aria-labelledby="modalHerramientasTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:225;align-items:center;justify-content:center;padding:20px;">
 <div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
@@ -20664,6 +20882,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de la rama</div><div class="herr-desc">Descarga un .ged con los antepasados de la persona activa (la de la barra "Viendo a") y sus parientes colaterales: hermanos, cuñados, tíos, primos, sobrinos y tíos abuelos</div></div></button>
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();frasesAbrirEditor()"><div class="herr-icon"><i class="fa-solid fa-quote-left"></i></div><div class="herr-text"><div class="herr-title">Frases de la portada</div><div class="herr-desc">Añade, activa, oculta o borra las frases (con autor) que van rotando en la portada. Se guardan solas en Datos/frases.json</div></div></button>
 <div class="herr-subhead">Fotos</div>
 <div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas). Puedes elegir importar todas o solo las que han cambiado</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
 <div class="herr-subhead">Copias de seguridad</div>
