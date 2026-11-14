@@ -49,7 +49,7 @@ header{background:linear-gradient(135deg,#F5EDE0,#EDE2D0);border-bottom:2px soli
 .logo-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.logo-icon img{width:100%;height:100%;object-fit:contain;display:block}
 nav{display:flex;gap:2px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 nav::-webkit-scrollbar{display:none}
-nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:12px;padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
+nav button{background:0 0;border:2px solid transparent;color:var(--muted);font-family:'Lato',sans-serif;font-weight:700;font-size:13px;padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0}
 nav button:hover,nav button.active{color:var(--accent);border-color:var(--accent);background:rgba(196,101,58,.06)}
 /* ===== MEJORA UX: navegación "Más" para pantallas estrechas (ver 2. Visibilidad) ===== */
 .nav-more-wrap{display:none}
@@ -84,7 +84,8 @@ main.ges-split .ges-cat{max-width:none}
 @keyframes viewSlideFromRight{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
 @keyframes viewSlideFromLeft{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:translateX(0)}}
 @media (prefers-reduced-motion:reduce){.view.active.dir-fwd,.view.active.dir-back{animation:none}}
-.hero{position:relative;overflow:hidden;text-align:center;padding:44px 16px 24px;background:linear-gradient(180deg,rgba(196,101,58,.04),transparent);border-radius:18px;margin-bottom:18px}
+.hero{position:relative;overflow:hidden;text-align:center;padding:44px 16px 24px;background:radial-gradient(ellipse 420px 260px at 12% 8%,rgba(150,110,60,.10),transparent 60%),radial-gradient(ellipse 380px 300px at 88% 92%,rgba(150,110,60,.09),transparent 60%),radial-gradient(ellipse 700px 500px at 50% 50%,transparent 55%,rgba(120,85,40,.10) 100%),linear-gradient(180deg,#F8F1E0,#F3E9D2);border:1px solid #E3D5B8;border-radius:18px;margin-bottom:18px;box-shadow:inset 0 0 60px rgba(120,85,40,.08),0 2px 10px rgba(120,85,40,.08)}
+.hero h1::after{content:'';display:block;width:160px;height:9px;margin:9px auto 0;background:radial-gradient(circle at 50% 4px,var(--accent) 0 2.4px,transparent 2.9px),linear-gradient(90deg,transparent,var(--accent) 30%,var(--accent) 70%,transparent);background-size:100% 9px,100% 1.5px;background-position:center top,center 4px;background-repeat:no-repeat;opacity:.7}
 .hero-carousel{position:relative;width:min(360px,80vw);aspect-ratio:1/1;margin:16px auto 2px}
 .hero-carousel-img{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;cursor:pointer;pointer-events:none}
 .hero-carousel-img.on{opacity:.32;pointer-events:auto}
@@ -101,7 +102,10 @@ main.ges-split .ges-cat{max-width:none}
 .hero-carousel-toggle{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;cursor:pointer;opacity:.75;transition:all .2s}
 .hero-carousel-toggle:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
 .hero-carousel-toggle.off{color:var(--accent);border-color:var(--accent);opacity:.9}
-.hero-icon-row{display:flex;justify-content:center;gap:10px;margin:10px 0 0}
+.hero-icon-row{display:flex;justify-content:center;gap:10px;margin:10px 0 0;align-items:flex-start}
+#herramientasIconRow .hero-icon-btn{flex-direction:column;width:auto;min-width:54px;height:auto;min-height:54px;padding:6px 4px 5px;gap:4px}
+#herramientasIconRow .hero-icon-btn>i{font-size:15px}
+.hero-icon-cap{font-size:10px;font-weight:700;line-height:1;letter-spacing:.2px}
 .pantalla-bus-pills{display:flex;justify-content:center;gap:8px;margin:12px 0 0;flex-wrap:wrap}
 .pbus-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
 .pbus-pill:hover{border-color:var(--accent);color:var(--accent)}
@@ -180,7 +184,7 @@ html[data-tema="muelle"] .update-banner{color:#0C2B3B}
 html[data-tema="muelle"] .activebar{background:linear-gradient(135deg,#0F3549,#0A2634);border-bottom-color:var(--border)}
 html[data-tema="muelle"] .user-chip{background:rgba(255,255,255,.08);border-color:rgba(242,167,27,.35)}
 html[data-tema="muelle"] .user-chip .uc-foto{background:#1B5873;color:var(--accent);box-shadow:0 0 0 1px rgba(242,167,27,.4)}
-html[data-tema="muelle"] .hero{color:var(--text)}
+html[data-tema="muelle"] .hero{color:var(--text);background:linear-gradient(180deg,rgba(242,167,27,.06),transparent);border-color:var(--border);box-shadow:none}
 html[data-tema="muelle"] .hero-carousel-img.on{opacity:.4}
 html[data-tema="muelle"] .hero-carousel-img::after{filter:sepia(.1) saturate(.8) brightness(1.02) contrast(1.05)}
 html[data-tema="muelle"] .ef-btn.ghost{color:var(--text);background:transparent}
@@ -282,7 +286,7 @@ html[data-tema="muelle"] .tema-btn i{transform:rotate(180deg)}
 .herr-subhead{font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--accent);opacity:.8;margin:10px 8px 2px}
 .herr-subhead:first-of-type{margin-top:4px}
 .stats{display:flex;justify-content:center;gap:24px;margin-top:16px;flex-wrap:wrap}
-.stat{text-align:center}.stat-num{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:var(--accent)}.stat-label{font-size:10px;color:var(--muted);font-weight:700}
+.stat{text-align:center}.stat-num{font-family:'Cinzel',serif;font-size:24px;font-weight:700;color:var(--accent)}.stat-label{font-size:12px;color:var(--text);font-weight:700;opacity:.78}
 .ri{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:background .15s}
 .ri>div:last-child{flex:1;min-width:0}
 #rl{max-width:640px;margin:0 auto}
@@ -481,7 +485,7 @@ html[data-tema="muelle"] .tema-btn i{transform:rotate(180deg)}
 /* Botones reales con forma de pastilla (p.ej. "Restaurar árbol oficial"):
    mismo lenguaje visual que el botón de arriba — borde, sombra, hover — para
    que se noten interactivos. */
-.drive-status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);font-size:11px;font-weight:700;color:var(--text);cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.drive-status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:7px 15px;border-radius:999px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;color:var(--text);cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .drive-status:hover{border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.14);transform:translateY(-1px)}
 .drive-status .dot{width:9px;height:9px;border-radius:50%;background:#C4653A;flex-shrink:0}
 .drive-status.ok{background:rgba(90,138,60,.12);border-color:var(--green);color:#3d6428}
@@ -1050,29 +1054,29 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <div class="drive-status drive-status-info" id="driveStatusPill"><span class="dot" id="driveStatusDot"></span><span id="driveStatusTxt">Comprobando Google Drive...</span></div>
 </div>
 <div id="backupWarnPill"></div>
-<div id="arbolOficialFechaTxt" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
+<div id="arbolOficialFechaTxt" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
 <div id="avisoActualizaciones" class="aviso-actualizaciones" role="status" aria-live="polite"></div>
 <div id="driveOpProgresoPrincipal" role="status" aria-live="polite" style="display:none;max-width:460px;margin:6px auto 0;text-align:left">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
-<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted)">Trabajando...</div>
+<div class="progreso-drive-texto" style="font-size:12px;color:var(--muted)">Trabajando...</div>
 <button type="button" class="progreso-drive-cancelar" onclick="cancelarRestaurarDrive('driveOpProgresoPrincipal')" title="Interrumpir la restauración" aria-label="Interrumpir la restauración">×</button>
 </div>
 </div>
 </div>
 <div class="pb" id="pb" style="display:none;max-width:460px;margin:8px auto 0"><div class="pf" id="pf"></div></div>
 <div class="pb" id="pbInicio" role="status" aria-label="Cargando el árbol" style="max-width:var(--ancho-titulo-inicio,460px);margin:26px auto 8px"><div class="pf indet"></div></div>
-<div id="pbInicioTxt" style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:6px">Cargando el árbol…</div>
+<div id="pbInicioTxt" style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:6px">Cargando el árbol…</div>
 <div class="stats" id="sb"></div>
 <div class="hero-icon-row" id="herramientasIconRow">
-<button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive (solo datos, sin fotos)" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" id="importarFotosPrincipalBtn" style="display:none" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}importarFotosDesdeDrive()" title="Importar fotos: descarga desde la carpeta FOTO de Google Drive y las asigna a cada persona por ID" aria-label="Importar fotos"><i class="fa-solid fa-images" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
-<button class="hero-icon-btn tema-btn" id="btnTema" onclick="alternarTema()" title="Cambiar los colores: clásico o muelle (azul y ámbar)" aria-label="Cambiar los colores de la aplicación" aria-pressed="false"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i></button>
-<button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+<button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive (solo datos, sin fotos)" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i><span class="hero-icon-cap">Restaurar</span></button>
+<button class="hero-icon-btn" id="importarFotosPrincipalBtn" style="display:none" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}importarFotosDesdeDrive()" title="Importar fotos: descarga desde la carpeta FOTO de Google Drive y las asigna a cada persona por ID" aria-label="Importar fotos"><i class="fa-solid fa-images" aria-hidden="true"></i><span class="hero-icon-cap">Fotos</span></button>
+<button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span class="hero-icon-cap">Herramientas</span><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
+<button class="hero-icon-btn tema-btn" id="btnTema" onclick="alternarTema()" title="Cambiar los colores: clásico o muelle (azul y ámbar)" aria-label="Cambiar los colores de la aplicación" aria-pressed="false"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i><span class="hero-icon-cap">Color</span></button>
+<button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span class="hero-icon-cap">Versión</span></button>
 <div class="musica-widget">
-<button class="hero-icon-btn" id="musicaToggleBtn" onclick="MusicEngine.alternar()" title="Música ambiental: reproducir o pausar" aria-label="Música ambiental: reproducir o pausar" aria-pressed="false"><i class="fa-solid fa-music" id="musicaIcono" aria-hidden="true"></i></button>
-<button class="hero-icon-btn musica-next" id="musicaSiguienteBtn" onclick="MusicEngine.siguiente()" title="Pasar a la siguiente canción" aria-label="Pasar a la siguiente canción"><i class="fa-solid fa-forward-step" aria-hidden="true"></i></button>
+<button class="hero-icon-btn" id="musicaToggleBtn" onclick="MusicEngine.alternar()" title="Música ambiental: reproducir o pausar" aria-label="Música ambiental: reproducir o pausar" aria-pressed="false"><i class="fa-solid fa-music" id="musicaIcono" aria-hidden="true"></i><span class="hero-icon-cap">Música</span></button>
+<button class="hero-icon-btn musica-next" id="musicaSiguienteBtn" onclick="MusicEngine.siguiente()" title="Pasar a la siguiente canción" aria-label="Pasar a la siguiente canción"><i class="fa-solid fa-forward-step" aria-hidden="true"></i><span class="hero-icon-cap">Siguiente</span></button>
 <span class="musica-pista" id="musicaPistaTxt" role="status" aria-live="polite" title="Canción que se está reproduciendo"></span>
 <input type="range" class="musica-vol" id="musicaVolumen" min="0" max="100" value="35" title="Volumen de la música" aria-label="Volumen de la música" oninput="MusicEngine.cambiarVolumen(this.value)">
 </div>
@@ -1550,8 +1554,14 @@ window.addEventListener('pageshow',function(){frasesPintar(false);});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',frasesIniciar);else frasesIniciar();
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.12.1';
+var APP_VERSION = '2026.11.14.2';
 var APP_CHANGELOG = [
+  { version:'2026.11.14.2', fecha:'2026-11-14', cambios:[
+    'Inicio con aire de libro antiguo: la portada luce un fondo de pergamino suave con un adorno bajo el título, los contadores (Personas, Vivos, Fallecidos) y el aviso de Google Drive se leen más grandes y oscuros, el menú de arriba crece un punto y los botones redondos de la portada llevan ahora una palabra debajo (Restaurar, Fotos, Herramientas, Color, Versión, Música) para saber qué hace cada uno.'
+  ]},
+  { version:'2026.11.14.1', fecha:'2026-11-14', cambios:[
+    'Buscar → Rompecabezas: el fondo de la foto pasa a ser un pergamino antiguo (papel envejecido con vetas, manchas de humedad, bordes tostados y renglones de caligrafía de un viejo libro parroquial a tinta sepia), con tonos más oscuros cuanto más antigua es la persona. Sustituye al cielo con nubes y sigue haciendo que cada pieza se distinga de las demás.'
+  ]},
   { version:'2026.11.12.1', fecha:'2026-11-12', cambios:[
     'Frases en la portada: el subtítulo «Tu árbol genealógico familiar» pasa a mostrar frases (con autor opcional) que rotan solas cada 10 minutos, iguales para toda la familia, y al tocarlas sale la siguiente. Si no hay frases activas se sigue viendo el subtítulo de siempre. El Archivero las gestiona en Herramientas → «Frases de la portada»: añadir una o varias de golpe, marcar o desmarcar cada una para que salga o no, editarlas, borrarlas y cambiar los minutos. Todo se guarda solo en Datos/frases.json de Drive, sin preguntar; el resto de perfiles solo las ven. La app guarda una copia en el dispositivo para que la frase aparezca al instante, incluso sin conexión.'
   ]},
@@ -19822,25 +19832,28 @@ do{for(i=a.length-1;i>0;i--){j=Math.floor(Math.random()*(i+1));t=a[i];a[i]=a[j];
 while(a.every(function(v,k){return v===k;}));
 return a;
 }
-/* ===== Cielo amarillento con nubes definidas, según la época, para el rompecabezas =====
+/* ===== Pergamino antiguo, según la época, para el rompecabezas =====
    Las fotos de fondo liso hacen que las piezas sean casi idénticas. Antes de cortar la foto
    se detecta su fondo (relleno desde los bordes, tolerando degradados suaves) y se sustituye
-   por un cielo dorado con nubes de bordes bien marcados (blancas y crema por la parte iluminada,
-   ocre por debajo) cuya paleta varía ligeramente según la época de la persona. Cada zona de la
-   imagen es distinta, así cada pieza se distingue de las demás.
+   por un pergamino envejecido: papel con vetas y fibras, manchas de humedad con su cerco,
+   motas de óxido, bordes tostados y renglones de caligrafía de un viejo libro parroquial
+   escritos a tinta sepia desvaída. El tono del papel y de la tinta varía según la época de
+   la persona (más oscuro y amarillento cuanto más antigua). Cada zona de la imagen es
+   distinta, así cada pieza se distingue de las demás.
    El contorno de la persona se trata aparte: se come la franja clara que deja el recorte original
    (la «línea blanca»), los colores del borde se rehacen con los del interior de la persona y el
-   paso a cielo es un degradado suave, con un leve reflejo de luz del cielo sobre el filo.
+   paso al pergamino es un degradado suave, con un leve reflejo del papel sobre el filo.
    Si no se puede aislar un fondo claro (o el navegador no deja leer los píxeles), se tiñe toda la
    foto con una mezcla suave. */
 var PZL_EPOCAS=[
-/* ci0 cielo arriba · ci1 cielo en el horizonte · nL nube iluminada · nM nube media · nS base de la nube */
-{hasta:1800,ci0:[214,166,70],ci1:[236,206,128],nL:[255,250,236],nM:[238,224,192],nS:[190,164,120]},
-{hasta:1870,ci0:[222,174,76],ci1:[240,212,134],nL:[255,251,240],nM:[240,228,198],nS:[194,168,124]},
-{hasta:1920,ci0:[230,182,74],ci1:[244,218,138],nL:[255,252,242],nM:[242,231,204],nS:[198,172,128]},
-{hasta:1960,ci0:[236,188,78],ci1:[247,222,142],nL:[255,253,246],nM:[244,234,208],nS:[202,176,132]},
-{hasta:9999,ci0:[242,194,84],ci1:[250,228,150],nL:[255,254,250],nM:[246,237,214],nS:[206,180,136]}
+/* p0 papel claro · p1 papel oscuro · man mancha · ink tinta · bor borde tostado */
+{hasta:1800,p0:[232,208,160],p1:[196,160,104],man:[146,100,52],ink:[78,46,22],bor:[92,56,24]},
+{hasta:1870,p0:[236,214,168],p1:[202,168,114],man:[152,106,56],ink:[72,44,22],bor:[98,60,28]},
+{hasta:1920,p0:[240,221,178],p1:[208,176,124],man:[158,112,62],ink:[66,42,24],bor:[104,66,32]},
+{hasta:1960,p0:[243,227,188],p1:[214,184,134],man:[164,118,68],ink:[60,40,26],bor:[110,72,38]},
+{hasta:9999,p0:[245,231,196],p1:[218,190,142],man:[168,124,74],ink:[54,38,28],bor:[116,78,42]}
 ];
+var PZL_CALIGRAFIA=['En la villa de','a los veinte y tres días del mes de','yo el infrascrito cura párroco','bauticé solemnemente','hija legítima de','abuelos paternos','abuelos maternos','naturales de esta parroquia','fueron sus padrinos','a quienes advertí el parentesco espiritual','y lo firmé','Libro de Bautismos','Año del Señor','doy fe','vecinos de este lugar','y para que conste','contrajeron matrimonio','según lo dispuesto','en esta santa iglesia','de que certifico'];
 function pzlPaletaEpoca(anio){
 var i;for(i=0;i<PZL_EPOCAS.length;i++){if(anio!==null&&anio<=PZL_EPOCAS[i].hasta)return PZL_EPOCAS[i];}
 return PZL_EPOCAS[2];
@@ -19856,54 +19869,77 @@ return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
 }
 function pzlPaso(a,b,x){var t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);}
 function pzlPsiPixeles(W,H,anio){
-var pal=pzlPaletaEpoca(anio),d=new Uint8ClampedArray(W*H*4),x,y,i=0,asp=W/H;
-var sem=Math.random()*50,ox=Math.random()*10,oy=Math.random()*10;
-/* 1) densidad de nube a media resolución (rápido) y ampliada con suavidad */
-var Wc=Math.max(2,Math.ceil(W/2)),Hc=Math.max(2,Math.ceil(H/2)),fc=new Float32Array(Wc*Hc);
-for(y=0;y<Hc;y++){for(x=0;x<Wc;x++){
-var u=((x/(Wc-1))-.5)*2*(asp>1?asp:1),v=((y/(Hc-1))-.5)*2*(asp<1?1/asp:1);
-var qx=u*2.4+ox,qy=v*2.4+oy;
-var wx=pzlRuidoSuave(qx*.8+3.1,qy*.8+1.7,sem)-.5,wy=pzlRuidoSuave(qx*.8+8.3,qy*.8+2.8,sem)-.5;
-var f=.58*pzlRuidoSuave(qx+wx*1.8,qy+wy*1.8,sem)+.26*pzlRuidoSuave(qx*2.1+wy*1.2,qy*2.1+wx*1.2,sem+7)+.12*pzlRuidoSuave(qx*4.3+wx,qy*4.3+wy,sem+13)+.04*pzlRuidoSuave(qx*8.7,qy*8.7,sem+19);
-fc[y*Wc+x]=(f-.5)*2.3+.5;
-}}
-var fF=new Float32Array(W*H);
-for(y=0;y<H;y++){var gy=y/(H-1)*(Hc-1),y0=Math.floor(gy),y1=Math.min(Hc-1,y0+1),ty=gy-y0;
-for(x=0;x<W;x++){var gx=x/(W-1)*(Wc-1),x0=Math.floor(gx),x1=Math.min(Wc-1,x0+1),tx=gx-x0;
-var a0=fc[y0*Wc+x0]+(fc[y0*Wc+x1]-fc[y0*Wc+x0])*tx,a1=fc[y1*Wc+x0]+(fc[y1*Wc+x1]-fc[y1*Wc+x0])*tx;
-fF[y*W+x]=a0+(a1-a0)*ty;}}
-/* 2) color: cielo dorado + nubes de borde marcado, luz desde arriba a la izquierda */
-var TH=.54,sc=Math.max(1,Math.max(W,H)/640),ox2=Math.max(1,Math.round(5*sc)),oy2=Math.max(1,Math.round(6*sc));
-var tintX=Math.random()*10,tintY=Math.random()*10;
+var pal=pzlPaletaEpoca(anio),d=new Uint8ClampedArray(W*H*4),x,y,i=0,k,c;
+var sem=Math.random()*50,ox=Math.random()*10,oy=Math.random()*10,sc=Math.max(W,H);
+/* manchas de humedad (con cerco más oscuro) y motas de óxido, al azar */
+var man=[],pun=[],nm=4+Math.floor(Math.random()*4),np=20+Math.floor(Math.random()*24);
+for(k=0;k<nm;k++)man.push({x:Math.random()*W,y:Math.random()*H,r:(.07+Math.random()*.17)*sc,f:.3+Math.random()*.4,s:sem+23+k*3});
+for(k=0;k<np;k++)pun.push({x:Math.random()*W,y:Math.random()*H,r:(.004+Math.random()*.012)*sc,f:.3+Math.random()*.45});
 for(y=0;y<H;y++){for(x=0;x<W;x++){
-var k=y*W+x,fv=fF[k],ty2=y/(H-1);
-/* cielo: degradado vertical + ligera variación de tono a gran escala + brillo de sol difuso */
-var tn=pzlRuidoSuave(x/W*2.2+tintX,y/H*2.2+tintY,sem+31)-.5;
-var gv=Math.max(0,Math.min(1,ty2*.9+tn*.35));
-var sr=pal.ci0[0]+(pal.ci1[0]-pal.ci0[0])*gv,sg=pal.ci0[1]+(pal.ci1[1]-pal.ci0[1])*gv,sb=pal.ci0[2]+(pal.ci1[2]-pal.ci0[2])*gv;
-/* nube: cobertura con borde nítido pero sin dientes de sierra */
-var cov=pzlPaso(TH-.06,TH+.06,fv);
-var haze=pzlPaso(TH-.24,TH-.02,fv)*.16*(1-cov);
-sr+=(255-sr)*haze;sg+=(252-sg)*haze;sb+=(236-sb)*haze;
-var R=sr,G=sg,B=sb;
-if(cov>0){
-var xl=Math.max(0,x-ox2),yl=Math.max(0,y-oy2),fl=fF[yl*W+xl];
-var s2=26*sc,dt=pzlRuidoSuave(x/s2+tintX,y/s2+tintY,sem+41),dtl=pzlRuidoSuave((x-ox2)/s2+tintX,(y-oy2)/s2+tintY,sem+41);
-var lit=Math.max(0,Math.min(1,.5+(fv-fl)*5+(dt-dtl)*2.2));
-var grueso=Math.max(0,Math.min(1,(fv-TH)/.5));
-var luz=Math.max(0,Math.min(1,.3+lit*.62-grueso*.2-ty2*.06));
-var cr=pal.nM[0]+(pal.nL[0]-pal.nM[0])*luz,cg=pal.nM[1]+(pal.nL[1]-pal.nM[1])*luz,cb=pal.nM[2]+(pal.nL[2]-pal.nM[2])*luz;
-var som=grueso*(1-lit)*.55+ty2*.05;
-cr+=(pal.nS[0]-cr)*som;cg+=(pal.nS[1]-cg)*som;cb+=(pal.nS[2]-cb)*som;
-R=sr+(cr-sr)*cov;G=sg+(cg-sg)*cov;B=sb+(cb-sb)*cov;
-}
-/* viñeta muy suave y grano fino */
-var uu=(x/W-.5)*2,vv=(y/H-.5)*2,vg=1-.12*Math.min(1,(uu*uu+vv*vv)*.5),gr=(pzlRuido(x,y,sem+21)-.5)*6;
-d[i++]=Math.max(0,Math.min(255,Math.round(R*vg+gr)));
-d[i++]=Math.max(0,Math.min(255,Math.round(G*vg+gr)));
-d[i++]=Math.max(0,Math.min(255,Math.round(B*vg+gr)));
+/* 1) papel: vetas grandes claras/oscuras + fibras alargadas */
+var u=x/sc*3.2+ox,v=y/sc*3.2+oy;
+var nb=.6*pzlRuidoSuave(u,v,sem)+.28*pzlRuidoSuave(u*2.3,v*2.3,sem+5)+.12*pzlRuidoSuave(u*5.3,v*5.3,sem+9);
+var t=Math.max(0,Math.min(1,(nb-.28)*1.7));
+var R=pal.p0[0]+(pal.p1[0]-pal.p0[0])*t,G=pal.p0[1]+(pal.p1[1]-pal.p0[1])*t,B=pal.p0[2]+(pal.p1[2]-pal.p0[2])*t;
+var fib=(pzlRuidoSuave(x/sc*110+ox,y/sc*7+oy,sem+17)-.5)*12+(pzlRuidoSuave(x/sc*9+oy,y/sc*140+ox,sem+19)-.5)*6;
+R+=fib;G+=fib;B+=fib*.8;
+/* 2) manchas de humedad: interior algo más oscuro y cerco marcado, de borde irregular */
+var mz=0;
+for(k=0;k<man.length;k++){var m=man[k],dx=x-m.x,dy=y-m.y;
+if(Math.abs(dx)>m.r*1.5||Math.abs(dy)>m.r*1.5)continue;
+var dd=Math.sqrt(dx*dx+dy*dy)/m.r;
+dd*=1+(pzlRuidoSuave(x/sc*7,y/sc*7,m.s)-.5)*.5;
+if(dd<1)mz+=(1-dd)*m.f*.28;
+var rr=(dd-1)/.05;mz+=Math.exp(-rr*rr)*m.f*.55;}
+for(k=0;k<pun.length;k++){var p=pun[k],ex=x-p.x,ey=y-p.y;
+if(Math.abs(ex)>p.r||Math.abs(ey)>p.r)continue;
+var pd=(ex*ex+ey*ey)/(p.r*p.r);if(pd<1)mz+=(1-pd)*p.f;}
+mz=Math.min(.85,mz);
+R+=(pal.man[0]-R)*mz;G+=(pal.man[1]-G)*mz;B+=(pal.man[2]-B)*mz;
+/* 3) bordes tostados e irregulares */
+var e=Math.min(x,W-1-x,y,H-1-y)/sc+(pzlRuidoSuave(x/sc*12,y/sc*12,sem+29)-.5)*.05;
+var bq=(1-pzlPaso(0,.11,e))*.8;
+R+=(pal.bor[0]-R)*bq;G+=(pal.bor[1]-G)*bq;B+=(pal.bor[2]-B)*bq;
+/* 4) grano fino */
+var gr=(pzlRuido(x,y,sem+21)-.5)*7;
+d[i++]=Math.max(0,Math.min(255,Math.round(R+gr)));
+d[i++]=Math.max(0,Math.min(255,Math.round(G+gr)));
+d[i++]=Math.max(0,Math.min(255,Math.round(B+gr*.9)));
 d[i++]=255;
 }}
+/* 5) renglones de caligrafía a tinta sepia desvaída (si el navegador deja dibujar texto) */
+try{
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+var cx=cv.getContext('2d');
+cx.putImageData(new ImageData(d,W,H),0,0);
+var fs=Math.max(12,Math.round(H/12)),lh=fs*1.3,txt=PZL_CALIGRAFIA,ti=Math.floor(Math.random()*txt.length);
+var ink='rgb('+pal.ink[0]+','+pal.ink[1]+','+pal.ink[2]+')';
+cx.save();
+cx.translate(W/2,H/2);cx.rotate((Math.random()-.5)*.06);cx.translate(-W/2,-H/2);
+cx.font=fs+'px "Great Vibes","Brush Script MT","Segoe Script",cursive';
+cx.fillStyle=ink;cx.strokeStyle=ink;
+var yl;
+for(yl=lh*.85;yl<H+lh;yl+=lh){
+var s='';while(cx.measureText(s).width<W*1.5){s+=txt[ti%txt.length]+(Math.random()<.3?', ':' ');ti++;}
+cx.globalAlpha=.32+Math.random()*.26;
+cx.fillText(s,-Math.random()*W*.35,yl);
+/* renglón guía apenas visible */
+cx.globalAlpha=.06;cx.lineWidth=Math.max(1,fs/30);
+cx.beginPath();cx.moveTo(0,yl+fs*.18);cx.lineTo(W,yl+fs*.18);cx.stroke();
+}
+cx.restore();
+/* tinta desigual: algunas zonas se borran un poco con el color del papel */
+var nz=5+Math.floor(Math.random()*4);
+for(k=0;k<nz;k++){
+var zx=Math.random()*W,zy=Math.random()*H,zr=(.12+Math.random()*.22)*sc;
+var gz=cx.createRadialGradient(zx,zy,0,zx,zy,zr);
+gz.addColorStop(0,'rgba('+pal.p0[0]+','+pal.p0[1]+','+pal.p0[2]+',.45)');
+gz.addColorStop(1,'rgba('+pal.p0[0]+','+pal.p0[1]+','+pal.p0[2]+',0)');
+cx.globalAlpha=1;cx.fillStyle=gz;cx.fillRect(0,0,W,H);
+}
+var out=cx.getImageData(0,0,W,H).data;
+if(out&&out.length===d.length)return out;
+}catch(e){}
 return d;
 }
 /* Devuelve {vis, dist, N} con vis=1 en el fondo y dist = distancia en píxeles de cada pixel al fondo,
@@ -19955,7 +19991,7 @@ if(mk){
 var dist=mk.dist,vis=mk.vis,u=Math.max(.6,Math.max(W,H)/640);
 var E0=1.8*u,F=3.2*u;          /* alpha de persona: 0 hasta E0 del fondo, 1 a E0+F */
 var DC=5.5*u;                   /* hasta esta distancia los colores del borde se rehacen desde dentro */
-var DLUZ=7*u;                   /* alcance del reflejo de luz del cielo sobre el filo */
+var DLUZ=7*u;                   /* alcance del reflejo del pergamino sobre el filo */
 /* colores limpios del borde: se propagan hacia fuera los colores del interior (d>=DC) */
 var cl=new Float32Array(N*3),ok=new Uint8Array(N),k,c;
 for(k=0;k<N;k++){if(!vis[k]&&dist[k]>=DC){ok[k]=1;cl[k*3]=px[k*4];cl[k*3+1]=px[k*4+1];cl[k*3+2]=px[k*4+2];}}
@@ -19990,10 +20026,10 @@ if(!vis[k]&&ok[k]&&dist[k]<DC){
 var w=1-pzlPaso(3*u,DC,dist[k]);
 r0+=(cl[k*3]-r0)*w;g0+=(cl[k*3+1]-g0)*w;b0+=(cl[k*3+2]-b0)*w;
 }
-/* 2) reflejo suave de la luz del cielo sobre el filo */
+/* 2) reflejo suave del pergamino sobre el filo */
 var wr=vis[k]?0:.14*Math.max(0,1-dist[k]/DLUZ);
 if(wr>0){r0+=(psi[q]-r0)*wr;g0+=(psi[q+1]-g0)*wr;b0+=(psi[q+2]-b0)*wr;}
-/* 3) mezcla con el cielo según el alpha difuminado */
+/* 3) mezcla con el pergamino según el alpha difuminado */
 var bgA=1-a;
 px[q]=r0*a+psi[q]*bgA;px[q+1]=g0*a+psi[q+1]*bgA;px[q+2]=b0*a+psi[q+2]*bgA;px[q+3]=255;
 }
@@ -20854,7 +20890,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div id="driveOpProgresoWrap" role="status" aria-live="polite" style="display:none;margin:4px 0 10px">
 <div class="pb" style="margin:0;display:block"><div class="pf"></div></div>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
-<div class="progreso-drive-texto" style="font-size:11px;color:var(--muted)">Trabajando...</div>
+<div class="progreso-drive-texto" style="font-size:12px;color:var(--muted)">Trabajando...</div>
 <button type="button" class="progreso-drive-cancelar" onclick="cancelarRestaurarDrive('driveOpProgresoWrap')" title="Interrumpir la restauración" aria-label="Interrumpir la restauración">×</button>
 </div>
 </div>
