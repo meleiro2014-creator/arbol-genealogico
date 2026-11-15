@@ -18051,6 +18051,58 @@ toast('GEDCOM descargado: '+r.total+' personas ('+(cnt.ascendiente||0)+' antepas
 if(r.indeterminado>0)toast(r.indeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
 },100);
 }
+/* ===== NUEVO (2026-11-15): GEDCOM de los DESCENDIENTES de la persona activa =====
+   Incluye a la persona activa, a todos sus descendientes, a los cónyuges de
+   todos ellos (también el otro progenitor de cada descendiente aunque no haya
+   matrimonio registrado) y a los ASCENDIENTES de esos cónyuges, hasta donde
+   llegue el árbol. No incluye los antepasados de la persona activa ni de sus
+   descendientes de sangre. Los vínculos que apuntan fuera del conjunto se anulan
+   en una COPIA de cada ficha (los datos reales no se tocan). */
+function recopilarDescendientesConParejas(id){
+var ids={},cat={};
+function marca(x,c){if(!x||!PI[x]||ids[x])return false;ids[x]=true;cat[x]=c;return true;}
+marca(id,'activa');
+var cola=[id];
+while(cola.length){var a=cola.shift();(HD[a]||[]).forEach(function(h){if(marca(h,'descendiente'))cola.push(h);});}
+Object.keys(ids).forEach(function(x){
+conyugesDe(x).forEach(function(c){marca(c,'pareja');});
+if(x!==String(id)){var px=PI[x];[px.PADRE,px.MADRE].forEach(function(q){marca(q,'pareja');});}
+});
+var vis={},cola2=Object.keys(ids).filter(function(k){return cat[k]==='pareja';});
+while(cola2.length){
+var b=cola2.shift(),pb=PI[b];if(!pb)continue;
+[pb.PADRE,pb.MADRE].forEach(function(q){
+if(q&&PI[q]&&!vis[q]){vis[q]=true;marca(q,'ascendiente');cola2.push(q);}
+});
+}
+return{ids:ids,cat:cat};
+}
+async function expGedDescendientes(){
+if(!await exigirIdentidadGoogle())return;
+if(!esAdministrador()){toast('Solo el Archivero puede exportar GEDCOM',true);return;}
+if(!cid||!PI[cid]){toast('Selecciona antes una persona activa (icono de la lupa) para exportar sus descendientes',true);return;}
+var rama=recopilarDescendientesConParejas(cid);
+var idsSet=rama.ids,cat=rama.cat;
+var subconjunto=D.filter(function(p){return idsSet[p.ID];}).map(function(p){
+var c=Object.assign({},p);
+if(c.PADRE&&!idsSet[c.PADRE])c.PADRE='';
+if(c.MADRE&&!idsSet[c.MADRE])c.MADRE='';
+CAMPOS_CONYUGE.forEach(function(k){if(c[k]&&!idsSet[c[k]])c[k]='';});
+return c;
+});
+if(subconjunto.length<=1){toast(fn(PI[cid])+' no tiene descendientes ni cónyuge registrados en el árbol',true);return;}
+var cnt={};Object.keys(cat).forEach(function(k){cnt[cat[k]]=(cnt[cat[k]]||0)+1;});
+toast('Generando GEDCOM de descendientes...');
+mostrarProgresoDrive('Generando GEDCOM de descendientes...','globalTrabajoWrap');
+setTimeout(function(){
+var r=construirGedcomTexto(subconjunto);
+var base=(fn(PI[cid])||'DESCENDIENTES').trim().replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||'DESCENDIENTES';
+descargarGedTexto(r.ged,'DESCENDIENTES_'+base+'.ged');
+ocultarProgresoDrive('globalTrabajoWrap');
+toast('GEDCOM descargado: '+r.total+' personas ('+(cnt.descendiente||0)+' descendientes, '+(cnt.pareja||0)+' cónyuges/parejas, '+(cnt.ascendiente||0)+' ascendientes de cónyuges)');
+if(r.indeterminado>0)toast(r.indeterminado+' familia(s) exportada(s) con rol marido/mujer no determinable por falta de dato de sexo — revísalas si vas a importar en otro programa.',true);
+},100);
+}
 /* ===== EXPORTAR A CSV PARA ACCESS (punto 18) =====
    28 columnas: las 26 de defaultHdr en el mismo orden (APROX incluida en la
    posicion 2, por compatibilidad con el formato Access) + ANOCALC + ANOCALC_MOTIVO.
@@ -20918,6 +20970,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de la rama</div><div class="herr-desc">Descarga un .ged con los antepasados de la persona activa (la de la barra "Viendo a") y sus parientes colaterales: hermanos, cuñados, tíos, primos, sobrinos y tíos abuelos</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();expGedDescendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de descendientes</div><div class="herr-desc">Descarga un .ged con la persona activa (la de la barra "Viendo a") y todos sus descendientes, con sus cónyuges y los ascendientes de esos cónyuges</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();frasesAbrirEditor()"><div class="herr-icon"><i class="fa-solid fa-quote-left"></i></div><div class="herr-text"><div class="herr-title">Frases de la portada</div><div class="herr-desc">Añade, activa, oculta o borra las frases (con autor) que van rotando en la portada. Se guardan solas en Datos/frases.json</div></div></button>
 <div class="herr-subhead">Fotos</div>
 <div class="herr-item" style="cursor:default"><div class="herr-icon"><i class="fa-solid fa-folder-open"></i></div><div class="herr-text"><div class="herr-title">Importar fotos desde carpeta local</div><div class="herr-desc">Asigna fotos a personas por ID exacto del nombre de archivo, desde una carpeta de este ordenador. Solo se leen los archivos de la raíz de la carpeta elegida (no los de subcarpetas). Puedes elegir importar todas o solo las que han cambiado</div><div style="margin-top:6px"><button class="ef-btn ghost" id="herrBtnImportarLocal" style="padding:5px 10px;font-size:11px" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}cerrarHerramientas();solicitarImportarFotosLocal()"><i class="fa-solid fa-folder-open"></i> Carpeta local</button></div></div></div>
