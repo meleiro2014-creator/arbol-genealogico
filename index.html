@@ -111,6 +111,22 @@ main.ges-split .ges-cat{max-width:none}
 .pbus-pill:hover{border-color:var(--accent);color:var(--accent)}
 .pbus-pill.pbus-activa{background:var(--accent);border-color:var(--accent);color:#fff}
 .pbus-pill.pbus-disabled{opacity:.45;cursor:not-allowed;pointer-events:none;filter:grayscale(1)}
+.lam-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;text-align:center}
+.lam-msg{color:var(--muted);font-size:13px;margin:8px 0}
+.lam-list{list-style:none;margin:12px 0 0;padding:0;text-align:left}
+.lam-list li{display:flex;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+.lam-q{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 6px}
+.lam-ov{position:fixed;inset:0;z-index:9995;background:#14100c;color:#fff;font-family:'Lato',sans-serif}
+.lam-ov[hidden]{display:none}
+.lam-stage{position:absolute;inset:0;overflow:hidden;touch-action:none;opacity:0;transition:opacity .45s ease;cursor:grab;user-select:none;-webkit-user-select:none}
+.lam-stage img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;-webkit-user-drag:none;will-change:transform}
+.lam-ui{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s}
+.lam-ui.on{opacity:1}
+.lam-ui button{pointer-events:auto;background:rgba(20,16,12,.68);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:50%;width:46px;height:46px;font-size:20px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.lam-x{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px}
+.lam-tit{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;right:70px;font-size:13px;text-shadow:0 1px 3px #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lam-bar{position:absolute;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:14px;justify-content:center}
+@media(prefers-reduced-motion:reduce){.lam-stage{transition:none}}
 .rp-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px}
 .rp-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .rp-niv{display:flex;gap:6px}
@@ -1085,6 +1101,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <button type="button" class="pbus-pill" id="pbusPillCarrusel" onclick="seleccionarPantallaBusqueda('carrusel')" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Carrusel</button>
 <button type="button" class="pbus-pill" id="pbusPillEventos" onclick="seleccionarPantallaBusqueda('eventos')" aria-pressed="false"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> Eventos</button>
 <button type="button" class="pbus-pill" id="pbusPillRompe" onclick="seleccionarPantallaBusqueda('rompe')" aria-pressed="false"><i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> Rompecabezas</button>
+<button type="button" class="pbus-pill" id="pbusPillLaminas" onclick="seleccionarPantallaBusqueda('laminas')" aria-pressed="false"><i class="fa-solid fa-sitemap" aria-hidden="true"></i> Láminas</button>
 </div>
 <div class="search-row">
 <div class="search-box"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><label for="si" class="sr-only">Buscar personas por nombre y apellidos</label><input type="text" id="si" placeholder="Buscar por nombre y apellidos..." autocomplete="off"></div>
@@ -1127,6 +1144,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <div id="eventosFamiliaresLista"></div>
 </div>
 <div class="hero-carousel-hidden" id="pantallaBusRompe" style="max-width:460px;margin:12px auto 0;text-align:left"><div class="rp-wrap" id="rompeCont"></div></div>
+<div class="hero-carousel-hidden" id="pantallaBusLaminas" style="max-width:460px;margin:12px auto 0;text-align:left"><div class="lam-wrap" id="laminasCont"></div></div>
 </div>
 <div id="rl"></div>
 <input type="file" id="fi" accept=".csv,.txt" style="display:none">
@@ -1553,9 +1571,271 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden){fra
 window.addEventListener('pageshow',function(){frasesPintar(false);});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',frasesIniciar);else frasesIniciar();
+/* ===== Láminas de árboles (galleta «Láminas» de Buscar) =====
+   Carrusel vertical de láminas A4 de árboles genealógicos guardadas en Drive: carpeta LAMINAS
+   (JPG, para verlas rápido) y LAMINAS/ORIGINALES (PDF originales). Quien sube un PDF obtiene una
+   lámina por página; cada JPG guarda en sus «properties» el id del PDF del que salió.
+   Visor: recorrido automático (lámina entera, baja de arriba abajo, se aleja y funde con la
+   siguiente). Un toque lo para; parado se amplía con dos dedos o la rueda y se arrastra.
+   Deslizar a los lados cambia de lámina. Teclado: espacio, flechas y Esc. */
+var LAM={items:[],i:0,carp:null,urls:{},tk:0,auto:true,raf:0,t0:0,s:1,tx:0,ty:0,W:0,H:0,iw:1,ih:1,fit:1,read:1,saliendo:false,ptr:{},pin:null,multi:false,uiT:0};
+var LAM_ZOOM=1.6; /* cuánto se acerca el recorrido respecto a la lámina entera */
+function lamEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+async function lamCarpeta(nombre,padre,crear){
+var q="'"+padre+"' in parents and name='"+nombre+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();
+if(d.files&&d.files.length)return d.files[0].id;
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:nombre,parents:[padre],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+nombre);
+return (await rc.json()).id;
+}
+async function lamListar(){
+LAM.carp=await lamCarpeta('LAMINAS',driveRootFolderId,false);LAM.items=[];
+if(LAM.carp){
+var tok='';
+do{
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent("'"+LAM.carp+"' in parents and mimeType contains 'image/' and trashed=false")+'&fields=nextPageToken,files(id,name,properties)&pageSize=200&spaces=drive'+(tok?'&pageToken='+encodeURIComponent(tok):''),{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+(d.files||[]).forEach(function(f){LAM.items.push({id:f.id,titulo:f.name.replace(/\.[^.]+$/,''),pdfId:(f.properties&&f.properties.pdfId)||''});});
+tok=d.nextPageToken||'';
+}while(tok);
+LAM.items.sort(function(a,b){return a.titulo.localeCompare(b.titulo,'es',{numeric:true,sensitivity:'base'});});
+}
+lamPintar();
+}
+function lamPintar(msg){
+var c=document.getElementById('laminasCont');if(!c)return;
+if(msg){c.innerHTML='<p class="lam-msg">'+msg+'</p>';return;}
+var n=LAM.items.length,l=esLector(),h='<p class="lam-msg" style="margin-top:0">'+(n?(n+(n===1?' lámina guardada':' láminas guardadas')+' en Drive. Toca la pantalla para parar y ampliar.'):'Todavía no hay láminas. Añade imágenes (JPG o PNG) o PDF con árboles genealógicos en vertical.')+'</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">';
+if(n)h+='<button type="button" class="ef-btn" onclick="lamAbrir(0)"><i class="fa-solid fa-play" aria-hidden="true"></i> Ver láminas</button>';
+if(!l)h+='<button type="button" class="ef-btn ghost" onclick="lamElegir()"><i class="fa-solid fa-plus" aria-hidden="true"></i> Añadir lámina</button>';
+h+='</div><p class="lam-msg" id="lamEstado" role="status" aria-live="polite"></p>';
+if(n){h+='<ul class="lam-list">';LAM.items.forEach(function(it,k){h+='<li><a href="#" onclick="lamAbrir('+k+');return false" style="flex:1;color:var(--accent)">'+lamEsc(it.titulo)+'</a>'+(it.pdfId?'<i class="fa-solid fa-file-pdf" title="Tiene PDF original" aria-label="Tiene PDF original"></i>':'')+(l?'':'<button type="button" class="lam-q" onclick="lamQuitar('+k+')" title="Quitar esta lámina" aria-label="Quitar esta lámina"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>')+'</li>';});h+='</ul>';}
+c.innerHTML=h;
+}
+async function entrarLaminas(){
+lamPintar('Cargando láminas…');
+try{
+if(!(await asegurarTokenDriveImport())||!driveRootFolderId){lamPintar('Conecta con Google Drive para ver las láminas.');return;}
+await lamListar();
+}catch(e){lamPintar('No se pudieron cargar las láminas ('+lamEsc(e&&e.message||e)+').');}
+}
+async function lamQuitar(i){
+var it=LAM.items[i];if(!it||!confirm('¿Quitar esta lámina? Se mueve a la carpeta BASURA de Drive.'))return;
+try{var b=await obtenerCarpetaBasura(true);await driveMoverArchivoConPropiedades(it.id,b,LAM.carp,{lamina:'quitada'});toast('Lámina quitada');await lamListar();}
+catch(e){toast('No se pudo quitar: '+(e&&e.message||e),true);}
+}
+/* ---- subida: JPG/PNG se reducen a 3200 px; los PDF se pasan a una imagen por página ---- */
+function lamElegir(){var i=document.createElement('input');i.type='file';i.multiple=true;i.accept='image/jpeg,image/png,image/webp,application/pdf,.pdf';i.onchange=function(){if(i.files&&i.files.length)lamSubir(Array.prototype.slice.call(i.files));};i.click();}
+function lamImg(blob){return new Promise(function(ok,ko){var u=URL.createObjectURL(blob),im=new Image();im.onload=function(){URL.revokeObjectURL(u);ok(im);};im.onerror=function(){URL.revokeObjectURL(u);ko(new Error('imagen no válida'));};im.src=u;});}
+function lamCanvas(w,h,k){var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(h*k);var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);return c;}
+function lamBlob(c){return new Promise(function(ok){c.toBlob(ok,'image/jpeg',.88);});}
+function lamPdfjs(file){return new Promise(function(ok,ko){
+function go(){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';file.arrayBuffer().then(function(b){return pdfjsLib.getDocument({data:b}).promise;}).then(ok,ko);}
+if(window.pdfjsLib)return go();
+var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';s.onload=go;s.onerror=function(){ko(new Error('no se pudo cargar el lector de PDF'));};document.head.appendChild(s);
+});}
+async function lamSubirImg(carp,nombre,blob,props){var id=await crearArchivoDriveVacioConMetadatos(nombre,'image/jpeg',carp,props||null);await subirContenidoArchivoDrive(id,blob,'image/jpeg');return id;}
+async function lamSubir(files){
+function say(t){var e=document.getElementById('lamEstado');if(e)e.textContent=t;}
+try{
+if(!(await asegurarTokenDriveImport())||!driveRootFolderId)throw new Error('sin conexión con Drive');
+var carp=await lamCarpeta('LAMINAS',driveRootFolderId,true),n=0;
+for(var k=0;k<files.length;k++){
+var f=files[k],base=f.name.replace(/\.[^.]+$/,'');
+if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){
+say('Guardando '+f.name+'…');
+var orig=await lamCarpeta('ORIGINALES',carp,true),pid=await crearArchivoDriveVacioConMetadatos(f.name,'application/pdf',orig);
+await subirContenidoArchivoDrive(pid,f,'application/pdf');
+var pdf=await lamPdfjs(f),np=pdf.numPages;
+for(var p=1;p<=np;p++){
+say('Página '+p+' de '+np+' de '+f.name+'…');
+var pg=await pdf.getPage(p),v1=pg.getViewport({scale:1}),sc=Math.min(4,3200/Math.max(v1.width,v1.height)),vp=pg.getViewport({scale:sc}),c=lamCanvas(vp.width,vp.height,1);
+await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+await lamSubirImg(carp,base+(np>1?' - p'+('0'+p).slice(-2):'')+'.jpg',await lamBlob(c),{pdfId:pid});n++;
+}
+}else{
+say('Guardando '+f.name+'…');
+var im=await lamImg(f),c2=lamCanvas(im.naturalWidth,im.naturalHeight,Math.min(1,3200/Math.max(im.naturalWidth,im.naturalHeight)));
+c2.getContext('2d').drawImage(im,0,0,c2.width,c2.height);
+await lamSubirImg(carp,base+'.jpg',await lamBlob(c2));n++;
+}
+}
+toast(n+(n===1?' lámina añadida':' láminas añadidas'));
+await lamListar();
+}catch(e){say('');toast('No se pudo añadir la lámina: '+(e&&e.message||e),true);}
+}
+/* ---- visor ---- */
+function lamUrl(it){
+if(LAM.urls[it.id])return LAM.urls[it.id];
+var p=(async function(){
+await asegurarTokenDriveImport();
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+it.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+return URL.createObjectURL(await r.blob());
+})();
+LAM.urls[it.id]=p;p.catch(function(){delete LAM.urls[it.id];});
+return p;
+}
+function lamOverlay(){
+if(document.getElementById('lamOv'))return;
+var o=document.createElement('div');o.id='lamOv';o.className='lam-ov';o.hidden=true;o.setAttribute('role','dialog');o.setAttribute('aria-label','Láminas de árboles genealógicos');
+o.innerHTML='<div class="lam-stage" id="lamStage"><img id="lamImg" alt="Lámina de árbol genealógico" draggable="false"></div><div class="lam-ui" id="lamUi"><button type="button" class="lam-x" id="lamX" aria-label="Cerrar">✕</button><div class="lam-tit" id="lamTit"></div><div class="lam-bar"><button type="button" id="lamPrev" aria-label="Anterior">‹</button><button type="button" id="lamPlay" aria-label="Pausar">⏸</button><button type="button" id="lamNext" aria-label="Siguiente">›</button><button type="button" id="lamPdf" aria-label="Descargar el PDF original" title="Descargar el PDF original" hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></button></div></div>';
+document.body.appendChild(o);
+document.getElementById('lamX').onclick=lamCerrar;
+document.getElementById('lamPrev').onclick=function(){lamMostrar(LAM.i-1);lamUi();};
+document.getElementById('lamNext').onclick=function(){lamMostrar(LAM.i+1);lamUi();};
+document.getElementById('lamPlay').onclick=function(){LAM.auto?lamPausar():lamReanudar();};
+document.getElementById('lamPdf').onclick=lamBajarPdf;
+lamGestos(document.getElementById('lamStage'));
+}
+function lamAbrir(i){
+if(!LAM.items.length)return;
+lamOverlay();document.getElementById('lamOv').hidden=false;document.body.style.overflow='hidden';
+LAM.auto=true;lamBoton();lamUi();
+document.addEventListener('keydown',lamTecla);window.addEventListener('resize',lamResize);
+lamMostrar(i||0);
+}
+function lamCerrar(){
+cancelAnimationFrame(LAM.raf);LAM.tk++;LAM.auto=false;LAM.saliendo=false;
+var o=document.getElementById('lamOv');if(o)o.hidden=true;
+document.body.style.overflow='';
+document.removeEventListener('keydown',lamTecla);window.removeEventListener('resize',lamResize);
+Object.keys(LAM.urls).forEach(function(k){LAM.urls[k].then(function(u){URL.revokeObjectURL(u);},function(){});});LAM.urls={};
+var im=document.getElementById('lamImg');if(im){im.removeAttribute('src');im.removeAttribute('data-u');}
+}
+function lamTecla(e){
+if(e.key==='Escape')lamCerrar();
+else if(e.key==='ArrowRight'){lamMostrar(LAM.i+1);lamUi();}
+else if(e.key==='ArrowLeft'){lamMostrar(LAM.i-1);lamUi();}
+else if(e.key===' '){e.preventDefault();LAM.auto?lamPausar():lamReanudar();}
+}
+function lamResize(){var im=document.getElementById('lamImg');if(!im||!im.naturalWidth)return;lamMedir();if(!LAM.auto)lamPoner(LAM.fit,LAM.iw/2,LAM.ih/2);}
+function lamMedir(){var st=document.getElementById('lamStage');LAM.W=st.clientWidth;LAM.H=st.clientHeight;LAM.fit=Math.min(LAM.W/LAM.iw,LAM.H/LAM.ih);LAM.read=Math.max(LAM.fit*LAM_ZOOM,.97*LAM.W/LAM.iw);}
+function lamAplicar(){
+var s=LAM.s,w=LAM.iw*s,h=LAM.ih*s;
+LAM.tx=w<=LAM.W?(LAM.W-w)/2:Math.min(0,Math.max(LAM.W-w,LAM.tx));
+LAM.ty=h<=LAM.H?(LAM.H-h)/2:Math.min(0,Math.max(LAM.H-h,LAM.ty));
+document.getElementById('lamImg').style.transform='translate('+LAM.tx+'px,'+LAM.ty+'px) scale('+s+')';
+}
+function lamPoner(s,cx,cy){LAM.s=s;LAM.tx=LAM.W/2-cx*s;LAM.ty=LAM.H/2-cy*s;lamAplicar();}
+function lamBoton(){var b=document.getElementById('lamPlay');if(b){b.textContent=LAM.auto?'⏸':'▶';b.setAttribute('aria-label',LAM.auto?'Pausar':'Reproducir');}}
+function lamUi(){var u=document.getElementById('lamUi');if(!u)return;u.classList.add('on');clearTimeout(LAM.uiT);if(LAM.auto)LAM.uiT=setTimeout(function(){u.classList.remove('on');},3200);}
+function lamPausar(){
+LAM.auto=false;cancelAnimationFrame(LAM.raf);
+if(LAM.saliendo){LAM.saliendo=false;document.getElementById('lamStage').style.opacity='1';}
+lamBoton();lamUi();
+}
+function lamReanudar(){
+LAM.auto=true;lamMedir();lamPoner(LAM.fit,LAM.iw/2,LAM.ih/2);
+LAM.t0=performance.now();LAM.raf=requestAnimationFrame(lamTick);lamBoton();lamUi();
+}
+async function lamMostrar(i){
+var n=LAM.items.length;if(!n)return;
+var tk=++LAM.tk;cancelAnimationFrame(LAM.raf);LAM.saliendo=false;
+i=((i%n)+n)%n;LAM.i=i;
+var st=document.getElementById('lamStage'),img=document.getElementById('lamImg'),it=LAM.items[i];
+st.style.opacity='0';
+document.getElementById('lamTit').textContent=(i+1)+' / '+n+' · '+it.titulo;
+document.getElementById('lamPdf').hidden=!it.pdfId;
+var url;
+try{url=await lamUrl(it);}catch(e){if(tk===LAM.tk)toast('No se pudo cargar la lámina: '+(e&&e.message||e),true);return;}
+if(tk!==LAM.tk)return;
+function listo(){
+if(tk!==LAM.tk)return;
+LAM.iw=img.naturalWidth||1;LAM.ih=img.naturalHeight||1;
+lamMedir();lamPoner(LAM.fit,LAM.iw/2,LAM.ih/2);
+st.style.opacity='1';
+if(LAM.auto){LAM.t0=performance.now();LAM.raf=requestAnimationFrame(lamTick);}
+if(n>1)lamUrl(LAM.items[(i+1)%n]).catch(function(){});
+}
+if(img.getAttribute('data-u')===url&&img.complete&&img.naturalWidth){listo();}
+else{img.onload=listo;img.setAttribute('data-u',url);img.src=url;}
+}
+function lamTick(now){
+if(!LAM.auto)return;
+var t=now-LAM.t0,fit=LAM.fit,rd=LAM.read,H=LAM.H,iw=LAM.iw,ih=LAM.ih;
+var ys=(H/2)/rd,ye=ih-ys;if(ye<ys){ys=ye=ih/2;}
+var xl=(LAM.W/2)/rd,xr=iw-xl,cx=iw/2,sway=xr>xl+1;if(!sway)xl=xr=iw/2;
+var dist=Math.max(0,(ye-ys)*rd),I=2600,Zi=2200,P=Math.min(40000,Math.max(sway?16000:7000,dist*18)),Zo=2200,F=500;
+var e1=I,e2=e1+Zi,e3=e2+P,e4=e3+Zo,s,cy,k;
+function tri(u){u=u%2;return u<1?u:2-u;}
+function ez(x){return x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;}
+if(t<e1){s=fit;cy=ih/2;}
+else if(t<e2){k=ez((t-e1)/Zi);s=fit+(rd-fit)*k;cy=ih/2+(ys-ih/2)*k;cx=iw/2+(xl-iw/2)*k;}
+else if(t<e3){k=(t-e2)/P;s=rd;cy=ys+(ye-ys)*k;cx=xl+(xr-xl)*tri(k*2);}
+else if(t<e4){k=ez((t-e3)/Zo);s=rd+(fit-rd)*k;cy=ye+(ih/2-ye)*k;cx=xl+(iw/2-xl)*k;}
+else{
+if(!LAM.saliendo){LAM.saliendo=true;document.getElementById('lamStage').style.opacity='0';}
+if(t>e4+F){LAM.saliendo=false;lamMostrar(LAM.i+1);return;}
+LAM.raf=requestAnimationFrame(lamTick);return;
+}
+lamPoner(s,cx,cy);
+LAM.raf=requestAnimationFrame(lamTick);
+}
+function lamZoomEn(px,py,s){
+s=Math.max(LAM.fit*.9,Math.min(LAM.fit*8,s));
+var ix=(px-LAM.tx)/LAM.s,iy=(py-LAM.ty)/LAM.s;
+LAM.s=s;LAM.tx=px-ix*s;LAM.ty=py-iy*s;lamAplicar();
+}
+function lamGestos(st){
+st.addEventListener('pointerdown',function(e){
+LAM.ptr[e.pointerId]={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:Date.now()};
+try{st.setPointerCapture(e.pointerId);}catch(_){}
+var ks=Object.keys(LAM.ptr);
+if(ks.length===2){var a=LAM.ptr[ks[0]],b=LAM.ptr[ks[1]];LAM.multi=true;lamPausar();LAM.pin={d:Math.hypot(a.x-b.x,a.y-b.y)||1,s:LAM.s,tx:LAM.tx,ty:LAM.ty,mx:(a.x+b.x)/2,my:(a.y+b.y)/2};}
+lamUi();
+});
+st.addEventListener('pointermove',function(e){
+var p=LAM.ptr[e.pointerId];if(!p)return;
+var ks=Object.keys(LAM.ptr);
+var ox=p.x,oy=p.y;p.x=e.clientX;p.y=e.clientY;
+if(ks.length===2&&LAM.pin){
+var a=LAM.ptr[ks[0]],b=LAM.ptr[ks[1]],P=LAM.pin,d=Math.hypot(a.x-b.x,a.y-b.y)||1,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+var s=Math.max(LAM.fit*.9,Math.min(LAM.fit*8,P.s*d/P.d)),ix=(P.mx-P.tx)/P.s,iy=(P.my-P.ty)/P.s;
+LAM.s=s;LAM.tx=mx-ix*s;LAM.ty=my-iy*s;lamAplicar();
+}else if(ks.length===1&&!LAM.auto){
+LAM.tx+=e.clientX-ox;LAM.ty+=e.clientY-oy;lamAplicar();
+}
+});
+function fin(e){
+var p=LAM.ptr[e.pointerId];if(!p)return;
+delete LAM.ptr[e.pointerId];LAM.pin=null;
+if(Object.keys(LAM.ptr).length)return;
+if(LAM.multi){LAM.multi=false;return;}
+if(e.type==='pointercancel')return;
+var dx=e.clientX-p.x0,dy=e.clientY-p.y0,dt=Date.now()-p.t;
+if(Math.abs(dx)<10&&Math.abs(dy)<10&&dt<400){LAM.auto?lamPausar():lamReanudar();return;}
+if(Math.abs(dx)>70&&Math.abs(dy)<80&&LAM.s<=LAM.fit*1.05){lamMostrar(LAM.i+(dx<0?1:-1));lamUi();}
+}
+st.addEventListener('pointerup',fin);st.addEventListener('pointercancel',fin);
+st.addEventListener('wheel',function(e){e.preventDefault();lamPausar();lamZoomEn(e.clientX,e.clientY,LAM.s*Math.exp(-e.deltaY*.0015));},{passive:false});
+}
+async function lamBajarPdf(){
+var it=LAM.items[LAM.i];if(!it||!it.pdfId)return;
+try{
+await asegurarTokenDriveImport();
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+it.pdfId+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var u=URL.createObjectURL(await r.blob()),a=document.createElement('a');
+a.href=u;a.download=it.titulo.replace(/ - p\d+$/,'')+'.pdf';document.body.appendChild(a);a.click();a.remove();
+setTimeout(function(){URL.revokeObjectURL(u);},4000);
+}catch(e){toast('No se pudo descargar el PDF: '+(e&&e.message||e),true);}
+}
+
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.14.2';
+var APP_VERSION = '2026.11.16.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.16.1', fecha:'2026-11-16', cambios:[
+    'Buscar: nueva galleta «Láminas». Carrusel vertical de láminas A4 de árboles genealógicos guardadas en Drive (carpeta LAMINAS). Se pueden añadir JPG, PNG o PDF (cada página de un PDF pasa a ser una lámina y el PDF original se guarda aparte para descargarlo). El recorrido baja despacio de arriba abajo; un toque lo para y permite ampliar y mover la lámina; deslizar a los lados cambia de lámina.'
+  ]},
   { version:'2026.11.14.2', fecha:'2026-11-14', cambios:[
     'Inicio con aire de libro antiguo: la portada luce un fondo de pergamino suave con un adorno bajo el título, los contadores (Personas, Vivos, Fallecidos) y el aviso de Google Drive se leen más grandes y oscuros, el menú de arriba crece un punto y los botones redondos de la portada llevan ahora una palabra debajo (Restaurar, Fotos, Herramientas, Color, Versión, Música) para saber qué hace cada uno.'
   ]},
@@ -19818,7 +20098,7 @@ var pantallaBusquedaPrevia=null;
    hasta que se cargue o importe algún árbol. Eventos sí queda disponible. */
 function pantallaBusquedaSinPersonas(){return !(typeof D!=='undefined'&&D&&D.length);}
 function actualizarPantallaBusPills(){
-var mapa={carrusel:'pbusPillCarrusel',eventos:'pbusPillEventos',rompe:'pbusPillRompe'};
+var mapa={carrusel:'pbusPillCarrusel',eventos:'pbusPillEventos',rompe:'pbusPillRompe',laminas:'pbusPillLaminas'};
 var sinPersonas=pantallaBusquedaSinPersonas();
 Object.keys(mapa).forEach(function(modo){
 var btn=document.getElementById(mapa[modo]);
@@ -19832,7 +20112,7 @@ btn.disabled=deshabilitada;
 });
 }
 function seleccionarPantallaBusqueda(modo){
-if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos'&&modo!=='rompe')return;
+if(modo!=='carrusel'&&modo!=='resultados'&&modo!=='eventos'&&modo!=='rompe'&&modo!=='laminas')return;
 if(pantallaBusquedaSinPersonas()&&(modo==='carrusel'||modo==='resultados'||modo==='rompe'))return;
 pantallaBusquedaActiva=modo;
 pantallaBusquedaPrevia=modo;
@@ -19843,10 +20123,12 @@ var contCarrusel=document.getElementById('pantallaBusCarrusel');
 var contEventos=document.getElementById('eventosFamiliaresPanel');
 var contResultados=document.getElementById('rl');
 var contRompe=document.getElementById('pantallaBusRompe');
+var contLam=document.getElementById('pantallaBusLaminas');
 function mostrarSolo(que){
 if(contCarrusel)contCarrusel.classList.toggle('hero-carousel-hidden',que!=='carrusel');
 if(contEventos)contEventos.classList.toggle('hero-carousel-hidden',que!=='eventos');
 if(contRompe)contRompe.classList.toggle('hero-carousel-hidden',que!=='rompe');
+if(contLam)contLam.classList.toggle('hero-carousel-hidden',que!=='laminas');
 if(contResultados)contResultados.classList.toggle('hero-carousel-hidden',que!=='resultados');
 }
 if(pantallaBusquedaActiva==='carrusel'){
@@ -19856,6 +20138,10 @@ if(!heroCarruselDesactivadoPorUsuario())mostrarCarruselHero();
 mostrarSolo('eventos');
 ocultarCarruselHero();
 renderEventosFamiliares();
+}else if(pantallaBusquedaActiva==='laminas'){
+mostrarSolo('laminas');
+ocultarCarruselHero();
+entrarLaminas();
 }else if(pantallaBusquedaActiva==='rompe'){
 mostrarSolo('rompe');
 ocultarCarruselHero();
