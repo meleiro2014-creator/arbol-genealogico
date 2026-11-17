@@ -102,7 +102,22 @@ main.ges-split .ges-cat{max-width:none}
 .hero-carousel-toggle{display:inline-flex;align-items:center;gap:6px;margin:10px 0 0;padding:5px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:11px;cursor:pointer;opacity:.75;transition:all .2s}
 .hero-carousel-toggle:hover{opacity:1;color:var(--accent);border-color:var(--accent)}
 .hero-carousel-toggle.off{color:var(--accent);border-color:var(--accent);opacity:.9}
-.hero-icon-row{display:flex;justify-content:center;gap:10px;margin:10px 0 0;align-items:flex-start}
+.hero-icon-row{display:flex;justify-content:center;gap:10px;margin:10px 0 0;align-items:flex-start;flex-wrap:wrap}
+/* Inicio: sin las líneas «Conectado a Google Drive · última sync» ni «Última actualización» (más sitio en el móvil) */
+#driveStatusPill.ok,#arbolOficialFechaTxt{display:none}
+.drive-status-row:has(#driveStatusPill.ok){display:none}
+#btnComprobarVersion{display:none!important}
+@media(max-width:640px){
+#vBus .hero{padding-top:14px}
+#vBus .hero .stats{margin-top:8px}
+.hero-icon-row{gap:6px;margin-top:6px;max-width:100%}
+#herramientasIconRow .hero-icon-btn{min-width:48px;min-height:48px}
+.pantalla-bus-pills{gap:6px;margin-top:8px}
+.pbus-pill{padding:6px 8px!important;font-size:11px!important;gap:0}
+.pbus-pill i{display:none}
+.pantalla-bus-pills{flex-wrap:nowrap!important;gap:4px!important}
+.drive-status-row{margin-top:6px}
+}
 #herramientasIconRow .hero-icon-btn{flex-direction:column;width:auto;min-width:54px;height:auto;min-height:54px;padding:6px 4px 5px;gap:4px}
 #herramientasIconRow .hero-icon-btn>i{font-size:15px}
 .hero-icon-cap{font-size:10px;font-weight:700;line-height:1;letter-spacing:.2px}
@@ -21078,7 +21093,7 @@ try{await guardarCambiosArbolCompleto(restantes);actualizarContadorCambios();mos
 /* Como ahora la pantalla de Cambios SIEMPRE lee directamente cambios-arbol.json (ver
    refrescarCambiosDesdeDrive/sincronizarCambiosDrive), esta función manual solo repite
    esa misma recarga explícita; ya no hay "dispositivo" con copia propia que sustituir. */
-function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}var btnVer=document.getElementById('btnComprobarVersion');if(btnVer)btnVer.style.display=conectado?'':'none';actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();actualizarRelojConexionDrive();}
+function actualizarDriveStatusPill(){var conectado=!!(driveRootFolderId&&tokenDriveValido());[['driveStatusPill','driveStatusTxt'],['driveStatusCam','driveStatusCamTxt']].forEach(function(par){var pill=document.getElementById(par[0]),txt=document.getElementById(par[1]);if(!pill||!txt)return;pill.classList.remove('conectando');pill.classList.toggle('ok',conectado);if(conectado){leerValorCFG('driveUltimaSync').then(function(f){var rel=formatoFechaRelativa(f);txt.innerHTML='Conectado a Google Drive'+(rel?' <span class="ds-sub">· última sync '+esc(rel)+'</span>':'');});}else{txt.textContent='Sin conectar con Google Drive. Para conectarte, pulsa la abeja roja.';}});var dh=document.getElementById('driveStatusHeader');if(dh){dh.classList.remove('conectando');dh.classList.toggle('ok',conectado);dh.classList.toggle('manual',!conectado&&!!driveModoManual);var etiqueta=conectado?'Conectado a Google Drive':(!driveRootFolderId?'Sin conectar con Google Drive — toca para configurar':(driveModoManual?'Desconectado (manual) — toca para conectar':'Confirma tu sesión de Google — toca aquí'));dh.title=etiqueta;dh.setAttribute('aria-label','Estado de la conexión con Google Drive: '+etiqueta);}var dhl=document.getElementById('driveStatusHeaderLabel');if(dhl){dhl.className='header-drive-label'+(conectado?' ok':(!conectado&&driveModoManual?' manual':''));dhl.textContent=conectado?'Conectada':'Desconectada';}actualizarVisibilidadNavAdmin();if(typeof actualizarAvisoConexionEdicion==='function')actualizarAvisoConexionEdicion();actualizarRelojConexionDrive();}
 /* ===== Reloj de tiempo de conexión =====
    Muestra, junto a la abeja, cuánto le queda al token de acceso de Google
    antes de caducar (formato m:ss). Es puramente local (solo compara
