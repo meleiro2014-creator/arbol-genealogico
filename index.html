@@ -119,12 +119,13 @@ main.ges-split .ges-cat{max-width:none}
 .lam-ov{position:fixed;inset:0;z-index:9995;background:#14100c;color:#fff;font-family:'Lato',sans-serif}
 .lam-ov[hidden]{display:none}
 .lam-stage{position:absolute;inset:0;overflow:hidden;touch-action:none;opacity:0;transition:opacity .45s ease;cursor:grab;user-select:none;-webkit-user-select:none}
-.lam-stage img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;-webkit-user-drag:none;will-change:transform}
+.lam-stage img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;-webkit-user-drag:none;will-change:transform;pointer-events:none;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.lam-ov{-webkit-touch-callout:none}
 .lam-ui{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s}
 .lam-ui.on{opacity:1}
 .lam-ui button{pointer-events:auto;background:rgba(20,16,12,.68);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:50%;width:46px;height:46px;font-size:20px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.lam-x{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px}
-.lam-tit{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;right:70px;font-size:13px;text-shadow:0 1px 3px #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lam-x{font-size:18px}
+.lam-tit{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;right:14px;font-size:13px;text-shadow:0 1px 3px #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lam-bar{position:absolute;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:14px;justify-content:center}
 @media(prefers-reduced-motion:reduce){.lam-stage{transition:none}}
 .rp-wrap{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px}
@@ -1687,9 +1688,10 @@ return p;
 function lamOverlay(){
 if(document.getElementById('lamOv'))return;
 var o=document.createElement('div');o.id='lamOv';o.className='lam-ov';o.hidden=true;o.setAttribute('role','dialog');o.setAttribute('aria-label','Láminas de árboles genealógicos');
-o.innerHTML='<div class="lam-stage" id="lamStage"><img id="lamImg" alt="Lámina de árbol genealógico" draggable="false"></div><div class="lam-ui" id="lamUi"><button type="button" class="lam-x" id="lamX" aria-label="Cerrar">✕</button><div class="lam-tit" id="lamTit"></div><div class="lam-bar"><button type="button" id="lamPrev" aria-label="Anterior">‹</button><button type="button" id="lamPlay" aria-label="Pausar">⏸</button><button type="button" id="lamNext" aria-label="Siguiente">›</button><button type="button" id="lamPdf" aria-label="Descargar el PDF original" title="Descargar el PDF original" hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></button></div></div>';
+o.innerHTML='<div class="lam-stage" id="lamStage"><img id="lamImg" alt="Lámina de árbol genealógico" draggable="false"></div><div class="lam-ui" id="lamUi"><div class="lam-tit" id="lamTit"></div><div class="lam-bar"><button type="button" id="lamPrev" aria-label="Anterior">‹</button><button type="button" id="lamPlay" aria-label="Pausar">⏸</button><button type="button" id="lamNext" aria-label="Siguiente">›</button><button type="button" id="lamPdf" aria-label="Descargar el PDF original" title="Descargar el PDF original" hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></button><button type="button" class="lam-x" id="lamX" aria-label="Cerrar">✕</button></div></div>';
 document.body.appendChild(o);
 document.getElementById('lamX').onclick=lamCerrar;
+o.addEventListener('contextmenu',function(e){e.preventDefault();});o.addEventListener('dragstart',function(e){e.preventDefault();});
 document.getElementById('lamPrev').onclick=function(){lamMostrar(LAM.i-1);lamUi();};
 document.getElementById('lamNext').onclick=function(){lamMostrar(LAM.i+1);lamUi();};
 document.getElementById('lamPlay').onclick=function(){LAM.auto?lamPausar():lamReanudar();};
@@ -12805,14 +12807,16 @@ if(escrituras.length&&!APC_IGNORADOS[apcClaveIgn(p)+'|alf']){
 var trans=escrituras.map(function(x){return{x:x,t:apeTranscribir(x.v)};});
 var todoTrans=trans.every(function(y){return y.t.completo;});
 var detalleAlf=trans.map(function(y){return etiquetaCampoApellido(y.x.campo)+' «'+esc(y.x.v)+'» ('+y.x.esc+')'+(y.t.completo?' → «'+esc(y.t.texto)+'»':'');}).join('; ');
-var accAlf=[];
+var accAlf=[],masivaAlf=null;
 if(todoTrans){
-accAlf.push({etiqueta:'Transcribir al alfabeto latino (y guardar el original en Observaciones)',aplicar:(function(pp,tr){return function(){
+var fnTransAlf=(function(pp,tr){return function(){
 var orig=tr.map(function(y){return y.x.v;}).join(' | ');
 tr.forEach(function(y){pp[y.x.campo]=y.t.texto;});
 var nota='Escritura original ('+tr.map(function(y){return y.x.esc;}).filter(function(v,i,a){return a.indexOf(v)===i;}).join('/')+'): '+orig;
 if(String(pp.OBSERVACIONES||'').indexOf(orig)<0)pp.OBSERVACIONES=(pp.OBSERVACIONES?String(pp.OBSERVACIONES)+'\n':'')+nota;
-return true;};})(p,trans)});
+return true;};})(p,trans);
+accAlf.push({etiqueta:'Transcribir al alfabeto latino (y guardar el original en Observaciones)',aplicar:fnTransAlf});
+masivaAlf=fnTransAlf;
 }
 accAlf.push({etiqueta:'Es correcto (otro idioma)',ignorarClave:apcClaveIgn(p)+'|alf'});
 problemas.push({
@@ -12820,7 +12824,8 @@ icono:'fa-language',
 etiqueta:'Nombre o apellido en otro alfabeto (árabe, etc.)',
 mensaje:esc(fn(p))+' tiene texto escrito en otro alfabeto: '+detalleAlf+'. '+(todoTrans?'Se propone la transcripción al alfabeto latino (revisa que sea la grafía que usa la familia) y el original se guarda en Observaciones.':'No se puede transcribir con seguridad de forma automática: abre la ficha y escribe la forma en letras latinas (puedes dejar el original en Observaciones), o márcalo como correcto.')+' Mientras esté en otro alfabeto no se compara con el apellido del padre o de la madre.',
 verId:p.ID,
-acciones:accAlf
+acciones:accAlf,
+masiva:masivaAlf
 });
 }
 /* --- B) Primer apellido compuesto, sin segundo apellido y padre sin ese compuesto (A = persona, B = padre) --- */
@@ -13788,8 +13793,8 @@ cats.push({
 id:'ape_'+gesSlug(etq),fuente:'apellidos',grupo:'apellidos',
 titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
 descripcion:meta.desc||(todasAplicables?'Corrección de formato segura y reversible: revisa antes de aplicar en masa.':'Se muestra como sugerencia para que decidas tú: nada se corrige sin tu confirmación.'),
-items:lista.map(function(pr){return{verId:pr.verId,verId2:pr.verId2,ver2:pr.ver2,dualAB:pr.dualAB,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar,acciones:pr.acciones};}),
-accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:null
+items:lista.map(function(pr){return{verId:pr.verId,verId2:pr.verId2,ver2:pr.ver2,dualAB:pr.dualAB,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar||pr.masiva,acciones:pr.acciones};}),
+accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:(lista.some(function(x){return typeof x.masiva==='function';})?{etiqueta:'Transcribir todas al alfabeto latino ('+lista.filter(function(x){return typeof x.masiva==='function';}).length+')'}:null)
 });
 });
 /* §4.0c Apellidos mal partidos entre Primer y Segundo apellido (ver apcDetectar) */
