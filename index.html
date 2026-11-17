@@ -1688,14 +1688,14 @@ return p;
 function lamOverlay(){
 if(document.getElementById('lamOv'))return;
 var o=document.createElement('div');o.id='lamOv';o.className='lam-ov';o.hidden=true;o.setAttribute('role','dialog');o.setAttribute('aria-label','Láminas de árboles genealógicos');
-o.innerHTML='<div class="lam-stage" id="lamStage"><img id="lamImg" alt="Lámina de árbol genealógico" draggable="false"></div><div class="lam-ui" id="lamUi"><div class="lam-tit" id="lamTit"></div><div class="lam-bar"><button type="button" id="lamPrev" aria-label="Anterior">‹</button><button type="button" id="lamPlay" aria-label="Pausar">⏸</button><button type="button" id="lamNext" aria-label="Siguiente">›</button><button type="button" id="lamPdf" aria-label="Descargar el PDF original" title="Descargar el PDF original" hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i></button><button type="button" class="lam-x" id="lamX" aria-label="Cerrar">✕</button></div></div>';
+o.innerHTML='<div class="lam-stage" id="lamStage"><img id="lamImg" alt="Lámina de árbol genealógico" draggable="false"></div><div class="lam-ui" id="lamUi"><div class="lam-tit" id="lamTit"></div><div class="lam-bar"><button type="button" id="lamPrev" aria-label="Anterior">‹</button><button type="button" id="lamPlay" aria-label="Pausar">⏸</button><button type="button" id="lamNext" aria-label="Siguiente">›</button><button type="button" class="lam-x" id="lamX" aria-label="Cerrar">✕</button></div></div>';
 document.body.appendChild(o);
 document.getElementById('lamX').onclick=lamCerrar;
 o.addEventListener('contextmenu',function(e){e.preventDefault();});o.addEventListener('dragstart',function(e){e.preventDefault();});
 document.getElementById('lamPrev').onclick=function(){lamMostrar(LAM.i-1);lamUi();};
 document.getElementById('lamNext').onclick=function(){lamMostrar(LAM.i+1);lamUi();};
 document.getElementById('lamPlay').onclick=function(){LAM.auto?lamPausar():lamReanudar();};
-document.getElementById('lamPdf').onclick=lamBajarPdf;
+
 lamGestos(document.getElementById('lamStage'));
 }
 function lamAbrir(i){
@@ -1746,7 +1746,7 @@ i=((i%n)+n)%n;LAM.i=i;
 var st=document.getElementById('lamStage'),img=document.getElementById('lamImg'),it=LAM.items[i];
 st.style.opacity='0';
 document.getElementById('lamTit').textContent=(i+1)+' / '+n+' · '+it.titulo;
-document.getElementById('lamPdf').hidden=!it.pdfId;
+
 var url;
 try{url=await lamUrl(it);}catch(e){if(tk===LAM.tk)toast('No se pudo cargar la lámina: '+(e&&e.message||e),true);return;}
 if(tk!==LAM.tk)return;
@@ -12731,6 +12731,39 @@ return m;
 })();
 var APE_CIR_TAB={'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya','і':'i','ї':'yi','є':'ye','ґ':'g'};
 var APE_GRI_TAB={'α':'a','β':'v','γ':'g','δ':'d','ε':'e','ζ':'z','η':'i','θ':'th','ι':'i','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'x','ο':'o','π':'p','ρ':'r','σ':'s','ς':'s','τ':'t','υ':'y','φ':'f','χ':'ch','ψ':'ps','ω':'o'};
+var APE_AR_LET={'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','ة':'a','و':'u','ي':'i','ى':'a','ئ':'i','ؤ':'u','ء':''};
+var APE_HE_LET={'א':'a','ב':'b','ג':'g','ד':'d','ה':'h','ו':'v','ז':'z','ח':'j','ט':'t','י':'y','כ':'k','ך':'k','ל':'l','מ':'m','ם':'m','נ':'n','ן':'n','ס':'s','ע':'a','פ':'p','ף':'f','צ':'ts','ץ':'ts','ק':'q','ר':'r','ש':'sh','ת':'t'};
+/* Aproximación letra a letra (solo como SUGERENCIA editable cuando no hay transcripción segura) */
+function apeTranscribirAprox(valor){
+return String(valor||'').split(/\s+/).filter(Boolean).map(function(w){
+var esc=apeEscritura(w),tab=esc==='árabe'?APE_AR_LET:(esc==='hebreo'?APE_HE_LET:null);
+if(!esc)return w;
+if(!tab)return '';
+var base=apeNormAr(w).replace(/[֑-ׇ]/g,''),r='',prevC=false;
+for(var i=0;i<base.length;i++){
+var ch=base.charAt(i),l=tab.hasOwnProperty(ch)?tab[ch]:'';
+var vocal=/^[aeiou]$/.test(l);
+if(!vocal&&l&&prevC)r+='a';
+r+=l;prevC=!!l&&!vocal;
+}
+return apeCapPalabra(r);
+}).join(' ').trim();
+}
+var APE_REAL_DINASTIAS={'borbon':1,'habsburgo':1,'austria':1,'trastamara':1,'braganza':1,'saboya':1,'windsor':1,'hannover':1,'plantagenet':1,'tudor':1,'estuardo':1,'stuart':1,'romanov':1,'bonaparte':1,'orleans':1,'hohenzollern':1,'wettin':1,'capeto':1,'valois':1,'avis':1,'borgona':1,'anjou':1,'grimaldi':1,'bernadotte':1,'oldemburgo':1,'sajonia coburgo':1};
+var APE_REAL_RE=/(^|\W)(rey de|reina de|rey consorte|reina consorte|infante de|infanta de|principe de|princesa de|emperador|emperatriz|realeza|casa real|monarca|duque de borbon|reyes de)(\W|$)/;
+/* Primer apellido compuesto: no se proponen personas anteriores al siglo XVII (año < 1601) ni de la realeza */
+function apeAntiguoORealeza(p,f){
+function realeza(x){
+if(!x)return false;
+var ap=[normTxt(x.APELLIDO1),normTxt(x.APELLIDO2)];
+for(var i=0;i<2;i++){if(!ap[i])continue;if(APE_REAL_DINASTIAS[ap[i]])return true;var t=ap[i].split(' ');for(var j=0;j<t.length;j++)if(APE_REAL_DINASTIAS[t[j]]&&t.length>1&&t[0]!=='de'&&t[0]!=='del')return true;}
+return APE_REAL_RE.test(normTxt(x.OBSERVACIONES||''));
+}
+var y=getYear(p);
+if(y!==null&&y<1601)return true;
+if(y===null&&f){var yf=getYear(f);if(yf!==null&&yf<1601)return true;}
+return realeza(p)||realeza(f);
+}
 function apeCapPalabra(w){return w?w.charAt(0).toUpperCase()+w.slice(1):w;}
 /* Devuelve {texto, completo}: completo=false si alguna palabra no se pudo transcribir con seguridad */
 function apeTranscribir(valor){
@@ -12818,11 +12851,27 @@ return true;};})(p,trans);
 accAlf.push({etiqueta:'Transcribir al alfabeto latino (y guardar el original en Observaciones)',aplicar:fnTransAlf});
 masivaAlf=fnTransAlf;
 }
+if(!todoTrans){
+accAlf.push({etiqueta:'Transcribir a letras latinas (escribirlo)',aplicar:(function(pp,tr){return function(){
+var orig=tr.map(function(y){return y.x.v;}).join(' | '),nuevos=[];
+for(var i=0;i<tr.length;i++){
+var y=tr[i],sug=y.t.completo?y.t.texto:apeTranscribirAprox(y.x.v);
+var r=window.prompt('Escribe «'+y.x.v+'» ('+y.x.esc+') en letras latinas ('+etiquetaCampoApellido(y.x.campo)+'). Se propone una aproximación: corrígela si hace falta.',sug);
+if(r===null)return false;
+r=String(r).replace(/\s+/g,' ').trim();
+if(!r||apeEscritura(r)){toast('Hay que escribirlo en letras latinas',true);return false;}
+nuevos.push(r);
+}
+tr.forEach(function(y,i){pp[y.x.campo]=nuevos[i];});
+var nota='Escritura original ('+tr.map(function(y){return y.x.esc;}).filter(function(v,i,a){return a.indexOf(v)===i;}).join('/')+'): '+orig;
+if(String(pp.OBSERVACIONES||'').indexOf(orig)<0)pp.OBSERVACIONES=(pp.OBSERVACIONES?String(pp.OBSERVACIONES)+'\n':'')+nota;
+return true;};})(p,trans)});
+}
 accAlf.push({etiqueta:'Es correcto (otro idioma)',ignorarClave:apcClaveIgn(p)+'|alf'});
 problemas.push({
 icono:'fa-language',
 etiqueta:'Nombre o apellido en otro alfabeto (árabe, etc.)',
-mensaje:esc(fn(p))+' tiene texto escrito en otro alfabeto: '+detalleAlf+'. '+(todoTrans?'Se propone la transcripción al alfabeto latino (revisa que sea la grafía que usa la familia) y el original se guarda en Observaciones.':'No se puede transcribir con seguridad de forma automática: abre la ficha y escribe la forma en letras latinas (puedes dejar el original en Observaciones), o márcalo como correcto.')+' Mientras esté en otro alfabeto no se compara con el apellido del padre o de la madre.',
+mensaje:esc(fn(p))+' tiene texto escrito en otro alfabeto: '+detalleAlf+'. '+(todoTrans?'Se propone la transcripción al alfabeto latino (revisa que sea la grafía que usa la familia) y el original se guarda en Observaciones.':'No se puede transcribir con seguridad de forma automática: pulsa «Transcribir a letras latinas» y escribe (o corrige la aproximación propuesta) la forma en letras latinas; el original se guarda en Observaciones. O márcalo como correcto.')+' Mientras esté en otro alfabeto no se compara con el apellido del padre o de la madre.',
 verId:p.ID,
 acciones:accAlf,
 masiva:masivaAlf
@@ -12834,6 +12883,7 @@ var a1c=String(p.APELLIDO1||'').replace(/\s+/g,' ').trim(),a2c=String(p.APELLIDO
 if(!a1c||a2c||!/\s/.test(a1c)||apeEscritura(a1c))return;
 var f=p.PADRE?PI[p.PADRE]:null;
 if(!f)return;
+if(apeAntiguoORealeza(p,f))return;
 var fa1=String(f.APELLIDO1||'').replace(/\s+/g,' ').trim();
 if(!fa1||normTxt(fa1)===normTxt(a1c))return;
 if(APC_IGNORADOS[apcClaveIgn(p)])return;
@@ -12845,7 +12895,8 @@ if(iP>0&&!APC_PARTIC[normTxt(t[t.length-1])]){X=t.slice(0,iP).join(' ');Y=(normT
 else if(t.length===2&&!APC_PARTIC[normTxt(t[0])]&&!APC_PARTIC[normTxt(t[1])]){X=t[0];Y=t[1];}
 var acc=[];
 if(arabe)acc.push({etiqueta:'Es correcto (apellido de otro idioma)',ignorarClave:apcClaveIgn(p)});
-if(X&&Y&&!arabe)acc.push({etiqueta:'Separar en «'+X+'» + «'+Y+'»',aplicar:(function(pp,x1,y1){return function(){pp.APELLIDO1=x1;pp.APELLIDO2=y1;return true;};})(p,X,Y)});
+var masivaSep=null;
+if(X&&Y&&!arabe){masivaSep=(function(pp,x1,y1){return function(){pp.APELLIDO1=x1;pp.APELLIDO2=y1;return true;};})(p,X,Y);acc.push({etiqueta:'Separar en «'+X+'» + «'+Y+'»',aplicar:masivaSep});}
 if(!arabe)acc.push({etiqueta:'No es un error',ignorarClave:apcClaveIgn(p)});
 var nota=arabe?' Parece un apellido de origen árabe, donde partículas como «'+esc(t[0])+'» forman parte del apellido: lo más probable es que sea correcto.':((X&&Y)?'':' No hay una forma segura de partirlo (tres o más palabras sin partícula): decide tú en la ficha.');
 problemas.push({
@@ -12856,7 +12907,8 @@ verId:p.ID,
 verId2:f.ID,
 ver2:'Ver padre',
 dualAB:true,
-acciones:acc
+acciones:acc,
+masiva:masivaSep
 });
 })();
 if(p.NOMBRE&&p.APELLIDO1&&normTxt(p.NOMBRE)===normTxt(p.APELLIDO1)){
@@ -13794,7 +13846,8 @@ id:'ape_'+gesSlug(etq),fuente:'apellidos',grupo:'apellidos',
 titulo:etq,icono:lista[0].icono||meta.icono,severidad:meta.sev,
 descripcion:meta.desc||(todasAplicables?'Corrección de formato segura y reversible: revisa antes de aplicar en masa.':'Se muestra como sugerencia para que decidas tú: nada se corrige sin tu confirmación.'),
 items:lista.map(function(pr){return{verId:pr.verId,verId2:pr.verId2,ver2:pr.ver2,dualAB:pr.dualAB,mensaje:pr.mensaje,icono:pr.icono,aplicar:pr.aplicar||pr.masiva,acciones:pr.acciones};}),
-accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:(lista.some(function(x){return typeof x.masiva==='function';})?{etiqueta:'Transcribir todas al alfabeto latino ('+lista.filter(function(x){return typeof x.masiva==='function';}).length+')'}:null)
+loteMasiva:etq==='Primer apellido compuesto, sin segundo y padre sin compuesto'?100:0,
+accionMasiva:todasAplicables?{etiqueta:'Solucionar todas ('+lista.length+')'}:(lista.some(function(x){return typeof x.masiva==='function';})?{etiqueta:(etq==='Primer apellido compuesto, sin segundo y padre sin compuesto'?'Separar en Primer y Segundo apellido, de 100 en 100 ('+lista.filter(function(x){return typeof x.masiva==='function';}).length+')':'Transcribir todas al alfabeto latino ('+lista.filter(function(x){return typeof x.masiva==='function';}).length+')')}:null)
 });
 });
 /* §4.0c Apellidos mal partidos entre Primer y Segundo apellido (ver apcDetectar) */
@@ -14084,7 +14137,7 @@ o refrescar el Gestor) y se aplican de golpe hasta LOTE_MASIVA casos de ese anal
 volver a escanear nada entre medias. Si quedan mas casos de los que caben en un lote, el
 boton se puede volver a pulsar: al refrescar el Gestor (rGesLigero) esos casos ya resueltos
 habran desaparecido y el siguiente lote empieza por los que quedan. */
-var LOTE_MASIVA=200;
+var LOTE_MASIVA=cat.loteMasiva||200;
 var aplicables=cat.items.filter(function(it){return typeof it.aplicar==='function';});
 if(!aplicables.length)return;
 var lote=aplicables.slice(0,LOTE_MASIVA);
