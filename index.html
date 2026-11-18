@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="./icon-192.png?v=2">
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#C4653A">
-<script>try{if(localStorage.getItem("lb_tema")==="muelle"){document.documentElement.setAttribute("data-tema","muelle");}}catch(e){}</script>
+<script>try{var lbT=localStorage.getItem("lb_tema");if(lbT==="muelle"||lbT==="relieve"){document.documentElement.setAttribute("data-tema",lbT);}}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&family=UnifrakturMaguntia&family=Great+Vibes&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -280,6 +280,60 @@ html[data-tema="muelle"] .firma-ov{background:rgba(3,16,24,.75)}
 .tema-btn i{transition:transform .35s}
 html[data-tema="muelle"] .tema-btn{color:var(--accent);border-color:var(--accent)}
 html[data-tema="muelle"] .tema-btn i{transform:rotate(180deg)}
+/* ===== TERCER TEMA «RELIEVE»: madera, cuero, hierro y bronce de cartel art déco ===== */
+html[data-tema="relieve"]{color-scheme:dark;--bg:#211B17;--card:#3A2B22;--text:#F1E6D2;--muted:#C2AB8C;--accent:#D6A957;--green:#A3B470;--blue:#A4B3BB;--border:#5E4636;--dead:#9C8C7C;--alive:#A4B3BB}
+html[data-tema="relieve"] body{background-color:var(--bg);background-image:linear-gradient(180deg,#2A211C 0%,#1C1714 100%)}
+html[data-tema="relieve"] body::before{background:radial-gradient(ellipse 620px 420px at 18% 12%,rgba(176,98,52,.16) 0%,transparent 62%),radial-gradient(ellipse 520px 520px at 82% 88%,rgba(214,169,87,.10) 0%,transparent 60%),repeating-linear-gradient(91deg,rgba(255,255,255,.012) 0 1px,transparent 1px 6px,rgba(0,0,0,.05) 6px 7px,transparent 7px 13px)}
+html[data-tema="relieve"] ::selection{background:rgba(214,169,87,.4);color:#FFF6E4}
+html[data-tema="relieve"] header,html[data-tema="relieve"] .activebar{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.20)),repeating-linear-gradient(92deg,rgba(0,0,0,.12) 0 1px,transparent 1px 7px,rgba(255,255,255,.03) 7px 8px,transparent 8px 15px),linear-gradient(135deg,#5C3B27,#3A2519);border-bottom:1px solid var(--accent);box-shadow:0 3px 0 -1px #1A1410,0 4px 0 -1px rgba(214,169,87,.55),0 10px 24px -12px rgba(0,0,0,.7)}
+html[data-tema="relieve"] h1,html[data-tema="relieve"] h2,html[data-tema="relieve"] h3{letter-spacing:.04em}
+html[data-tema="relieve"] nav button:hover,html[data-tema="relieve"] nav button.active{background:rgba(214,169,87,.13)}
+html[data-tema="relieve"] .nav-more-menu button:hover,html[data-tema="relieve"] .nav-more-menu button.active{background:rgba(214,169,87,.15)}
+html[data-tema="relieve"] .nav-more-menu,html[data-tema="relieve"] .quick-search-panel{background:linear-gradient(180deg,#43322A,#33261F);border-color:var(--border)}
+html[data-tema="relieve"] .quick-search-backdrop{background:rgba(14,10,7,.76)}
+html[data-tema="relieve"] input,html[data-tema="relieve"] select,html[data-tema="relieve"] textarea{background:#2B211B;color:var(--text);border-color:var(--border)}
+html[data-tema="relieve"] ::placeholder{color:#8E7A64}
+/* Texto sobre fondos de acento (bronce): oscuro para que se lea */
+html[data-tema="relieve"] .update-banner,html[data-tema="relieve"] .update-banner button,html[data-tema="relieve"] .skip-link,html[data-tema="relieve"] .hero-icon-btn.pide-actualizar{color:#231A14}
+html[data-tema="relieve"] .update-banner button{background:#231A14;color:var(--accent)}
+html[data-tema="relieve"] .update-banner .ub-dismiss{background:none;color:#231A14;border-color:rgba(35,26,20,.6)}
+html[data-tema="relieve"] .hero-icon-btn.pide-actualizar{animation-name:pideLateR}
+@keyframes pideLateR{0%,100%{box-shadow:0 0 0 0 rgba(214,169,87,.6);transform:scale(1)}50%{box-shadow:0 0 0 9px rgba(214,169,87,0);transform:scale(1.09)}}
+html[data-tema="relieve"] .hero-icon-btn{background:linear-gradient(180deg,#45332A,#33261F);border-color:#6A4F3D;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 6px rgba(0,0,0,.35)}
+html[data-tema="relieve"] .hero-icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+html[data-tema="relieve"] .pedigree-card{background:linear-gradient(160deg,#45332A,#36281F);border-color:var(--border);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+html[data-tema="relieve"] .pedigree-card.root{background:linear-gradient(135deg,rgba(214,169,87,.20),rgba(176,98,52,.14));border-color:var(--accent)}
+html[data-tema="relieve"] .pedigree-card.spouse{background:#2F2520;border-color:#6B5444}
+html[data-tema="relieve"] .pedigree-card.alive{background:linear-gradient(160deg,#3A3F41,#2D3133);border-color:#5A666C}
+html[data-tema="relieve"] .pedigree-card.placeholder{background:transparent;box-shadow:none}
+html[data-tema="relieve"] .pd-card,html[data-tema="relieve"] .abr-card{color:#3D2C1E}
+html[data-tema="relieve"] .activebar-ayuda-popover button,
+html[data-tema="relieve"] .cambios-tabs .ef-btn.active,
+html[data-tema="relieve"] .ef-btn,
+html[data-tema="relieve"] .evf-avatar-icono,
+html[data-tema="relieve"] .fic-tab-btn.active,
+html[data-tema="relieve"] .pbus-pill.pbus-activa,
+html[data-tema="relieve"] .rel-badge,
+html[data-tema="relieve"] .skip-link,
+html[data-tema="relieve"] .update-banner{color:#231A14}
+html[data-tema="relieve"] .ef-btn:not(.ghost):not(.save){background:linear-gradient(180deg,#E2BA6E,#C4964A);border-color:#C4964A}
+html[data-tema="relieve"] .user-chip{background:rgba(255,255,255,.07);border-color:rgba(214,169,87,.4)}
+html[data-tema="relieve"] .user-chip .uc-foto{background:#5C3B27;color:var(--accent);box-shadow:0 0 0 1px rgba(214,169,87,.45)}
+html[data-tema="relieve"] .hero{color:var(--text);background:radial-gradient(ellipse 460px 280px at 14% 6%,rgba(176,98,52,.22),transparent 62%),radial-gradient(ellipse 420px 320px at 88% 94%,rgba(214,169,87,.12),transparent 60%),repeating-linear-gradient(178deg,rgba(255,255,255,.018) 0 2px,transparent 2px 9px),linear-gradient(180deg,#46342A,#2C221C);border:1px solid rgba(214,169,87,.55);outline:1px solid rgba(214,169,87,.35);outline-offset:-8px;box-shadow:inset 0 0 70px rgba(0,0,0,.45),0 14px 30px -18px rgba(0,0,0,.8)}
+html[data-tema="relieve"] .hero h1{color:#E8C886;text-shadow:0 1px 0 rgba(0,0,0,.6),0 0 18px rgba(214,169,87,.18)}
+html[data-tema="relieve"] .hero h1::after{opacity:.9}
+html[data-tema="relieve"] .hero-carousel-img.on{opacity:.42}
+html[data-tema="relieve"] .hero-carousel-img::after{filter:sepia(.45) saturate(.75) brightness(.98) contrast(1.08)}
+html[data-tema="relieve"] .ef-btn.ghost{color:var(--text);background:transparent}
+html[data-tema="relieve"] .ef-btn.ghost:hover{color:var(--accent)}
+html[data-tema="relieve"] .ef-btn.save{color:#1E2410}
+html[data-tema="relieve"] .toast{box-shadow:0 8px 22px rgba(0,0,0,.45)}
+html[data-tema="relieve"] .firma-img,html[data-tema="relieve"] .firma-img-grande{filter:invert(1) sepia(.6) saturate(1.4) drop-shadow(0 0 7px rgba(214,169,87,.35))}
+html[data-tema="relieve"] .firma-ov{background:rgba(14,10,7,.76)}
+html[data-tema="relieve"] .tema-btn{color:var(--accent);border-color:var(--accent)}
+html[data-tema="relieve"] .tema-btn i{transform:rotate(90deg)}
+html[data-tema="relieve"] main.ges-split #gesPanel,html[data-tema="relieve"] main.ges-split #vFic{scrollbar-color:#7A5A42 rgba(0,0,0,.2)}
+
 /* Aviso de «hay versión nueva»: el icono late con un aro y aparece una flecha con etiqueta debajo */
 .hero-icon-btn.pide-actualizar{position:relative;border-color:var(--accent);color:#fff;background:var(--accent);animation:pideLate 1.3s ease-in-out infinite}
 .hero-icon-btn.pide-actualizar::after{content:'\25B2  \00A1Nuevo!';position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;color:var(--accent);letter-spacing:.2px;animation:pideFlecha 1.3s ease-in-out infinite;pointer-events:none}
@@ -1104,7 +1158,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <button class="hero-icon-btn" id="restaurarArbolPrincipalBtn" style="display:none" onclick="restaurarArbolOficialPrincipal()" title="Restaurar árbol oficial: carga la última copia oficial guardada en Google Drive (solo datos, sin fotos)" aria-label="Restaurar árbol oficial"><i class="fa-solid fa-tree" aria-hidden="true"></i><span class="hero-icon-cap">Restaurar</span></button>
 <button class="hero-icon-btn" id="importarFotosPrincipalBtn" style="display:none" onclick="if(importFotosEnCurso){toast('Ya hay una importación en curso',true);return;}importarFotosDesdeDrive()" title="Importar fotos: descarga desde la carpeta FOTO de Google Drive y las asigna a cada persona por ID" aria-label="Importar fotos"><i class="fa-solid fa-images" aria-hidden="true"></i><span class="hero-icon-cap">Fotos</span></button>
 <button class="hero-icon-btn" onclick="mostrarHerramientas()" title="Herramientas" aria-label="Herramientas" aria-haspopup="dialog" style="position:relative"><i class="fa-solid fa-toolbox" aria-hidden="true"></i><span class="hero-icon-cap">Herramientas</span><span id="insigniaNovedades" aria-hidden="true" style="display:none;position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:var(--accent);border:2px solid var(--card)"></span></button>
-<button class="hero-icon-btn tema-btn" id="btnTema" onclick="alternarTema()" title="Cambiar los colores: clásico o muelle (azul y ámbar)" aria-label="Cambiar los colores de la aplicación" aria-pressed="false"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i><span class="hero-icon-cap">Color</span></button>
+<button class="hero-icon-btn tema-btn" id="btnTema" onclick="alternarTema()" title="Cambiar los colores: clásico, muelle (azul y ámbar) o relieve (madera, cuero y bronce)" aria-label="Cambiar los colores de la aplicación" aria-pressed="false"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i><span class="hero-icon-cap">Color</span></button>
 <button class="hero-icon-btn" id="btnComprobarVersion" style="display:none" onclick="comprobarVersionManual()" title="Comprobar si hay una versión más reciente" aria-label="Comprobar si hay una versión más reciente"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span class="hero-icon-cap">Versión</span></button>
 <div class="musica-widget">
 <button class="hero-icon-btn" id="musicaToggleBtn" onclick="MusicEngine.alternar()" title="Música ambiental: reproducir o pausar" aria-label="Música ambiental: reproducir o pausar" aria-pressed="false"><i class="fa-solid fa-music" id="musicaIcono" aria-hidden="true"></i><span class="hero-icon-cap">Música</span></button>
@@ -18848,7 +18902,7 @@ ov.innerHTML='<div class="firma-box" role="dialog" aria-modal="true" aria-label=
 (movil?'<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'firmaFoto\').click()"><i class="fa-solid fa-camera"></i> Hacer foto</button>':'')+'</div>'+
 '<input type="file" id="firmaFile" accept="image/*" style="display:none" onchange="firmaDesdeInput(this)"><input type="file" id="firmaFoto" accept="image/*" capture="environment" style="display:none" onchange="firmaDesdeInput(this)"></div>'+
 '<div id="firmaAjustes" style="display:none">'+
-'<div class="firma-previas"><div class="firma-prev claro"><canvas id="firmaPrevC"></canvas><small>Tema clásico</small></div><div class="firma-prev oscuro"><canvas id="firmaPrevO"></canvas><small>Tema muelle</small></div></div>'+
+'<div class="firma-previas"><div class="firma-prev claro"><canvas id="firmaPrevC"></canvas><small>Tema clásico</small></div><div class="firma-prev oscuro"><canvas id="firmaPrevO"></canvas><small>Temas muelle y relieve</small></div></div>'+
 '<div class="firma-aviso" style="margin:0 0 4px"><i class="fa-solid fa-eraser"></i> Pasa la goma por encima de los trazos o letras que no sean de la firma.</div>'+
 '<div class="firma-goma-marco" id="firmaGomaMarco"><canvas id="firmaGoma"></canvas><div id="firmaGomaCursor" class="firma-goma-cursor"></div></div>'+
 '<div class="firma-ctl"><label for="firmaGomaTam">Tamaño goma</label><input type="range" id="firmaGomaTam" min="6" max="90" value="30"></div>'+
@@ -19155,18 +19209,26 @@ try{var r=await fetch('https://www.googleapis.com/drive/v3/files/'+it.fileId,{me
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 delete FIRMAS_JSON[id];delete FIRMAS_AN[id];await firmaCargarIndice(true);firmaAnCerrar();firmaMontarPanel();toast('Análisis quitado');
 }catch(e){toast('No se pudo quitar: '+e.message,true);}}
-/* ===== Cambio de tema de colores (clásico / muelle) ===== */
-function temaActual(){return document.documentElement.getAttribute('data-tema')==='muelle'?'muelle':'clasico';}
+/* ===== Cambio de tema de colores (clásico / muelle / relieve) =====
+   El botón «Color» recorre los tres estilos en orden y recuerda la elección en este dispositivo. */
+var TEMAS=['clasico','muelle','relieve'];
+var TEMA_COLOR_BARRA={clasico:'#C4653A',muelle:'#0A2634',relieve:'#2A1E17'};
+var TEMA_NOMBRE={clasico:'clásico',muelle:'muelle (azul y ámbar)',relieve:'relieve (madera, cuero y bronce)'};
+function temaActual(){var t=document.documentElement.getAttribute('data-tema');return TEMAS.indexOf(t)>0?t:'clasico';}
 function aplicarTema(t){
+if(TEMAS.indexOf(t)<0)t='clasico';
 var m=document.querySelector('meta[name="theme-color"]');
-if(t==='muelle'){document.documentElement.setAttribute('data-tema','muelle');if(m)m.setAttribute('content','#0A2634');}
-else{document.documentElement.removeAttribute('data-tema');if(m)m.setAttribute('content','#C4653A');}
-var b=document.getElementById('btnTema');if(b)b.setAttribute('aria-pressed',t==='muelle'?'true':'false');
+if(t==='clasico')document.documentElement.removeAttribute('data-tema');
+else document.documentElement.setAttribute('data-tema',t);
+if(m)m.setAttribute('content',TEMA_COLOR_BARRA[t]);
+var b=document.getElementById('btnTema');
+if(b){b.setAttribute('aria-pressed',t==='clasico'?'false':'true');b.setAttribute('title','Colores: '+TEMA_NOMBRE[t]+'. Pulsa para cambiar de estilo (clásico → muelle → relieve)');}
 }
 function alternarTema(){
-var n=temaActual()==='muelle'?'clasico':'muelle';
+var n=TEMAS[(TEMAS.indexOf(temaActual())+1)%TEMAS.length];
 aplicarTema(n);
 try{localStorage.setItem('lb_tema',n);}catch(e){}
+try{if(typeof toast==='function')toast('Estilo '+TEMA_NOMBRE[n]);}catch(e){}
 }
 document.addEventListener('DOMContentLoaded',function(){aplicarTema(temaActual());});
 /* ===== AVISO «HAY VERSIÓN NUEVA» (árbol y fotos) =====
