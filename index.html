@@ -168,6 +168,19 @@ main.ges-split .ges-cat{max-width:none}
 .frase-dia{max-width:460px;margin:2px auto 0;padding:2px 6px;cursor:pointer;text-align:center;transition:opacity .25s ease;-webkit-tap-highlight-color:transparent;user-select:none}
 .frase-dia .frase-txt{display:block;font-style:italic;font-size:15px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
 .frase-dia .frase-aut{display:none;font-size:12px;margin-top:3px;color:var(--accent);font-weight:700}
+
+/* ===== CHAPAS: aviso en el hueco de la frase + ventana de reserva ===== */
+.chapa-aviso{display:none;max-width:460px;margin:2px auto 0;padding:8px 12px;border:1.5px solid var(--accent);border-radius:14px;background:var(--card);cursor:pointer;align-items:center;gap:12px;text-align:left;-webkit-tap-highlight-color:transparent;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.chapa-aviso:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.chapa-aviso img{width:54px;height:54px;border-radius:50%;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.chapa-aviso .ca-t{font-size:14px;font-weight:800;line-height:1.25;color:var(--text)}
+.chapa-aviso .ca-s{font-size:12px;line-height:1.3;color:var(--muted);margin-top:2px}
+.chapa-aviso .ca-b{margin-left:auto;flex-shrink:0;font-size:12px;font-weight:800;color:#fff;background:var(--accent);padding:7px 12px;border-radius:999px;white-space:nowrap}
+.chapa-cant{display:flex;gap:8px;margin:6px 0 12px}
+.chapa-cant button{flex:1;padding:10px 8px;border:1.5px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.chapa-cant button.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.chapa-item{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:13px}
+.chapa-item.ent{opacity:.6}
 .frase-dia:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
 @media(prefers-reduced-motion:reduce){.frase-dia{transition:none}}
 .frase-item{border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
@@ -1134,6 +1147,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 <div class="hero">
 <h1>Libro de los Ancestros</h1>
 <p id="subtituloInicio">Tu árbol genealógico familiar</p>
+<div id="chapaAviso" class="chapa-aviso" role="button" tabindex="0" onclick="abrirChapa()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirChapa();}" aria-label="Reservar tu chapa de Guardián de los Ancestros"><img src="data:image/jpeg;base64,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" alt="" width="54" height="54"><div><div class="ca-t">Tu chapa de Guardián de los Ancestros</div><div class="ca-s">Un regalo para los suscriptores. Reserva una o dos.</div></div><span class="ca-b">Reservar</span></div>
 <div id="fraseDia" class="frase-dia" style="display:none" role="button" tabindex="0" onclick="frasesSiguiente()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();frasesSiguiente();}" aria-label="Frase de la portada. Pulsa para ver la siguiente"><span class="frase-txt" id="fraseDiaTxt"></span><span class="frase-aut" id="fraseDiaAut"></span></div>
 <div style="text-align:center">
 <div class="drive-status-row">
@@ -1503,6 +1517,7 @@ function frasesBloque(){return Math.floor(Date.now()/(FRASES.minutos*60000));}
 function frasesPintar(forzar){
 var cont=document.getElementById('fraseDia'),sub=document.getElementById('subtituloInicio');
 if(!cont)return;
+if(typeof chapaAvisoVisible==='function'&&chapaAvisoVisible()){cont.style.display='none';if(sub)sub.style.display='none';frasesClave='';return;}
 var act=frasesActivas();
 if(!act.length){cont.style.display='none';if(sub)sub.style.display='';frasesClave='';return;}
 var b=frasesBloque();
@@ -1635,7 +1650,7 @@ var m=parseInt(v,10);if(!(m>=1&&m<=1440))return;
 FRASES.minutos=m;frasesDespuesDeCambio(true);
 }
 function frasesIniciar(){
-frasesLeerCache();frasesPintar(true);
+frasesLeerCache();frasesPintar(true);if(typeof chapasIniciar==='function')chapasIniciar();
 setInterval(function(){frasesPintar(false);},20000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden){frasesPintar(false);frasesCargarDrive(false);}});
 window.addEventListener('pageshow',function(){frasesPintar(false);});
@@ -1902,8 +1917,11 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.16.1';
+var APP_VERSION = '2026.11.19.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.19.1', fecha:'2026-11-19', cambios:[
+    'Chapa de Guardián de los Ancestros: en el hueco de la frase de la portada, los Guardianes ven un aviso para reservar su chapa (una o dos). Al reservar, el aviso desaparece. El Archivero ve las reservas en Herramientas → Peticiones de chapas, las marca como entregadas y puede descargarlas en JSON o CSV.'
+  ]},
   { version:'2026.11.16.1', fecha:'2026-11-16', cambios:[
     'Buscar: nueva galleta «Láminas». Carrusel vertical de láminas A4 de árboles genealógicos guardadas en Drive (carpeta LAMINAS). Se pueden añadir JPG, PNG o PDF (cada página de un PDF pasa a ser una lámina y el PDF original se guarda aparte para descargarlo). El recorrido baja despacio de arriba abajo; un toque lo para y permite ampliar y mover la lámina; deslizar a los lados cambia de lámina.'
   ]},
@@ -2256,6 +2274,221 @@ if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta '+
 var dc=await rc.json();
 driveConexionesFolderId=dc.id;
 return driveConexionesFolderId;
+}
+
+/* ========== CHAPAS (regalo para los suscriptores) ==========
+   · Quién lo ve: los perfiles de CHAPAS.perfiles (por defecto el Guardián). El aviso ocupa el hueco
+     de la frase de la portada hasta que esa persona reserva; después desaparece (en todos sus
+     dispositivos: se comprueba en Drive y se recuerda en el dispositivo).
+   · Qué se guarda: UN archivo por persona en APORTACIONES (la carpeta donde ya pueden escribir todos
+     los perfiles): CHAPA-<huella>.json. La huella es un hash del correo, para que otros usuarios
+     con acceso a la carpeta no vean el correo de nadie en el nombre del archivo. El contenido es
+     {origen:'chapa', estado:'pendiente'|'entregada', cantidad:1|2, solicitante:{email,nombre}, comentario, fecha}.
+     No se pide dirección: el Archivero la acuerda en privado.
+   · El Archivero ve las peticiones en Herramientas → Peticiones de chapas (puede descargarlas en
+     JSON o CSV y marcarlas como entregadas). La bandeja de Aportaciones las ignora (origen distinto).
+   · Para cerrar la campaña: CHAPAS.activa=false. */
+var CHAPAS={activa:true,perfiles:['lector'],max:2,prefijo:'CHAPA-',campana:'guardian-2026'};
+var CHAPA_ST={reservada:false,comprobado:false,verificando:false,huella:null,cantidad:1,sello:'',previa:false};
+async function chapaHuella(email){
+var t=String(email||'').trim().toLowerCase();
+try{
+var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('chapa|'+t));
+return Array.prototype.map.call(new Uint8Array(buf),function(b){return ('0'+b.toString(16)).slice(-2);}).join('').slice(0,16);
+}catch(e){
+var h=5381;for(var i=0;i<t.length;i++)h=((h*33)^t.charCodeAt(i))>>>0;
+return 'x'+h.toString(16);
+}
+}
+function chapaPerfilElegible(){
+var tipo=tipoUsuarioActual();
+return !!tipo&&CHAPAS.perfiles.indexOf(tipo)>=0;
+}
+function chapaAvisoVisible(){
+return !!(CHAPAS.activa&&googleIdentidad&&googleIdentidad.email&&chapaPerfilElegible()&&CHAPA_ST.comprobado&&!CHAPA_ST.reservada);
+}
+function chapaAvisoActualizar(){
+var el=document.getElementById('chapaAviso');
+if(el)el.style.display=chapaAvisoVisible()?'flex':'none';
+if(typeof frasesPintar==='function')frasesPintar(true);
+}
+async function chapaComprobar(){
+if(CHAPA_ST.verificando||!CHAPAS.activa)return;
+if(!googleIdentidad||!googleIdentidad.email||!chapaPerfilElegible())return;
+if(!tokenDriveValido()||!driveRootFolderId)return;
+CHAPA_ST.verificando=true;
+try{
+var h=await chapaHuella(googleIdentidad.email);
+if(CHAPA_ST.huella&&CHAPA_ST.huella!==h){CHAPA_ST.comprobado=false;CHAPA_ST.reservada=false;}
+CHAPA_ST.huella=h;
+var cacheOk=false;
+try{cacheOk=localStorage.getItem('lb_chapa_'+h)==='1';}catch(e){}
+if(cacheOk){CHAPA_ST.reservada=true;CHAPA_ST.comprobado=true;chapaAvisoActualizar();return;}
+var folderId=await obtenerCarpetaAportacionesId(false);
+if(!folderId){return;} /* sin carpeta no se puede reservar: el aviso no sale */
+var q="'"+folderId+"' in parents and name='"+CHAPAS.prefijo+h+".json' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;return;}
+if(!r.ok)return;
+var d=await r.json();
+CHAPA_ST.reservada=!!(d.files&&d.files.length);
+CHAPA_ST.comprobado=true;
+if(CHAPA_ST.reservada){try{localStorage.setItem('lb_chapa_'+h,'1');}catch(e){}}
+chapaAvisoActualizar();
+}catch(e){}
+finally{CHAPA_ST.verificando=false;}
+}
+function chapasIniciar(){
+setInterval(function(){
+if(!CHAPAS.activa)return;
+if(!googleIdentidad||!googleIdentidad.email){if(CHAPA_ST.comprobado){CHAPA_ST.comprobado=false;CHAPA_ST.reservada=false;chapaAvisoActualizar();}return;}
+if(!CHAPA_ST.comprobado)chapaComprobar();
+else chapaAvisoActualizar();
+},4000);
+}
+/* ----- Ventana de reserva (Guardián) ----- */
+function abrirChapa(previa){
+CHAPA_ST.previa=(previa===true);
+CHAPA_ST.cantidad=1;
+var c=document.getElementById('chapaComentario');if(c)c.value='';
+var av=document.getElementById('chapaPreviaAviso');if(av)av.style.display=CHAPA_ST.previa?'block':'none';
+chapaPintarCantidad();
+var m=document.getElementById('modalChapa');if(m)m.style.display='flex';
+}
+function cerrarChapa(){var m=document.getElementById('modalChapa');if(m)m.style.display='none';}
+function chapaElegirCantidad(n){CHAPA_ST.cantidad=n;chapaPintarCantidad();}
+function chapaPintarCantidad(){
+var cont=document.getElementById('chapaCant');if(!cont)return;
+var h='';
+for(var n=1;n<=CHAPAS.max;n++)h+='<button type="button" class="'+(CHAPA_ST.cantidad===n?'on':'')+'" aria-pressed="'+(CHAPA_ST.cantidad===n)+'" onclick="chapaElegirCantidad('+n+')">'+n+(n===1?' chapa':' chapas')+'</button>';
+cont.innerHTML=h;
+}
+async function chapaReservar(btn){
+if(CHAPA_ST.previa){toast('Vista previa: no se envía nada');cerrarChapa();return;}
+if(!(await exigirIdentidadGoogle(true)))return;
+var email=googleIdentidad&&googleIdentidad.email;
+if(!email){toast('No se pudo identificar tu cuenta de Google',true);return;}
+botonCargando(btn,true,'Reservando...');
+window.__aportacionEscribiendo=(window.__aportacionEscribiendo||0)+1;
+try{
+var folderId=await obtenerCarpetaAportacionesId(esAdministrador());
+if(!folderId){toast('La carpeta de envíos aún no existe. Avisa al Archivero.',true);return;}
+var h=await chapaHuella(email);
+var nombre=CHAPAS.prefijo+h+'.json';
+var tok={Authorization:'Bearer '+driveAccessToken};
+var q="'"+folderId+"' in parents and name='"+nombre+"' and trashed=false";
+var rq=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:tok});
+if(rq.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(rq.ok){var dq=await rq.json();if(dq.files&&dq.files.length){
+CHAPA_ST.reservada=true;CHAPA_ST.comprobado=true;try{localStorage.setItem('lb_chapa_'+h,'1');}catch(e){}
+toast('Ya tenías una chapa reservada');cerrarChapa();chapaAvisoActualizar();return;}}
+var cantidad=Math.max(1,Math.min(CHAPAS.max,CHAPA_ST.cantidad|0));
+var com=((document.getElementById('chapaComentario')||{}).value||'').trim();
+var meta={origen:'chapa',campana:CHAPAS.campana,estado:'pendiente',cantidad:cantidad,fecha:new Date().toISOString(),solicitante:{email:email,nombre:(googleIdentidad&&googleIdentidad.name)||''},comentario:com};
+var id=await crearArchivoDriveVacioConMetadatos(nombre,'application/json',folderId,undefined);
+await subirContenidoArchivoDrive(id,new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),'application/json');
+CHAPA_ST.reservada=true;CHAPA_ST.comprobado=true;
+try{localStorage.setItem('lb_chapa_'+h,'1');}catch(e){}
+toast(cantidad===1?'Chapa reservada. El Archivero se pondrá en contacto contigo para la entrega.':'Chapas reservadas (2). El Archivero se pondrá en contacto contigo para la entrega.');
+cerrarChapa();
+chapaAvisoActualizar();
+}catch(err){
+toast('No se pudo reservar: '+(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message),true);
+}finally{
+window.__aportacionEscribiendo=Math.max(0,(window.__aportacionEscribiendo||0)-1);
+botonCargando(btn,false);
+}
+}
+/* ----- Bandeja del Archivero: Peticiones de chapas ----- */
+var chapaItems=[];
+async function abrirPeticionesChapas(){
+if(!esAdministrador()){toast('Solo el Archivero puede ver las peticiones de chapas',true);return;}
+var m=document.getElementById('modalPeticionesChapas');if(m)m.style.display='flex';
+await chapaCargarLista();
+}
+function cerrarPeticionesChapas(){var m=document.getElementById('modalPeticionesChapas');if(m)m.style.display='none';}
+async function chapaCargarLista(){
+var cont=document.getElementById('chapaLista');if(!cont)return;
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">Cargando...</p>';
+try{
+if(!(await exigirIdentidadGoogle()))return;
+var folderId=await obtenerCarpetaAportacionesId(true);
+if(!folderId){cont.innerHTML='<p style="font-size:12px;color:var(--muted)">La carpeta APORTACIONES aún no existe.</p>';return;}
+var tok={Authorization:'Bearer '+driveAccessToken};
+var lista=[],pagina='';
+do{
+var q="'"+folderId+"' in parents and trashed=false and name contains '"+CHAPAS.prefijo+"'";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name)&pageSize=200&spaces=drive'+(pagina?'&pageToken='+encodeURIComponent(pagina):''),{headers:tok});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();lista=lista.concat(d.files||[]);pagina=d.nextPageToken||'';
+}while(pagina);
+var items=[],pos=0;
+async function trabajador(){
+while(pos<lista.length){
+var j=lista[pos++];
+if(!/\.json$/i.test(j.name))continue;
+try{
+var rr=await fetch('https://www.googleapis.com/drive/v3/files/'+j.id+'?alt=media',{headers:tok});
+if(!rr.ok)continue;
+var meta=await rr.json();
+if(meta&&meta.origen==='chapa')items.push({id:j.id,nombre:j.name,meta:meta});
+}catch(e){}
+}
+}
+await Promise.all([trabajador(),trabajador(),trabajador(),trabajador()]);
+items.sort(function(a,b){return String(a.meta.fecha||'').localeCompare(String(b.meta.fecha||''));});
+chapaItems=items;
+chapaPintarLista();
+}catch(err){
+cont.innerHTML='<p style="font-size:12px;color:var(--muted)">No se pudo cargar: '+esc(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message)+'</p>';
+}
+}
+function chapaPintarLista(){
+var cont=document.getElementById('chapaLista'),res=document.getElementById('chapaResumen');
+if(!cont)return;
+var pend=chapaItems.filter(function(x){return x.meta.estado!=='entregada';});
+var totalP=0,totalT=0;
+chapaItems.forEach(function(x){var n=parseInt(x.meta.cantidad,10)||1;totalT+=n;if(x.meta.estado!=='entregada')totalP+=n;});
+if(res)res.textContent=chapaItems.length?(chapaItems.length+(chapaItems.length===1?' petición':' peticiones')+' · '+totalT+(totalT===1?' chapa':' chapas')+' en total · '+totalP+' por entregar'):'';
+if(!chapaItems.length){cont.innerHTML='<p style="font-size:13px;color:var(--muted);text-align:center;padding:14px">Todavía no hay peticiones.</p>';return;}
+cont.innerHTML=chapaItems.map(function(it,i){
+var m=it.meta,s=m.solicitante||{},ent=m.estado==='entregada';
+var f=m.fecha?new Date(m.fecha).toLocaleString('es-ES',{dateStyle:'medium',timeStyle:'short'}):'';
+var h='<div class="chapa-item'+(ent?' ent':'')+'">';
+h+='<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong>'+esc(s.nombre||s.email||'alguien')+'</strong><span style="font-weight:800;color:var(--accent)">'+(parseInt(m.cantidad,10)||1)+((parseInt(m.cantidad,10)||1)===1?' chapa':' chapas')+(ent?' · entregada':'')+'</span></div>';
+h+='<div style="font-size:12px;color:var(--muted);margin:2px 0 6px;word-break:break-all">'+esc(s.email||'')+(f?' · '+esc(f):'')+'</div>';
+if(m.comentario)h+='<p style="margin:0 0 8px;background:var(--bg);border-radius:8px;padding:8px">'+esc(m.comentario)+'</p>';
+h+='<button type="button" class="ef-btn ghost" onclick="chapaMarcar('+i+',this)">'+(ent?'<i class="fa-solid fa-rotate-left"></i> Volver a pendiente':'<i class="fa-solid fa-check"></i> Marcar como entregada')+'</button>';
+return h+'</div>';
+}).join('');
+}
+async function chapaMarcar(i,btn){
+var it=chapaItems[i];if(!it)return;
+botonCargando(btn,true,'Guardando...');
+try{
+var nuevo=it.meta.estado==='entregada'?'pendiente':'entregada';
+var meta=Object.assign({},it.meta,{estado:nuevo,fechaEntrega:nuevo==='entregada'?new Date().toISOString():null});
+await subirContenidoArchivoDrive(it.id,new Blob([JSON.stringify(meta,null,2)],{type:'application/json'}),'application/json');
+it.meta=meta;chapaPintarLista();
+}catch(err){
+toast('No se pudo guardar: '+(err.message==='sesion_caducada'?'la sesión de Google ha caducado, vuelve a conectar':err.message),true);
+botonCargando(btn,false);
+}
+}
+function chapaDescargar(formato){
+if(!chapaItems.length){toast('No hay peticiones que descargar',true);return;}
+var texto,mime,nombre='peticiones_chapas_'+new Date().toISOString().slice(0,10);
+if(formato==='csv'){
+var celda=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';};
+var filas=[['fecha','nombre','email','cantidad','estado','comentario'].join(',')];
+chapaItems.forEach(function(x){var m=x.meta,s=m.solicitante||{};filas.push([celda(m.fecha),celda(s.nombre),celda(s.email),celda(m.cantidad),celda(m.estado),celda(m.comentario)].join(','));});
+texto='\ufeff'+filas.join('\r\n');mime='text/csv;charset=utf-8';nombre+='.csv';
+}else{
+texto=JSON.stringify({campana:CHAPAS.campana,exportado:new Date().toISOString(),peticiones:chapaItems.map(function(x){return x.meta;})},null,2);mime='application/json';nombre+='.json';
+}
+var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texto],{type:mime}));a.download=nombre;document.body.appendChild(a);a.click();
+setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);
 }
 /* ========== APORTACIONES (colaborativo con seguridad) ==========
    Cualquier perfil (también el Guardián) puede enviar fotos o documentos con un comentario. No
@@ -21386,6 +21619,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirGestionUsuarios()"><div class="herr-icon"><i class="fa-solid fa-users-gear"></i></div><div class="herr-text"><div class="herr-title">Usuarios</div><div class="herr-desc">Correo, tipo (archivero/cronista/allegado/guardián) y ficha vinculada de cada persona</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirRegistroConexiones()"><div class="herr-icon"><i class="fa-solid fa-right-to-bracket"></i></div><div class="herr-text"><div class="herr-title">Registro de conexiones</div><div class="herr-desc">Tabla con cada usuario, su última conexión y cuántas veces se ha conectado (también los guardianes)</div></div></button>
 
+<button class="herr-item herr-req-drive" onclick="cerrarHerramientas();abrirPeticionesChapas()"><div class="herr-icon"><i class="fa-solid fa-medal"></i></div><div class="herr-text"><div class="herr-title">Peticiones de chapas</div><div class="herr-desc">Reservas de la chapa de Guardián: quién la pide y cuántas, marcar entregadas y descargar la lista (JSON o CSV)</div></div></button>
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
@@ -21427,6 +21661,34 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <label for="aportComentario" style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Comentario (opcional)</label>
 <textarea id="aportComentario" class="ef-input" rows="3" maxlength="1000" style="width:100%" placeholder="Ej. En la playa, verano de 1975; la de la izquierda es la abuela Carmen"></textarea>
 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cerrarAportar()">Cancelar</button><button type="button" class="ef-btn" onclick="aportEnviar(this)"><i class="fa-solid fa-paper-plane"></i> Enviar</button></div>
+</div>
+</div>
+<div id="modalChapa" role="dialog" aria-modal="true" aria-labelledby="modalChapaTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:440px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h2 id="modalChapaTitulo" style="font-family:'Cinzel',serif;font-size:17px">Reserva tu chapa</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarChapa()">×</button>
+</div>
+<div style="text-align:center;margin:4px 0 10px"><img src="data:image/jpeg;base64,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" alt="Chapa de Guardián de los Ancestros" width="150" height="150" style="border-radius:50%;box-shadow:0 3px 12px rgba(0,0,0,.4)"></div>
+<p id="chapaPreviaAviso" style="display:none;font-size:12px;font-weight:700;color:#C4653A;margin:0 0 8px">Vista previa: así lo ve un Guardián. No se envía nada.</p>
+<p style="font-size:13px;line-height:1.45;margin:0 0 10px">Es un regalo para quienes os habéis suscrito. Puedes reservar <strong>una o dos</strong>. En cuanto la reserves, el aviso de la portada desaparece.</p>
+<div class="ef-label" style="margin:0 0 2px">¿Cuántas quieres?</div>
+<div id="chapaCant" class="chapa-cant"></div>
+<div class="ef-label" style="margin:0 0 4px">Comentario (opcional)</div>
+<textarea id="chapaComentario" class="ef-input" rows="2" maxlength="300" style="width:100%" placeholder="Ej. La segunda es para mi hermano"></textarea>
+<p style="font-size:11px;color:var(--muted);margin:4px 0 0">No pongas tu dirección aquí: el Archivero te la pedirá en privado cuando la chapa esté lista.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cerrarChapa()">Ahora no</button><button type="button" class="ef-btn" onclick="chapaReservar(this)"><i class="fa-solid fa-medal"></i> Reservar</button></div>
+</div>
+</div>
+<div id="modalPeticionesChapas" role="dialog" aria-modal="true" aria-labelledby="modalPeticionesChapasTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--card);border:2px solid var(--border);border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:86vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+<h2 id="modalPeticionesChapasTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-medal" aria-hidden="true" style="color:var(--accent)"></i> Peticiones de chapas</h2>
+<button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarPeticionesChapas()">×</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="ef-btn ghost" onclick="chapaCargarLista()"><i class="fa-solid fa-rotate"></i> Actualizar</button><button type="button" class="ef-btn ghost" onclick="chapaDescargar('json')"><i class="fa-solid fa-file-code"></i> JSON</button><button type="button" class="ef-btn ghost" onclick="chapaDescargar('csv')"><i class="fa-solid fa-file-csv"></i> CSV</button><button type="button" class="ef-btn ghost" onclick="cerrarPeticionesChapas();abrirChapa(true)"><i class="fa-solid fa-eye"></i> Ver el aviso</button></div>
+<p id="chapaResumen" style="font-size:12px;font-weight:700;margin:0 0 10px"></p>
+<div id="chapaLista"></div>
 </div>
 </div>
 <div id="modalAportaciones" role="dialog" aria-modal="true" aria-labelledby="modalAportacionesTitulo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:235;align-items:center;justify-content:center;padding:20px;">
