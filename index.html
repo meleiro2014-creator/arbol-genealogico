@@ -163,6 +163,28 @@ main.ges-split .ges-cat{max-width:none}
 .pz-cargando{text-align:center;color:var(--muted);font-size:13px;padding:22px 0}
 .rp-acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin-top:14px}
 .rp-msg{width:100%;text-align:center;font-size:13px;font-weight:700}.rp-msg-ok{color:var(--green)}.rp-msg-mal{color:#b3402f}
+/* ===== Juego de las Parejas (pestaña dentro del panel Rompecabezas de Buscar) ===== */
+.jg-tabs{display:flex;gap:6px;justify-content:center;margin:0 0 12px}
+.par-marcador{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 10px}
+.par-marcador b{color:var(--text);font-variant-numeric:tabular-nums}
+.par-tablero{display:grid;gap:8px;margin:6px auto 4px;width:100%;max-width:440px}
+.par-carta{container-type:inline-size;position:relative;display:block;cursor:pointer;aspect-ratio:300/403;perspective:700px;-webkit-tap-highlight-color:transparent;border-radius:7%;outline:none;user-select:none;-webkit-user-select:none}
+.par-carta:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.par-giro{position:absolute;inset:0;display:block;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1)}
+.par-carta.par-vol .par-giro{transform:rotateY(180deg)}
+.par-cara{position:absolute;inset:0;display:block;border-radius:7%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-sizing:border-box}
+.par-dorso{background-color:#fdf4dc;background-size:cover;background-position:center;background-repeat:no-repeat;box-shadow:0 2px 6px rgba(0,0,0,.35);background-image:url(data:image/webp;base64,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)}
+.par-frente{transform:rotateY(180deg);background:var(--card);border:1.5px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;padding:6% 5%;text-align:center}
+.par-av{display:block;position:relative;width:58%;aspect-ratio:1;flex-shrink:0;overflow:hidden;border-radius:50%}
+.par-av .ra{position:absolute;inset:0;width:100%;height:100%;font-size:1.6em}
+.par-nom{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:100%;overflow-wrap:anywhere;font-size:10px;font-size:max(9px,9.5cqw);line-height:1.15;font-weight:700;color:var(--text)}
+.par-fecha{display:block;font-size:9px;font-size:max(8px,8.5cqw);color:var(--muted);font-variant-numeric:tabular-nums}
+.par-carta.par-ok{cursor:default}
+.par-carta.par-ok .par-frente{border-color:var(--green);box-shadow:inset 0 0 0 2px var(--green)}
+.par-fin{border:1.5px solid var(--green);background:rgba(90,138,60,.1);border-radius:12px;padding:14px 12px;text-align:center;margin-top:14px}
+.par-fin h3{font-size:16px;color:var(--green);margin:0 0 4px}
+.par-fin p{font-size:13px;color:var(--text);margin:0}
+@media(prefers-reduced-motion:reduce){.par-giro{transition:none}}
 .hero h1{font-size:clamp(24px,5vw,42px);margin-bottom:5px}
 .hero p{color:var(--muted);font-size:14px}
 .frase-dia{max-width:460px;margin:2px auto 0;padding:2px 6px;cursor:pointer;text-align:center;transition:opacity .25s ease;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -1281,7 +1303,7 @@ body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!impo
 </div>
 <div class="inf-card">
 <h3><i class="fa-solid fa-people-roof"></i> Cuadro de familia (A3 vertical)</h3>
-<p>Poster elegante en A3 vertical con la pareja de la persona elegida en la cabecera, debajo cada hijo o hija con su pareja y, a la derecha, sus hijos (los nietos). Se adapta solo: hijos sin pareja, hijos sin hijos y un número distinto de nietos en cada fila. Fotos en marcos dorados tal como están guardadas, título editable y fondo a elegir. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
+<p>Poster elegante en A3 vertical con la persona elegida en la cabecera y, debajo, cada hijo o hija con su pareja y, a la derecha, sus hijos (los nietos). Si la persona tiene varios cónyuges, el cuadro se organiza por matrimonios (1.º, 2.º, 3.º…, con año y lugar de la boda) y cada uno lleva sus hijos; los hijos con varios cónyuges muestran todas sus uniones. Se adapta solo: hijos sin pareja, hijos sin hijos y un número distinto de nietos en cada fila. Fotos en marcos dorados tal como están guardadas, título editable y fondo a elegir. Respeta tu perfil: las personas fuera de tu alcance aparecen como «Persona no visible».</p>
 <button class="ef-btn" onclick="abrirModalFamiliaPoster()"><i class="fa-solid fa-file-pdf"></i> Generar cuadro de familia</button>
 </div>
 <div class="inf-card">
@@ -1917,8 +1939,15 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.19.1';
+var APP_VERSION = '2026.11.20.2';
 var APP_CHANGELOG = [
+  { version:'2026.11.20.2', fecha:'2026-11-20', cambios:[
+    'Ficha → Quitar cónyuge: ahora también se borran la fecha y el lugar de matrimonio de ese hueco en las dos personas, para que no queden datos sueltos que reaparezcan al vincular a otro cónyuge en la misma posición (igual que ya hacían la fusión de fichas y la unión de duplicados). Si la ficha estaba abierta en edición, el formulario también se vacía, para que esos datos no se vuelvan a guardar al pulsar Guardar.',
+    'Usuarios: el selector «Elegir ficha» tiene ahora un botón × para cancelar sin cerrar todo el panel, y al vincular una ficha a un usuario se retira el vínculo a cualquier otro usuario que la tuviera (antes solo al primero que se encontraba).'
+  ]},
+  { version:'2026.11.20.1', fecha:'2026-11-20', cambios:[
+    'Informes → Cuadro de familia (A3 vertical): ahora admite personas con varios cónyuges (por ejemplo, Enrique VIII). Con dos o más cónyuges la cabecera muestra solo a la persona y debajo aparece un bloque por matrimonio, en orden y con su año y lugar de boda, con los hijos de cada uno; los matrimonios sin hijos se agrupan en una sola fila y los hijos sin cónyuge registrado van al bloque «Otros hijos». También los hijos pueden tener varios cónyuges: cada unión se dibuja en su propia línea con sus hijos. Con un solo cónyuge el cuadro se ve igual que antes. En el diálogo se eligen con casillas los cónyuges que se quieren mostrar.'
+  ]},
   { version:'2026.11.19.1', fecha:'2026-11-19', cambios:[
     'Chapa de Guardián de los Ancestros: en el hueco de la frase de la portada, los Guardianes ven un aviso para reservar su chapa (una o dos). Al reservar, el aviso desaparece. El Archivero ve las reservas en Herramientas → Peticiones de chapas, las marca como entregadas y puede descargarlas en JSON o CSV.'
   ]},
@@ -3410,6 +3439,11 @@ if(tit)tit.textContent='Elegir ficha para '+email;
 if(sel){sel.style.display='block';sel.scrollIntoView({block:'nearest'});}
 if(inp){inp.value='';filtrarVinculoPersona();setTimeout(function(){inp.focus();},30);}
 }
+function cerrarSelectorVinculoUI(){
+vinculoPendienteEmail=null;
+var sel=document.getElementById('vinculoSelectorPersona');
+if(sel)sel.style.display='none';
+}
 function filtrarVinculoPersona(){
 var q=(document.getElementById('buscarVinculoPersona').value||'').toLowerCase().trim();
 var lista=document.getElementById('listaVinculoPersonas');
@@ -3439,8 +3473,7 @@ var lista=(usuariosCache||[]).slice();
 var u=lista.filter(function(x){return x.email===email;})[0];
 if(!u){toast('Usuario no encontrado',true);return;}
 /* Una ficha solo un email: quita el vínculo previo de esa ficha si la tenía otro usuario */
-var otroConEllaAntes=lista.filter(function(x){return x.fichaId===String(personaId)&&x.email!==email;})[0];
-if(otroConEllaAntes)otroConEllaAntes.fichaId=null;
+lista.forEach(function(x){if(x.fichaId===String(personaId)&&x.email!==email)x.fichaId=null;});
 u.fichaId=String(personaId);
 try{
 await guardarUsuarios(lista);
@@ -12570,8 +12603,10 @@ var actual=PI[id],otroId=actual?actual[campo]:'';
 if(!actual||!otroId){finOperacionFicha(btn);return;}
 if(!(await confirmarApp('Se quitará el vínculo de cónyuge, pero no se borrará ninguna ficha.'))){finOperacionFicha(btn);return;}
 var otro=PI[otroId];actual[campo]='';
-if(otro){CAMPOS_CONYUGE.forEach(function(c){if(otro[c]===id)otro[c]='';});}
+var nHueco=campo.slice(1);actual['ML'+nHueco]='';actual['MF'+nHueco]='';
+if(otro){CAMPOS_CONYUGE.forEach(function(c){if(otro[c]===id){otro[c]='';otro['ML'+c.slice(1)]='';otro['MF'+c.slice(1)]='';}});}
 var camposPrevios=capturarCamposEdicionSiProcede(id);
+if(camposPrevios){['ef-ml','ef-mf'].forEach(function(pre){if((pre+nHueco) in camposPrevios)camposPrevios[pre+nHueco]='';});}
 bIdx(D);sDesdeSnapshot(antesRelacion).then(function(){rFic(id);restaurarCamposEdicion(camposPrevios);toast('Vínculo de cónyuge eliminado');registrarCambiosDesdeSnapshots(antesRelacion,D,'vincular');}).catch(function(err){toast('No se pudo quitar el vínculo: '+err.message,true);}).finally(function(){finOperacionFicha(btn);});
 }
 async function quitarPadreMadre(id,campo,btn){
@@ -17771,15 +17806,100 @@ out+='<text x="'+cx.toFixed(2)+'" y="'+ye.toFixed(2)+'" text-anchor="middle" fon
 }
 return {svg:out,bottom:py2+ph};
 }
-function buildFamPosterSVGString(rootId,spId,o){
+/* ===== Cuadro de familia con varios cónyuges (en la cabecera y en cada hijo) ===== */
+/* cónyuges válidos de una persona en el orden M1..M6, sin repetir; n = nº de matrimonio */
+function famPUniones(id){
+var p=PI[id],out=[],vistos={};
+if(!p)return out;
+CAMPOS_CONYUGE.forEach(function(c,i){
+var sp=p[c];
+if(sp&&PI[sp]&&!vistos[sp]){vistos[sp]=1;out.push({id:sp,n:out.length+1,fecha:p['MF'+(i+1)],lugar:p['ML'+(i+1)]});}
+});
+return out;
+}
+function famPEtiquetaMat(u){
+var m=String(u.fecha||'').match(/(\d{4})/),y=m?m[1]:'',lug=famPSn(u.lugar);
+return {l1:u.n+'.\u00BA matrimonio',l2:y+(y&&lug?' \u00B7 ':'')+lug};
+}
+/* líneas de un hijo: una por unión con hijos, una para los cónyuges sin hijos y otra para los hijos sin cónyuge registrado */
+function famPLineasHijo(cid){
+var est=famPEstado(cid);
+if(est!=='ok')return [{sps:[],nietos:[]}];
+var us=famPUniones(cid),gl=ordenarIdsPorEdad(HD[cid]||[]);
+if(us.length<=1)return [{sps:us.map(function(u){return u.id;}),nietos:gl}];
+var usados={},con=[],sin=[];
+us.forEach(function(u){
+var hs=gl.filter(function(g){var q=PI[g];return q&&(String(q.PADRE)===String(u.id)||String(q.MADRE)===String(u.id));});
+hs.forEach(function(g){usados[g]=1;});
+if(hs.length)con.push({sps:[u.id],nietos:hs});else sin.push(u.id);
+});
+var resto=gl.filter(function(g){return !usados[g];}),L=con;
+if(resto.length)L.push({sps:[],nietos:resto});
+for(var i=0;i<sin.length;i+=2)L.push({sps:sin.slice(i,i+2),nietos:[]});
+return L.length?L:[{sps:[],nietos:[]}];
+}
+/* tamaño de los nietos (común a todo el cuadro) */
+function famPCtx(lin,hijos,P,rp,xC,W,o){
+var gmax=0;
+hijos.forEach(function(cid){lin[cid].forEach(function(l){if(l.nietos.length>gmax)gmax=l.nietos.length;});});
+var xG=xC+2*P+30,availG=(W-20)-xG,Qpref=Math.min(26,P*0.72),Q=Qpref,perLine=Math.max(1,gmax),gap=4.5;
+if(gmax>0){
+var Q1=(availG-(gmax-1)*gap)/gmax;
+if(Q1>=16){Q=Math.min(Qpref,Q1);}
+else{perLine=Math.ceil(gmax/2);Q=Math.max(9,Math.min(Qpref,(availG-(perLine-1)*gap)/perLine,(rp-16)/2));}
+}
+var fsN=Math.max(1.7,1.0+Q*0.06);
+return {xG:xG,Q:Q,perLine:perLine,gap:gap,fsN:fsN,fsA:Math.max(2.0,1.4+P*0.055),gh:fsN*1.14+3.6+(o.anios?fsN*0.9*1.25:0)};
+}
+/* filas de hijos: cada hijo con todas sus uniones (una por línea) y los nietos de cada una */
+function famPFilas(hijos,y0,P,rp,xs,xC,g,o,lin){
+var m='',c='',sp='',ycs=[],y=y0,fsMin=Math.max(1.6,g.fsA*0.62);
+hijos.forEach(function(cid){
+var L=lin[cid],yr=y,yc=yr+P/2,xr=xC+P+8;
+m+=famPCaja(xC,yr,P,cid,{fsMax:g.fsA,fsMin:fsMin,lineas:2,anios:o.anios}).svg;
+ycs.push(yc);
+sp+='<path d="M'+xs+' '+yc.toFixed(2)+' H'+xC+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.5"/>';
+L.forEach(function(l,k){
+var ylr=yr+k*rp,ylc=ylr+P/2,xFl=k?xr:xC+P+2;
+l.sps.forEach(function(sid,j){
+var xS=xC+P+16+j*(P+16);
+m+=famPCaja(xS,ylr,P,sid,{fsMax:g.fsA,fsMin:fsMin,lineas:2,anios:o.anios}).svg+famPAnillos(xS-8,ylc,Math.min(5.6,P*0.15));
+xFl=xS+P+2;
+});
+if(l.nietos.length){
+c+=famPFlecha(xFl,g.xG-3,ylc);
+var gN=l.nietos.length,lg=Math.ceil(gN/g.perLine),hb=lg*(g.Q+g.gh)+(lg-1)*1.5,yg=Math.max(ylr-2,ylc-hb/2);
+l.nietos.forEach(function(nid,q){
+m+=famPCaja(g.xG+(q%g.perLine)*(g.Q+g.gap),yg+Math.floor(q/g.perLine)*(g.Q+g.gh+1.5),g.Q,nid,{soloNombre:true,fsMax:g.fsN,fsMin:Math.max(1.4,g.fsN*0.7),lineas:2,anios:o.anios}).svg;
+});
+}
+});
+if(L.length>1){
+var ylN=yr+(L.length-1)*rp+P/2;
+c+='<path d="M'+(L[0].sps.length?xr:(xC+P))+' '+yc.toFixed(2)+(L[0].sps.length?'':' H'+xr)+' V'+ylN.toFixed(2)+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.5"/>';
+}
+y+=L.length*rp;
+});
+return {m:m,c:c,sp:sp,ycs:ycs,h:y-y0};
+}
+function famPTxt(x,y,txt,fs,o){
+o=o||{};
+return '<text x="'+x.toFixed(2)+'" y="'+y.toFixed(2)+'" text-anchor="'+(o.ancla||'middle')+'" font-family="Georgia,\'Times New Roman\',serif" font-style="italic"'+(o.neg?' font-weight="700"':'')+' font-size="'+fs+'" fill="'+FAMP_TINTA+'"'+(o.op?' opacity="'+o.op+'"':'')+'>'+esc(txt)+'</text>';
+}
+function famPEtq(x,y,u,w){
+var e=famPEtiquetaMat(u),mx=Math.max(8,Math.floor(w/(2.15*0.52)));
+return famPTxt(x,y+3,e.l1,2.7,{neg:1})+(e.l2?famPTxt(x,y+6.2,truncarTexto(e.l2,mx),2.15):'');
+}
+function famPPath(d){return '<path d="'+d+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.55"/>';}
+/* spIds: cónyuges a mostrar. 0 = solo la persona; 1 = pareja en la cabecera (como siempre); 2 o más = un bloque por matrimonio */
+function buildFamPosterSVGString(rootId,spIds,o){
 o=o||{};
 var W=ASCV_W,H=ASCV_H,cx=W/2,p=PI[rootId];
-var tieneSp=!!(spId&&PI[spId]);
-var hijos=famPHijosDe(rootId,tieneSp?spId:null,!!o.otras);
-var marcos='',conect='';
-/* --- pareja de cabecera --- */
-var Pr=44,yR=54;
-var optsA={fsMax:4.6,fsMin:3,lineas:2,anios:o.anios};
+var todas=famPUniones(rootId),sel=todas.filter(function(u){return (spIds||[]).some(function(i){return String(i)===String(u.id);});});
+var bandas=sel.length>=2,tieneSp=sel.length===1,spId=tieneSp?sel[0].id:null;
+var marcos='',conect='',cuerpo='';
+/* --- cabecera --- */
+var Pr=44,yR=54,optsA={fsMax:4.6,fsMin:3,lineas:2,anios:o.anios};
 var left=rootId,right=tieneSp?spId:null;
 if(tieneSp&&p.SEXO==='Mujer'&&PI[spId].SEXO==='Hombre'){left=spId;right=rootId;}
 var yb=0,bL=0,bR=0,xL,xR;
@@ -17793,70 +17913,96 @@ xL=cx-Pr/2;
 var c0=famPCaja(xL,yR,Pr,left,optsA);
 marcos+=c0.svg;bL=c0.bottom;yb=bL;
 }
-var yBus=yb+5,n0=hijos.length;
+var yEnd=H-34,R=2.5,lin={};
+function lineasDe(arr){arr.forEach(function(h){if(!lin[h])lin[h]=famPLineasHijo(h);});}
+if(!bandas){
+/* ===== una pareja (o solo la persona): como el cuadro de siempre ===== */
+var hijos=famPHijosDe(rootId,spId,!!o.otras);
+lineasDe(hijos);
+var yBus=yb+5,n=hijos.length;
 if(tieneSp){
-conect+='<path d="M'+(xL+Pr/2).toFixed(2)+' '+bL.toFixed(2)+' V'+yBus.toFixed(2)+' H'+(xR+Pr/2).toFixed(2)+' V'+bR.toFixed(2)+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.55"/>';
-}else if(n0>0){
-conect+='<path d="M'+cx.toFixed(2)+' '+bL.toFixed(2)+' V'+yBus.toFixed(2)+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.55"/>';
+conect+=famPPath('M'+(xL+Pr/2).toFixed(2)+' '+bL.toFixed(2)+' V'+yBus.toFixed(2)+' H'+(xR+Pr/2).toFixed(2)+' V'+bR.toFixed(2));
+}else if(n>0){
+conect+=famPPath('M'+cx.toFixed(2)+' '+bL.toFixed(2)+' V'+yBus.toFixed(2));
 }
-/* --- hijos --- */
-var n=hijos.length,yRows0=yBus+22,yEnd=H-34,avail=yEnd-yRows0;
-var spine='';
+var yRows0=yBus+22,avail=yEnd-yRows0;
 if(n===0){
-marcos+='<text x="'+cx+'" y="'+(yb+32).toFixed(2)+'" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-style="italic" font-size="4.4" fill="'+FAMP_TINTA+'" opacity="0.7">Sin descendencia registrada</text>';
+marcos+=famPTxt(cx,yb+32,'Sin descendencia registrada',4.4,{op:0.7});
 }else{
-var rowH=Math.min(54,avail/n),off=(n*54<avail)?Math.min(55,(avail-n*rowH)/2):0;
-var P=Math.max(14,Math.min(38,(rowH-5)/1.3));
-var fsA=Math.max(2.0,1.4+P*0.055);
-var xC=34,xs=24,R=2.5,xG=xC+2*P+30,xLim=W-20,availG=xLim-xG;
-/* datos de cada fila */
-var filas=hijos.map(function(cid){
-var est=famPEstado(cid),spc=null,gl=[];
-if(est==='ok'){
-var s2=famPConyugePrincipal(cid);
-if(s2&&PI[s2])spc=s2;
-gl=ordenarIdsPorEdad(HD[cid]||[]);
+var N=0;hijos.forEach(function(h){N+=lin[h].length;});
+var rowH=Math.min(54,avail/N),off=(N*54<avail)?Math.min(55,(avail-N*rowH)/2):0;
+var P=Math.max(11,Math.min(38,(rowH-5)/1.3)),rp=Math.max(rowH,1.3*P+5);
+var k=Math.min(1,(yEnd-yBus)/((yRows0-yBus)+N*rp));
+if(k<1)off=0;
+var xs=24,xC=34,g=famPCtx(lin,hijos,P,rp,xC,W,o);
+var f=famPFilas(hijos,yRows0+off,P,rp,xs,xC,g,o,lin);
+var yBus2=yBus+9,yLast=f.ycs[f.ycs.length-1];
+var cu=famPPath('M'+cx.toFixed(2)+' '+yBus.toFixed(2)+' V'+(yBus2-R).toFixed(2)+' Q'+cx.toFixed(2)+' '+yBus2.toFixed(2)+' '+(cx-R).toFixed(2)+' '+yBus2.toFixed(2)+' H'+(xs+R)+' Q'+xs+' '+yBus2.toFixed(2)+' '+xs+' '+(yBus2+R).toFixed(2)+' V'+yLast.toFixed(2))+f.sp+f.c+f.m;
+cuerpo=(k<1)?'<g transform="translate('+(cx*(1-k)).toFixed(3)+' '+(yBus*(1-k)).toFixed(3)+') scale('+k.toFixed(4)+')">'+cu+'</g>':cu;
 }
-return {cid:cid,est:est,sp:spc,nietos:gl};
+}else{
+/* ===== varios cónyuges: un bloque por matrimonio ===== */
+var bl=[],grp=null,usados={};
+sel.forEach(function(u){
+var hs=ordenarIdsPorEdad(famPHijosComunes(rootId,u.id));
+hs.forEach(function(h){usados[h]=1;});
+if(hs.length){grp=null;bl.push({t:'c',u:u,hs:hs});}
+else if(grp&&grp.us.length<3){grp.us.push(u);}
+else{grp={t:'g',us:[u],hs:[]};bl.push(grp);}
 });
-var gmax=0;filas.forEach(function(f){if(f.nietos.length>gmax)gmax=f.nietos.length;});
-var Qpref=Math.min(26,P*0.72),Q=Qpref,perLine=Math.max(1,gmax),gap=4.5;
-if(gmax>0){
-var Q1=(availG-(gmax-1)*gap)/gmax;
-if(Q1>=16){Q=Math.min(Qpref,Q1);}
-else{
-perLine=Math.ceil(gmax/2);
-var Q2=Math.min(Qpref,(availG-(perLine-1)*gap)/perLine,(rowH-16)/2);
-Q=Math.max(9,Q2);
-}
-}
-var fsN=Math.max(1.7,1.0+Q*0.06),yTop0=yRows0+off;
-filas.forEach(function(f,i){
-var yr=yTop0+i*rowH,yc=yr+P/2;
-var c=famPCaja(xC,yr,P,f.cid,{fsMax:fsA,fsMin:Math.max(1.6,fsA*0.62),lineas:2,anios:o.anios});
-marcos+=c.svg;
-spine+='<path d="M'+xs+' '+yc.toFixed(2)+' H'+xC+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.5"/>';
-var xFlecha=xC+P+2;
-if(f.sp){
-var xS=xC+P+16,cs=famPCaja(xS,yr,P,f.sp,{fsMax:fsA,fsMin:Math.max(1.6,fsA*0.62),lineas:2,anios:o.anios});
-marcos+=cs.svg+famPAnillos(xC+P+8,yc,Math.min(5.6,P*0.15));
-xFlecha=xS+P+2;
-}
-if(f.nietos.length){
-conect+=famPFlecha(xFlecha,xG-3,yc);
-var g=f.nietos.length,lineasG=Math.ceil(g/perLine),gh=fsN*1.14+3.6+(o.anios?fsN*0.9*1.25:0);
-var hb=lineasG*(Q+gh)+(lineasG-1)*1.5,yg=Math.max(yr-2,yc-hb/2);
-f.nietos.forEach(function(nid,k){
-var col=k%perLine,lin=Math.floor(k/perLine);
-var cn=famPCaja(xG+col*(Q+gap),yg+lin*(Q+gh+1.5),Q,nid,{soloNombre:true,fsMax:fsN,fsMin:Math.max(1.4,fsN*0.7),lineas:2,anios:o.anios});
-marcos+=cn.svg;
+var resto=ordenarIdsPorEdad(HD[rootId]||[]).filter(function(h){
+var q=PI[h];if(!q||usados[h])return false;
+if(o.otras)return true;
+var otro=(String(q.PADRE)===String(rootId))?q.MADRE:q.PADRE;
+return !otro||!PI[otro];
 });
-}
+if(resto.length)bl.push({t:'o',hs:resto});
+var todosH=[];bl.forEach(function(b){lineasDe(b.hs||[]);(b.hs||[]).forEach(function(h){todosH.push(h);});});
+var LH=8,PLc=9.5,GB=5,yRows0b=yb+9,yIni=yRows0b+9,availb=yEnd-yIni;
+var nLin=function(b){var t=0;(b.hs||[]).forEach(function(h){t+=lin[h].length;});return t;};
+var altBand=function(b,P){
+var Sb=Math.min(26,Math.max(15,P*0.85)),Hsp=LH+Sb+PLc,Hr=nLin(b)*(1.3*P+5);
+return b.t==='c'?Math.max(Hsp,Hr):(b.t==='g'?Hsp:Math.max(LH+6,Hr));
+};
+var medir=function(P){var t=0;bl.forEach(function(b){t+=altBand(b,P)+GB;});return t-GB;};
+var Pb=36;
+while(Pb>11&&medir(Pb)>availb)Pb--;
+var kb=Math.min(1,availb/medir(Pb));
+var Sb=Math.min(26,Math.max(15,Pb*0.85)),rpb=1.3*Pb+5,xT=16,xB=30,xs2=xB+Sb+8,xC2=xs2+8;
+var gb=famPCtx(lin,todosH,Pb,rpb,xC2,W,o),fsB=Math.max(2.0,1.4+Sb*0.055);
+var optB={fsMax:fsB,fsMin:Math.max(1.6,fsB*0.62),lineas:2,anios:o.anios};
+var y=yIni,cb='',mb='',yTickLast=y;
+bl.forEach(function(b){
+var Hb=altBand(b,Pb),yS=y,ycS=yS+LH+Sb/2;
+if(b.t==='g'){
+b.us.forEach(function(u,j){
+var xj=xB+j*(Sb+16);
+mb+=famPCaja(xj,yS+LH,Sb,u.id,optB).svg+famPEtq(xj+Sb/2,yS,u,Sb+14);
+mb+=famPAnillos(j?xj-8:(xT+xB)/2,ycS,2.8);
 });
-var yLast=yTop0+(n-1)*rowH+P/2,yBus2=yBus+9;
-conect+='<path d="M'+cx.toFixed(2)+' '+yBus.toFixed(2)+' V'+(yBus2-R).toFixed(2)+' Q'+cx.toFixed(2)+' '+yBus2.toFixed(2)+' '+(cx-R).toFixed(2)+' '+yBus2.toFixed(2)+' H'+(xs+R)+' Q'+xs+' '+yBus2.toFixed(2)+' '+xs+' '+(yBus2+R).toFixed(2)+' V'+yLast.toFixed(2)+'" fill="none" stroke="'+FAMP_ORO+'" stroke-width="0.55"/>'+spine;
+cb+=famPPath('M'+xT+' '+ycS.toFixed(2)+' H'+(xB+(b.us.length-1)*(Sb+16)+Sb/2).toFixed(2));
+yTickLast=ycS;
+}else{
+var Hr=nLin(b)*rpb,f2=famPFilas(b.hs,yS+(Hb-Hr)/2,Pb,rpb,xs2,xC2,gb,o,lin);
+var yc1=f2.ycs[0],ycN=f2.ycs[f2.ycs.length-1];
+if(b.t==='c'){
+mb+=famPCaja(xB,yS+LH,Sb,b.u.id,optB).svg+famPEtq(xB+Sb/2,yS,b.u,Sb+14)+famPAnillos((xT+xB)/2,ycS,2.8);
+cb+=famPPath('M'+xT+' '+ycS.toFixed(2)+' H'+xB)+famPPath('M'+(xB+Sb)+' '+ycS.toFixed(2)+' H'+xs2)+famPPath('M'+xs2+' '+Math.min(ycS,yc1).toFixed(2)+' V'+Math.max(ycS,ycN).toFixed(2));
+yTickLast=ycS;
+}else{
+mb+=famPTxt(xB,yc1+1,'Otros hijos',2.9,{ancla:'start',op:0.85});
+cb+=famPPath('M'+xT+' '+yc1.toFixed(2)+' H'+(xB-2))+famPPath('M'+(xB+19)+' '+yc1.toFixed(2)+' H'+xs2)+famPPath('M'+xs2+' '+yc1.toFixed(2)+' V'+ycN.toFixed(2));
+yTickLast=yc1;
 }
-if(n===0&&tieneSp){/* sin hijos: la pareja queda sola; el conector inferior no se dibuja */}
+cb+=f2.sp+f2.c;mb+=f2.m;
+}
+y+=Hb+GB;
+});
+var yC=yRows0b+3;
+cb=famPPath('M'+cx.toFixed(2)+' '+yRows0b.toFixed(2)+' V'+(yC-R).toFixed(2)+' Q'+cx.toFixed(2)+' '+yC.toFixed(2)+' '+(cx-R).toFixed(2)+' '+yC.toFixed(2)+' H'+(xT+R)+' Q'+xT+' '+yC.toFixed(2)+' '+xT+' '+(yC+R).toFixed(2)+' V'+yTickLast.toFixed(2))+cb;
+conect+=famPPath('M'+cx.toFixed(2)+' '+bL.toFixed(2)+' V'+yRows0b.toFixed(2));
+cuerpo=(kb<1)?'<g transform="translate('+(cx*(1-kb)).toFixed(3)+' '+(yRows0b*(1-kb)).toFixed(3)+') scale('+kb.toFixed(4)+')">'+cb+mb+'</g>':cb+mb;
+}
 /* --- fondo, marco y título --- */
 var defs='<defs><radialGradient id="famVig" cx="50%" cy="50%" r="75%"><stop offset="0.62" stop-color="#8A6A2C" stop-opacity="0"/><stop offset="1" stop-color="#8A6A2C" stop-opacity="0.16"/></radialGradient></defs>';
 var bg='<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="'+FAMP_BG+'"/><rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#famVig)"/>';
@@ -17869,7 +18015,7 @@ var tit=famPSn(o.titulo)||famPTituloSugerido(rootId,tieneSp?spId:null);
 var fsT=Math.max(8,Math.min(19,205/(Math.max(8,tit.length)*0.42)));
 var titulo='<text x="'+cx+'" y="31" text-anchor="middle" font-family="\'Great Vibes\',\'Snell Roundhand\',cursive" font-size="'+fsT.toFixed(2)+'" fill="'+FAMP_TINTA+'">'+esc(tit)+'</text>'+ascOFleuron(cx,39.5,1);
 var pie='<text x="'+cx+'" y="'+(H-12)+'" text-anchor="middle" font-family="Lato,sans-serif" font-size="1.9" fill="'+FAMP_TINTA+'" opacity="0.6">'+esc('Generado el '+new Date().toLocaleDateString()+' \u2014 El Libro de los Ancestros')+'</text>'+logoFamiliaPoster(cx-31,(H-12)-3.6,7,0.85);
-return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+defs+bg+marco+titulo+conect+marcos+pie+'</svg>';
+return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'mm" height="'+H+'mm">'+defs+bg+marco+titulo+conect+cuerpo+marcos+pie+'</svg>';
 }
 function renderFamPSwatches(){
 var cont=document.getElementById('famPSwatches');
@@ -17880,23 +18026,26 @@ return '<button type="button" title="'+esc(c.label)+'" onclick="elegirFondoFamP(
 }).join('');
 }
 function elegirFondoFamP(hex){FAMP_BG=hex;renderFamPSwatches();}
+function famPSelConyuges(){
+var out=[];
+document.querySelectorAll('#famPConyuges input[type=checkbox]').forEach(function(ch){if(ch.checked)out.push(ch.value);});
+return out;
+}
 function famPRefrescarTitulo(forzar){
-var inp=document.getElementById('famPTitulo'),sel=document.getElementById('famPConyuge');
+var inp=document.getElementById('famPTitulo');
 if(!inp||!infId)return;
-if(forzar||!famPTituloEditado)inp.value=famPTituloSugerido(infId,sel&&sel.value?sel.value:null);
+if(forzar||!famPTituloEditado){var s=famPSelConyuges();inp.value=famPTituloSugerido(infId,s.length===1?s[0]:null);}
 }
 function abrirModalFamiliaPoster(){
 if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
 if(!puedeVerPersona(infId)){toast('No tienes acceso a la ficha de esta persona',true);return;}
-var sel=document.getElementById('famPConyuge'),cs=conyugesDe(infId).filter(function(c){return puedeVerPersona(c);});
-var def=famPConyugePrincipal(infId);
-if(def&&!puedeVerPersona(def))def=cs.length?cs[0]:null;
-var html='<option value="">Sin pareja (solo la persona)</option>';
-cs.forEach(function(c){
-var nh=famPHijosComunes(infId,c).length;
-html+='<option value="'+escAttr(c)+'"'+(String(c)===String(def)?' selected':'')+'>'+esc(famPSn(fn(PI[c])))+' ('+nh+(nh===1?' hijo':' hijos')+' en común)</option>';
+var us=famPUniones(infId).filter(function(u){return puedeVerPersona(u.id);}),html='';
+us.forEach(function(u){
+var nh=famPHijosComunes(infId,u.id).length,e=famPEtiquetaMat(u);
+html+='<label style="font-size:12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:6px"><input type="checkbox" value="'+escAttr(u.id)+'" checked onchange="famPRefrescarTitulo(false)" style="margin-top:2px"> <span>'+esc(u.n+'.\u00BA \u00B7 '+famPSn(fn(PI[u.id])))+(e.l2?' <span style="color:var(--muted)">('+esc(e.l2)+')</span>':'')+' <span style="color:var(--muted)">\u2014 '+nh+(nh===1?' hijo':' hijos')+'</span></span></label>';
 });
-sel.innerHTML=html;
+document.getElementById('famPConyuges').innerHTML=html||'<p style="font-size:12px;color:var(--muted)">Sin c\u00F3nyuges registrados: se muestra solo la persona y sus hijos.</p>';
+document.getElementById('famPOtras').checked=(us.length!==1);
 famPTituloEditado=false;
 famPRefrescarTitulo(true);
 renderFamPSwatches();
@@ -17906,9 +18055,9 @@ function cerrarModalFamiliaPoster(){document.getElementById('modalPosterFamilia'
 function generarPosterFamilia(){
 if(!infId||!PI[infId]){toast('Selecciona primero una persona en Informes',true);return;}
 if(!puedeVerPersona(infId)){toast('No tienes acceso a la ficha de esta persona',true);return;}
-var spId=document.getElementById('famPConyuge').value||null;
+var spIds=famPSelConyuges();
 var o={titulo:document.getElementById('famPTitulo').value,anios:document.getElementById('famPAnios').checked,otras:document.getElementById('famPOtras').checked};
-var svg=buildFamPosterSVGString(infId,spId,o);
+var svg=buildFamPosterSVGString(infId,spIds,o);
 var printArea=document.getElementById('printArea');
 printArea.innerHTML='<div class="asc-print-page-vert">'+svg+'</div>';
 var styleTag=document.getElementById('pageSizeOverride');
@@ -20529,6 +20678,11 @@ actualizarPantallaBusPills();
    modelo y Mostrar solución. El nombre se descubre al completarlo y enlaza con la ficha.
    Las piezas son trozos de una misma imagen (background-position), sin canvas, y el
    tablero respeta la proporción real de la foto, así que no se deforma. */
+/* Selector de juegos dentro del panel de Buscar > Rompecabezas: «Rompecabezas» (el de siempre) y «Parejas».
+   JG.modo guarda cuál se está viendo. PAR es el estado de la partida de parejas. */
+var JG={modo:'rompe'};
+var PAR={pares:6,cartas:[],abiertas:[],bloqueo:false,movs:0,aciertos:0,total:0,ms:0,t:0,iniciada:false,fin:false,vacio:false,timer:null,ganadas:0,gen:0};
+var PAR_NIVELES=[6,8,12];
 var PZL={nivel:3,persona:null,ratio:1,n:3,orden:[],sel:null,movs:0,pistas:0,t0:0,t1:0,resuelto:false,mostrada:false,modelo:false,resueltos:0,vistos:{},cssUrl:'',cargando:false,vacio:false,token:0,intentos:0,focoSlot:null};
 var PZL_NIVELES={3:'Fácil',4:'Normal',5:'Difícil'};
 var pzlArr=null;
@@ -20908,8 +21062,9 @@ return m+':'+(s%60<10?'0':'')+(s%60);
 function pzlRender(){
 var cont=document.getElementById('rompeCont');
 if(!cont)return;
+if(JG.modo==='parejas'){parRender();return;}
 pzlLimpiarArrastre();
-var h='<div class="rp-bar"><div class="rp-niv">';
+var h=jgPestanas()+'<div class="rp-bar"><div class="rp-niv">';
 [3,4,5].forEach(function(n){h+='<button type="button" class="pbus-pill'+(PZL.nivel===n?' pbus-activa':'')+'" onclick="pzlCambiarNivel('+n+')">'+PZL_NIVELES[n]+'</button>';});
 h+='</div><span class="rp-cuenta">'+(PZL.resueltos?PZL.resueltos+(PZL.resueltos===1?' foto completada':' fotos completadas'):'')+'</span></div>';
 if(PZL.vacio||(!PZL.persona&&!PZL.cargando)){
@@ -20949,7 +21104,186 @@ if(el)el.focus();
 PZL.focoSlot=null;
 }
 }
-function entrarPantallaRompe(){if(PZL.vacio||!PZL.persona)pzlNueva();else pzlRender();}
+function entrarPantallaRompe(){
+if(JG.modo==='parejas'){if(!PAR.cartas.length)parNueva();else parRender();return;}
+if(PZL.vacio||!PZL.persona)pzlNueva();else pzlRender();
+}
+/* ===== Juego de las Parejas =====
+   Pestaña «Parejas» dentro del panel «Rompecabezas» de Buscar. Cada pareja de cartas es un
+   familiar del árbol: con su fotografía (real, no reconstruida) si la tiene y, si no, con el
+   avatar de la aplicación (dibujo según época y sexo), más su nombre y años. Se prefieren
+   personas con foto (hasta la mitad de las parejas) y el resto se completa al azar.
+   Privacidad: mismas reglas que el Rompecabezas y el Carrusel: puedeVerPersona() según el perfil
+   (Archivero, Guardián, Cronista, Familiar, Allegado, Amigo; las personas vivas fuera de su alcance
+   quedan excluidas) y fuera los fallecidos en el último año. Si hay menos personas visibles que
+   las que pide el nivel, se juega con las que haya. Las cartas se dan la vuelta con una animación
+   3D y tienen por detrás la imagen del reloj de bolsillo con la abeja (PAR_DORSO, en el CSS).
+   El reloj solo cuenta mientras el panel está a la vista. */
+function parVisible(){
+var c=document.getElementById('pantallaBusRompe'),v=document.getElementById('vBus');
+return !!(c&&v&&v.classList.contains('active')&&!c.classList.contains('hero-carousel-hidden')&&JG.modo==='parejas'&&!document.hidden);
+}
+function jgPestanas(){
+function b(m,ic,t){var a=JG.modo===m;return '<button type="button" class="pbus-pill'+(a?' pbus-activa':'')+'" aria-pressed="'+(a?'true':'false')+'" onclick="jgModo(\''+m+'\')"><i class="fa-solid '+ic+'" aria-hidden="true"></i> '+t+'</button>';}
+return '<div class="jg-tabs" role="group" aria-label="Elegir juego">'+b('rompe','fa-puzzle-piece','Rompecabezas')+b('parejas','fa-clone','Parejas')+'</div>';
+}
+function jgModo(m){
+if(m!=='rompe'&&m!=='parejas')return;
+if(JG.modo===m)return;
+JG.modo=m;
+if(m==='parejas'){if(!PAR.cartas.length)parNueva();else parRender();}
+else{parParar();entrarPantallaRompe();}
+}
+function parFotoReal(p){return !!(p&&p.FOTO&&!p.FOTO_RECON);}
+function parClave(p){return (fn(p).replace(/\s+/g,' ').trim()+'|'+(getYear(p)===null?'':getYear(p))).toLowerCase();}
+function parValida(p){
+if(!p||!(String(p.NOMBRE||'').trim()||String(p.APELLIDO1||'').trim()))return false;
+if(!puedeVerPersona(p.ID))return false;
+if(!isAl(p)){var da=parseInt(p.DEFA,10);if(da&&(new Date().getFullYear()-da)<=1)return false;}
+return true;
+}
+function parElegir(n){
+if(typeof D==='undefined'||!D||!D.length)return [];
+var usados={},out=[];
+function tomar(pool,max){
+var idx=pool.slice();
+for(var i=idx.length-1;i>=0&&out.length<max;i--){
+var j=Math.floor(Math.random()*(i+1));var t=idx[i];idx[i]=idx[j];idx[j]=t;
+var p=idx[i];
+if(!parValida(p))continue;
+var k=parClave(p);
+if(usados[k])continue;
+usados[k]=1;out.push(p);
+}
+}
+tomar(D.filter(parFotoReal),Math.ceil(n/2));
+tomar(D,n);
+return out;
+}
+function parNueva(){
+parParar();
+PAR.gen++;
+var pers=parElegir(PAR.pares);
+PAR.cartas=[];PAR.abiertas=[];PAR.bloqueo=false;PAR.movs=0;PAR.aciertos=0;PAR.ms=0;PAR.iniciada=false;PAR.fin=false;
+if(pers.length<2){PAR.vacio=true;PAR.total=0;parRender();return;}
+PAR.vacio=false;PAR.total=pers.length;
+var cs=[];
+pers.forEach(function(p,i){for(var c=0;c<2;c++)cs.push({par:i,p:p,vol:false,ok:false});});
+for(var i=cs.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=cs[i];cs[i]=cs[j];cs[j]=t;}
+PAR.cartas=cs;
+parRender();
+}
+function parCambiarNivel(n){
+if(PAR.pares===n)return;
+PAR.pares=n;
+parNueva();
+}
+function parTextoAnios(p){
+var y=getYear(p),s='';
+if(y!==null)s=(getYearReal(p)===null?'h. ':'')+y;
+if(!isAl(p)){var d=parseInt(p.DEFA,10);if(!isNaN(d))s=(s?s+' – ':'– ')+d;}
+return s;
+}
+function parFrente(p){
+var av;
+if(parFotoReal(p))av=avatarHTML(p,false,false);
+else{var q=Object.assign({},p);q.FOTO='';av=avatarHTML(q,false,true);}
+av=av.replace(' loading="lazy"','');
+var nombre=fn(p).replace(/\s+/g,' ').trim();
+return '<span class="par-av">'+av+'</span><span class="par-nom">'+esc(nombre)+'</span><span class="par-fecha">'+esc(parTextoAnios(p))+'</span>';
+}
+function parEtiqueta(i){
+var c=PAR.cartas[i];
+if(!c)return '';
+if(c.vol||c.ok)return 'Carta '+(i+1)+': '+fn(c.p).replace(/\s+/g,' ').trim()+(c.ok?' (pareja encontrada)':'');
+return 'Carta '+(i+1)+', boca abajo';
+}
+function parCartaHTML(i){
+var c=PAR.cartas[i];
+var cls='par-carta'+((c.vol||c.ok)?' par-vol':'')+(c.ok?' par-ok':'');
+return '<div class="'+cls+'" id="parC'+i+'" role="button" tabindex="0" aria-label="'+escAttr(parEtiqueta(i))+'" onclick="parTocar('+i+')" onkeydown="parTecla(event,'+i+')"><span class="par-giro"><span class="par-cara par-dorso"></span><span class="par-cara par-frente">'+parFrente(c.p)+'</span></span></div>';
+}
+function parRender(){
+var cont=document.getElementById('rompeCont');
+if(!cont)return;
+var h=jgPestanas();
+h+='<div class="rp-bar"><div class="rp-niv">';
+PAR_NIVELES.forEach(function(n){h+='<button type="button" class="pbus-pill'+(PAR.pares===n?' pbus-activa':'')+'" onclick="parCambiarNivel('+n+')">'+n+' parejas</button>';});
+h+='</div><span class="rp-cuenta">'+(PAR.ganadas?PAR.ganadas+(PAR.ganadas===1?' partida ganada':' partidas ganadas'):'')+'</span></div>';
+if(PAR.vacio||!PAR.cartas.length){
+h+='<p style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0">Todavía no hay suficientes personas visibles para jugar a las parejas.</p>';
+h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="parNueva()"><i class="fa-solid fa-shuffle" aria-hidden="true"></i> Probar de nuevo</button></div>';
+cont.innerHTML=h;
+return;
+}
+if(!PAR.fin){
+h+='<p class="rp-ayuda">Da la vuelta a dos cartas cada vez y encuentra las dos que son la misma persona.'+(PAR.total<PAR.pares?' Solo hay '+PAR.total+' personas disponibles, así que se juega con '+PAR.total+' parejas.':'')+'</p>';
+}
+h+='<div class="par-marcador"><span>Tiempo: <b id="parTiempo">'+pzlTiempoTxt(PAR.ms)+'</b></span><span>Movimientos: <b id="parMovs">'+PAR.movs+'</b></span><span>Parejas: <b id="parAcier">'+PAR.aciertos+'</b> de '+PAR.total+'</span></div>';
+h+='<div class="par-tablero" id="parTablero" style="grid-template-columns:repeat('+(PAR.cartas.length<=12?3:4)+',minmax(0,1fr))">';
+for(var i=0;i<PAR.cartas.length;i++)h+=parCartaHTML(i);
+h+='</div>';
+if(PAR.fin){
+h+='<div class="par-fin" role="status"><h3>¡Enhorabuena!</h3><p>Has encontrado las '+PAR.total+' parejas en '+pzlTiempoTxt(PAR.ms)+' y '+PAR.movs+(PAR.movs===1?' movimiento':' movimientos')+'.</p></div>';
+h+='<div class="rp-acc"><button type="button" class="ef-btn" onclick="parNueva()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Jugar otra vez</button></div>';
+}else{
+h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="parNueva()"><i class="fa-solid fa-shuffle" aria-hidden="true"></i> Nueva partida</button></div>';
+}
+cont.innerHTML=h;
+if(PAR.iniciada&&!PAR.fin&&!PAR.timer){PAR.t=Date.now();PAR.timer=setInterval(parTick,250);}
+}
+function parTick(){
+var ahora=Date.now();
+var vis=parVisible();
+if(vis)PAR.ms+=ahora-PAR.t;
+PAR.t=ahora;
+var e=document.getElementById('parTiempo');
+if(e)e.textContent=pzlTiempoTxt(PAR.ms);
+if(!vis&&PAR.timer){clearInterval(PAR.timer);PAR.timer=null;}
+}
+function parParar(){if(PAR.timer){clearInterval(PAR.timer);PAR.timer=null;}}
+function parPintar(i){
+var el=document.getElementById('parC'+i),c=PAR.cartas[i];
+if(!el||!c)return;
+el.classList.toggle('par-vol',!!(c.vol||c.ok));
+el.classList.toggle('par-ok',!!c.ok);
+el.setAttribute('aria-label',parEtiqueta(i));
+}
+function parMarcador(){
+var a=document.getElementById('parMovs'),b=document.getElementById('parAcier');
+if(a)a.textContent=PAR.movs;
+if(b)b.textContent=PAR.aciertos;
+}
+function parTecla(ev,i){
+if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();parTocar(i);}
+}
+function parTocar(i){
+var c=PAR.cartas[i];
+if(!c||PAR.bloqueo||PAR.fin||c.vol||c.ok)return;
+if(!PAR.iniciada){PAR.iniciada=true;PAR.t=Date.now();if(!PAR.timer)PAR.timer=setInterval(parTick,250);}
+c.vol=true;parPintar(i);
+PAR.abiertas.push(i);
+if(PAR.abiertas.length<2)return;
+PAR.movs++;
+var i0=PAR.abiertas[0],i1=PAR.abiertas[1],a=PAR.cartas[i0],b=PAR.cartas[i1];
+if(a.par===b.par){
+a.ok=true;b.ok=true;PAR.aciertos++;PAR.abiertas=[];
+parPintar(i0);parPintar(i1);parMarcador();
+if(PAR.aciertos===PAR.total){
+parTick();parParar();PAR.fin=true;PAR.ganadas++;
+var g=PAR.gen;
+setTimeout(function(){if(g===PAR.gen)parRender();},700);
+}
+}else{
+PAR.bloqueo=true;parMarcador();
+var g2=PAR.gen;
+setTimeout(function(){
+if(g2!==PAR.gen)return;
+a.vol=false;b.vol=false;PAR.abiertas=[];PAR.bloqueo=false;
+parPintar(i0);parPintar(i1);
+},950);
+}
+}
 /* ===== Eventos familiares =====
    Próximos cumpleaños, santos (solo de los vivos, ver SANTORAL más abajo) y
    aniversarios de fallecimiento de los familiares más cercanos a la persona
@@ -21495,7 +21829,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="ef-btn ghost" style="margin-top:8px" onclick="reforzarAccesosDriveUI()"><i class="fa-solid fa-rotate"></i> Reforzar accesos de Drive de todos</button>
 <p style="font-size:11px;color:var(--muted);margin:4px 0 0">Usa esto si alguien de la lista fue añadido antes de que esto se hiciera automático y no consigue conectarse ("cuenta no autorizada"): vuelve a compartir la carpeta de Drive con cada correo de la lista, sin borrar ni tocar su tipo o ficha vinculada.</p>
 <div id="vinculoSelectorPersona" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-<div id="vinculoSelectorTitulo" style="font-size:13px;font-weight:700;margin-bottom:8px">Elegir ficha</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><div id="vinculoSelectorTitulo" style="font-size:13px;font-weight:700">Elegir ficha</div><button type="button" class="ef-nbtn" aria-label="Cancelar la selección de ficha" title="Cancelar" onclick="cerrarSelectorVinculoUI()">×</button></div>
 <label for="buscarVinculoPersona" class="sr-only">Buscar persona por nombre o ID</label>
 <input id="buscarVinculoPersona" class="ef-input" placeholder="Nombre, apellido o ID..." oninput="filtrarVinculoPersona()" autocomplete="off">
 <div id="listaVinculoPersonas" style="overflow:auto;max-height:28vh;margin-top:8px"></div>
@@ -21778,13 +22112,13 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <h2 id="modalPosterFamTitulo" style="font-family:'Cinzel',serif;font-size:17px"><i class="fa-solid fa-people-roof" aria-hidden="true" style="color:var(--accent)"></i> Cuadro de familia</h2>
 <button class="ef-nbtn" aria-label="Cerrar" onclick="cerrarModalFamiliaPoster()">×</button>
 </div>
-<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">La persona de Informes y su pareja en la cabecera; debajo, cada hijo o hija con su pareja y sus propios hijos. Se muestra el cónyuge con más hijos en común; puedes elegir otro. Las fotos se muestran tal cual y las personas fuera de tu alcance aparecen como «Persona no visible».</p>
-<label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" for="famPConyuge">Pareja de la cabecera:</label>
-<select id="famPConyuge" onchange="famPRefrescarTitulo(false)" style="width:100%;margin-bottom:12px"></select>
+<p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">La persona de Informes en la cabecera; debajo, sus hijos con sus parejas y sus propios hijos. Con un solo cónyuge se muestra la pareja en la cabecera; con varios, un bloque por matrimonio (con su orden, año y lugar) y los hijos de cada uno. Los hijos con varios cónyuges también muestran todas sus uniones. Las fotos se muestran tal cual y las personas fuera de tu alcance aparecen como «Persona no visible».</p>
+<p style="font-size:12px;color:var(--muted);margin-bottom:6px">Cónyuges que se muestran:</p>
+<div id="famPConyuges" style="margin-bottom:12px;max-height:190px;overflow:auto"></div>
 <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px" for="famPTitulo">Título:</label>
 <input id="famPTitulo" type="text" oninput="famPTituloEditado=true" style="width:100%;margin-bottom:12px" maxlength="60">
 <label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:8px"><input type="checkbox" id="famPAnios" checked> Mostrar años de nacimiento y defunción</label>
-<label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:14px"><input type="checkbox" id="famPOtras"> Incluir también los hijos de otras uniones</label>
+<label style="font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:14px"><input type="checkbox" id="famPOtras"> Incluir también los hijos de otras uniones (sin cónyuge registrado o no marcado)</label>
 <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Color de fondo:</p>
 <div id="famPSwatches" role="group" aria-label="Color de fondo del poster" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px"></div>
 <p style="font-size:11px;color:var(--muted);margin-bottom:16px">Consejo: al imprimir, selecciona papel A3, orientación vertical y tamaño real (100%, sin "ajustar a la página").</p>
