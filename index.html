@@ -174,6 +174,11 @@ main.ges-split .ges-cat{max-width:none}
 .pbus-pill:disabled{opacity:.4;cursor:default}
 .en-sec-t{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
 .en-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px auto;width:100%;max-width:460px}
+.en-grid.en-g4{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.en-g4 .en-nombre{padding:6% 4%}
+.en-g4 .en-nom{font-size:9.5px;font-size:max(9px,12cqw);-webkit-line-clamp:5}
+.en-g4 .en-fecha{font-size:8px;font-size:max(7.5px,9.5cqw)}
+.en-g4 .en-cara{border-width:1.5px;border-radius:8px}
 .en-carta.en-ok .en-giro{cursor:default}
 .en-carta{container-type:inline-size;position:relative;aspect-ratio:4/5;perspective:700px;border-radius:10px;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;--en-c:var(--border)}
 .en-giro{position:absolute;inset:0;display:block;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);cursor:pointer;border-radius:10px;outline:none}
@@ -1248,7 +1253,7 @@ body.perfil-cronista .solo-cronista,body.perfil-admin .solo-cronista{display:fle
 <div class="pantalla-bus-pills" id="pantallaBusPills">
 <button type="button" class="pbus-pill" id="pbusPillCarrusel" onclick="seleccionarPantallaBusqueda('carrusel')" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Carrusel</button>
 <button type="button" class="pbus-pill" id="pbusPillEventos" onclick="seleccionarPantallaBusqueda('eventos')" aria-pressed="false"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> Eventos</button>
-<button type="button" class="pbus-pill" id="pbusPillRompe" onclick="seleccionarPantallaBusqueda('rompe')" aria-pressed="false"><i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> Rompecabezas</button>
+<button type="button" class="pbus-pill" id="pbusPillRompe" onclick="seleccionarPantallaBusqueda('rompe')" aria-pressed="false"><i class="fa-solid fa-gamepad" aria-hidden="true"></i> Juegos</button>
 <button type="button" class="pbus-pill" id="pbusPillLaminas" onclick="seleccionarPantallaBusqueda('laminas')" aria-pressed="false"><i class="fa-solid fa-sitemap" aria-hidden="true"></i> Láminas</button>
 </div>
 <div class="search-row">
@@ -1985,7 +1990,8 @@ var APP_VERSION = '2026.11.21.4';
 var APP_CHANGELOG = [
   { version:'2026.11.21.4', fecha:'2026-11-21', cambios:[
     'Perfiles: al conectar con Google la app vuelve a leer siempre la lista de usuarios de Drive. Antes, un dispositivo que ya tenía recordado el perfil anterior (por ejemplo Guardián) seguía con él aunque el Archivero lo hubiera cambiado a Cronista, y no mostraba los botones de editar. Ahora el cambio de perfil se aplica en cuanto la persona conecta.',
-    'Juego «Enlazar» rehecho al estilo de las Parejas: cartas mezcladas con el nombre a la vista, dos por turno, las parejas encontradas se quedan con marco de color y se puede pasar de página sin terminar la partida.'
+    'Buscar: la galleta «Rompecabezas» pasa a llamarse «Juegos» (dentro están el Rompecabezas y Enlazar).',
+    'Juego «Enlazar» rehecho al estilo de las Parejas: cartas mezcladas con el nombre a la vista, dos por turno, y las parejas encontradas se quedan a la vista con marco de color. Ya no hay que elegir cartas: la app arma sola grupos de 4×4 (8 personajes con sus 8 personas base), dando prioridad a los personajes cuya persona base es más cercana en la familia a quien juega. «Otro grupo» trae cartas que aún no han salido (sin repetir hasta haberlas visto todas) y el avance se guarda en el dispositivo para seguir en la siguiente sesión.'
   ]},
   { version:'2026.11.21.3', fecha:'2026-11-21', cambios:[
     'Fotos reconstruidas: nuevo campo opcional «Foto basada en…» (solo el Cronista y el Archivero pueden enlazarlo). En Editar foto, al marcar «Imagen reconstruida» aparece un buscador para elegir la persona (familiar, amigo o conocido) en la que se basó la imagen, con un botón para quitarla. En la ficha se lee «Basada en Nombre Apellido» con enlace a su ficha (o «Persona no visible» si tu perfil no puede ver a esa persona). Una misma persona puede ser la base de varios personajes. El dato se guarda con la ficha en Drive y en las copias, y queda en el registro de cambios; si la persona base se elimina o se fusiona, el vínculo se limpia o se reasigna solo.',
@@ -18828,7 +18834,7 @@ var MANUAL_CONTENIDO=[
 {titulo:'Bienvenido, Cronista',html:'<p>Esta guía es para ti, que colaboras en «El Libro de los Ancestros». Aquí encontrarás, paso a paso, todo lo que puedes hacer con tu perfil de <strong>Cronista</strong>: consultar el árbol, corregir y ampliar fichas, subir fotos y documentos, y ayudar a unificar apellidos y lugares.</p><p>Hay una idea que lo resume todo y que conviene tener presente desde el principio:</p><div class="manual-tip"><strong>Tú propones, el Archivero aprueba.</strong> Todo lo que cambies en los datos del árbol queda como una propuesta firmada con tu cuenta de Google. Entra en el árbol oficial —el que ve toda la familia— cuando el Archivero le da su conformidad y publica el árbol.</div><p>Si todavía no te has conectado nunca, empieza por la «Guía de primer acceso». Si ya tienes la abeja en verde, sigue leyendo.</p>'},
 {titulo:'Cómo funciona el árbol oficial y la aprobación de cambios',html:'<p>Para trabajar con tranquilidad conviene entender dónde viven los datos y por dónde pasa un cambio:</p><ul><li><strong>El árbol oficial</strong> es la versión de referencia de toda la familia. Está guardada en Google Drive y <strong>solo el Archivero puede publicarla</strong>. En la pantalla Inicio verás su fecha de «Última actualización».</li><li><strong>Tu copia de trabajo</strong> es la que tienes en tu dispositivo: la que ves y la que editas. Se rellena con «Restaurar árbol oficial» y cambia cuando guardas una ficha.</li><li><strong>El registro de cambios</strong> es la lista, también en Drive, de todas las propuestas de todos los Cronistas: quién cambió qué y cuándo, y si está pendiente, conforme o rechazada.</li></ul><p>Este es el recorrido de un cambio:</p><div class="guia-flujo"><div class="guia-paso"><span class="guia-paso-n">1</span><b>Tú editas y guardas</b><small>En tu dispositivo, con tu cuenta de Google</small></div><div class="guia-paso"><span class="guia-paso-n">2</span><b>Queda pendiente</b><small>Anotado en el registro de cambios, con tu nombre</small></div><div class="guia-paso"><span class="guia-paso-n">3</span><b>El Archivero revisa</b><small>Da su conformidad o lo rechaza</small></div><div class="guia-paso"><span class="guia-paso-n">4</span><b>Publica el árbol oficial</b><small>Los cambios conformes pasan a la versión de todos</small></div><div class="guia-paso"><span class="guia-paso-n">5</span><b>Todos se actualizan</b><small>Con «Restaurar árbol oficial»</small></div></div><p>Mientras una propuesta está pendiente, tú la ves en tu dispositivo pero el resto de la familia no. Cuando el Archivero la da por conforme, pasa a su copia y, al publicar el árbol oficial, llega a todos.</p><div class="manual-tip">Que un cambio «todavía no se vea» para los demás no significa que se haya perdido: está guardado en el registro de cambios, con tu nombre, hasta que el Archivero lo revise.</div><div class="manual-warn">Si al guardar aparece el aviso «No se pudo guardar el cambio en Drive», comprueba que la abeja esté en verde y vuelve a guardar. Si persiste, avisa al Archivero.</div>'},
 {titulo:'Antes de empezar cada sesión',html:'<p>Unos segundos al comenzar te evitan la mayoría de los problemas:</p><ul><li><strong>Comprueba la abeja.</strong> En verde («Conectada») todo está listo. Si está roja, púlsala para conectar. Sin conexión puedes consultar a las personas fallecidas, pero para ver a las vivas dentro de tu alcance y para guardar cambios la app necesita tu cuenta de Google.</li><li><strong>Mira la «Última actualización»</strong> que aparece en Inicio. Si el Archivero te avisa de que ha publicado novedades, pulsa el icono del árbol («Restaurar árbol oficial») para trabajar sobre lo último.</li><li><strong>Trae las fotos si las necesitas</strong> con el icono de las fotografías («Importar fotos»). Restaurar el árbol oficial trae solo los datos, nunca las fotos.</li></ul><div class="manual-warn">Restaurar el árbol oficial sustituye todos los datos de tu dispositivo. Si tienes propuestas pendientes, la app te lo avisa antes: tus propuestas no se borran (siguen en el registro de cambios), pero tu dispositivo dejará de mostrarlas hasta que el Archivero las apruebe y publique. Si no estás seguro, cancela.</div>'},
-{titulo:'Moverte por la aplicación',html:'<p>En la parte superior están las pantallas principales:</p><ul><li><strong>Inicio:</strong> el buscador por nombre y apellidos, con filtros avanzados (el icono del embudo). Debajo hay tres «galletas»: <em>Carrusel</em> (retratos de la familia), <em>Eventos</em> (próximos cumpleaños, santos y aniversarios de fallecimiento de los familiares más cercanos) y <em>Rompecabezas</em> (un rompecabezas con la foto de un familiar y, en la pestaña «Enlazar», un juego para unir cada personaje con la persona en la que se basa su imagen).</li><li><strong>Árbol:</strong> el árbol interactivo de la persona activa.</li><li><strong>Ficha:</strong> los datos completos de la persona.</li><li><strong>Informes:</strong> documentos para imprimir o guardar en PDF.</li><li><strong>Cambios:</strong> aparece cuando estás conectado; es el registro de cambios (también está en «Más»).</li></ul><p>La <strong>persona activa</strong> es aquella sobre la que trabajan el Árbol, la Ficha y los Informes. Puedes cambiarla sin salir de la pantalla con el botón de la barra «Viendo a».</p><p>La <strong>caja de herramientas</strong> de Inicio reúne la ayuda, la instalación de la app, Investigación, Familias, el Gestor de datos y la limpieza de caché.</p><div class="manual-tip">Verás «Persona no visible» en las personas vivas que quedan fuera de tu alcance. Es el límite de tu perfil funcionando como debe. Si crees que deberías verla, díselo al Archivero.</div>'},
+{titulo:'Moverte por la aplicación',html:'<p>En la parte superior están las pantallas principales:</p><ul><li><strong>Inicio:</strong> el buscador por nombre y apellidos, con filtros avanzados (el icono del embudo). Debajo hay tres «galletas»: <em>Carrusel</em> (retratos de la familia), <em>Eventos</em> (próximos cumpleaños, santos y aniversarios de fallecimiento de los familiares más cercanos) y <em>Juegos</em> (el rompecabezas con la foto de un familiar y, en la pestaña «Enlazar», un juego de parejas para unir cada personaje con la persona en la que se basa su imagen).</li><li><strong>Árbol:</strong> el árbol interactivo de la persona activa.</li><li><strong>Ficha:</strong> los datos completos de la persona.</li><li><strong>Informes:</strong> documentos para imprimir o guardar en PDF.</li><li><strong>Cambios:</strong> aparece cuando estás conectado; es el registro de cambios (también está en «Más»).</li></ul><p>La <strong>persona activa</strong> es aquella sobre la que trabajan el Árbol, la Ficha y los Informes. Puedes cambiarla sin salir de la pantalla con el botón de la barra «Viendo a».</p><p>La <strong>caja de herramientas</strong> de Inicio reúne la ayuda, la instalación de la app, Investigación, Familias, el Gestor de datos y la limpieza de caché.</p><div class="manual-tip">Verás «Persona no visible» en las personas vivas que quedan fuera de tu alcance. Es el límite de tu perfil funcionando como debe. Si crees que deberías verla, díselo al Archivero.</div>'},
 {titulo:'La ficha de una persona',html:'<p>La ficha se organiza en tres pestañas:</p><ul><li><strong>Datos:</strong> foto, datos personales (nombre, apellidos, sexo, nacimiento y defunción), etiquetas, el esquema del árbol en cajas y las observaciones.</li><li><strong>Familia:</strong> padre, madre, cónyuges, hermanos y descendientes.</li><li><strong>Familia extendida:</strong> abuelos, bisabuelos y tatarabuelos.</li></ul><p>En la parte superior de la ficha hay botones para abrir los <strong>Documentos</strong> de la persona (con la abeja en verde), su <strong>Cronología</strong>, su <strong>Parentesco</strong> con otra persona, <strong>Marcar para borrar</strong> y <strong>Eliminar</strong>. Para modificar la ficha, pulsa <strong>Editar</strong>.</p><div class="manual-tip">Los años y lugares que aparecen con el signo ≈ no son datos de la persona: son estimaciones automáticas calculadas a partir de sus familiares. Si conoces el dato real, escríbelo en su campo y la estimación desaparecerá.</div>'},
 {titulo:'Editar una ficha, paso a paso',html:'<p>Abre la ficha y pulsa <strong>Editar</strong>. Se convierte en un formulario con estos bloques:</p><ul><li><strong>Foto:</strong> «Subir foto», «Pegar del portapapeles» o «Quitar» (véase la sección de fotografías).</li><li><strong>Datos personales:</strong> apellidos, nombre, sexo, fecha de nacimiento y de defunción. La casilla «Fallecido» muestra u oculta los campos de defunción.</li><li><strong>Etiquetas:</strong> palabras libres para clasificar a la persona.</li><li><strong>Familia:</strong> enlaces a padre, madre y cónyuges, con sus botones para vincular, crear o desvincular.</li><li><strong>Descendientes:</strong> los hijos ya registrados y botones para añadir uno nuevo.</li><li><strong>Observaciones:</strong> un cuadro de texto libre para cualquier anotación.</li></ul><p>Al pulsar <strong>Guardar</strong>, la app exige tener tu cuenta de Google conectada; si no lo está, abre la ventana de conexión antes de completar el guardado. No existe un modo de edición anónimo.</p><p>Después de guardar, la ficha muestra durante un rato el aviso <strong>«Pendiente de revisión: se aplicará cuando el Archivero lo apruebe»</strong>. Es lo normal: tu cambio ya está anotado en el registro de cambios y espera su conformidad.</p><p>Salir de la ficha sin pulsar Guardar descarta todo lo que hayas cambiado en el formulario. Al guardar, la app aplica además dos ayudas: si cambias la fecha o el lugar de un matrimonio, lo refleja en la ficha del cónyuge; y si cambias el primer apellido, te ofrece propagarlo a los descendientes que lo llevan heredado.</p>'},
 {titulo:'Crear personas y vincular familia',html:'<p>Junto a los campos Padre, Madre y Cónyuges del formulario hay tres botones:</p><ul><li><strong>E (Editar):</strong> abre la ficha de la persona ya vinculada.</li><li><strong>Lupa (Elegir persona existente):</strong> abre un buscador para vincular a alguien que ya está en el árbol.</li><li><strong>N (Crear nuevo):</strong> crea una persona nueva y la vincula en ese campo.</li></ul><p>También hay un botón con un eslabón roto para quitar un vínculo equivocado: separa a las dos personas sin borrar ninguna ficha. Al vincular un cónyuge, la app comprueba que el enlace sea recíproco en ambas fichas.</p><p>Al crear una persona nueva o un descendiente, la app te pide elegir su ID y te muestra primero los huecos que hayan quedado en la numeración, con el más bajo destacado.</p><div class="manual-tip">Antes de crear a alguien, búscalo: es la mejor manera de evitar duplicados. Una persona nueva también queda como propuesta pendiente de conformidad.</div>'},
@@ -21599,20 +21605,21 @@ function entrarPantallaRompe(){
 if(JG.modo==='enlazar'){enEntrar();return;}
 if(PZL.vacio||!PZL.persona)pzlNueva();else pzlRender();
 }
-/* ===== Juego «Enlazar» (sustituye al de las Parejas) =====
-   Pestaña «Enlazar» dentro del panel «Rompecabezas» de Buscar. Funciona como las Parejas: las cartas
-   salen mezcladas al azar, con el NOMBRE a la vista (personajes y personas base juntos). Se toca una
-   carta y se da la vuelta (se ve la imagen), se toca otra y se da la vuelta: si son un personaje y la
-   persona en la que está basado, quedan a la vista con un marco de color hasta el final; si no, se
-   vuelven a girar. Cada personaje lleva su propia carta de persona base (una persona puede aparecer
-   varias veces si es base de varios personajes). Solo entran los personajes con foto reconstruida y
-   «Foto basada en…» cuya persona base también tiene foto. Antes se eligen las cartas (páginas de 12,
-   «Jugar con todas», «Al azar»); el tablero se reparte en páginas de 6 personajes y se puede pasar de
-   página sin terminar la partida (lo encontrado se conserva).
-   Privacidad: puedeVerPersona() para los dos lados y fuera los fallecidos en el último año.
-   El reloj solo cuenta mientras el panel está a la vista. */
-var EN_PAG=6,EN_ELEG_PAG=12,EN_COLORES=['#2f6fab','#a8552c','#5a8a3c','#7a3f6a','#b08a1e','#3a8c8c'];
-var EN={fase:'elegir',lista:[],sel:{},pagE:0,pags:[],pagJ:0,ok:{},abiertas:[],fallo:null,bloqueo:false,intentos:0,aciertos:0,total:0,ms:0,t:0,iniciada:false,fin:false,timer:null,ganadas:0,gen:0,msg:'',msgTipo:''};
+/* ===== Juego «Enlazar» (pestaña dentro de «Juegos» en Buscar) =====
+   Funciona como las Parejas: las cartas salen mezcladas con el NOMBRE a la vista (personajes y personas
+   base juntos). Se toca una carta y se da la vuelta (se ve la imagen), se toca otra y se da la vuelta: si
+   son un personaje y la persona en la que está basado, quedan a la vista con un marco de color hasta el
+   final del grupo; si no, se vuelven a girar. Cada personaje lleva su propia carta de persona base.
+   No hay pantalla de elección: la app arma sola grupos de hasta 8 personajes (4×4 cartas, pensado para
+   el móvil) con los que tienen foto reconstruida y «Foto basada en…» cuya persona base también tiene foto.
+   Se prioriza a los personajes cuya persona base está más cerca, en la familia, de quien juega (su ficha
+   vinculada o, si no la hay, la persona activa), y al azar entre los que están igual de cerca. «Otro
+   grupo» (también sin terminar el actual) trae los que aún no han salido: no se repite ninguno hasta
+   haberlos jugado todos. El avance (cartas ya vistas y grupo en curso) se guarda en este dispositivo y se
+   retoma en la siguiente sesión. Privacidad: puedeVerPersona() para los dos lados y fuera los
+   fallecidos en el último año. El reloj solo cuenta mientras el panel está a la vista. */
+var EN_GRUPO=8,EN_COLORES=['#2f6fab','#a8552c','#5a8a3c','#7a3f6a','#b08a1e','#3a8c8c','#c2477a','#6b6b2f'];
+var EN={lista:[],usados:{},grupo:null,ok:{},abiertas:[],fallo:null,bloqueo:false,intentos:0,aciertos:0,total:0,ms:0,t:0,iniciada:false,fin:false,timer:null,ganados:0,gen:0,msg:'',msgTipo:'',cargado:'',distDe:'',dist:null};
 function enVisible(){
 var c=document.getElementById('pantallaBusRompe'),v=document.getElementById('vBus');
 return !!(c&&v&&v.classList.contains('active')&&!c.classList.contains('hero-carousel-hidden')&&JG.modo==='enlazar'&&!document.hidden);
@@ -21646,7 +21653,6 @@ if(!b||!b.FOTO||String(b.ID)===String(p.ID))return;
 if(!enValida(p)||!enValida(b))return;
 out.push(p);
 });
-out.sort(function(a,b){return enNombre(a).localeCompare(enNombre(b),'es');});
 return out;
 }
 function enAnios(p){
@@ -21655,16 +21661,75 @@ if(y!==null)s=(getYearReal(p)===null?'h. ':'')+y;
 if(!isAl(p)){var d=parseInt(p.DEFA,10);if(!isNaN(d))s=(s?s+' – ':'– ')+d;}
 return s;
 }
+/* ----- progreso guardado en este dispositivo (una entrada por cuenta de Google) ----- */
+function enClave(){return 'libroAncestros_enlazar_v1_'+((googleIdentidad&&googleIdentidad.email)||'local');}
+function enLeerProgreso(){
+try{var r=localStorage.getItem(enClave());return r?(JSON.parse(r)||{}):{};}catch(e){return {};}
+}
+function enGuardarProgreso(){
+try{
+var o={usados:Object.keys(EN.usados),actual:null};
+if(EN.grupo&&!EN.fin)o.actual={ids:EN.grupo.ids,ok:Object.keys(EN.ok),ms:EN.ms};
+localStorage.setItem(enClave(),JSON.stringify(o));
+}catch(e){}
+}
+/* ----- cercanía familiar de la persona base respecto a quien juega ----- */
+function enDistancias(){
+var centro=String(miFichaId()||(typeof cid!=='undefined'&&cid)||'');
+if(EN.dist&&EN.distDe===centro)return EN.dist;
+EN.distDe=centro;EN.dist={};
+try{if(centro&&PI[centro]&&typeof personasCercanas==='function'){EN.dist=personasCercanas(centro,10);EN.dist[centro]=0;}}catch(e){EN.dist={};}
+return EN.dist;
+}
 function enEntrar(){
 EN.lista=enCalcLista();
 var ids={};EN.lista.forEach(function(p){ids[String(p.ID)]=1;});
-Object.keys(EN.sel).forEach(function(k){if(!ids[k])delete EN.sel[k];});
-var maxP=Math.max(0,Math.ceil(EN.lista.length/EN_ELEG_PAG)-1);
-if(EN.pagE>maxP)EN.pagE=maxP;
-if(EN.fase==='jugar'&&EN.pags.length){enRender();if(EN.iniciada&&!EN.fin)enArrancarReloj();return;}
-EN.fase='elegir';
+var clave=enClave();
+if(EN.cargado!==clave){
+EN.cargado=clave;EN.grupo=null;EN.dist=null;
+var pr=enLeerProgreso();
+EN.usados={};(pr.usados||[]).forEach(function(k){EN.usados[String(k)]=true;});
+if(pr.actual&&Array.isArray(pr.actual.ids)&&pr.actual.ids.length&&pr.actual.ids.every(function(k){return ids[String(k)];})){
+enArmarGrupo(pr.actual.ids.map(String));
+(pr.actual.ok||[]).forEach(function(k){if(ids[String(k)]&&EN.grupo.ids.indexOf(String(k))>=0)EN.ok[String(k)]=true;});
+EN.aciertos=Object.keys(EN.ok).length;EN.ms=pr.actual.ms||0;
+if(EN.aciertos>=EN.total){EN.fin=true;}
+}
+}
+if(!EN.grupo&&!enRestantes().length){enRender();return;}
+if(!EN.grupo)enSiguienteGrupo(false);
+else{enRender();if(EN.iniciada&&!EN.fin)enArrancarReloj();}
+}
+function enRestantes(){return EN.lista.filter(function(p){return !EN.usados[String(p.ID)];});}
+function enArmarGrupo(ids){
+enParar();EN.gen++;
+var cartas=[],cols=[];
+ids.forEach(function(ch){
+var p=PI[ch],b=String(p.FOTO_BASE);
+if(cols.indexOf(b)<0)cols.push(b);
+cartas.push({tipo:'c',id:ch,ch:ch});
+cartas.push({tipo:'b',id:b,ch:ch});
+});
+enBarajar(cartas);
+EN.grupo={ids:ids,cartas:cartas,cols:cols};
+EN.ok={};EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;EN.intentos=0;EN.aciertos=0;EN.total=ids.length;
+EN.ms=0;EN.iniciada=false;EN.fin=false;EN.msg='';EN.msgTipo='';
+}
+function enSiguienteGrupo(saltar){
+if(saltar&&EN.grupo&&!EN.fin){/* el grupo que se deja sin terminar ya cuenta como visto */}
+var rest=enRestantes();
+if(!rest.length){EN.grupo=null;enParar();enGuardarProgreso();enRender();return;}
+var dist=enDistancias();
+enBarajar(rest);
+function d(p){var v=dist[String(p.FOTO_BASE)];return v===undefined?999:v;}
+rest.sort(function(a,b){return d(a)-d(b);}); /* ordenación estable: el azar se conserva entre iguales */
+var ids=rest.slice(0,EN_GRUPO).map(function(p){return String(p.ID);});
+ids.forEach(function(k){EN.usados[k]=true;});
+enArmarGrupo(ids);
+enGuardarProgreso();
 enRender();
 }
+function enReiniciarCiclo(){EN.usados={};EN.grupo=null;enSiguienteGrupo(false);}
 function enParar(){if(EN.timer){clearInterval(EN.timer);EN.timer=null;}}
 function enArrancarReloj(){if(!EN.timer){EN.t=Date.now();EN.timer=setInterval(enTick,250);}}
 function enTick(){
@@ -21675,129 +21740,53 @@ var e=document.getElementById('enTiempo');
 if(e)e.textContent=pzlTiempoTxt(EN.ms);
 if(!vis&&EN.timer){clearInterval(EN.timer);EN.timer=null;}
 }
-function enIniciar(ids){
-enParar();EN.gen++;
-var chars=[];
-ids.forEach(function(id){if(PI[id])chars.push(PI[id]);});
-if(!chars.length)return;
-enBarajar(chars);
-EN.pags=[];
-for(var i=0;i<chars.length;i+=EN_PAG){
-var cs=chars.slice(i,i+EN_PAG),cartas=[],cols=[];
-cs.forEach(function(p){
-var ch=String(p.ID),b=String(p.FOTO_BASE);
-if(cols.indexOf(b)<0)cols.push(b);
-cartas.push({tipo:'c',id:ch,ch:ch});
-cartas.push({tipo:'b',id:b,ch:ch});
-});
-enBarajar(cartas);
-EN.pags.push({cartas:cartas,cols:cols});
-}
-EN.pagJ=0;EN.ok={};EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;EN.intentos=0;EN.aciertos=0;EN.total=chars.length;
-EN.ms=0;EN.iniciada=false;EN.fin=false;EN.msg='';EN.msgTipo='';EN.fase='jugar';
-enRender();
-}
-function enJugarElegidas(){var ids=Object.keys(EN.sel).filter(function(k){return EN.sel[k]&&PI[k];});if(ids.length)enIniciar(ids);}
-function enJugarTodas(){enIniciar(EN.lista.map(function(p){return String(p.ID);}));}
-function enJugarAzar(){
-var ids=enBarajar(EN.lista.map(function(p){return String(p.ID);})).slice(0,EN_PAG);
-EN.sel={};ids.forEach(function(k){EN.sel[k]=true;});
-enIniciar(ids);
-}
-function enVolverElegir(){enParar();EN.fase='elegir';EN.iniciada=false;enRender();}
-function enNueva(){
-var ids=[];EN.pags.forEach(function(pg){pg.cartas.forEach(function(c){if(c.tipo==='c')ids.push(c.id);});});
-enIniciar(ids);
-}
-function enPagElegir(d){
-var n=Math.max(1,Math.ceil(EN.lista.length/EN_ELEG_PAG)),v=EN.pagE+d;
-if(v<0||v>=n)return;
-EN.pagE=v;enRender();
-}
-function enAlternar(id){
-if(EN.sel[id])delete EN.sel[id];else EN.sel[id]=true;
-var el=document.getElementById('enE_'+id);
-if(el){el.classList.toggle('en-el-on',!!EN.sel[id]);el.setAttribute('aria-pressed',EN.sel[id]?'true':'false');}
-enActualizarCuenta();
-}
-function enMarcarPagina(on){
-var ini=EN.pagE*EN_ELEG_PAG;
-EN.lista.slice(ini,ini+EN_ELEG_PAG).forEach(function(p){var k=String(p.ID);if(on)EN.sel[k]=true;else delete EN.sel[k];});
-enRender();
-}
-function enNumSel(){return Object.keys(EN.sel).filter(function(k){return EN.sel[k];}).length;}
-function enActualizarCuenta(){
-var n=enNumSel(),a=document.getElementById('enCuentaSel'),b=document.getElementById('enBtnJugar');
-if(a)a.textContent=n+(n===1?' elegida':' elegidas');
-if(b){b.disabled=!n;b.innerHTML='<i class="fa-solid fa-play" aria-hidden="true"></i> Jugar con las elegidas ('+n+')';}
-}
-function enRenderElegir(){
-var cont=document.getElementById('rompeCont');
-var h=jgPestanas();
-if(!EN.lista.length){
-h+='<p style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0">Todavía no hay personajes con una persona base visible para tu perfil. En la ficha de un personaje: «Editar foto» → «Imagen reconstruida» → «Foto basada en…».</p>';
-cont.innerHTML=h;return;
-}
-var n=Math.max(1,Math.ceil(EN.lista.length/EN_ELEG_PAG)),ini=EN.pagE*EN_ELEG_PAG;
-h+='<p class="rp-ayuda">Elige con qué personajes jugar. Después tendrás que enlazar cada uno con la persona en la que está basada su imagen.</p>';
-h+='<div class="rp-bar"><div class="rp-niv"><button type="button" class="pbus-pill" onclick="enPagElegir(-1)"'+(EN.pagE<=0?' disabled':'')+' aria-label="Página anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span class="en-pag">Página '+(EN.pagE+1)+' de '+n+'</span><button type="button" class="pbus-pill" onclick="enPagElegir(1)"'+(EN.pagE>=n-1?' disabled':'')+' aria-label="Página siguiente"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div><span class="rp-cuenta" id="enCuentaSel"></span></div>';
-h+='<div class="en-grid">';
-EN.lista.slice(ini,ini+EN_ELEG_PAG).forEach(function(p){
-var k=String(p.ID),on=!!EN.sel[k];
-h+='<button type="button" class="en-el'+(on?' en-el-on':'')+'" id="enE_'+escAttr(k)+'" aria-pressed="'+(on?'true':'false')+'" onclick="enAlternar(\''+escAttr(safeId(k))+'\')"><span class="en-el-img"><img src="'+escAttr(p.FOTO)+'" alt="" loading="lazy"></span><span class="en-el-nom">'+esc(enNombre(p))+'</span><span class="en-el-chk" aria-hidden="true"><i class="fa-solid fa-check"></i></span></button>';
-});
-h+='</div>';
-h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="enMarcarPagina(true)">Marcar esta página</button><button type="button" class="ef-btn ghost" onclick="enMarcarPagina(false)">Quitar las de esta página</button></div>';
-h+='<div class="rp-acc"><button type="button" class="ef-btn" id="enBtnJugar" onclick="enJugarElegidas()"></button><button type="button" class="ef-btn ghost" onclick="enJugarTodas()"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Jugar con todas ('+EN.lista.length+')</button><button type="button" class="ef-btn ghost" onclick="enJugarAzar()"><i class="fa-solid fa-shuffle" aria-hidden="true"></i> Al azar</button></div>';
-cont.innerHTML=h;
-enActualizarCuenta();
-}
 function enEtiqueta(c){
 var p=PI[c.id];
 if(!p)return '';
-var vol=enVista(c);
-return (c.tipo==='c'?'Personaje: ':'Persona base: ')+enNombre(p)+(EN.ok[c.ch]?' (pareja encontrada)':'')+(vol?'. Se ve la imagen.':'. Se ve el nombre.');
+return (c.tipo==='c'?'Personaje: ':'Persona base: ')+enNombre(p)+(EN.ok[c.ch]?' (pareja encontrada)':'')+(enVista(c)?'. Se ve la imagen.':'. Se ve el nombre.');
 }
 function enVista(c){return !!(EN.ok[c.ch]||EN.abiertas.indexOf(c.tipo+c.ch)>=0);}
-function enCartaHTML(c,i,pg){
+function enCartaHTML(c,i,g){
 var p=PI[c.id];
 if(!p)return '';
 var vol=enVista(c),ok=!!EN.ok[c.ch],mal=!!(EN.fallo&&EN.fallo.indexOf(c.tipo+c.ch)>=0);
-var bId=String(PI[c.ch].FOTO_BASE),ci=pg.cols.indexOf(bId);
-var col=EN_COLORES[(ci<0?0:ci)%EN_COLORES.length];
+var ci=g.cols.indexOf(String(PI[c.ch].FOTO_BASE)),col=EN_COLORES[(ci<0?0:ci)%EN_COLORES.length];
 var cls='en-carta'+(vol?' en-vuelta':'')+(ok?' en-ok':'')+(mal?' en-mal':'');
 var h='<div class="'+cls+'" id="enC_'+i+'" style="--en-c:'+col+'">';
 h+='<div class="en-giro"'+(ok?'':' role="button" tabindex="0" onclick="enTocar('+i+')" onkeydown="enTecla(event,'+i+')"')+' aria-label="'+escAttr(enEtiqueta(c))+'">';
 h+='<span class="en-cara en-nombre"><span class="en-nom">'+esc(enNombre(p))+'</span><span class="en-fecha">'+esc(enAnios(p))+'</span></span>';
 h+='<span class="en-cara en-img"><img src="'+escAttr(p.FOTO)+'" alt="'+escAttr('Imagen de '+enNombre(p))+'"><span class="en-img-nom">'+esc(enNombre(p))+'</span></span>';
-h+='</div></div>';
-return h;
+return h+'</div></div>';
 }
 function enRender(){
 var cont=document.getElementById('rompeCont');
 if(!cont)return;
-if(EN.fase!=='jugar'||!EN.pags.length){enRenderElegir();return;}
-var pg=EN.pags[EN.pagJ],np=EN.pags.length;
 var h=jgPestanas();
-h+='<div class="rp-bar"><div class="rp-niv"><button type="button" class="pbus-pill" onclick="enPagJugar(-1)"'+(EN.pagJ<=0?' disabled':'')+' aria-label="Página anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span class="en-pag">Página '+(EN.pagJ+1)+' de '+np+'</span><button type="button" class="pbus-pill" onclick="enPagJugar(1)"'+(EN.pagJ>=np-1?' disabled':'')+' aria-label="Página siguiente"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div><span class="rp-cuenta">'+(EN.ganadas?EN.ganadas+(EN.ganadas===1?' partida ganada':' partidas ganadas'):'')+'</span></div>';
-if(!EN.fin)h+='<p class="rp-ayuda">Da la vuelta a dos cartas cada vez y encuentra cada personaje con la persona en la que se basa su imagen. Las parejas encontradas se quedan a la vista. Puedes pasar de página sin terminar la partida.</p>';
+if(!EN.lista.length){
+h+='<p style="text-align:center;color:var(--muted);font-size:13px;padding:14px 0">Todavía no hay personajes con una persona base visible para tu perfil. En la ficha de un personaje: «Editar foto» → «Imagen reconstruida» → «Foto basada en…» (lo puede hacer el Cronista o el Archivero).</p>';
+cont.innerHTML=h;return;
+}
+var vistos=EN.lista.length-enRestantes().length;
+if(!EN.grupo){
+h+='<div class="par-fin" role="status"><h3>¡Has jugado con todas las cartas!</h3><p>'+EN.lista.length+(EN.lista.length===1?' personaje visto':' personajes vistos')+'. Cuando se añadan más enlaces aparecerán aquí; mientras, puedes volver a empezar.</p></div>';
+h+='<div class="rp-acc"><button type="button" class="ef-btn" onclick="enReiniciarCiclo()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Empezar de nuevo</button></div>';
+cont.innerHTML=h;return;
+}
+var g=EN.grupo,quedan=enRestantes().length;
+h+='<div class="rp-bar"><span class="en-pag">Cartas vistas: '+vistos+' de '+EN.lista.length+'</span><span class="rp-cuenta">'+(EN.ganados?EN.ganados+(EN.ganados===1?' grupo completado':' grupos completados'):'')+'</span></div>';
+if(!EN.fin&&!EN.iniciada)h+='<p class="rp-ayuda" style="margin:4px 0">Da la vuelta a dos cartas: busca cada personaje y la persona en la que se basa.</p>';
 h+='<div class="par-marcador"><span>Tiempo: <b id="enTiempo">'+pzlTiempoTxt(EN.ms)+'</b></span><span>Movimientos: <b id="enIntentos">'+EN.intentos+'</b></span><span>Parejas: <b id="enAcier">'+EN.aciertos+'</b> de '+EN.total+'</span></div>';
 h+='<div class="en-msg'+(EN.msgTipo?' en-msg-'+EN.msgTipo:'')+'" id="enMsg" role="status" aria-live="polite">'+esc(EN.msg)+'</div>';
-h+='<div class="en-grid">';
-pg.cartas.forEach(function(c,i){h+=enCartaHTML(c,i,pg);});
+h+='<div class="en-grid en-g4">';
+g.cartas.forEach(function(c,i){h+=enCartaHTML(c,i,g);});
 h+='</div>';
-if(EN.fin){
-h+='<div class="par-fin" role="status"><h3>¡Enhorabuena!</h3><p>Has enlazado los '+EN.total+(EN.total===1?' personaje':' personajes')+' en '+pzlTiempoTxt(EN.ms)+' y '+EN.intentos+(EN.intentos===1?' movimiento':' movimientos')+'.</p></div>';
-}
-h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="enVolverElegir()"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Elegir otras cartas</button><button type="button" class="ef-btn'+(EN.fin?'':' ghost')+'" onclick="enNueva()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> '+(EN.fin?'Jugar otra vez':'Barajar de nuevo')+'</button></div>';
+if(EN.fin)h+='<div class="par-fin" role="status"><h3>¡Grupo completado!</h3><p>Has enlazado '+EN.total+(EN.total===1?' personaje':' personajes')+' en '+pzlTiempoTxt(EN.ms)+' y '+EN.intentos+(EN.intentos===1?' movimiento':' movimientos')+'.</p></div>';
+h+='<div class="rp-acc">';
+if(quedan)h+='<button type="button" class="ef-btn'+(EN.fin?'':' ghost')+'" onclick="enSiguienteGrupo(true)"><i class="fa-solid fa-forward" aria-hidden="true"></i> Otro grupo</button>';
+else if(EN.fin)h+='<button type="button" class="ef-btn" onclick="enReiniciarCiclo()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Empezar de nuevo</button>';
+h+='</div>';
 cont.innerHTML=h;
 if(EN.iniciada&&!EN.fin)enArrancarReloj();
-}
-function enPagJugar(d){
-var v=EN.pagJ+d;
-if(v<0||v>=EN.pags.length)return;
-EN.gen++;EN.pagJ=v;EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;EN.msg='';EN.msgTipo='';
-enRender();
 }
 function enTecla(ev,i){
 if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();enTocar(i);}
@@ -21806,7 +21795,7 @@ function enIniciarReloj(){
 if(!EN.iniciada){EN.iniciada=true;enArrancarReloj();}
 }
 function enPintar(i){
-var pg=EN.pags[EN.pagJ],c=pg&&pg.cartas[i],el=document.getElementById('enC_'+i);
+var c=EN.grupo&&EN.grupo.cartas[i],el=document.getElementById('enC_'+i);
 if(!c||!el)return;
 el.classList.toggle('en-vuelta',enVista(c));
 el.classList.toggle('en-ok',!!EN.ok[c.ch]);
@@ -21820,8 +21809,8 @@ var e=document.getElementById('enMsg');
 if(e){e.textContent=txt;e.className='en-msg'+(tipo?' en-msg-'+tipo:'');}
 }
 function enTocar(i){
-if(EN.bloqueo||EN.fin)return;
-var pg=EN.pags[EN.pagJ],c=pg&&pg.cartas[i];
+if(EN.bloqueo||EN.fin||!EN.grupo)return;
+var c=EN.grupo.cartas[i];
 if(!c||!PI[c.id]||enVista(c))return;
 enIniciarReloj();
 EN.abiertas.push(c.tipo+c.ch);
@@ -21829,8 +21818,8 @@ enPintar(i);
 if(EN.abiertas.length<2)return;
 EN.intentos++;
 var i0=-1,i1=i;
-pg.cartas.forEach(function(x,j){if(j!==i&&EN.abiertas.indexOf(x.tipo+x.ch)>=0)i0=j;});
-var a=pg.cartas[i0],b=c;
+EN.grupo.cartas.forEach(function(x,j){if(j!==i&&EN.abiertas.indexOf(x.tipo+x.ch)>=0)i0=j;});
+var a=EN.grupo.cartas[i0],b=c;
 var cc=a.tipo==='c'?a:(b.tipo==='c'?b:null),bb=a.tipo==='b'?a:(b.tipo==='b'?b:null);
 var e=document.getElementById('enIntentos');if(e)e.textContent=EN.intentos;
 if(cc&&bb&&String(PI[cc.id].FOTO_BASE)===String(bb.id)){
@@ -21838,7 +21827,8 @@ EN.ok[cc.ch]=true;EN.aciertos++;EN.abiertas=[];
 enMensaje('¡Enlazados! '+enNombre(PI[cc.id])+' está basada en '+enNombre(PI[bb.id])+'.','ok');
 enPintar(i0);enPintar(i1);
 var ea=document.getElementById('enAcier');if(ea)ea.textContent=EN.aciertos;
-if(EN.aciertos===EN.total){enTick();enParar();EN.fin=true;EN.ganadas++;var g=EN.gen;setTimeout(function(){if(g===EN.gen)enRender();},700);}
+if(EN.aciertos===EN.total){enTick();enParar();EN.fin=true;EN.ganados++;enGuardarProgreso();var g=EN.gen;setTimeout(function(){if(g===EN.gen)enRender();},700);}
+else enGuardarProgreso();
 }else{
 EN.bloqueo=true;EN.fallo=[a.tipo+a.ch,b.tipo+b.ch];
 enPintar(i0);enPintar(i1);
