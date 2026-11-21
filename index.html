@@ -666,8 +666,12 @@ html[data-tema="relieve"] main.ges-split #gesPanel,html[data-tema="relieve"] mai
 @media print{.user-chip{display:none!important}}
 @media(max-width:640px){.hero{padding:24px 12px 16px}.cmd-grid{gap:8px}.cmd-card{padding:9px 14px;min-width:100px}.cmd-num{font-size:20px}.hero h1{font-size:24px}.search-box{margin:10px 0}.fa{width:84px;height:84px;font-size:26px}.ta{width:26px;height:26px;font-size:8px}.tnm{font-size:8px;max-width:50px}.tcen .ta{width:34px;height:34px;font-size:13px}.tcen .tnm{font-size:10px;max-width:85px}.tg{gap:3px}.tn{padding:2px 3px;min-width:38px}.hero-btns .btn{font-size:12px;padding:10px 16px}nav button{padding:8px}#mn .mh{display:none}#mn>button[data-view="inf"],#mn>button[data-view="cam"]{display:none!important}.nav-more-wrap{display:inline-flex!important}}
 /* ===== ÁRBOL GENEALÓGICO ===== */
-.tc{overflow-x:auto;overflow-y:auto;padding:20px 10px}
-.tr{display:flex;flex-direction:column;align-items:center;min-width:max-content}
+#vArb.active{display:flex;flex-direction:column;height:calc(100vh - 102px);height:calc(100dvh - 102px);margin:0;overflow:hidden;box-sizing:border-box}
+body.en-vista-arbol{overflow:hidden!important}
+body.en-vista-arbol main{padding-top:4px!important;padding-bottom:6px!important}
+.tc{flex:1 1 auto;position:relative;overflow:hidden;width:100%;height:auto;min-height:0;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;background:radial-gradient(ellipse at 50% 40%,rgba(196,101,58,.04) 0%,transparent 70%);border:1px solid var(--border);border-radius:0 0 14px 14px;box-shadow:inset 0 0 20px rgba(0,0,0,.03)}
+.tc.grabbing{cursor:grabbing}
+.tr{position:absolute;top:0;left:0;display:inline-block;min-width:auto;transform-origin:0 0;will-change:transform}
 .tree-level{display:flex;justify-content:center;align-items:stretch;gap:6px;flex-wrap:nowrap;padding:0 10px}
 .tree-couples-row{display:flex;justify-content:center;gap:28px;flex-wrap:nowrap;align-items:stretch;padding:0 10px}
 .tree-box{width:125px;height:58px;border:1.5px solid #cdc5b6;border-radius:6px;padding:5px 6px;text-align:center;cursor:pointer;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.05);font-family:'Lato',sans-serif;background:#f6f3ed;display:flex;flex-direction:column;justify-content:center;align-items:center;box-sizing:border-box;overflow:hidden;flex-shrink:0}
@@ -701,29 +705,51 @@ html[data-tema="relieve"] main.ges-split #gesPanel,html[data-tema="relieve"] mai
 .tree-gchild.alive{color:var(--alive);border-color:rgba(44,95,138,.3);background:rgba(44,95,138,.05)}
 .tree-back{position:fixed;top:68px;left:20px;z-index:50}
 /* ===== ÁRBOL GENEALÓGICO HORIZONTAL (Pedigree) ===== */
-.pedigree-container{display:flex;gap:50px;padding:30px 20px;position:relative;min-width:max-content;align-items:stretch;min-height:600px}
-.pedigree-col{display:flex;flex-direction:column;justify-content:space-around;min-width:170px;position:relative;z-index:1}
+.pedigree-container{display:flex;gap:46px;padding:30px 20px;position:relative;min-width:max-content;align-items:stretch;min-height:560px}
+.pedigree-col{display:flex;flex-direction:column;justify-content:space-around;min-width:175px;position:relative;z-index:1}
 .pedigree-col.central-column{justify-content:center;gap:12px}
 .pedigree-col.children-column{justify-content:center;gap:10px}
-.tree-heading{text-align:center;padding:18px 120px 4px}.tree-heading h1{font-size:clamp(19px,3vw,28px);color:var(--text);margin:0}.tree-heading p{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}.tree-tools{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}.tree-tool{font-family:'Lato',sans-serif;font-size:11px;font-weight:700;padding:5px 9px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}.tree-tool:hover{border-color:var(--accent);color:var(--accent)}.tree-legend{font-size:10px;color:var(--muted);margin-left:5px}.tree-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px 0 8px}.tree-legend .male-dot{background:var(--blue)}.tree-legend .female-dot{background:#b85c7a}.tree-legend .alive-dot{background:var(--alive)}
-.pedigree-card{background:#fff;border:1.5px solid #d8d0c0;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;z-index:2;min-height:80px;display:flex;align-items:center;gap:8px}
+.tree-heading{flex:0 0 auto;text-align:center;padding:16px 16px 10px;background:var(--card);border:1px solid var(--border);border-bottom:none;border-radius:14px 14px 0 0;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,.03);overflow:visible;box-sizing:border-box}
+.tree-heading h1{font-size:clamp(17px,2.4vw,23px);color:var(--text);margin:0 0 3px 0;line-height:1.35;padding-top:2px;overflow:visible}
+.tree-heading p{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);font-weight:700;margin:2px 0 0;line-height:1.2}
+.tree-tools{display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tree-tool{font-family:'Lato',sans-serif;font-size:11px;font-weight:700;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer;transition:all .15s}
+.tree-tool:hover{border-color:var(--accent);color:var(--accent)}
+.tree-tool.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tree-legend{font-size:10px;color:var(--muted);margin-left:5px}
+.tree-legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin:0 3px 0 8px}
+.tree-legend .male-dot{background:var(--blue)}
+.tree-legend .female-dot{background:#b85c7a}
+.tree-legend .alive-dot{background:var(--alive)}
+.pedigree-card{background:#fff;border:1.5px solid #d8d0c0;border-radius:10px;padding:8px 10px;cursor:pointer;transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;z-index:2;min-height:76px;display:flex;align-items:center;gap:8px}
 .pedigree-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1);border-color:var(--accent)}
-.pedigree-card.root{border:2px solid var(--accent);background:linear-gradient(135deg,rgba(196,101,58,.06),rgba(90,138,60,.04))}
-.pedigree-card.spouse{border-style:dashed;background:#f1ede5;border-color:#c8c0b0}
-.pedigree-card.male{border-left:4px solid var(--blue)}
-.pedigree-card.female{border-left:4px solid #b85c7a}
+.pedigree-card.root{border:2px solid var(--accent);background:linear-gradient(135deg,rgba(196,101,58,.08),rgba(90,138,60,.05))}
+.pedigree-card.spouse{border-style:dashed;background:#f6f2ea;border-color:#c8c0b0}
+.pedigree-card.male{border-left:4.5px solid var(--blue)}
+.pedigree-card.female{border-left:4.5px solid #b85c7a}
 .pedigree-card.alive{background:#eef3f9;border-color:#c2d2e2}
 .pedigree-card.alive.male{border-left-color:var(--blue)}
 .pedigree-card.alive.female{border-left-color:#b85c7a}
 .pedigree-card.placeholder{opacity:.25;cursor:default;border-style:dashed;background:transparent;box-shadow:none}
-.pc-photo{width:52px;height:52px;object-fit:contain;background:#f5f2ec;border-radius:5px;flex-shrink:0}
+.pc-photo{width:50px;height:50px;object-fit:cover;background:#f5f2ec;border-radius:6px;flex-shrink:0}
+.pc-photo-empty{display:flex;align-items:center;justify-content:center;background:#f5f0e8;color:var(--muted);font-size:18px}
 .pc-text{min-width:0;flex:1}
 .pc-name{font-weight:700;font-size:12px;color:var(--text);line-height:1.3;word-break:break-word}
-.pc-year{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600}
+.pc-year{font-size:10px;color:var(--muted);margin-top:3px;font-weight:600}
 .pc-place{font-size:9px;color:var(--muted);margin-top:1px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pc-open{position:absolute;right:6px;bottom:6px;width:22px;height:22px;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--muted);font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}.pc-open:hover{color:var(--accent);border-color:var(--accent)}
-#pedigree-svg line{stroke:#c8c0b0;stroke-width:1.5;stroke-linecap:round}
-@media(max-width:640px){.pedigree-container{gap:30px;padding:20px 10px}.pedigree-col{min-width:130px}.pedigree-card{padding:7px 8px;min-height:62px}.pc-photo{width:42px;height:42px}.pc-name{font-size:11px}.pc-year{font-size:9px}}
+.pc-open{position:absolute;right:6px;bottom:6px;width:24px;height:24px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--muted);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}.pc-open:hover{color:var(--accent);border-color:var(--accent)}
+#pedigree-svg line,#pedigree-svg path{stroke:#c8c0b0;stroke-width:1.8;stroke-linecap:round}
+.tree-fab-bar{position:absolute;right:14px;bottom:14px;display:flex;flex-direction:column;gap:8px;z-index:25}
+.tree-fab{width:38px;height:38px;border-radius:50%;background:var(--card);border:1.5px solid var(--border);color:var(--text);box-shadow:0 3px 10px rgba(0,0,0,.15);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+.tree-fab:hover{border-color:var(--accent);color:var(--accent);transform:scale(1.08)}
+.fan-chart-svg{display:block;margin:0 auto;filter:drop-shadow(0 4px 14px rgba(0,0,0,.06))}
+.fan-sector-g{transition:transform .12s}
+.fan-sector{transition:fill-opacity .15s,stroke-width .15s}
+.fan-sector-g:hover .fan-sector{fill-opacity:.35;stroke-width:2.2px}
+.fan-text-name{font-family:'Lato',sans-serif;font-weight:700;fill:var(--text);pointer-events:none}
+.fan-text-year{font-family:'Lato',sans-serif;fill:var(--muted);pointer-events:none}
+.fan-card-popover{position:absolute;z-index:30;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:270px;animation:qsPop .15s ease-out}
+@media(max-width:768px){#vArb.active{height:calc(100vh - 96px);height:calc(100dvh - 96px);margin:0;box-sizing:border-box}.tree-heading{padding:12px 10px 8px;border-radius:10px 10px 0 0}.tree-heading h1{font-size:16px;margin:0 0 2px 0;line-height:1.3;padding-top:2px}.tree-heading p{font-size:10px}.tree-tools{gap:4px;margin-top:5px}.tree-tool{padding:4px 7px;font-size:10px}.tc{border-radius:0 0 10px 10px}.pedigree-container{gap:28px;padding:16px 8px}.pedigree-col{min-width:130px}.pedigree-card{padding:6px 8px;min-height:60px}.pc-photo{width:40px;height:40px}.pc-name{font-size:11px}.pc-year{font-size:9px}}
 /* ===== ESTADÍSTICAS ===== */
 .est-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:12px}
 .est-bar-label{width:150px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:var(--text)}
@@ -1259,7 +1285,7 @@ body.perfil-cronista .solo-cronista,body.perfil-admin .solo-cronista{display:fle
 <input type="file" id="fiFotos" webkitdirectory multiple accept="image/*" style="display:none">
 <datalist id="dlEtiquetasGlobal"></datalist>
 </div>
-<div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc"><div class="tr" id="tco"></div></div></div>
+<div class="view" id="vArb"><div class="tree-heading" id="treeHeading"></div><div class="tc" id="arbViewport"><div class="tr" id="tco"></div><div class="tree-fab-bar" id="treeFabBar"><button type="button" class="tree-fab" onclick="zoomArbolDelta(0.18)" title="Acercar" aria-label="Acercar"><i class="fa-solid fa-plus"></i></button><button type="button" class="tree-fab" onclick="zoomArbolDelta(-0.18)" title="Alejar" aria-label="Alejar"><i class="fa-solid fa-minus"></i></button><button type="button" class="tree-fab" onclick="centrarArbolAnimado()" title="Centrar" aria-label="Centrar"><i class="fa-solid fa-crosshairs"></i></button></div></div></div>
 <div class="view" id="vFic"><div class="ficha" id="fco"></div></div>
 <div class="view" id="vInf">
 <div class="hero">
@@ -1495,7 +1521,7 @@ body.perfil-cronista .solo-cronista,body.perfil-admin .solo-cronista{display:fle
 </main>
 <div class="print-area" id="printArea"></div>
 <script>
-var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editSec={},fotoPendiente=undefined,treeDepth=4,treeZoom=1;
+var DB='Genealogia',ST='personas',BK='copias',CFG='configuracion',db=null,D=[],PI={},HD={},cid=null,editSec={},fotoPendiente=undefined,treeDepth=4,treeZoom=1,treePanX=0,treePanY=0,treeViewMode='pedigree',__treeJustDragged=false;
 /* Se pone a true en cuanto la base de datos LOCAL (IndexedDB, sin internet)
    termina de cargarse en memoria al abrir la app. Mientras es false, doSrch()
    no debe decir "Sin resultados" -- todavía no hay nada cargado con lo que
@@ -7436,7 +7462,7 @@ leerFiltrosBusqueda();
 doSrch(document.getElementById('si').value);
 }
 function esc(s) {if (!s) return '';return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, ' ');}
-function svInternal(v,dir){if(esLector()&&(v==='inf'||v==='cam'||v==='inv'||v==='ges'))v='bus';__splitSalir();['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
+function svInternal(v,dir){if(esLector()&&(v==='inf'||v==='cam'||v==='inv'||v==='ges'))v='bus';__splitSalir();if(v==='arb'){document.body.classList.add('en-vista-arbol');window.scrollTo(0,0);if(document.documentElement)document.documentElement.scrollTop=0;if(document.body)document.body.scrollTop=0;}else{document.body.classList.remove('en-vista-arbol');}['bus','arb','fic','inf','inv','cam','cro','rel','ges','doc'].forEach(function(id){var el=document.getElementById('v'+id.charAt(0).toUpperCase()+id.slice(1));el.classList.remove('active','dir-fwd','dir-back');});var elActivo=document.getElementById('v'+v.charAt(0).toUpperCase()+v.slice(1));elActivo.classList.add('active',dir==='back'?'dir-back':'dir-fwd');var bs=document.querySelectorAll('#mn button');bs.forEach(function(b){var esActivo=b.getAttribute('data-view')===v;b.classList.toggle('active',esActivo);if(esActivo)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});var btnMas=document.getElementById('navMoreBtn');if(btnMas){var enMas=(v==='inf'||v==='cam');btnMas.classList.toggle('active',enMas);if(enMas)btnMas.setAttribute('aria-current','page');else btnMas.removeAttribute('aria-current');}if(typeof actualizarNavMasMenu==='function')actualizarNavMasMenu();if(v==='arb'&&cid)rTree(cid);if(v==='fic'&&cid)rFic(cid);if(v==='inf')initInformes();if(v==='inv')initInvestigacion();if(v==='cam')initCambios();if(v==='cro')initCronologia();if(v==='rel')initRelacion();if(v==='ges')rGes();if(v==='doc')initDocExplorer();actualizarBarraActiva();}
 /* ===== Integración con el botón "Atrás" del navegador (historial de las 10 pantallas principales) =====
    Cada cambio de pantalla real (vista distinta a la actual) crea una entrada en el historial del
    navegador mediante history.pushState. Al pulsar "Atrás", el navegador dispara 'popstate' y en vez
@@ -9803,7 +9829,7 @@ default:selP(id);/* 'bus', 'arb' y cualquier pantalla futura no contemplada aqu�
 document.addEventListener('keydown',function(e){
 if(e.key==='Escape'&&busquedaRapidaEstaAbierta())cerrarBusquedaRapida();
 });
-function selP(id){if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;sv('arb');rTree(id);}
+function selP(id){if(__treeJustDragged)return;if(!puedeVerPersona(id)){toast('No tienes acceso a esa ficha',true);return;}cid=id;sv('arb');rTree(id);}
 /* Ir a la ficha de una persona quedándose en la propia pantalla de ficha
    (a diferencia de selP, que lleva al Árbol). Se usa para los enlaces a
    Padre/Madre/Cónyuge/Abuelos/Hermanos/Hijos dentro de la ficha, y también
@@ -15749,28 +15775,21 @@ var scale=treeZoom||1;
 function px(value){return value/scale;}
 function x(rect,side){return px(rect[side]-containerRect.left);}
 function y(rect){return px(rect.top+rect.height/2-containerRect.top);}
-var lines=[];
+var paths=[];
+function bezierCurve(x1,y1,x2,y2,strokeCol){
+var mid=x1+(x2-x1)*0.5;
+return '<path d="M '+x1.toFixed(1)+' '+y1.toFixed(1)+' C '+mid.toFixed(1)+' '+y1.toFixed(1)+', '+mid.toFixed(1)+' '+y2.toFixed(1)+', '+x2.toFixed(1)+' '+y2.toFixed(1)+'" fill="none" stroke="'+(strokeCol||'var(--border)')+'" stroke-width="2" stroke-linecap="round"/>';
+}
 var childCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.children-column .pedigree-card:not(.placeholder):not(.spouse)'));
 var rootCard=document.querySelector('.pedigree-card.root');
-var spouseCards=Array.prototype.slice.call(document.querySelectorAll('.pedigree-col.central-column .pedigree-card.spouse'));
 if(childCards.length&&rootCard){
-var childRects=childCards.map(function(card){return card.getBoundingClientRect();});
 var rootRect=rootCard.getBoundingClientRect();
-var parentCards=[rootCard].concat(spouseCards);
-var parentRects=parentCards.map(function(card){return card.getBoundingClientRect();});
-var familyX=x(rootRect,'left')-18;
-var rightMost=Math.max.apply(null,childRects.map(function(r){return x(r,'right');}));
-var trunkX=Math.min(familyX-12,rightMost+18);
-var childYs=childRects.map(y);
-var parentYs=parentRects.map(y);
-var branchY=(Math.min.apply(null,childYs)+Math.max.apply(null,childYs))/2;
-var parentY=(Math.min.apply(null,parentYs)+Math.max.apply(null,parentYs))/2;
-childRects.forEach(function(r){var cy=y(r);lines.push(`<line x1="${x(r,'right')}" y1="${cy}" x2="${trunkX}" y2="${cy}"/>`);});
-if(childYs.length>1)lines.push(`<line x1="${trunkX}" y1="${Math.min.apply(null,childYs)}" x2="${trunkX}" y2="${Math.max.apply(null,childYs)}"/>`);
-lines.push(`<line x1="${trunkX}" y1="${branchY}" x2="${familyX}" y2="${branchY}"/>`);
-if(branchY!==parentY)lines.push(`<line x1="${familyX}" y1="${branchY}" x2="${familyX}" y2="${parentY}"/>`);
-if(parentYs.length>1)lines.push(`<line x1="${familyX}" y1="${Math.min.apply(null,parentYs)}" x2="${familyX}" y2="${Math.max.apply(null,parentYs)}"/>`);
-parentRects.forEach(function(r){var py=y(r);lines.push(`<line x1="${familyX}" y1="${py}" x2="${x(r,'left')}" y2="${py}"/>`);});
+var rootX=x(rootRect,'left');
+var rootY=y(rootRect);
+childCards.forEach(function(card){
+var cRect=card.getBoundingClientRect();
+paths.push(bezierCurve(x(cRect,'right'),y(cRect),rootX,rootY,'var(--border)'));
+});
 }
 document.querySelectorAll(".pedigree-card[data-father], .pedigree-card[data-mother]").forEach(function(card){
 if(childCards.indexOf(card)!==-1)return;
@@ -15781,47 +15800,353 @@ var fatherId=card.getAttribute("data-father");
 var motherId=card.getAttribute("data-mother");
 var fatherCard=fatherId?document.querySelector(`.pedigree-card[data-id="${fatherId}"]`):null;
 var motherCard=motherId?document.querySelector(`.pedigree-card[data-id="${motherId}"]`):null;
-if(!fatherCard&&!motherCard)return;
-var endX;
-if(fatherCard){endX=x(fatherCard.getBoundingClientRect(),'left');}
-else{endX=x(motherCard.getBoundingClientRect(),'left');}
-var midX=startX+(endX-startX)/2;
-lines.push(`<line x1="${startX}" y1="${startY}" x2="${midX}" y2="${startY}"/>`);
-if(fatherCard&&motherCard){
+if(fatherCard){
 var fRect=fatherCard.getBoundingClientRect();
+paths.push(bezierCurve(startX,startY,x(fRect,'left'),y(fRect),'var(--border)'));
+}
+if(motherCard){
 var mRect=motherCard.getBoundingClientRect();
-var fY=y(fRect);
-var mY=y(mRect);
-lines.push(`<line x1="${midX}" y1="${fY}" x2="${midX}" y2="${mY}"/>`);
-lines.push(`<line x1="${midX}" y1="${fY}" x2="${endX}" y2="${fY}"/>`);
-lines.push(`<line x1="${midX}" y1="${mY}" x2="${endX}" y2="${mY}"/>`);
-}else if(fatherCard){
-var fRect=fatherCard.getBoundingClientRect();
-var fY=y(fRect);
-lines.push(`<line x1="${midX}" y1="${startY}" x2="${midX}" y2="${fY}"/>`);
-lines.push(`<line x1="${midX}" y1="${fY}" x2="${endX}" y2="${fY}"/>`);
-}else if(motherCard){
-var mRect=motherCard.getBoundingClientRect();
-var mY=y(mRect);
-lines.push(`<line x1="${midX}" y1="${startY}" x2="${midX}" y2="${mY}"/>`);
-lines.push(`<line x1="${midX}" y1="${mY}" x2="${endX}" y2="${mY}"/>`);
+paths.push(bezierCurve(startX,startY,x(mRect,'left'),y(mRect),'var(--border)'));
 }
 });
 var width=container.scrollWidth, height=container.scrollHeight;
-svg.innerHTML=lines.join("");
+svg.innerHTML=paths.join("");
 svg.style.width=width+'px';
 svg.style.height=height+'px';
 svg.setAttribute("width",width);
 svg.setAttribute("height",height);
 svg.setAttribute("viewBox","0 0 "+width+" "+height);
 }
-function cambiarZoom(delta){
-treeZoom=Math.max(0.6,Math.min(1.4,Math.round((treeZoom+delta)*10)/10));
+
+function aplicarTransformArbol(smooth){
+var tr=document.getElementById('tco');
+if(!tr)return;
+if(smooth){
+tr.style.transition='transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)';
+setTimeout(function(){if(tr)tr.style.transition='';},240);
+}else{
+tr.style.transition='';
+}
+tr.style.transform='translate3d('+Math.round(treePanX)+'px,'+Math.round(treePanY)+'px,0) scale('+treeZoom+')';
+var zInd=document.getElementById('treeZoomIndicator');
+if(zInd)zInd.textContent=Math.round(treeZoom*100)+'%';
+}
+
+function zoomArbolDelta(delta){
+var viewport=document.getElementById('arbViewport')||document.querySelector('.tc');
+var sW=viewport?viewport.clientWidth:window.innerWidth;
+var sH=viewport?viewport.clientHeight:500;
+var cx=sW/2,cy=sH/2;
+var newZoom=Math.max(0.35,Math.min(2.2,Math.round((treeZoom+delta)*100)/100));
+if(newZoom===treeZoom)return;
+treePanX=cx-(cx-treePanX)*(newZoom/treeZoom);
+treePanY=cy-(cy-treePanY)*(newZoom/treeZoom);
+treeZoom=newZoom;
+aplicarTransformArbol(true);
+}
+function resetearZoomArbol(){
+centerTreeOnRoot(true);
+}
+function centrarArbolAnimado(){
+centerTreeOnRoot(true);
+}
+function alternarGeneracionesArbol(){
+treeDepth=treeDepth===4?2:(treeDepth===2?3:4);
 if(cid)rTree(cid);
 }
-function restablecerZoom(){treeZoom=1;if(cid)rTree(cid);}
-function alternarGeneraciones(){treeDepth=treeDepth===4?2:4;if(cid)rTree(cid);}
+function cambiarZoom(delta){zoomArbolDelta(delta);}
+function restablecerZoom(){resetearZoomArbol();}
+function alternarGeneraciones(){alternarGeneracionesArbol();}
+
+function setTreeMode(mode){
+if(treeViewMode===mode)return;
+treeViewMode=mode;
+if(cid)rTree(cid);
+}
+
+var __treeEventsInited=false;
+function initTreeInteractions(){
+if(__treeEventsInited)return;
+var viewport=document.getElementById('arbViewport')||document.querySelector('.tc');
+if(!viewport)return;
+__treeEventsInited=true;
+
+var isDragging=false;
+var startX=0,startY=0;
+var startPanX=0,startPanY=0;
+var touchDist0=0,touchZoom0=1;
+var touchMidX=0,touchMidY=0;
+
+viewport.addEventListener('mousedown',function(e){
+if(e.button!==0)return;
+if(e.target.closest('button')||e.target.closest('.pc-open'))return;
+isDragging=true;
+startX=e.clientX;
+startY=e.clientY;
+startPanX=treePanX;
+startPanY=treePanY;
+viewport.classList.add('grabbing');
+});
+
+window.addEventListener('mousemove',function(e){
+if(!isDragging)return;
+var dx=e.clientX-startX;
+var dy=e.clientY-startY;
+if(Math.abs(dx)>5||Math.abs(dy)>5){
+__treeJustDragged=true;
+}
+treePanX=startPanX+dx;
+treePanY=startPanY+dy;
+aplicarTransformArbol(false);
+});
+
+window.addEventListener('mouseup',function(e){
+if(!isDragging)return;
+isDragging=false;
+viewport.classList.remove('grabbing');
+if(__treeJustDragged){
+setTimeout(function(){__treeJustDragged=false;},120);
+}
+});
+
+viewport.addEventListener('wheel',function(e){
+e.preventDefault();
+var rect=viewport.getBoundingClientRect();
+var mx=e.clientX-rect.left;
+var my=e.clientY-rect.top;
+var factor=e.deltaY<0?1.14:0.86;
+var newZoom=Math.max(0.35,Math.min(2.2,Math.round(treeZoom*factor*100)/100));
+if(newZoom===treeZoom)return;
+treePanX=mx-(mx-treePanX)*(newZoom/treeZoom);
+treePanY=my-(my-treePanY)*(newZoom/treeZoom);
+treeZoom=newZoom;
+aplicarTransformArbol(false);
+},{passive:false});
+
+viewport.addEventListener('touchstart',function(e){
+if(e.touches.length===1){
+if(e.target.closest('button')||e.target.closest('.pc-open'))return;
+isDragging=true;
+startX=e.touches[0].clientX;
+startY=e.touches[0].clientY;
+startPanX=treePanX;
+startPanY=treePanY;
+}else if(e.touches.length===2){
+isDragging=false;
+var t1=e.touches[0],t2=e.touches[1];
+touchDist0=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
+touchZoom0=treeZoom;
+var rect=viewport.getBoundingClientRect();
+touchMidX=((t1.clientX+t2.clientX)/2)-rect.left;
+touchMidY=((t1.clientY+t2.clientY)/2)-rect.top;
+}
+},{passive:true});
+
+viewport.addEventListener('touchmove',function(e){
+if(e.touches.length===1&&isDragging){
+var dx=e.touches[0].clientX-startX;
+var dy=e.touches[0].clientY-startY;
+if(Math.abs(dx)>5||Math.abs(dy)>5){
+__treeJustDragged=true;
+}
+treePanX=startPanX+dx;
+treePanY=startPanY+dy;
+aplicarTransformArbol(false);
+}else if(e.touches.length===2&&touchDist0>0){
+__treeJustDragged=true;
+var t1=e.touches[0],t2=e.touches[1];
+var dist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
+var factor=dist/touchDist0;
+var newZoom=Math.max(0.35,Math.min(2.2,Math.round(touchZoom0*factor*100)/100));
+treePanX=touchMidX-(touchMidX-startPanX)*(newZoom/touchZoom0);
+treePanY=touchMidY-(touchMidY-startPanY)*(newZoom/touchZoom0);
+treeZoom=newZoom;
+aplicarTransformArbol(false);
+}
+},{passive:true});
+
+viewport.addEventListener('touchend',function(e){
+if(e.touches.length===0){
+isDragging=false;
+touchDist0=0;
+if(__treeJustDragged){
+setTimeout(function(){__treeJustDragged=false;},120);
+}
+}
+},{passive:true});
+
+window.addEventListener('keydown',function(e){
+if(__vistaActual!=='arb')return;
+var tag=(e.target&&e.target.tagName)?e.target.tagName.toUpperCase():'';
+if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+if(typeof busquedaRapidaEstaAbierta==='function'&&busquedaRapidaEstaAbierta())return;
+var step=80;
+if(e.key==='ArrowLeft'){
+treePanX+=step;
+aplicarTransformArbol(true);
+e.preventDefault();
+}else if(e.key==='ArrowRight'){
+treePanX-=step;
+aplicarTransformArbol(true);
+e.preventDefault();
+}else if(e.key==='ArrowUp'){
+treePanY+=step;
+aplicarTransformArbol(true);
+e.preventDefault();
+}else if(e.key==='ArrowDown'){
+treePanY-=step;
+aplicarTransformArbol(true);
+e.preventDefault();
+}else if(e.key==='+'||e.key==='='){
+zoomArbolDelta(0.18);
+e.preventDefault();
+}else if(e.key==='-'||e.key==='_'){
+zoomArbolDelta(-0.18);
+e.preventDefault();
+}else if(e.key==='0'){
+centrarArbolAnimado();
+e.preventDefault();
+}
+});
+
+window.addEventListener('resize',function(){
+if(__vistaActual==='arb'&&cid)centerTreeOnRoot(false);
+});
+}
+
+function fanClickPersona(id,ev){
+if(ev)ev.stopPropagation();
+var p=PI[id];
+if(!p||!puedeVerPersona(id))return;
+var ex=document.getElementById('fanPopover');
+if(ex)ex.remove();
+var pop=document.createElement('div');
+pop.id='fanPopover';
+pop.className='fan-card-popover';
+var y=pdAnioTexto(p);
+var dy=(!isAl(p)&&p.DEFA)?String(p.DEFA):'';
+var dates=y?(dy?(y+' \u2013 '+dy):y):(dy?('? \u2013 '+dy):'');
+var photoHtml=p.FOTO?'<img class="pc-photo" style="width:46px;height:46px;border-radius:6px;object-fit:cover" src="'+escAttr(p.FOTO)+'" loading="lazy" decoding="async">':'<div class="pc-photo pc-photo-empty" style="width:46px;height:46px;border-radius:6px"><i class="fa-solid '+(p.SEXO==='Mujer'||p.SEXO==='F'?'fa-person-dress':'fa-person')+'"></i></div>';
+pop.innerHTML='<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">'+photoHtml+'<div style="min-width:0;flex:1"><div style="font-weight:700;font-size:13px;line-height:1.2;color:var(--text);word-break:break-word">'+esc(fn(p))+'</div>'+(dates?'<div style="font-size:11px;color:var(--muted);margin-top:2px">'+esc(dates)+'</div>':'')+(p.LUGARNAC?'<div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:1px"><i class="fa-solid fa-location-dot" style="font-size:8px;margin-right:2px;opacity:.7"></i>'+esc(p.LUGARNAC)+'</div>':'')+'</div><button type="button" class="ef-nbtn" style="align-self:flex-start;font-size:14px" onclick="document.getElementById(\'fanPopover\').remove()">\u00d7</button></div><div style="display:flex;gap:6px;margin-top:10px"><button type="button" class="tree-tool" style="flex:1;padding:6px 8px;font-size:11px" onclick="document.getElementById(\'fanPopover\').remove();selP(\''+safeId(id)+'\')"><i class="fa-solid fa-sitemap"></i> Ver \u00e1rbol</button><button type="button" class="tree-tool" style="flex:1;padding:6px 8px;font-size:11px" onclick="document.getElementById(\'fanPopover\').remove();abrirFichaDesdeArbol(\''+safeId(id)+'\')"><i class="fa-solid fa-id-card"></i> Ver ficha</button></div>';
+var viewport=document.getElementById('arbViewport')||document.querySelector('.tc');
+if(viewport){
+viewport.appendChild(pop);
+pop.style.left='14px';
+pop.style.top='14px';
+}
+}
+
+function renderFanChart(id){
+var p=PI[id];
+if(!p)return'';
+var ancestors=[[id]];
+for(var g=0;g<4;g++){
+var next=[];
+ancestors[g].forEach(function(pid){
+var anc=pid?PI[pid]:null;
+if(anc){
+next.push(anc.PADRE||null);
+next.push(anc.MADRE||null);
+}else{
+next.push(null,null);
+}
+});
+ancestors.push(next);
+}
+var W=960,H=560;
+var CX=W/2,CY=H-40;
+var svg=[];
+svg.push('<svg id="fanChartSvg" class="fan-chart-svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">');
+var radii=[
+{in:0,out:75},
+{in:80,out:165},
+{in:170,out:260},
+{in:265,out:365},
+{in:370,out:480}
+];
+function getBranchColors(gen,idx){
+if(gen===0)return{fill:'rgba(196,101,58,0.18)',stroke:'var(--accent)',text:'var(--text)'};
+if(gen===1){
+return idx===0?{fill:'rgba(44,95,138,0.16)',stroke:'#2C5F8A',text:'var(--text)'}:{fill:'rgba(184,92,122,0.16)',stroke:'#B85C7A',text:'var(--text)'};
+}
+var count=1<<gen;
+var q=Math.floor(idx/(count/4));
+if(q===0)return{fill:'rgba(44,95,138,0.14)',stroke:'#2C5F8A',text:'var(--text)'};
+if(q===1)return{fill:'rgba(180,130,40,0.14)',stroke:'#B8860B',text:'var(--text)'};
+if(q===2)return{fill:'rgba(90,138,60,0.14)',stroke:'#5A8A3C',text:'var(--text)'};
+return{fill:'rgba(184,92,122,0.14)',stroke:'#B85C7A',text:'var(--text)'};
+}
+
+var p0=PI[id];
+var col0=getBranchColors(0,0);
+var name0=esc(fn(p0));
+var y0=pdAnioTexto(p0);
+svg.push('<g class="fan-sector-g" onclick="fanClickPersona(\''+safeId(id)+'\', event)" style="cursor:pointer">');
+svg.push('<path d="M '+(CX-radii[0].out)+' '+CY+' A '+radii[0].out+' '+radii[0].out+' 0 0 1 '+(CX+radii[0].out)+' '+CY+' Z" fill="'+col0.fill+'" stroke="'+col0.stroke+'" stroke-width="2" class="fan-sector"/>');
+svg.push('<text x="'+CX+'" y="'+(CY-30)+'" text-anchor="middle" class="fan-text-name" style="font-size:13px;font-weight:700;">'+name0+'</text>');
+if(y0)svg.push('<text x="'+CX+'" y="'+(CY-14)+'" text-anchor="middle" class="fan-text-year">'+esc(y0)+'</text>');
+svg.push('</g>');
+
+for(var g=1;g<5;g++){
+var slots=1<<g;
+var dTheta=Math.PI/slots;
+var rIn=radii[g].in;
+var rOut=radii[g].out;
+for(var i=0;i<slots;i++){
+var pid=ancestors[g][i];
+var ancP=pid?PI[pid]:null;
+var isVisible=ancP?puedeVerPersona(ancP.ID):false;
+var thetaStart=Math.PI-(i*dTheta);
+var thetaEnd=Math.PI-((i+1)*dTheta);
+var cosS=Math.cos(thetaStart),sinS=Math.sin(thetaStart);
+var cosE=Math.cos(thetaEnd),sinE=Math.sin(thetaEnd);
+var x1=CX+rIn*cosS,y1=CY-rIn*sinS;
+var x2=CX+rOut*cosS,y2=CY-rOut*sinS;
+var x3=CX+rOut*cosE,y3=CY-rOut*sinE;
+var x4=CX+rIn*cosE,y4=CY-rIn*sinE;
+var col=getBranchColors(g,i);
+var fill=ancP?(isVisible?col.fill:'rgba(0,0,0,0.04)'):'transparent';
+var stroke=ancP?(isVisible?col.stroke:'#D0C8BC'):'rgba(180,170,150,0.3)';
+var strokeDash=ancP?'':'stroke-dasharray="3,3"';
+var cursor=ancP&&isVisible?'cursor:pointer;':'cursor:default;';
+var pathD='M '+x1.toFixed(1)+' '+y1.toFixed(1)+' L '+x2.toFixed(1)+' '+y2.toFixed(1)+' A '+rOut+' '+rOut+' 0 0 1 '+x3.toFixed(1)+' '+y3.toFixed(1)+' L '+x4.toFixed(1)+' '+y4.toFixed(1)+' A '+rIn+' '+rIn+' 0 0 0 '+x1.toFixed(1)+' '+y1.toFixed(1)+' Z';
+var clickAttr=(ancP&&isVisible)?'onclick="fanClickPersona(\''+safeId(ancP.ID)+'\', event)"':'';
+svg.push('<g class="fan-sector-g" '+clickAttr+' style="'+cursor+'">');
+svg.push('<path d="'+pathD+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.2" '+strokeDash+' class="fan-sector"/>');
+
+if(ancP&&isVisible){
+var thetaMid=(thetaStart+thetaEnd)/2;
+var rMid=(rIn+rOut)/2;
+var tx=CX+rMid*Math.cos(thetaMid);
+var ty=CY-rMid*Math.sin(thetaMid);
+var personName=(ancP.NOMBRE||'')+' '+(ancP.APELLIDO1||'');
+personName=personName.trim()||'?';
+var personYear=pdAnioTexto(ancP)||'';
+if(g===1||g===2){
+svg.push('<text x="'+tx.toFixed(1)+'" y="'+(ty-3).toFixed(1)+'" text-anchor="middle" class="fan-text-name" style="font-size:11px;">'+esc(personName)+'</text>');
+if(personYear)svg.push('<text x="'+tx.toFixed(1)+'" y="'+(ty+10).toFixed(1)+'" text-anchor="middle" class="fan-text-year">'+esc(personYear)+'</text>');
+}else{
+var rot=(thetaMid>Math.PI/2)?(180-thetaMid*180/Math.PI):(-thetaMid*180/Math.PI);
+svg.push('<g transform="translate('+tx.toFixed(1)+','+ty.toFixed(1)+') rotate('+rot.toFixed(1)+')">');
+var fontSize=g===3?'9.5px':'8px';
+var shortName=personName.length>15?personName.slice(0,14)+'\u2026':personName;
+svg.push('<text x="0" y="-1" text-anchor="middle" class="fan-text-name" style="font-size:'+fontSize+';">'+esc(shortName)+'</text>');
+if(personYear&&g===3)svg.push('<text x="0" y="9" text-anchor="middle" class="fan-text-year" style="font-size:8px;">'+esc(personYear)+'</text>');
+svg.push('</g>');
+}
+}
+svg.push('</g>');
+}
+}
+svg.push('</svg>');
+return svg.join('\n');
+}
+
 function rTree(id){
+document.body.classList.add('en-vista-arbol');
+window.scrollTo(0,0);
+if(document.documentElement)document.documentElement.scrollTop=0;
+if(document.body)document.body.scrollTop=0;
 var p=PI[id];
 if(!p){
 for(var key in PI){if(String(key)===String(id)){p=PI[key];break;}}
@@ -15837,10 +16162,6 @@ function defYear(pp){return(!isAl(pp)&&pp.DEFA)?String(pp.DEFA):"";}
 function makeCard(pp,extraClass,sinLineaFamilia){
 if(!pp){return `<div class="pedigree-card placeholder"><div class="pc-name">?</div></div>`;}
 if(!puedeVerPersona(pp.ID)){
-/* Persona fuera del alcance de quien mira (viva y ajena a su rama): se
-   muestra una tarjeta neutra, sin nombre, foto, años ni lugar, y sin
-   enlace a su ficha -- para que el árbol de una persona visible no filtre
-   en su interior a familiares vivos que no le corresponde ver. */
 return `<div class="pedigree-card ${extraClass||""}" data-id="${esc(pp.ID)}" style="opacity:.6"><div class="pc-text"><div class="pc-name" style="font-style:italic;color:var(--muted)">Persona no visible</div></div></div>`;
 }
 var y=year(pp),dy=defYear(pp);
@@ -15856,10 +16177,26 @@ if(!sinLineaFamilia){
 if(pp.PADRE&&PI[pp.PADRE])attrs+=` data-father="${esc(pp.PADRE)}"`;
 if(pp.MADRE&&PI[pp.MADRE])attrs+=` data-mother="${esc(pp.MADRE)}"`;
 }
-var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}">`:"";
-return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year${yearEstimado?" anocalc-tag":""}" ${yearEstimado?'title="Año estimado automáticamente (ANOCALC), no es un dato real"':''}>${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}">${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
+var photo=pp.FOTO?`<img class="pc-photo" src="${escAttr(pp.FOTO)}" alt="Foto de ${escAttr(fullName(pp))}" loading="lazy" decoding="async">`:`<div class="pc-photo pc-photo-empty"><i class="fa-solid ${sexClass==='female'?'fa-person-dress':'fa-person'}"></i></div>`;
+return `<div class="pedigree-card ${extraClass||""} ${sexClass} ${aliveClass}" ${attrs} onclick="selP('${safeId(pp.ID)}')">${photo}<div class="pc-text"><div class="pc-name">${fullName(pp)}</div>${yearsTxt?`<div class="pc-year${yearEstimado?" anocalc-tag":""}" ${yearEstimado?'title="Año estimado automáticamente (ANOCALC), no es un dato real"':''}>${esc(yearsTxt)}</div>`:""}${placeTxt?`<div class="pc-place" title="${escAttr(placeTxt)}"><i class="fa-solid fa-location-dot" style="font-size:8px;margin-right:2px;opacity:.7"></i>${esc(placeTxt)}</div>`:""}</div><button type="button" class="pc-open" title="Abrir ficha" aria-label="Abrir ficha de ${escAttr(fullName(pp))}" onclick="event.stopPropagation();abrirFichaDesdeArbol('${safeId(pp.ID)}')"><i class="fa-solid fa-id-card"></i></button></div>`;
 }
-document.getElementById("treeHeading").innerHTML=`<h1>${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-gen-info" style="font-size:11px;color:var(--muted);margin-top:2px">${esc(etiquetaGeneracionesArbol(id))}</div><div class="tree-tools"><button class="tree-tool" onclick="cambiarZoom(-0.1)" title="Alejar">−</button><button class="tree-tool" onclick="restablecerZoom()">Zoom ${Math.round(treeZoom*100)}%</button><button class="tree-tool" onclick="cambiarZoom(0.1)" title="Acercar">+</button><button class="tree-tool" onclick="centerTreeOnRoot()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><button class="tree-tool" onclick="alternarGeneraciones()">${treeDepth===4?'Ver 2 generaciones':'Ver 4 generaciones'}</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
+
+var headingHtml=`<h1 onclick="irFicha()" style="cursor:pointer" title="Ver ficha de ${escAttr(fullName(p))}">${fullName(p)}</h1><p>Árbol genealógico</p><div class="tree-gen-info" style="font-size:11px;color:var(--muted);margin-top:2px">${esc(etiquetaGeneracionesArbol(id))}</div><div class="tree-tools"><button type="button" class="tree-tool ${treeViewMode==='pedigree'?'active':''}" onclick="setTreeMode('pedigree')"><i class="fa-solid fa-sitemap"></i> Árbol</button><button type="button" class="tree-tool ${treeViewMode==='fan'?'active':''}" onclick="setTreeMode('fan')"><i class="fa-solid fa-certificate"></i> Abanico</button>${treeViewMode==='pedigree'?`<button type="button" class="tree-tool" onclick="alternarGeneracionesArbol()">${treeDepth===4?'4 generaciones':treeDepth===3?'3 generaciones':'2 generaciones'}</button>`:''}<button type="button" class="tree-tool" onclick="zoomArbolDelta(-0.18)" title="Alejar"><i class="fa-solid fa-minus"></i></button><button type="button" class="tree-tool" onclick="resetearZoomArbol()" id="treeZoomIndicator" title="Restablecer zoom">${Math.round(treeZoom*100)}%</button><button type="button" class="tree-tool" onclick="zoomArbolDelta(0.18)" title="Acercar"><i class="fa-solid fa-plus"></i></button><button type="button" class="tree-tool" onclick="centrarArbolAnimado()"><i class="fa-solid fa-crosshairs"></i> Centrar</button><span class="tree-legend"><i class="male-dot"></i>Hombre <i class="female-dot"></i>Mujer <i class="alive-dot"></i>Vivo</span></div>`;
+document.getElementById("treeHeading").innerHTML=headingHtml;
+
+if(treeViewMode==='fan'){
+var h=`<div class="tree-back"><button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border);font-family:Lato,sans-serif;font-size:12px;padding:6px 14px;border-radius:10px;cursor:pointer" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</button></div>`;
+h+=`<div style="padding:10px;display:flex;justify-content:center;align-items:center;min-width:960px;">`;
+h+=renderFanChart(id);
+h+=`</div>`;
+document.getElementById("tco").innerHTML=h;
+cid=id;
+actualizarBarraActiva();
+initTreeInteractions();
+setTimeout(function(){centerTreeOnRoot(false);},30);
+return;
+}
+
 var ancestors=[[id]];
 for(var gen=0;gen<treeDepth;gen++){
 var nextGen=[];
@@ -15871,7 +16208,7 @@ else{nextGen.push(null,null);}
 ancestors.push(nextGen);
 }
 var h=`<div class="tree-back"><button class="btn" style="background:var(--card);color:var(--text);border:2px solid var(--border);font-family:Lato,sans-serif;font-size:12px;padding:6px 14px;border-radius:10px;cursor:pointer" onclick="navHistBackSafe()"><i class="fa-solid fa-arrow-left"></i> Volver</button></div>`;
-h+=`<div class="pedigree-container" id="pedigree-container" style="zoom:${treeZoom}">`;
+h+=`<div class="pedigree-container" id="pedigree-container">`;
 h+=`<svg id="pedigree-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></svg>`;
 var hijos=ordenarIdsPorEdad(HD[id]||[]);
 h+=`<div class="pedigree-col children-column" data-gen="-1" style="border-right:2px dashed var(--border);padding-right:14px">`;
@@ -15911,16 +16248,38 @@ h+=`</div>`;
 document.getElementById("tco").innerHTML=h;
 cid=id;
 actualizarBarraActiva();
-setTimeout(function(){drawPedigreeLines();centerTreeOnRoot();},50);
+initTreeInteractions();
+setTimeout(function(){drawPedigreeLines();centerTreeOnRoot(false);},40);
 }
-function centerTreeOnRoot(){
-var scroller=document.querySelector('.tc');
+
+function centerTreeOnRoot(smooth){
+var viewport=document.getElementById('arbViewport')||document.querySelector('.tc');
+if(!viewport)return;
+var sW=viewport.clientWidth||window.innerWidth;
+var sH=viewport.clientHeight||500;
+if(treeViewMode==='fan'){
+var fW=960,fH=560;
+if(sW<600){
+treeZoom=Math.max(0.42,Math.min(0.9,(sW-24)/fW));
+}else{
+treeZoom=Math.max(0.65,Math.min(1.05,(sW-40)/fW));
+}
+treePanX=(sW-fW*treeZoom)/2;
+treePanY=Math.max(15,(sH-fH*treeZoom)/2);
+}else{
 var rootCard=document.querySelector('.pedigree-card.root');
-if(!scroller||!rootCard)return;
-var sRect=scroller.getBoundingClientRect();
-var cRect=rootCard.getBoundingClientRect();
-var offset=(cRect.left-sRect.left)-(sRect.width/2)+(cRect.width/2)+scroller.scrollLeft;
-scroller.scrollLeft=Math.max(0,offset);
+if(!rootCard)return;
+if(sW<600){
+treeZoom=0.8;
+}else{
+treeZoom=1;
+}
+var cardX=rootCard.offsetLeft+rootCard.offsetWidth/2;
+var cardY=rootCard.offsetTop+rootCard.offsetHeight/2;
+treePanX=(sW/2)-(cardX*treeZoom);
+treePanY=(sH/2)-(cardY*treeZoom);
+}
+aplicarTransformArbol(smooth);
 }
 var infId=null;
 function initInformes(){
