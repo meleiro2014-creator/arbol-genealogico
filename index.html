@@ -1112,6 +1112,8 @@ body.perfil-lector [onclick*="gemAbrirFotoDrive("],
 body.perfil-lector #docExplorerDropZone{display:none!important}
 .solo-lector{display:none!important}
 body.perfil-lector .solo-lector,body.perfil-admin .solo-lector{display:flex!important}
+.solo-cronista{display:none!important}
+body.perfil-cronista .solo-cronista,body.perfil-admin .solo-cronista{display:flex!important}
 
 </style>
 <base target="_blank">
@@ -1939,8 +1941,15 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.20.2';
+var APP_VERSION = '2026.11.21.2';
 var APP_CHANGELOG = [
+  { version:'2026.11.21.2', fecha:'2026-11-21', cambios:[
+    'Eventos familiares: ahora cada persona ve también su propio santo y su propio cumpleaños (antes la ficha vinculada a tu cuenta quedaba fuera de su propia lista, por eso no salía el santo de San Francisco Javier el 3 de diciembre).',
+    'Santoral: nueva tabla de excepciones por persona (SANTORAL_PERSONAS). Isabel Valpuesta Romero celebra su santo el 5 de noviembre (Santa Isabel, prima de la Virgen); el resto de las Isabel conservan la fecha de siempre.'
+  ]},
+  { version:'2026.11.21.1', fecha:'2026-11-21', cambios:[
+    'Nueva «Guía especial del Cronista» (Herramientas → Ayuda, solo Cronista y Archivero), con el mismo estilo que las demás guías. Complementa la Guía de uso: explica cómo marcar una ficha como revisada, comparar fichas con «Fichas A | B», unir duplicados, trabajar en el Gestor de datos según el visado, revisar aportaciones, añadir o retocar la firma de una persona fallecida, y cuándo avisar al Archivero.'
+  ]},
   { version:'2026.11.20.2', fecha:'2026-11-20', cambios:[
     'Ficha → Quitar cónyuge: ahora también se borran la fecha y el lugar de matrimonio de ese hueco en las dos personas, para que no queden datos sueltos que reaparezcan al vincular a otro cónyuge en la misma posición (igual que ya hacían la fusión de fichas y la unión de duplicados). Si la ficha estaba abierta en edición, el formulario también se vacía, para que esos datos no se vuelvan a guardar al pulsar Guardar.',
     'Usuarios: el selector «Elegir ficha» tiene ahora un botón × para cancelar sin cerrar todo el panel, y al vincular una ficha a un usuario se retira el vínculo a cualquier otro usuario que la tuviera (antes solo al primero que se encontraba).'
@@ -3176,6 +3185,8 @@ var lec=esLector();
 if(document.body&&document.body.classList.contains('perfil-lector')!==lec)document.body.classList.toggle('perfil-lector',lec);
 var adm=esAdministrador();
 if(document.body&&document.body.classList.contains('perfil-admin')!==adm)document.body.classList.toggle('perfil-admin',adm);
+var cro=esColaborador();
+if(document.body&&document.body.classList.contains('perfil-cronista')!==cro)document.body.classList.toggle('perfil-cronista',cro);
 if(lec){
 var activa=document.querySelector('.view.active');
 if(activa&&(activa.id==='vInf'||activa.id==='vCam'||activa.id==='vInv'||activa.id==='vGes')&&typeof sv==='function')sv('bus');
@@ -18613,6 +18624,47 @@ function mostrarGuiaLectorParaImprimir(){
   },80);
 }
 
+/* ===== GUÍA ESPECIAL DEL CRONISTA (complemento de la Guía de uso) =====
+   Tareas propias del perfil Cronista: revisar fichas, compararlas, unir duplicados,
+   depurar apellidos y lugares, revisar aportaciones y firmas. Mismo constructor. */
+var GUIA_CRONISTA_CONTENIDO=[
+{titulo:'Para qué sirve esta guía',html:'<p>La «Guía de uso del Cronista» te explica lo básico: conectar, editar una ficha, subir fotos y seguir tus propuestas. Esta guía es el <strong>complemento</strong>: reúne las herramientas que solo tienen el Cronista y el Archivero y que sirven para <strong>cuidar la calidad del árbol</strong>.</p><ul><li>Marcar una ficha como revisada.</li><li>Comparar dos fichas a la vez.</li><li>Unir duplicados.</li><li>Unificar apellidos y lugares en el Gestor de datos.</li><li>Revisar las aportaciones de la familia.</li><li>Añadir o retocar la firma de una persona fallecida.</li></ul><div class="manual-tip">Recuerda la regla de oro: <strong>tú propones, el Archivero aprueba</strong>. Todo cambio queda firmado con tu cuenta de Google y pendiente de su conformidad.</div>'},
+{titulo:'Tu alcance y lo que es solo del Archivero',html:'<p><strong>Lo que ves.</strong> Las personas fallecidas, todas. Las personas vivas, solo las del árbol principal y las de las ramas vinculadas por ti. Fuera de ese alcance una persona viva aparece como «Persona no visible».</p><p><strong>Lo que puedes hacer</strong> con las herramientas de esta guía: revisar y comparar fichas, unir duplicados, marcar fichas para borrar, usar el Gestor de datos en los apartados que el Archivero te haya dado, revisar aportaciones y poner la firma de una persona fallecida.</p><p><strong>Lo que solo hace el Archivero:</strong></p><ul><li>Publicar el árbol oficial y dar la conformidad a tus cambios.</li><li>Fusionar, borrar o recalcular desde el Gestor de datos (tú lo ves en solo lectura).</li><li>Eliminar de verdad las fichas marcadas para borrar.</li><li>Crear la carpeta APORTACIONES y pulsar «Dar acceso a todos».</li><li>Quitar la firma de una persona.</li><li>Decidir a qué apartados del Gestor de datos tienes acceso (el «Visado»).</li></ul>'},
+{titulo:'Marcar una ficha como revisada',html:'<p>Cuando hayas comprobado una ficha con sus fuentes, puedes dejarlo señalado para que nadie repita el trabajo.</p><ol><li>Abre la ficha y ve a la pestaña <strong>Datos</strong>.</li><li>Al final de «Datos personales» marca el visto <strong>«Ficha revisada»</strong>.</li><li>Para quitarlo, vuelve a pulsarlo.</li></ol><p>El cambio se guarda al momento y queda registrado como cualquier otro cambio tuyo. Los demás perfiles solo ven la marca cuando la ficha está revisada; no pueden ponerla ni quitarla.</p><div class="manual-tip">Marca una ficha como revisada solo cuando hayas anotado en Observaciones de dónde sale cada dato (parroquia, libro, folio y fecha).</div>'},
+{titulo:'Comparar dos fichas: «Fichas A | B»',html:'<p>Para decidir si dos fichas son la misma persona, lo mejor es verlas juntas. Hay tres maneras de abrir la vista <strong>A | B</strong>:</p><ul><li><strong>Desde cualquier ficha:</strong> pulsa «Abrir otra ficha», elige a la otra persona y se abren las dos.</li><li><strong>Desde el Gestor de datos</strong> (Posibles duplicados): cada pareja tiene su botón «Fichas A | B».</li><li><strong>Desde el registro de cambios:</strong> los cambios que afectan a dos personas (fusiones, uniones, vínculos familiares) llevan también ese botón.</li></ul><p>Cada ficha funciona como una ficha normal: puedes editarla y moverte por sus padres, cónyuges e hijos, con el botón Atrás para volver. En pantallas estrechas se ve una ficha cada vez, con las pestañas A y B. El botón «Intercambiar» cambia el orden.</p><div class="manual-tip">Los botones que cambian de pantalla (Documentos, Cronología, Parentesco, Revisar en el Gestor) preguntan antes de cerrar las fichas A | B, para que no pierdas el trabajo.</div>'},
+{titulo:'Unir duplicados paso a paso',html:'<p>Una persona repetida se une en una sola ficha: la <strong>receptora</strong> (la que se conserva) recibe lo de la <strong>donante</strong> (la que sobra).</p><ol><li>Abre la ficha que quieres conservar y pulsa <strong>Editar → Familia → «Unir con un duplicado»</strong>.</li><li>Busca la donante: la app propone los posibles duplicados y también deja buscar por nombre o por ID.</li><li>Comprueba que es la persona correcta, mejor con la vista A | B, y pulsa <strong>«Unir»</strong>.</li></ol><p>Qué ocurre al unir:</p><ul><li>Los hijos y los cónyuges de la donante pasan a la receptora.</li><li>Se copian a la receptora los datos que le faltaban.</li><li>La donante queda <strong>marcada para borrar</strong>; no desaparece hasta que el Archivero haga el borrado masivo desde el Gestor de datos.</li></ul><p>La vista A | B ofrece además los botones «Unir B en A» y «Unir A en B», que fusionan directamente desde esa pantalla.</p><div class="manual-warn">La app no te dejará unir si se creara un ciclo familiar (alguien sería su propio antepasado) o si la receptora no tiene huecos de cónyuge libres. Antes de unir, revisa bien fechas y lugares: dos personas con el mismo nombre no siempre son la misma.</div>'},
+{titulo:'El Gestor de datos y el Visado',html:'<p>Se abre desde Herramientas, en el bloque <strong>Datos</strong>. El Archivero decide, apartado por apartado, a cuáles accedes con una casilla llamada <strong>Visado</strong>. Por defecto tienes los tres de siempre: apellidos con escritura no homogénea, lugares con escritura no homogénea y cónyuges con nombres parecidos (este último en solo lectura).</p><p>Si el Archivero te da el visado de más apartados, puedes ver, entre otros:</p><ul><li><strong>Primer apellido que acaba en «de», «de la»…:</strong> una partícula quedó al final del primer apellido (Pérez de / Torre) y se propone pasarla al segundo (Pérez / de la Torre).</li><li><strong>Dos apellidos juntos en el primero:</strong> por ejemplo «García López» cuando en realidad son dos apellidos.</li><li><strong>Primer apellido compuesto, sin segundo y padre sin compuesto:</strong> «Fichas A | B» abre a la persona (A) y a su padre (B), con «Separar» o «No es un error».</li><li><strong>Nombre o apellido en otro alfabeto:</strong> propone la transcripción al alfabeto latino cuando es segura y guarda el original en Observaciones.</li></ul><p>En cada caso eliges una opción (separar, completar con el apellido de la madre, «Otra forma» o «No es un error») y se aplican todas de una vez. Los apartados que implican fusionar, borrar o recalcular los ves en solo lectura.</p><div class="manual-tip">Si el Archivero cambia tu visado, lo notarás la próxima vez que abras el Gestor de datos: si te lo quita, dejas de ver ese apartado.</div><div class="manual-warn">Una unificación grande genera muchas propuestas a la vez. Avisa al Archivero cuando termines una tanda, para que la revise sin sorpresas.</div>'},
+{titulo:'Revisar las aportaciones de la familia',html:'<p>Cualquier perfil puede enviar fotos o documentos desde Herramientas → «Compartir fotos o documentos». Llegan a una carpeta aparte, APORTACIONES, y alguien tiene que revisarlas: el Archivero o tú.</p><ol><li>En Herramientas, grupo <strong>«Aportaciones»</strong>, abre «Aportaciones recibidas».</li><li>Mira cada envío y su comentario (por ejemplo «en la playa, verano de 1975»).</li><li>Elige a qué persona pertenece.</li><li>Pulsa <strong>«Pasar a su carpeta»</strong> para copiarlo a DOCUMENTOS con sus metadatos, o <strong>descártalo</strong> si no sirve.</li></ol><div class="manual-tip">Si dudas de quién sale en una foto, no la asignes a ciegas: deja la aportación pendiente y pregunta a quien la envió o al Archivero.</div>'},
+{titulo:'La firma de la persona fallecida',html:'<p>En <strong>Documentos</strong>, arriba del panel de cada persona, aparece su firma (se guarda en la carpeta FIRMAS de Drive, un PNG por persona).</p><ul><li><strong>Añadir o reemplazar:</strong> pega una imagen, elige un archivo o haz una foto. La app quita el fondo y refuerza el trazo, con vista previa en los dos temas.</li><li><strong>Retocar:</strong> el botón «Retocar» abre la firma ya guardada en el editor para pasarle la goma y quitar trazos sobrantes, sin volver a subir la imagen original. Al guardar, sustituye a la anterior.</li><li>En el tema oscuro la firma se pinta en blanco.</li></ul><div class="manual-warn">Quitar una firma es solo del Archivero. Si subiste una equivocada, reemplázala con la correcta o avísale.</div>'},
+{titulo:'Una sesión de trabajo ordenada',html:'<ol><li><strong>Abeja en verde.</strong> Comprueba que estás conectado antes de tocar nada.</li><li><strong>Restaurar árbol oficial</strong> si el Archivero ha publicado novedades, para no trabajar sobre una versión antigua.</li><li><strong>Busca antes de crear.</strong> Muchos duplicados nacen de una persona creada sin buscar.</li><li><strong>Compara antes de unir.</strong> Usa la vista A | B y revisa fechas, lugares y familia.</li><li><strong>Cita la fuente</strong> en Observaciones al corregir un dato.</li><li><strong>Marca como revisada</strong> la ficha que ya has comprobado.</li><li><strong>Avisa al Archivero</strong> al acabar la tanda.</li></ol><div class="manual-tip">Una propuesta pequeña y clara es más fácil de aprobar que cien mezcladas. Guarda ficha a ficha.</div>'},
+{titulo:'Cuándo avisar al Archivero',html:'<ul><li>Has terminado una tanda grande de cambios o una unificación en el Gestor de datos.</li><li>Crees que dos cónyuges con nombres parecidos son la misma persona (tú los ves en solo lectura).</li><li>Una ficha o una firma necesita eliminarse de verdad.</li><li>Necesitas el visado de un apartado del Gestor de datos que ahora no ves.</li><li>Al guardar aparece «No se pudo guardar el cambio en Drive» y persiste con la abeja en verde.</li><li>Ves un dato de una persona viva que no deberías ver, o una foto o documento que no debería estar.</li></ul>'}
+];
+function generarGuiaCronistaHTML(){
+  return guiaConstruirDocumento({
+    etiqueta:'Guía especial del Cronista',
+    titulo:'El Libro de<br>los Ancestros',
+    sub:'Herramientas del Cronista para cuidar el árbol',
+    intro:'Cómo marcar fichas revisadas, compararlas, unir duplicados, depurar apellidos y lugares, revisar aportaciones y retocar firmas, y cuándo avisar al Archivero.',
+    pieEtq:'Guía especial del Cronista · versión '+APP_VERSION,
+    pieTxt:'Documento de uso interno del proyecto «El Libro de los Ancestros». Generado el '+new Date().toLocaleDateString()+' para los Cronistas del árbol.',
+    cierre:'Gracias por cuidar nuestra historia',
+    contenido:GUIA_CRONISTA_CONTENIDO
+  });
+}
+function mostrarGuiaCronistaParaImprimir(){
+  if(!esColaborador()&&!esAdministrador()){toast('Esta guía es para el perfil de Cronista',true);return;}
+  var area=document.getElementById('printArea');
+  if(!area)return;
+  area.innerHTML=generarGuiaCronistaHTML();
+  var styleTag=document.getElementById('pageSizeOverride');
+  if(!styleTag){styleTag=document.createElement('style');styleTag.id='pageSizeOverride';document.head.appendChild(styleTag);}
+  styleTag.textContent='@media print{@page{size:A4 portrait;margin:12mm}}';
+  setTimeout(function(){
+    window.print();
+    setTimeout(function(){if(styleTag)styleTag.textContent='';},600);
+  },80);
+}
+
 function confirmLimpiar(){document.getElementById('modalLimpiar').style.display='flex';}
 async function ejecutarLimpiar(){
 if(!(await exigirIdentidadGoogle()))return;
@@ -21421,10 +21473,17 @@ var SANTORAL_COMPUESTOS={
 /* Conectores que se saltan al buscar el "segundo nombre" real en compuestos
    tipo "María del Carmen", "María de los Dolores", "José de la Cruz". */
 var SANTORAL_CONECTORES={DE:1,DEL:1,LA:1,LAS:1,LOS:1};
+/* Excepciones por persona (clave = nombre completo en mayúsculas y sin acentos). Se comprueban
+   antes que todo lo demás. Sirve para quien celebra un santo distinto del habitual de su nombre. */
+var SANTORAL_PERSONAS={
+'ISABEL VALPUESTA ROMERO':{dia:5,mes:11} /* Santa Isabel, prima de la Virgen (con San Zacarías) */
+};
 function normalizaNombrePila(s){return quitarAcentos(String(s||'')).toUpperCase().trim();}
 function santoDePersona(p){
 var nombre=normalizaNombrePila(p.NOMBRE);
 if(!nombre)return null;
+var nombreCompleto=normalizaNombrePila(fn(p)).replace(/\s+/g,' ');
+if(SANTORAL_PERSONAS[nombreCompleto])return SANTORAL_PERSONAS[nombreCompleto];
 var partes=nombre.split(/\s+/).filter(Boolean);
 if(partes.length>1){
 var compuesto=partes[0]+' '+partes[1];
@@ -21465,14 +21524,16 @@ return f;
 function calcularEventosFamiliares(idCentral){
 if(!idCentral||!PI[idCentral])return[];
 var cercanos=personasCercanas(idCentral,EVENTOS_FAM_MAX_PASOS);
+cercanos[idCentral]=0; /* personasCercanas excluye a la persona central: la añadimos para que vea su propio santo y cumpleaños */
 var hoy=hoySinHora();
 var eventos=[];
 var vistosBoda={};
 Object.keys(cercanos).forEach(function(id){
 var p=PI[id];
 if(!p||!puedeVerPersona(id))return;
-var rel=calcularParentescoDesde(idCentral,id);
-var relTxt=rel?rel.corto:'';
+var esYo=String(id)===String(idCentral);
+var rel=esYo?null:calcularParentescoDesde(idCentral,id);
+var relTxt=esYo?'Tú':(rel?rel.corto:'');
 if(isAl(p)){
 var fNac=proximaFechaDesde(p.NACD,p.NACM,hoy,EVENTOS_FAM_DIAS);
 if(fNac&&p.NACA){
@@ -21492,6 +21553,7 @@ if(nAnios>0)eventos.push({fecha:fDef,persona:p,relacion:relTxt,tipo:'defuncion',
 }
 }
 CAMPOS_CONYUGE.forEach(function(campoConyuge){
+if(esYo)return; /* la boda propia ya sale por la ficha del cónyuge */
 var conyugeId=p[campoConyuge];
 if(!conyugeId||!PI[conyugeId])return;
 if(!isAl(p)||!isAl(PI[conyugeId]))return;
@@ -22056,6 +22118,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="window.open('https://meleiro2014-creator.github.io/arbol-genealogico/privacidad.html','_blank','noopener')"><div class="herr-icon"><i class="fa-solid fa-shield-halved"></i></div><div class="herr-text"><div class="herr-title">Política de privacidad</div><div class="herr-desc">Qué datos usa esta app y cómo se tratan</div></div></button>
 <button class="herr-item solo-lector" onclick="cerrarModalAyuda();mostrarGuiaLectorParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book-open"></i></div><div class="herr-text"><div class="herr-title">Guía del Guardián</div><div class="herr-desc">Cómo conectar, buscar, consultar fichas, fotos y documentos con el perfil de solo lectura. Guárdala como PDF desde el navegador</div></div></button>
 <button class="herr-item solo-no-lector" onclick="cerrarModalAyuda();mostrarManualParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-book"></i></div><div class="herr-text"><div class="herr-title">Guía de uso del Cronista</div><div class="herr-desc">Cómo editar, subir fotos y documentos, y cómo aprueba el Archivero tus cambios. Guárdala como PDF desde el navegador</div></div></button>
+<button class="herr-item solo-cronista" onclick="cerrarModalAyuda();mostrarGuiaCronistaParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-feather-pointed"></i></div><div class="herr-text"><div class="herr-title">Guía especial del Cronista</div><div class="herr-desc">Revisar y comparar fichas, unir duplicados, Gestor de datos, aportaciones y firmas. Guárdala como PDF desde el navegador</div></div></button>
 <button class="herr-item solo-no-lector" onclick="cerrarModalAyuda();mostrarGuiaPrimerAccesoParaImprimir()"><div class="herr-icon"><i class="fa-solid fa-door-open"></i></div><div class="herr-text"><div class="herr-title">Guía de primer acceso</div><div class="herr-desc">Cómo conecta por primera vez un familiar nuevo con Google Drive</div></div></button>
 </div>
 </div>
