@@ -1981,8 +1981,12 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.21.3';
+var APP_VERSION = '2026.11.21.4';
 var APP_CHANGELOG = [
+  { version:'2026.11.21.4', fecha:'2026-11-21', cambios:[
+    'Perfiles: al conectar con Google la app vuelve a leer siempre la lista de usuarios de Drive. Antes, un dispositivo que ya tenía recordado el perfil anterior (por ejemplo Guardián) seguía con él aunque el Archivero lo hubiera cambiado a Cronista, y no mostraba los botones de editar. Ahora el cambio de perfil se aplica en cuanto la persona conecta.',
+    'Juego «Enlazar» rehecho al estilo de las Parejas: cartas mezcladas con el nombre a la vista, dos por turno, las parejas encontradas se quedan con marco de color y se puede pasar de página sin terminar la partida.'
+  ]},
   { version:'2026.11.21.3', fecha:'2026-11-21', cambios:[
     'Fotos reconstruidas: nuevo campo opcional «Foto basada en…» (solo el Cronista y el Archivero pueden enlazarlo). En Editar foto, al marcar «Imagen reconstruida» aparece un buscador para elegir la persona (familiar, amigo o conocido) en la que se basó la imagen, con un botón para quitarla. En la ficha se lee «Basada en Nombre Apellido» con enlace a su ficha (o «Persona no visible» si tu perfil no puede ver a esa persona). Una misma persona puede ser la base de varios personajes. El dato se guarda con la ficha en Drive y en las copias, y queda en el registro de cambios; si la persona base se elimina o se fusiona, el vínculo se limpia o se reasigna solo.',
     'Buscar → Rompecabezas: el juego de las Parejas se sustituye por «Enlazar». Se eligen personajes (con páginas de cartas, «Jugar con todas» y «Al azar») y hay que enlazar cada uno con la persona en la que está basada su imagen. Funciona como las Parejas: las cartas salen mezcladas con el nombre a la vista; se da la vuelta a dos cada vez para ver sus imágenes y, si son un personaje y la persona en la que está basado, se quedan a la vista con un marco de color hasta el final. Se puede pasar a otra página de cartas sin terminar la partida. El Rompecabezas se mantiene igual.'
@@ -3163,7 +3167,10 @@ if(!r.ok){googleIdentidad=null;return null;}
 var d=await r.json();
 if(!d.email){googleIdentidad=null;return null;}
 var emailNormalizado=String(d.email).trim().toLowerCase();
-await cargarUsuarios();
+/* Siempre se relee usuarios.json de Drive al conectar (forzar): si no, una copia antigua recordada en este
+   dispositivo (p. ej. con el perfil de Guardián) manda sobre el cambio de perfil hecho por el Archivero. Si Drive
+   no responde, cargarUsuarios() cae sola a la última copia recordada. */
+await cargarUsuarios(true);
 var autorizadaEnLista=esUsuarioAutorizado(emailNormalizado);
 if(!MODO_PRUEBA_ACCESO&&!autorizadaEnLista){
 /* Cuenta válida de Google pero no autorizada para esta app: se revoca el
