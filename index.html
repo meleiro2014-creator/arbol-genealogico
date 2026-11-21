@@ -174,6 +174,7 @@ main.ges-split .ges-cat{max-width:none}
 .pbus-pill:disabled{opacity:.4;cursor:default}
 .en-sec-t{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
 .en-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px auto;width:100%;max-width:460px}
+.en-carta.en-ok .en-giro{cursor:default}
 .en-carta{container-type:inline-size;position:relative;aspect-ratio:4/5;perspective:700px;border-radius:10px;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;--en-c:var(--border)}
 .en-giro{position:absolute;inset:0;display:block;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);cursor:pointer;border-radius:10px;outline:none}
 .en-giro:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
@@ -185,16 +186,8 @@ main.ges-split .ges-cat{max-width:none}
 .en-img{transform:rotateY(180deg);background:var(--bg)}
 .en-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%}
 .en-img-nom{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;font-size:10px;font-size:max(9px,8.5cqw);font-weight:700;line-height:1.15;color:#fff;text-align:center;background:linear-gradient(transparent,rgba(0,0,0,.72))}
-.en-voltear{position:absolute;top:4px;right:4px;z-index:2;width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;padding:0;opacity:.95}
-.en-voltear:focus-visible{outline:3px solid var(--blue);outline-offset:1px}
-.en-carta.en-sel .en-cara{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
 .en-carta.en-mal .en-cara{border-color:#b3402f;box-shadow:0 0 0 3px #b3402f}
 .en-carta.en-ok .en-cara{border-color:var(--en-c);box-shadow:inset 0 0 0 2px var(--en-c)}
-.en-carta.en-ok .en-nombre{padding-bottom:36%}
-.en-carta.en-completa .en-giro{cursor:default}
-.en-acc{position:absolute;left:4px;right:4px;bottom:4px;z-index:2;display:flex;flex-direction:column;gap:3px}
-.en-bt{font:inherit;font-size:10px;font-weight:700;padding:3px 4px;border-radius:6px;border:1px solid var(--en-c);background:var(--card);color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:22px}
-.en-cont{display:block;font-size:9px;text-align:center;font-weight:700;color:var(--text);background:var(--card);border-radius:6px;padding:1px 3px}
 .en-msg{min-height:18px;text-align:center;font-size:12.5px;font-weight:700;margin:0 0 2px}
 .en-msg-ok{color:var(--green)}.en-msg-mal{color:#b3402f}
 .en-el{position:relative;display:flex;flex-direction:column;gap:4px;padding:5px;border:2px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);cursor:pointer;font:inherit;text-align:center}
@@ -1992,7 +1985,7 @@ var APP_VERSION = '2026.11.21.3';
 var APP_CHANGELOG = [
   { version:'2026.11.21.3', fecha:'2026-11-21', cambios:[
     'Fotos reconstruidas: nuevo campo opcional «Foto basada en…» (solo el Cronista y el Archivero pueden enlazarlo). En Editar foto, al marcar «Imagen reconstruida» aparece un buscador para elegir la persona (familiar, amigo o conocido) en la que se basó la imagen, con un botón para quitarla. En la ficha se lee «Basada en Nombre Apellido» con enlace a su ficha (o «Persona no visible» si tu perfil no puede ver a esa persona). Una misma persona puede ser la base de varios personajes. El dato se guarda con la ficha en Drive y en las copias, y queda en el registro de cambios; si la persona base se elimina o se fusiona, el vínculo se limpia o se reasigna solo.',
-    'Buscar → Rompecabezas: el juego de las Parejas se sustituye por «Enlazar». Se eligen personajes (con páginas de cartas, «Jugar con todas» y «Al azar») y hay que enlazar cada uno con la persona en la que está basada su imagen. Cada carta muestra arriba el nombre y, al darle la vuelta, la imagen. Al acertar, ambos quedan enlazados y dan acceso a sus fichas. Una persona puede recibir varios personajes. El Rompecabezas se mantiene igual.'
+    'Buscar → Rompecabezas: el juego de las Parejas se sustituye por «Enlazar». Se eligen personajes (con páginas de cartas, «Jugar con todas» y «Al azar») y hay que enlazar cada uno con la persona en la que está basada su imagen. Funciona como las Parejas: las cartas salen mezcladas con el nombre a la vista; se da la vuelta a dos cada vez para ver sus imágenes y, si son un personaje y la persona en la que está basado, se quedan a la vista con un marco de color hasta el final. Se puede pasar a otra página de cartas sin terminar la partida. El Rompecabezas se mantiene igual.'
   ]},
   { version:'2026.11.21.2', fecha:'2026-11-21', cambios:[
     'Eventos familiares: ahora cada persona ve también su propio santo y su propio cumpleaños (antes la ficha vinculada a tu cuenta quedaba fuera de su propia lista, por eso no salía el santo de San Francisco Javier el 3 de diciembre).',
@@ -21600,19 +21593,19 @@ if(JG.modo==='enlazar'){enEntrar();return;}
 if(PZL.vacio||!PZL.persona)pzlNueva();else pzlRender();
 }
 /* ===== Juego «Enlazar» (sustituye al de las Parejas) =====
-   Pestaña «Enlazar» dentro del panel «Rompecabezas» de Buscar. Solo entran los personajes con foto
-   reconstruida (FOTO_RECON) que tienen una «Foto basada en…» (FOTO_BASE) y cuya persona base también
-   tiene foto. Hay dos grupos de cartas: los personajes y las personas en las que están basados. Cada
-   carta muestra arriba el NOMBRE; con el botón de girar se ve la IMAGEN (la reconstruida o la foto de la
-   persona base). Se toca un personaje y una persona base para enlazarlos: si acierta, quedan unidos
-   (mismo color) y cada carta ofrece el acceso a su ficha. Una persona base puede recibir varios
-   personajes. Primero se eligen las cartas con las que jugar (páginas de 12, «Jugar con todas» y «Al
-   azar») y el tablero se reparte en páginas de 6 personajes con sus personas base.
-   Privacidad: puedeVerPersona() para los dos lados (una persona viva fuera del alcance del perfil no
-   entra) y se excluyen los fallecidos en el último año, igual que el Carrusel y el Rompecabezas.
+   Pestaña «Enlazar» dentro del panel «Rompecabezas» de Buscar. Funciona como las Parejas: las cartas
+   salen mezcladas al azar, con el NOMBRE a la vista (personajes y personas base juntos). Se toca una
+   carta y se da la vuelta (se ve la imagen), se toca otra y se da la vuelta: si son un personaje y la
+   persona en la que está basado, quedan a la vista con un marco de color hasta el final; si no, se
+   vuelven a girar. Cada personaje lleva su propia carta de persona base (una persona puede aparecer
+   varias veces si es base de varios personajes). Solo entran los personajes con foto reconstruida y
+   «Foto basada en…» cuya persona base también tiene foto. Antes se eligen las cartas (páginas de 12,
+   «Jugar con todas», «Al azar»); el tablero se reparte en páginas de 6 personajes y se puede pasar de
+   página sin terminar la partida (lo encontrado se conserva).
+   Privacidad: puedeVerPersona() para los dos lados y fuera los fallecidos en el último año.
    El reloj solo cuenta mientras el panel está a la vista. */
 var EN_PAG=6,EN_ELEG_PAG=12,EN_COLORES=['#2f6fab','#a8552c','#5a8a3c','#7a3f6a','#b08a1e','#3a8c8c'];
-var EN={fase:'elegir',lista:[],sel:{},pagE:0,pags:[],pagJ:0,ok:{},vuelta:{},cs:null,fallo:null,bloqueo:false,intentos:0,aciertos:0,total:0,ms:0,t:0,iniciada:false,fin:false,timer:null,ganadas:0,gen:0,msg:'',msgTipo:''};
+var EN={fase:'elegir',lista:[],sel:{},pagE:0,pags:[],pagJ:0,ok:{},abiertas:[],fallo:null,bloqueo:false,intentos:0,aciertos:0,total:0,ms:0,t:0,iniciada:false,fin:false,timer:null,ganadas:0,gen:0,msg:'',msgTipo:''};
 function enVisible(){
 var c=document.getElementById('pantallaBusRompe'),v=document.getElementById('vBus');
 return !!(c&&v&&v.classList.contains('active')&&!c.classList.contains('hero-carousel-hidden')&&JG.modo==='enlazar'&&!document.hidden);
@@ -21683,12 +21676,17 @@ if(!chars.length)return;
 enBarajar(chars);
 EN.pags=[];
 for(var i=0;i<chars.length;i+=EN_PAG){
-var cs=chars.slice(i,i+EN_PAG).map(function(p){return String(p.ID);}),bs=[],vis={};
-cs.forEach(function(id){var b=String(PI[id].FOTO_BASE);if(!vis[b]){vis[b]=1;bs.push(b);}});
-enBarajar(bs);
-EN.pags.push({cs:cs,bs:bs});
+var cs=chars.slice(i,i+EN_PAG),cartas=[],cols=[];
+cs.forEach(function(p){
+var ch=String(p.ID),b=String(p.FOTO_BASE);
+if(cols.indexOf(b)<0)cols.push(b);
+cartas.push({tipo:'c',id:ch,ch:ch});
+cartas.push({tipo:'b',id:b,ch:ch});
+});
+enBarajar(cartas);
+EN.pags.push({cartas:cartas,cols:cols});
 }
-EN.pagJ=0;EN.ok={};EN.vuelta={};EN.cs=null;EN.fallo=null;EN.bloqueo=false;EN.intentos=0;EN.aciertos=0;EN.total=chars.length;
+EN.pagJ=0;EN.ok={};EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;EN.intentos=0;EN.aciertos=0;EN.total=chars.length;
 EN.ms=0;EN.iniciada=false;EN.fin=false;EN.msg='';EN.msgTipo='';EN.fase='jugar';
 enRender();
 }
@@ -21701,7 +21699,7 @@ enIniciar(ids);
 }
 function enVolverElegir(){enParar();EN.fase='elegir';EN.iniciada=false;enRender();}
 function enNueva(){
-var ids=[];EN.pags.forEach(function(pg){pg.cs.forEach(function(k){ids.push(k);});});
+var ids=[];EN.pags.forEach(function(pg){pg.cartas.forEach(function(c){if(c.tipo==='c')ids.push(c.id);});});
 enIniciar(ids);
 }
 function enPagElegir(d){
@@ -21747,39 +21745,26 @@ h+='<div class="rp-acc"><button type="button" class="ef-btn" id="enBtnJugar" onc
 cont.innerHTML=h;
 enActualizarCuenta();
 }
-function enBaseCompleta(bId,pg){
-return pg.cs.every(function(c){return String(PI[c].FOTO_BASE)!==String(bId)||EN.ok[c];});
-}
-function enEnlazadosDe(bId,pg){return pg.cs.filter(function(c){return EN.ok[c]&&String(PI[c].FOTO_BASE)===String(bId);});}
-function enEtiqueta(tipo,id){
-var p=PI[id];if(!p)return '';
-var k=tipo+id,t=(tipo==='c'?'Personaje: ':'Persona base: ')+enNombre(p);
-if(tipo==='c'&&EN.ok[id])t+=' (enlazado con '+enNombre(PI[p.FOTO_BASE])+')';
-t+=EN.vuelta[k]?'. Se ve la imagen.':'. Se ve el nombre.';
-return t;
-}
-function enCartaHTML(tipo,id,pg){
-var p=PI[id];
+function enEtiqueta(c){
+var p=PI[c.id];
 if(!p)return '';
-var k=tipo+id,vol=!!EN.vuelta[k],bId=tipo==='c'?String(p.FOTO_BASE):id;
-var ci=pg.bs.indexOf(bId),col=EN_COLORES[(ci<0?0:ci)%EN_COLORES.length];
-var enl=tipo==='c'?(!!EN.ok[id]):(enEnlazadosDe(id,pg).length>0);
-var completa=tipo==='c'?enl:enBaseCompleta(id,pg);
-var cls='en-carta'+(vol?' en-vuelta':'')+(enl?' en-ok':'')+(completa&&tipo==='b'?' en-completa':'')+(EN.cs&&EN.cs.tipo===tipo&&EN.cs.id===id?' en-sel':'')+(EN.fallo&&((tipo==='c'&&EN.fallo.c===id)||(tipo==='b'&&EN.fallo.b===id))?' en-mal':'');
-var sid=escAttr(safeId(id)),h='<div class="'+cls+'" id="enC_'+tipo+'_'+escAttr(id)+'" data-k="'+escAttr(k)+'" style="--en-c:'+col+'">';
-var seleccionable=!completa;
-h+='<div class="en-giro"'+(seleccionable?' role="button" tabindex="0" onclick="enTocar(\''+tipo+'\',\''+sid+'\')" onkeydown="enTecla(event,\''+tipo+'\',\''+sid+'\')"':'')+' aria-label="'+escAttr(enEtiqueta(tipo,id))+'">';
+var vol=enVista(c);
+return (c.tipo==='c'?'Personaje: ':'Persona base: ')+enNombre(p)+(EN.ok[c.ch]?' (pareja encontrada)':'')+(vol?'. Se ve la imagen.':'. Se ve el nombre.');
+}
+function enVista(c){return !!(EN.ok[c.ch]||EN.abiertas.indexOf(c.tipo+c.ch)>=0);}
+function enCartaHTML(c,i,pg){
+var p=PI[c.id];
+if(!p)return '';
+var vol=enVista(c),ok=!!EN.ok[c.ch],mal=!!(EN.fallo&&EN.fallo.indexOf(c.tipo+c.ch)>=0);
+var bId=String(PI[c.ch].FOTO_BASE),ci=pg.cols.indexOf(bId);
+var col=EN_COLORES[(ci<0?0:ci)%EN_COLORES.length];
+var cls='en-carta'+(vol?' en-vuelta':'')+(ok?' en-ok':'')+(mal?' en-mal':'');
+var h='<div class="'+cls+'" id="enC_'+i+'" style="--en-c:'+col+'">';
+h+='<div class="en-giro"'+(ok?'':' role="button" tabindex="0" onclick="enTocar('+i+')" onkeydown="enTecla(event,'+i+')"')+' aria-label="'+escAttr(enEtiqueta(c))+'">';
 h+='<span class="en-cara en-nombre"><span class="en-nom">'+esc(enNombre(p))+'</span><span class="en-fecha">'+esc(enAnios(p))+'</span></span>';
 h+='<span class="en-cara en-img"><img src="'+escAttr(p.FOTO)+'" alt="'+escAttr('Imagen de '+enNombre(p))+'"><span class="en-img-nom">'+esc(enNombre(p))+'</span></span>';
-h+='</div>';
-h+='<button type="button" class="en-voltear" onclick="enVoltear(\''+tipo+'\',\''+sid+'\')" aria-label="'+(vol?'Ver el nombre':'Ver la imagen')+' de '+escAttr(enNombre(p))+'" title="Dar la vuelta"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>';
-if(enl){
-h+='<div class="en-acc"><button type="button" class="en-bt" onclick="irAFicha(\''+sid+'\')"><i class="fa-solid fa-user" aria-hidden="true"></i> Ver ficha</button>';
-if(tipo==='c'&&PI[p.FOTO_BASE])h+='<button type="button" class="en-bt" onclick="irAFicha(\''+escAttr(safeId(p.FOTO_BASE))+'\')" title="'+escAttr('Ficha de '+enNombre(PI[p.FOTO_BASE]))+'"><i class="fa-solid fa-link" aria-hidden="true"></i> '+esc(PI[p.FOTO_BASE].NOMBRE||enNombre(PI[p.FOTO_BASE]))+'</button>';
-if(tipo==='b'){var n=enEnlazadosDe(id,pg).length,t=pg.cs.filter(function(c){return String(PI[c].FOTO_BASE)===id;}).length;h+='<span class="en-cont">'+n+' de '+t+(t===1?' personaje':' personajes')+'</span>';}
-h+='</div>';
-}
-return h+'</div>';
+h+='</div></div>';
+return h;
 }
 function enRender(){
 var cont=document.getElementById('rompeCont');
@@ -21788,16 +21773,14 @@ if(EN.fase!=='jugar'||!EN.pags.length){enRenderElegir();return;}
 var pg=EN.pags[EN.pagJ],np=EN.pags.length;
 var h=jgPestanas();
 h+='<div class="rp-bar"><div class="rp-niv"><button type="button" class="pbus-pill" onclick="enPagJugar(-1)"'+(EN.pagJ<=0?' disabled':'')+' aria-label="Página anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span class="en-pag">Página '+(EN.pagJ+1)+' de '+np+'</span><button type="button" class="pbus-pill" onclick="enPagJugar(1)"'+(EN.pagJ>=np-1?' disabled':'')+' aria-label="Página siguiente"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div><span class="rp-cuenta">'+(EN.ganadas?EN.ganadas+(EN.ganadas===1?' partida ganada':' partidas ganadas'):'')+'</span></div>';
-if(!EN.fin)h+='<p class="rp-ayuda">Toca un personaje y la persona en la que se basa su imagen. Con el botón <i class="fa-solid fa-rotate" aria-hidden="true"></i> das la vuelta a una carta para ver su imagen. Una persona puede ser la base de varios personajes.</p>';
-h+='<div class="par-marcador"><span>Tiempo: <b id="enTiempo">'+pzlTiempoTxt(EN.ms)+'</b></span><span>Intentos: <b id="enIntentos">'+EN.intentos+'</b></span><span>Enlazados: <b id="enAcier">'+EN.aciertos+'</b> de '+EN.total+'</span></div>';
+if(!EN.fin)h+='<p class="rp-ayuda">Da la vuelta a dos cartas cada vez y encuentra cada personaje con la persona en la que se basa su imagen. Las parejas encontradas se quedan a la vista. Puedes pasar de página sin terminar la partida.</p>';
+h+='<div class="par-marcador"><span>Tiempo: <b id="enTiempo">'+pzlTiempoTxt(EN.ms)+'</b></span><span>Movimientos: <b id="enIntentos">'+EN.intentos+'</b></span><span>Parejas: <b id="enAcier">'+EN.aciertos+'</b> de '+EN.total+'</span></div>';
 h+='<div class="en-msg'+(EN.msgTipo?' en-msg-'+EN.msgTipo:'')+'" id="enMsg" role="status" aria-live="polite">'+esc(EN.msg)+'</div>';
-h+='<div class="en-sec-t">Personajes</div><div class="en-grid">';
-pg.cs.forEach(function(id){h+=enCartaHTML('c',id,pg);});
-h+='</div><div class="en-sec-t">Personas en las que se basan</div><div class="en-grid">';
-pg.bs.forEach(function(id){h+=enCartaHTML('b',id,pg);});
+h+='<div class="en-grid">';
+pg.cartas.forEach(function(c,i){h+=enCartaHTML(c,i,pg);});
 h+='</div>';
 if(EN.fin){
-h+='<div class="par-fin" role="status"><h3>¡Enhorabuena!</h3><p>Has enlazado los '+EN.total+(EN.total===1?' personaje':' personajes')+' en '+pzlTiempoTxt(EN.ms)+' y '+EN.intentos+(EN.intentos===1?' intento':' intentos')+'.</p></div>';
+h+='<div class="par-fin" role="status"><h3>¡Enhorabuena!</h3><p>Has enlazado los '+EN.total+(EN.total===1?' personaje':' personajes')+' en '+pzlTiempoTxt(EN.ms)+' y '+EN.intentos+(EN.intentos===1?' movimiento':' movimientos')+'.</p></div>';
 }
 h+='<div class="rp-acc"><button type="button" class="ef-btn ghost" onclick="enVolverElegir()"><i class="fa-solid fa-list-check" aria-hidden="true"></i> Elegir otras cartas</button><button type="button" class="ef-btn'+(EN.fin?'':' ghost')+'" onclick="enNueva()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> '+(EN.fin?'Jugar otra vez':'Barajar de nuevo')+'</button></div>';
 cont.innerHTML=h;
@@ -21806,70 +21789,59 @@ if(EN.iniciada&&!EN.fin)enArrancarReloj();
 function enPagJugar(d){
 var v=EN.pagJ+d;
 if(v<0||v>=EN.pags.length)return;
-EN.pagJ=v;EN.cs=null;EN.fallo=null;EN.msg='';EN.msgTipo='';
+EN.gen++;EN.pagJ=v;EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;EN.msg='';EN.msgTipo='';
 enRender();
 }
-function enTecla(ev,tipo,id){
-if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();enTocar(tipo,id);}
+function enTecla(ev,i){
+if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();enTocar(i);}
 }
 function enIniciarReloj(){
 if(!EN.iniciada){EN.iniciada=true;enArrancarReloj();}
 }
-function enVoltear(tipo,id){
-if(EN.fin)return;
-var k=tipo+id;
-EN.vuelta[k]=!EN.vuelta[k];
-enIniciarReloj();
-var el=document.getElementById('enC_'+tipo+'_'+id);
-if(el){
-el.classList.toggle('en-vuelta',!!EN.vuelta[k]);
-var g=el.querySelector('.en-giro'),b=el.querySelector('.en-voltear'),p=PI[id];
-if(g)g.setAttribute('aria-label',enEtiqueta(tipo,id));
-if(b&&p)b.setAttribute('aria-label',(EN.vuelta[k]?'Ver el nombre':'Ver la imagen')+' de '+enNombre(p));
-}
-}
-function enPintarSel(){
-var cs=EN.cs,fa=EN.fallo,els=document.querySelectorAll('#rompeCont .en-carta');
-for(var i=0;i<els.length;i++){
-var k=els[i].getAttribute('data-k')||'';
-els[i].classList.toggle('en-sel',!!(cs&&k===cs.tipo+cs.id));
-els[i].classList.toggle('en-mal',!!(fa&&(k==='c'+fa.c||k==='b'+fa.b)));
-}
+function enPintar(i){
+var pg=EN.pags[EN.pagJ],c=pg&&pg.cartas[i],el=document.getElementById('enC_'+i);
+if(!c||!el)return;
+el.classList.toggle('en-vuelta',enVista(c));
+el.classList.toggle('en-ok',!!EN.ok[c.ch]);
+el.classList.toggle('en-mal',!!(EN.fallo&&EN.fallo.indexOf(c.tipo+c.ch)>=0));
+var g=el.querySelector('.en-giro');
+if(g){g.setAttribute('aria-label',enEtiqueta(c));if(EN.ok[c.ch]){g.removeAttribute('role');g.removeAttribute('tabindex');g.removeAttribute('onclick');g.removeAttribute('onkeydown');}}
 }
 function enMensaje(txt,tipo){
 EN.msg=txt;EN.msgTipo=tipo||'';
 var e=document.getElementById('enMsg');
 if(e){e.textContent=txt;e.className='en-msg'+(tipo?' en-msg-'+tipo:'');}
 }
-function enTocar(tipo,id){
+function enTocar(i){
 if(EN.bloqueo||EN.fin)return;
-var pg=EN.pags[EN.pagJ];
-if(!pg||!PI[id])return;
-if(tipo==='c'&&EN.ok[id])return;
-if(tipo==='b'&&enBaseCompleta(id,pg))return;
+var pg=EN.pags[EN.pagJ],c=pg&&pg.cartas[i];
+if(!c||!PI[c.id]||enVista(c))return;
 enIniciarReloj();
-if(!EN.cs||EN.cs.tipo===tipo){
-EN.cs=(EN.cs&&EN.cs.tipo===tipo&&EN.cs.id===id)?null:{tipo:tipo,id:id};
-enPintarSel();
-return;
-}
-var cId=tipo==='c'?id:EN.cs.id,bId=tipo==='b'?id:EN.cs.id;
+EN.abiertas.push(c.tipo+c.ch);
+enPintar(i);
+if(EN.abiertas.length<2)return;
 EN.intentos++;
-if(String(PI[cId].FOTO_BASE)===String(bId)){
-EN.ok[cId]=true;EN.aciertos++;EN.cs=null;EN.fallo=null;
-EN.msg='¡Enlazados! '+enNombre(PI[cId])+' está basada en '+enNombre(PI[bId])+'.';EN.msgTipo='ok';
-if(EN.aciertos===EN.total){enTick();enParar();EN.fin=true;EN.ganadas++;}
-enRender();
+var i0=-1,i1=i;
+pg.cartas.forEach(function(x,j){if(j!==i&&EN.abiertas.indexOf(x.tipo+x.ch)>=0)i0=j;});
+var a=pg.cartas[i0],b=c;
+var cc=a.tipo==='c'?a:(b.tipo==='c'?b:null),bb=a.tipo==='b'?a:(b.tipo==='b'?b:null);
+var e=document.getElementById('enIntentos');if(e)e.textContent=EN.intentos;
+if(cc&&bb&&String(PI[cc.id].FOTO_BASE)===String(bb.id)){
+EN.ok[cc.ch]=true;EN.aciertos++;EN.abiertas=[];
+enMensaje('¡Enlazados! '+enNombre(PI[cc.id])+' está basada en '+enNombre(PI[bb.id])+'.','ok');
+enPintar(i0);enPintar(i1);
+var ea=document.getElementById('enAcier');if(ea)ea.textContent=EN.aciertos;
+if(EN.aciertos===EN.total){enTick();enParar();EN.fin=true;EN.ganadas++;var g=EN.gen;setTimeout(function(){if(g===EN.gen)enRender();},700);}
 }else{
-EN.bloqueo=true;EN.fallo={c:cId,b:bId};EN.cs=null;
-enPintarSel();
-enMensaje('Esa no es la pareja. Prueba con otra.','mal');
-var g=EN.gen,e=document.getElementById('enIntentos');
-if(e)e.textContent=EN.intentos;
+EN.bloqueo=true;EN.fallo=[a.tipo+a.ch,b.tipo+b.ch];
+enPintar(i0);enPintar(i1);
+enMensaje('No están enlazadas. Prueba con otras.','mal');
+var g2=EN.gen;
 setTimeout(function(){
-if(g!==EN.gen)return;
-EN.fallo=null;EN.bloqueo=false;enPintarSel();
-},800);
+if(g2!==EN.gen)return;
+EN.abiertas=[];EN.fallo=null;EN.bloqueo=false;
+enPintar(i0);enPintar(i1);
+},1000);
 }
 }
 /* ===== Eventos familiares =====
