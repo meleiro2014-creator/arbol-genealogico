@@ -2008,8 +2008,12 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.23.2';
+var APP_VERSION = '2026.11.23.3';
 var APP_CHANGELOG = [
+  { version:'2026.11.23.3', fecha:'2026-11-23', cambios:[
+    'Gestor de datos, nueva categoría «Fusiones en falso» (solo Archivero; los Cronistas la ven en solo lectura si se les da el visado). Detecta fichas que parecen dos personas fundidas en una al unir árboles: cónyuges múltiples (3 o más), edades incoherentes entre padres, hijos y cónyuges (usa solo años reales, nunca estimados), hijos de la misma madre con menos de 9 meses de diferencia, bodas anteriores a los 12 años o posteriores a la muerte, cónyuge que es a la vez padre, hijo o hermano, vidas de más de 100 años y fichas marcadas como «contaminadas» por el motor de años. Cada caso se gradúa como SEGURO, ALTA o POSIBLE, y se puede filtrar por grado, ocultar las ya revisadas y ver solo las que tienen foto (cada tarjeta indica si la ficha está revisada o tiene foto).',
+    'Fusiones en falso, solución: «Separar en dos fichas» crea una ficha nueva con el mismo nombre y le pasa los familiares marcados (los padres, o cada cónyuge con sus hijos). La app propone el reparto que deja a cada lado con edades coherentes; puedes cambiar las casillas, e incluso pasar también los datos propios (nacimiento, defunción, lugares) a la ficha nueva. La foto se queda en la ficha original, la marca de revisada se quita de las dos y ambas anotan el origen en Observaciones. «No es una fusión en falso» descarta el aviso.'
+  ]},
   { version:'2026.11.23.2', fecha:'2026-11-23', cambios:[
     'Fotos: al traer la foto de otra ficha ahora SIEMPRE se mueve (se quita de la ficha de origen y su archivo de Drive va a la papelera); ya no hay opción de copiar. Si en ese momento no hay sesión de Drive, el borrado queda apuntado y se reintenta al conectar, y la importación desde Drive ignora esa foto mientras tanto. Al eliminar una ficha también se borra su foto de Drive, para que no reaparezca en otra ficha que reutilice el ID.',
     'Carga de fotos: el perfil Guardián ya no ve el informe detallado de la importación; solo ve cuántas fotos se han cargado.',
@@ -12590,6 +12594,391 @@ try{bIdx(D);rGesLigero();}catch(e2){}
 }
 finally{ocultarProgresoAccion();}
 }
+/* ===== FUSIONES EN FALSO (Gestor de datos) =====
+   Detecta fichas que parecen DOS (o más) personas fundidas en una al unir árboles: sus familiares
+   (padres, y cada cónyuge con sus hijos) no caben en la vida de una sola persona. Solo usa años REALES
+   (NACA / DEFA), nunca los estimados por ANOCALC (que se calculan a partir de los propios familiares).
+   Cada familiar con año implica una «ventana» en la que la persona pudo nacer (un hijo, entre 15 y 75
+   años antes si ella es hombre y entre 14 y 50 si es mujer; un padre o una madre, entre 15–75 / 14–50
+   años antes de ella y antes de su muerte; un cónyuge, ±28 años). Si las ventanas de todos los
+   familiares no se cruzan, se busca el reparto en DOS lados coherentes; ese reparto es la propuesta de
+   separación (lo que pasaría a una ficha nueva). Grados: SEGURO (hueco ≥ 8 años y al menos dos
+   familiares con año a cada lado), ALTA y POSIBLE (señales sueltas: 3 o más cónyuges, hijos con
+   menos de 9 meses de diferencia, boda anterior a los 12 años o posterior a la muerte...). */
+var FF_IGNORADOS={};
+var FF_CFG={H_MIN:15,H_MAX:75,M_MIN:14,M_MAX:50,CONY:28,HUECO_SEGURO:8,MAX_G:12,N_SEGURO:100,N_ALTA:55,N_POSIBLE:25};
+var FF_CACHE=null;
+function ffNum(v){var n=parseInt(v,10);return isNaN(n)?null:n;}
+function ffAnioBoda(v){var m=/(\d{4})/.exec(String(v||''));return m?parseInt(m[1],10):null;}
+function ffRangoHijos(p){
+if(p&&p.SEXO==='Mujer')return[FF_CFG.M_MIN,FF_CFG.M_MAX];
+if(p&&p.SEXO==='Hombre')return[FF_CFG.H_MIN,FF_CFG.H_MAX];
+return[FF_CFG.M_MIN,FF_CFG.H_MAX];
+}
+function ffGrupos(x){
+var grupos=[],porClave={},rg=ffRangoHijos(x);
+function g(k,tipo,otro){if(!porClave[k]){porClave[k]={k:k,tipo:tipo,otroId:otro||'',ev:[],hijos:[],conyuge:'',muerteMin:null,fechados:0,anios:[]};grupos.push(porClave[k]);}return porClave[k];}
+var pf=x.PADRE&&PI[x.PADRE],pm=x.MADRE&&PI[x.MADRE];
+if(pf||pm){
+var gp=g('P','padres');
+if(pf){var b=getYearReal(pf),d=ffNum(pf.DEFA);
+if(b!==null){gp.ev.push({lo:b+FF_CFG.H_MIN,hi:b+FF_CFG.H_MAX});gp.fechados++;gp.anios.push(b);}
+if(d!==null)gp.ev.push({lo:-Infinity,hi:d+1});}
+if(pm){var b2=getYearReal(pm),d2=ffNum(pm.DEFA);
+if(b2!==null){gp.ev.push({lo:b2+FF_CFG.M_MIN,hi:b2+FF_CFG.M_MAX});gp.fechados++;gp.anios.push(b2);}
+if(d2!==null)gp.ev.push({lo:-Infinity,hi:d2});}
+}
+gesConyugesValidos(x).forEach(function(c){
+var s=PI[c.id],gc=g('C:'+c.id,'pareja',c.id);gc.conyuge=c.id;
+var b=getYearReal(s);
+if(b!==null){gc.ev.push({lo:b-FF_CFG.CONY,hi:b+FF_CFG.CONY});gc.fechados++;gc.anios.push(b);}
+var bo=ffAnioBoda(x['MF'+c.slot]);
+if(bo!==null)gc.boda=bo;
+});
+(HD[x.ID]||[]).forEach(function(hid){
+var h=PI[hid];if(!h)return;
+var otro=(h.PADRE===x.ID)?(h.MADRE||''):(h.PADRE||'');
+if(otro===x.ID)otro='';
+var gh=g(otro?('C:'+otro):'C:',otro?'pareja':'hijos',otro);
+gh.hijos.push(hid);
+var b=getYearReal(h);
+if(b!==null){gh.ev.push({lo:b-rg[1],hi:b-rg[0]});gh.fechados++;gh.anios.push(b);
+var mm=(x.SEXO==='Hombre')?b-1:b;
+if(gh.muerteMin===null||mm>gh.muerteMin)gh.muerteMin=mm;}
+});
+return grupos;
+}
+function ffPropio(x){
+var ev=[],n=getYearReal(x),d=ffNum(x.DEFA);
+if(n!==null)ev.push({lo:n,hi:n});
+if(d!==null)ev.push({lo:d-110,hi:d});
+return{ev:ev,nac:n,def:d};
+}
+function ffCoherente(gs,propio){
+var lo=-Infinity,hi=Infinity,mm=null;
+if(propio)propio.ev.forEach(function(e){if(e.lo>lo)lo=e.lo;if(e.hi<hi)hi=e.hi;});
+gs.forEach(function(gr){gr.ev.forEach(function(e){if(e.lo>lo)lo=e.lo;if(e.hi<hi)hi=e.hi;});if(gr.muerteMin!==null&&(mm===null||gr.muerteMin>mm))mm=gr.muerteMin;});
+if(lo>hi+1)return null;
+if(propio&&propio.def!==null&&mm!==null&&mm>propio.def+1)return null;
+return{lo:lo,hi:hi};
+}
+/* Reparto en dos lados coherentes: A conserva los datos propios; B es lo que pasaría a la ficha nueva */
+function ffRepartir(gs,propio){
+var cs=gs.filter(function(gr){return gr.ev.length||gr.muerteMin!==null;});
+var n=cs.length;
+if(n<2||n>FF_CFG.MAX_G)return null;
+var mejor=null,sinPropio=!propio.ev.length;
+for(var m=1;m<(1<<n);m++){
+var A=[],B=[];
+for(var i=0;i<n;i++){if(m&(1<<i))B.push(cs[i]);else A.push(cs[i]);}
+if(sinPropio&&B.some(function(gr){return gr.k==='P';}))continue; /* sin datos propios, los padres se quedan en la ficha original */
+var vA=ffCoherente(A,propio),vB=ffCoherente(B,null);
+if(!vA||!vB)continue;
+var hueco=Math.max(vB.lo-vA.hi,vA.lo-vB.hi);
+var pun=B.length*1000-(isFinite(hueco)?hueco:0);
+if(!mejor||pun<mejor.pun)mejor={pun:pun,A:A,B:B,vA:vA,vB:vB,hueco:hueco};
+}
+return mejor;
+}
+function ffSenales(x,gs){
+var s=[],pts=0;
+var nCony=gesConyugesValidos(x).length;
+if(nCony>=5){s.push(nCony+' cónyuges registrados');pts+=55;}
+else if(nCony===4){s.push('4 cónyuges registrados');pts+=45;}
+else if(nCony===3){s.push('3 cónyuges registrados');pts+=30;}
+var par=gs.filter(function(gr){return gr.tipo==='pareja'&&gr.hijos.length;}),solap=0;
+function anosHijos(gr){return gr.hijos.map(function(id){return getYearReal(PI[id]);}).filter(function(v){return v!==null;});}
+for(var i=0;i<par.length;i++)for(var j=i+1;j<par.length;j++){
+var hA=anosHijos(par[i]),hB=anosHijos(par[j]);
+if(!hA.length||!hB.length)continue;
+if(Math.min(Math.max.apply(null,hA),Math.max.apply(null,hB))-Math.max(Math.min.apply(null,hA),Math.min.apply(null,hB))>=3)solap++;
+}
+if(solap){s.push('hijos de parejas distintas nacidos en los mismos años');pts+=(x.SEXO==='Mujer'?20:10);}
+if(x.SEXO==='Mujer'){
+var hs=(HD[x.ID]||[]).map(function(id){return PI[id];}).filter(function(h){return h&&getYearReal(h)!==null&&ffNum(h.NACM)!==null;});
+var cerca=false;
+for(var a=0;a<hs.length&&!cerca;a++)for(var b=a+1;b<hs.length;b++){
+var dm=Math.abs((getYearReal(hs[a])*12+ffNum(hs[a].NACM))-(getYearReal(hs[b])*12+ffNum(hs[b].NACM)));
+if(dm>0&&dm<8){cerca=true;break;}
+}
+if(cerca){s.push('hijos suyos nacidos con menos de 9 meses de diferencia');pts+=40;}
+}
+var par2={};
+if(x.PADRE)par2[x.PADRE]='su padre';
+if(x.MADRE)par2[x.MADRE]='su madre';
+(HD[x.ID]||[]).forEach(function(h){par2[h]='su hijo/a';});
+[x.PADRE,x.MADRE].forEach(function(pp){if(pp)(HD[pp]||[]).forEach(function(h){if(h!==x.ID&&!par2[h])par2[h]='su hermano/a';});});
+var raros=gesConyugesValidos(x).filter(function(c){return par2[c.id];});
+if(raros.length){s.push('un cónyuge es a la vez '+par2[raros[0].id]);pts+=35;}
+if(x.PADRE===x.ID||x.MADRE===x.ID||CAMPOS_CONYUGE.some(function(c){return x[c]===x.ID;})){s.push('aparece como su propio padre, madre o cónyuge');pts+=50;}
+var nac=getYearReal(x),def=ffNum(x.DEFA),malBoda=null;
+gs.forEach(function(gr){if(gr.boda!==undefined){
+if(def!==null&&gr.boda>def+1)malBoda='boda en '+gr.boda+' posterior a su muerte ('+def+')';
+else if(nac!==null&&gr.boda<nac+12)malBoda='boda en '+gr.boda+' con menos de 12 años de edad (nació en '+nac+')';}});
+if(malBoda){s.push(malBoda);pts+=25;}
+if(nac!==null&&def!==null){var v=def-nac;
+if(v>110){s.push('vivió '+v+' años ('+nac+'–'+def+')');pts+=35;}
+else if(v>100){s.push('vivió '+v+' años ('+nac+'–'+def+')');pts+=20;}}
+if(x.ANOCALC_CONTAMINADO){s.push('el motor de años estimados la marcó como «contaminada» (sus familiares directos tienen años que se contradicen)');pts+=20;}
+return{s:s,pts:pts};
+}
+function ffDetectar(){
+var res=[];
+D.forEach(function(x){
+var gs=ffGrupos(x);
+if(gs.length<2)return;
+var propio=ffPropio(x),motivos=[],pts=0,reparto=null;
+if(!ffCoherente(gs,propio)){
+reparto=ffRepartir(gs,propio);
+if(reparto){
+var fA=reparto.A.reduce(function(n,gr){return n+gr.fechados;},0)+(propio.nac!==null?1:0);
+var fB=reparto.B.reduce(function(n,gr){return n+gr.fechados;},0);
+reparto.fechA=fA;reparto.fechB=fB;
+var hq=reparto.hueco,doble=(fA>=2&&fB>=2);
+if(hq>=FF_CFG.HUECO_SEGURO)pts+=doble?100:65;
+else if(hq>=3)pts+=doble?60:40;
+else pts+=20;
+motivos.push('las edades de sus familiares no caben en la vida de una sola persona');
+}else{pts+=20;motivos.push('edades incoherentes entre sus familiares que no se resuelven separando en dos (¿errata?)');}
+}
+var sg=ffSenales(x,gs);
+pts+=sg.pts;sg.s.forEach(function(t){motivos.push(t);});
+if(pts<FF_CFG.N_POSIBLE)return;
+res.push({id:x.ID,pts:pts,nivel:pts>=FF_CFG.N_SEGURO?'seguro':(pts>=FF_CFG.N_ALTA?'alta':'posible'),motivos:motivos,reparto:reparto,grupos:gs});
+});
+res.sort(function(a,b){return b.pts-a.pts;});
+return res;
+}
+/* Firma barata de los datos que usa el detector: si no cambia, se reutiliza el cálculo anterior */
+function ffFirmaDatos(){
+var h=D.length|0;
+function m(v){var n=parseInt(v,10);return isNaN(n)?(v?String(v).length:0):n;}
+D.forEach(function(p){
+h=(Math.imul(h,31)+m(p.ID)+7*m(p.PADRE)+13*m(p.MADRE)+17*m(p.M1)+19*m(p.M2)+23*m(p.M3)+29*m(p.M4)+31*m(p.M5)+37*m(p.M6)+41*m(p.NACA)+43*m(p.DEFA)+(p.SEXO==='Mujer'?1:0))|0;
+});
+return String(h);
+}
+function ffVentanaTxt(v){
+if(!v)return '';
+var lo=isFinite(v.lo)?v.lo:null,hi=isFinite(v.hi)?v.hi:null;
+if(lo!==null&&hi!==null)return 'entre '+lo+' y '+hi;
+if(hi!==null)return 'antes de '+hi;
+if(lo!==null)return 'después de '+lo;
+return 'sin límites';
+}
+function ffRangoTxt(anios){
+if(!anios.length)return '';
+var a=Math.min.apply(null,anios),b=Math.max.apply(null,anios);
+return a===b?String(a):(a+'–'+b);
+}
+function ffNomAnio(p){var y=getYearReal(p);return fn(p).trim()+(y!==null?' (n. '+y+')':'');}
+function ffDescribirGrupo(x,gr){
+var r={k:gr.k,tipo:gr.tipo,hijos:gr.hijos.slice(),conyuge:gr.conyuge,sinFechas:!(gr.ev.length||gr.muerteMin!==null),rel:[],verId:''};
+var hijosTxt=function(){
+var ys=gr.hijos.map(function(id){return getYearReal(PI[id]);}).filter(function(v){return v!==null;});
+var nom=gr.hijos.slice(0,3).map(function(id){var h=PI[id];return h?(h.NOMBRE||'?').split(' ')[0]:'';}).join(', ');
+return gr.hijos.length+' hijo'+(gr.hijos.length===1?'':'s')+(ys.length?' ('+ffRangoTxt(ys)+')':'')+(nom?': '+nom+(gr.hijos.length>3?'…':''):'');
+};
+if(gr.k==='P'){
+var pf=PI[x.PADRE],pm=PI[x.MADRE];
+r.txt='Sus padres: '+(pf?ffNomAnio(pf):'¿?')+' y '+(pm?ffNomAnio(pm):'¿?');
+r.rel=[x.PADRE,x.MADRE].filter(function(i){return i&&PI[i];});r.verId=r.rel[0]||'';
+}else if(gr.tipo==='pareja'){
+var o=PI[gr.otroId];
+if(gr.conyuge)r.txt='Cónyuge: '+(o?ffNomAnio(o):'¿?')+(gr.hijos.length?' · '+hijosTxt():' · sin hijos registrados');
+else r.txt='Hijos con '+(o?ffNomAnio(o):'¿?')+' (no figura como cónyuge) · '+hijosTxt();
+r.rel=[gr.otroId].concat(gr.hijos);r.verId=gr.otroId||gr.hijos[0]||'';
+}else{
+r.txt='Hijos sin el otro progenitor registrado · '+hijosTxt();
+r.rel=gr.hijos.slice();r.verId=gr.hijos[0]||'';
+}
+return r;
+}
+function gesFfItems(){
+var firma=ffFirmaDatos();
+if(!FF_CACHE||FF_CACHE.firma!==firma)FF_CACHE={firma:firma,res:ffDetectar()};
+var items=[];
+FF_CACHE.res.forEach(function(d){
+var x=PI[d.id];if(!x)return;
+var clave=d.id+'|'+d.grupos.map(function(gr){return gr.k;}).join(',');
+if(FF_IGNORADOS[clave])return;
+var enB={};if(d.reparto)d.reparto.B.forEach(function(gr){enB[gr.k]=1;});
+var grupos=d.grupos.map(function(gr){var r=ffDescribirGrupo(x,gr);r.lado=enB[gr.k]?'B':'A';return r;});
+var rel=[d.id];grupos.forEach(function(gr){gr.rel.forEach(function(i){rel.push(i);});});
+var anios=getYearReal(x),def=ffNum(x.DEFA);
+items.push({tipo:'ffalso',id:d.id,clave:clave,nivel:d.nivel,pts:d.pts,motivos:d.motivos,nom:fn(x).trim()||'(sin nombre)',
+vida:(anios!==null?anios:'?')+'–'+(def!==null?def:''),rev:x.REVISADA==='1',foto:(x.TIENEFOTO==='Sí'||!!x.FOTO),
+hayReparto:!!d.reparto,hueco:d.reparto?d.reparto.hueco:null,
+ventA:d.reparto?ffVentanaTxt(d.reparto.vA):'',ventB:d.reparto?ffVentanaTxt(d.reparto.vB):'',
+grupos:grupos,rel:rel});
+});
+return items;
+}
+function gesFfCategoria(){
+var todos=gesFfItems();
+if(!esAdministrador())todos=todos.filter(function(it){return it.rel.every(function(i){return puedeVerPersona(i);});});
+if(!todos.length)return null;
+var cuentas={seguro:0,alta:0,posible:0,rev:0,foto:0};
+todos.forEach(function(it){cuentas[it.nivel]++;if(it.rev)cuentas.rev++;if(it.foto)cuentas.foto++;});
+var f=GES_UI.ffFiltro=GES_UI.ffFiltro||{nivel:'todos',sinRev:false,conFoto:false};
+var items=todos.filter(function(it){
+if(f.nivel!=='todos'&&it.nivel!==f.nivel)return false;
+if(f.sinRev&&it.rev)return false;
+if(f.conFoto&&!it.foto)return false;
+return true;
+});
+return{id:'fusiones_falso',fuente:'ffalso',grupo:'duplicados',
+titulo:'Fusiones en falso',icono:'fa-code-pull-request',severidad:'revision',
+descripcion:todos.length+' ficha(s) que parecen dos personas fundidas en una al unir árboles ('+cuentas.seguro+' seguras, '+cuentas.alta+' altas, '+cuentas.posible+' posibles). Se detectan por cónyuges múltiples, edades incoherentes entre padres, hijos y cónyuges, hijos con menos de 9 meses de diferencia, bodas fuera de su vida y otras señales. Solo se usan años reales, nunca estimados. La solución es separar: se crea una ficha nueva y se le pasan los familiares que no corresponden. Seguro = los familiares se reparten limpiamente en dos grupos de edades incompatibles (con al menos dos años reales en cada grupo); Alta = hay un reparto claro pero con menos datos; Posible = solo hay señales sueltas.',
+items:items,accionMasiva:null,ffCuentas:cuentas};
+}
+function gesFfBarraHtml(c){
+var f=GES_UI.ffFiltro||{nivel:'todos',sinRev:false,conFoto:false},q=c.ffCuentas||{seguro:0,alta:0,posible:0,rev:0,foto:0};
+function chip(v,txt,n){return '<button class="ef-btn'+(f.nivel===v?'':' ghost')+'" style="padding:4px 10px;font-size:11px" onclick="gesFfFiltro(\'nivel\',\''+v+'\')">'+txt+' ('+n+')</button>';}
+return '<div class="ges-nav" style="margin:4px 0 8px">'+chip('todos','Todos',q.seguro+q.alta+q.posible)+chip('seguro','Seguro',q.seguro)+chip('alta','Alta',q.alta)+chip('posible','Posible',q.posible)+
+'<label title="Oculta las fichas que ya están marcadas como revisadas"><input type="checkbox"'+(f.sinRev?' checked':'')+' onchange="gesFfFiltro(\'sinRev\',this.checked)"> Ocultar ya revisadas ('+q.rev+')</label>'+
+'<label title="Muestra solo las fichas que tienen foto"><input type="checkbox"'+(f.conFoto?' checked':'')+' onchange="gesFfFiltro(\'conFoto\',this.checked)"> Solo con foto ('+q.foto+')</label></div>';
+}
+function gesFfFiltro(k,v){
+GES_UI.ffFiltro=GES_UI.ffFiltro||{nivel:'todos',sinRev:false,conFoto:false};
+GES_UI.ffFiltro[k]=v;
+GES_UI.desde=GES_UI.desde||{};GES_UI.desde['fusiones_falso']=0;
+rGesLigero();
+}
+function gesFfSelDe(it){
+GES_UI.ffSel=GES_UI.ffSel||{};
+var s=GES_UI.ffSel[it.id];
+if(!s){s={};it.grupos.forEach(function(gr){s[gr.k]=(gr.lado==='B');});GES_UI.ffSel[it.id]=s;}
+return s;
+}
+function gesFfMarcar(id,k,v){
+GES_UI.ffSel=GES_UI.ffSel||{};
+var s=GES_UI.ffSel[id]=GES_UI.ffSel[id]||{};
+s[k]=!!v;
+}
+function gesFfMarcarPropio(id,v){GES_UI.ffPropio=GES_UI.ffPropio||{};GES_UI.ffPropio[id]=!!v;}
+function gesRenderFfalso(c,it,idx){
+var p=PI[it.id];
+if(!p)return '<div class="inc-row"><div class="inc-msg"><span style="color:var(--muted)">ID '+esc(it.id)+' (la ficha ya no existe)</span></div></div>';
+var col={seguro:'#C0392B',alta:'#C4653A',posible:'var(--blue)'}[it.nivel]||'var(--muted)';
+var etq={seguro:'SEGURO',alta:'ALTA',posible:'POSIBLE'}[it.nivel]||'';
+var sel=gesFfSelDe(it),admin=esAdministrador();
+var h='<div class="inc-row"><div class="inc-icon"><i class="fa-solid fa-code-pull-request"></i></div><div class="inc-msg">';
+h+='<span class="inc-tag" style="color:'+col+'">'+etq+' · '+it.pts+' pts</span> ';
+if(it.rev)h+='<span class="inc-tag" style="color:#1e8449" title="Esta ficha ya está marcada como revisada"><i class="fa-solid fa-circle-check"></i> Revisada</span> ';
+if(it.foto)h+='<span class="inc-tag" style="color:var(--blue)" title="Esta ficha tiene foto"><i class="fa-solid fa-camera"></i> Con foto</span> ';
+h+='<br><b>'+esc(it.nom)+'</b> <span style="color:var(--muted)">(ID '+esc(it.id)+') · '+esc(it.vida)+'</span><br>';
+h+='<span style="color:#C4653A;font-size:11px"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(it.motivos.join(' · '))+'</span><br>';
+if(it.hayReparto){
+h+='<span style="color:var(--muted);font-size:11px">Propuesta: lo que se queda en la ficha encaja con un nacimiento '+esc(it.ventA)+'; lo que pasaría a la ficha nueva, con un nacimiento '+esc(it.ventB)+(isFinite(it.hueco)&&it.hueco>0?' (hueco de '+it.hueco+' años entre ambos)':'')+'.</span><br>';
+}
+if(it.rev)h+='<span style="color:#1e8449;font-size:11px"><i class="fa-solid fa-circle-check"></i> Ya fue revisada: comprueba bien antes de separarla. Al separar se quitará la marca de revisada de las dos fichas.</span><br>';
+if(it.foto)h+='<span style="color:var(--blue);font-size:11px"><i class="fa-solid fa-camera"></i> Tiene foto: se queda en la ficha original. Si es de la otra persona, tendrás que pasarla a mano después.</span><br>';
+h+='<div style="margin-top:6px;font-size:12px">';
+it.grupos.forEach(function(gr){
+h+='<label style="display:flex;gap:8px;align-items:flex-start;margin:3px 0;cursor:'+(admin?'pointer':'default')+'">'+
+'<input type="checkbox" style="margin-top:3px"'+(sel[gr.k]?' checked':'')+(admin?'':' disabled')+' onchange="gesFfMarcar(\''+safeId(it.id)+'\',\''+safeId(gr.k)+'\',this.checked)">'+
+'<span>'+esc(gr.txt)+(gr.sinFechas?' <span style="color:var(--muted);font-size:11px">(sin años reales: no se puede comprobar, decide tú)</span>':'')+
+(gr.verId?' <a style="cursor:pointer;color:var(--accent);font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(gr.verId)+'\')">Ver</a>':'')+'</span></label>';
+});
+h+='</div>';
+h+='<div style="color:var(--muted);font-size:11px;margin-top:4px">Marcado = pasa a la ficha nueva. Sin marcar = se queda en la ficha original.</div>';
+if(admin)h+='<label style="display:flex;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox"'+((GES_UI.ffPropio&&GES_UI.ffPropio[it.id])?' checked':'')+' onchange="gesFfMarcarPropio(\''+safeId(it.id)+'\',this.checked)"> Los datos propios (nacimiento, defunción y lugares) también pasan a la ficha nueva</label>';
+h+='<div class="inc-actions">';
+if(admin)h+='<button class="ef-btn" style="padding:4px 10px;font-size:11px" title="Crea una ficha nueva con el mismo nombre y le pasa los familiares marcados" onclick="gesFfSeparar(\''+c.id+'\','+idx+')"><i class="fa-solid fa-scissors"></i> Separar en dos fichas</button>';
+h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="abrirFichaEnPestana(\''+safeId(it.id)+'\')">Ver ficha</button>';
+if(admin)h+='<button class="ef-btn ghost" style="padding:4px 10px;font-size:11px" onclick="gesFfIgnorar(\''+c.id+'\','+idx+')"><i class="fa-solid fa-eye-slash"></i> No es una fusión en falso</button>';
+h+='</div></div></div>';
+return h;
+}
+async function gesCargarIgnoradosFf(){
+try{var v=await leerValorCFG('ffIgnorados');if(v&&typeof v==='object')FF_IGNORADOS=v;}catch(e){}
+}
+async function gesFfIgnorar(catId,idx){
+if(!esAdministrador()){toast('Solo el Archivero puede hacer esto',true);return;}
+var cat=gesCatPorId(catId);if(!cat)return;
+var it=cat.items[idx];if(!it||it.tipo!=='ffalso')return;
+FF_IGNORADOS[it.clave]=1;
+try{await guardarValorCFG('ffIgnorados',FF_IGNORADOS);}catch(e){}
+toast('Marcada como correcta: no se volverá a avisar mientras no cambien sus familiares');
+mostrarProgresoAccion('Actualizando el Gestor de datos...');
+try{await cederPantalla();rGesLigero();}
+finally{ocultarProgresoAccion();}
+}
+/* Pasa a una ficha nueva los familiares marcados (y, si se pide, los datos propios) */
+async function gesFfSeparar(catId,idx){
+if(!esAdministrador()){toast('Solo el Archivero puede hacer esto',true);return;}
+var cat=gesCatPorId(catId);if(!cat)return;
+var it=cat.items[idx];if(!it||it.tipo!=='ffalso')return;
+var x=PI[it.id];if(!x){rGesLigero();return;}
+var sel=gesFfSelDe(it);
+var mover=it.grupos.filter(function(gr){return sel[gr.k];});
+var quedan=it.grupos.filter(function(gr){return !sel[gr.k];});
+var propioNuevo=!!(GES_UI.ffPropio&&GES_UI.ffPropio[it.id]);
+if(!mover.length&&!propioNuevo){toast('Marca los familiares que pasan a la ficha nueva',true);return;}
+function lista(gs){return gs.length?gs.map(function(gr){return '  · '+gr.txt;}).join('\n'):'  · (nada)';}
+var msg='Se creará una ficha nueva de '+it.nom+' y se separarán sus familiares.\n\nSe quedan en la ficha original (ID '+it.id+'):\n'+lista(quedan)+'\n\nPasan a la ficha nueva:\n'+lista(mover)+
+(propioNuevo?'\n\nLos datos propios (nacimiento, defunción y lugares) también pasan a la ficha nueva.':'')+
+(it.foto?'\n\nLa foto se queda en la ficha original.':'')+
+'\n\nLa marca de revisada se quitará de las dos fichas. Si te equivocas, puedes volver a unirlas con «Unir con un duplicado».';
+if(!(await confirmarApp(msg)))return;
+if(!(await exigirIdentidadGoogle()))return;
+var newId=await elegirIdNueva();
+if(!newId)return;
+mostrarProgresoAccion('Separando la ficha...');
+try{
+await cederPantalla();
+var antes=mapaPersonas(D);
+var hoy=new Date().toISOString().slice(0,10);
+var N={ID:newId,APROX:'',MotivoAprox:'',NoVISIBLE:x.NoVISIBLE||'',APELLIDO1:x.APELLIDO1||'',APELLIDO2:x.APELLIDO2||'',NOMBRE:x.NOMBRE||'',PADRE:'',MADRE:'',LUGARNAC:'',LUGARDEF:'',OBSERVACIONES:'',SEXO:x.SEXO||'',FechaEdicion:hoy,NACD:null,NACM:null,NACA:null,DEFD:null,DEFM:null,DEFA:null,M1:'',MF1:'',ML1:'',M2:'',MF2:'',ML2:'',M3:'',MF3:'',ML3:'',M4:'',MF4:'',ML4:'',M5:'',MF5:'',ML5:'',M6:'',MF6:'',ML6:'',FALLECIDO:'',FOTO:'',FOTO_FECHA:'',ANOCALC:'',ANOCALC_MOTIVO:'',ANOCALC_DISTANCIA:'',ETIQUETAS:x.ETIQUETAS||'',LUGARCALC:'',LUGARCALC_CONFIANZA:'',LUGARCALC_MOTIVO:'',REVISADA:''};
+var movidos=0;
+mover.forEach(function(gr){
+if(gr.k==='P'){
+N.PADRE=x.PADRE||'';N.MADRE=x.MADRE||'';x.PADRE='';x.MADRE='';movidos++;return;
+}
+gr.hijos.forEach(function(hid){
+var h=PI[hid];if(!h)return;
+if(h.PADRE===x.ID){h.PADRE=N.ID;movidos++;}
+if(h.MADRE===x.ID){h.MADRE=N.ID;movidos++;}
+});
+if(gr.conyuge){
+var o=PI[gr.conyuge],libre=0;
+CAMPOS_CONYUGE.forEach(function(cc,i){
+if(String(x[cc]||'')!==String(gr.conyuge))return;
+var n=i+1;
+for(var k=1;k<=6&&!libre;k++){if(!N['M'+k])libre=k;}
+if(!libre)return;
+N['M'+libre]=gr.conyuge;N['MF'+libre]=x['MF'+n]||'';N['ML'+libre]=x['ML'+n]||'';
+x[cc]='';x['MF'+n]='';x['ML'+n]='';
+libre=0;movidos++;
+});
+if(o)CAMPOS_CONYUGE.forEach(function(cc){if(String(o[cc]||'')===String(x.ID))o[cc]=N.ID;});
+}
+});
+if(propioNuevo){
+['APROX','MotivoAprox','LUGARNAC','LUGARDEF','FALLECIDO'].forEach(function(f){N[f]=x[f]||'';x[f]='';});
+['NACD','NACM','NACA','DEFD','DEFM','DEFA'].forEach(function(f){N[f]=(x[f]===undefined?null:x[f]);x[f]=null;});
+}
+x.REVISADA='';N.REVISADA='';
+x.FechaEdicion=hoy;
+x.OBSERVACIONES=(x.OBSERVACIONES?x.OBSERVACIONES+'\n':'')+'[Fusión en falso: el '+hoy+' se separó parte de sus familiares en la ficha ID '+N.ID+']';
+N.OBSERVACIONES='[Fusión en falso: ficha creada el '+hoy+' al separarla de la ficha ID '+x.ID+'. Completa sus datos.]';
+D.push(N);
+if(!movidos&&!propioNuevo){
+var orig=antes[x.ID];if(orig)Object.keys(orig).forEach(function(k){x[k]=orig[k];});
+D.pop();bIdx(D);rGesLigero();toast('No se movió ningún vínculo; revisa la selección',true);return;
+}
+FF_CACHE=null;
+if(GES_UI.ffSel)delete GES_UI.ffSel[it.id];
+if(GES_UI.ffPropio)delete GES_UI.ffPropio[it.id];
+await gesGuardarYRefrescar(antes,'vincular','Ficha separada: se creó la ficha ID '+N.ID+' de '+it.nom);
+}catch(err){
+toast('No se pudo separar la ficha: '+err.message,true);
+try{bIdx(D);rGesLigero();}catch(e2){}
+}
+finally{ocultarProgresoAccion();}
+}
+
 async function eliminarFicha(id){
 if(esLector()){toast('Tu perfil es de solo lectura: no puedes hacer esto',true);return;}
 if(!(await exigirIdentidadGoogle()))return;
@@ -14466,7 +14855,7 @@ for(var i=todas.length-1;i>=0;i--){ /* ante ids repetidos manda la versión de C
 var c=todas[i];
 if(vistos[c.id])continue;vistos[c.id]=1;
 if(vis.indexOf(c.id)<0)continue;
-if(c.fuente!=='lugares'&&c.fuente!=='apellidos_var'){
+if(c.fuente!=='lugares'&&c.fuente!=='apellidos_var'&&c.fuente!=='ffalso'){
 c.items=c.items.filter(function(it){return gesItemVisibleColab(it);});
 if(!c.items.length)continue;
 }
@@ -14667,6 +15056,7 @@ descripcion:conyPar.length+' caso(s) de una persona con dos o más cónyuges cuy
 items:conyPar,
 accionMasiva:null
 });
+var ffCat=gesFfCategoria();if(ffCat)cats.push(ffCat);
 /* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años,
 lugar de nacimiento, padre/madre y foto (esas tres últimas se quitaron del Gestor: son
 datos habituales de completar más tarde y no aportaban valor como aviso recurrente). */
@@ -15917,7 +16307,7 @@ var tam=gesTam(c.id);
 var desde=gesDesde(c.id,total);
 var vistos=c.items.slice(desde,desde+tam);
 var nav=gesNavHtml(c,desde,tam,total);
-var h=(c.fuente==='borrar'?gesBorrarBarraHtml(c):'')+(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():(c.fuente==='errata_prog'?gesErrBarraHtml():(c.fuente==='ape_part'?gesApcBarraHtml('part'):(c.fuente==='ape_junt'?gesApcBarraHtml('junt'):'')))))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
+var h=(c.fuente==='ffalso'?gesFfBarraHtml(c):'')+(c.fuente==='borrar'?gesBorrarBarraHtml(c):'')+(c.fuente==='lugares'?gesLugBarraHtml():(c.fuente==='apellidos_var'?gesApeBarraHtml():(c.fuente==='errata_prog'?gesErrBarraHtml():(c.fuente==='ape_part'?gesApcBarraHtml('part'):(c.fuente==='ape_junt'?gesApcBarraHtml('junt'):'')))))+nav+'<ul class="ges-items" style="list-style:none;padding:0;margin:6px 0 0">';
 vistos.forEach(function(it,j){
 var i=desde+j; /* indice ABSOLUTO dentro de c.items: los botones Solucionar/Fusionar lo usan */
 h+='<li>';
@@ -15928,6 +16318,7 @@ else if(it.tipo==='apc')h+=gesRenderApc(it);
 else if(it.tipo==='dup')h+=gesRenderItemDup(c,it,i);
 else if(it.tipo==='borrar')h+=gesRenderBorrar(it);
 else if(it.tipo==='conyuges')h+=gesRenderConyuges(c,it,i);
+else if(it.tipo==='ffalso')h+=gesRenderFfalso(c,it,i);
 else if(c.fuente==='inc'||c.fuente==='apellidos')h+=gesRenderItemInc(c,it,i);
 else h+=gesRenderItemDef(c,it);
 h+='</li>';
@@ -16058,6 +16449,7 @@ if(res)res.innerHTML='';
 if(cont)cont.innerHTML='';
 await gesCargarPermisosColab();
 await gesCargarIgnoradosApc();
+await gesCargarIgnoradosFf();
 if(esAdministrador()||(GES_PERMISOS_COLAB||[]).some(function(i){return GES_PERMISOS_DEFECTO.indexOf(i)<0;})){
 try{
 var snap=await cargarAniosCalculadosDrive(forzar);
