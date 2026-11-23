@@ -2008,8 +2008,11 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.22.1';
+var APP_VERSION = '2026.11.23.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.23.1', fecha:'2026-11-23', cambios:[
+    'Años estimados (ANOCALC) v2.8: el motor depura por sí mismo a las personas «contaminadas» (aquellas cuyos familiares directos tienen años reales que se contradicen entre sí). Antes se les guardaba un año forzado hasta el límite más cercano —a veces con siglos de diferencia— y además se propagaba a sus hijos, hermanos y cónyuges. Ahora, en cada recálculo, esas personas se sacan del cálculo, se vacía su año estimado (quedan marcadas y con el motivo explicado) y se recalcula todo sin ellas, repitiendo hasta que no aparezcan nuevas. Los años de nacimiento reales no se tocan.'
+  ]},
   { version:'2026.11.22.1', fecha:'2026-11-22', cambios:[
     'Herramientas (solo Archivero) → «Importar archivo de cambios»: aplica tu cambios-arbol.json directamente a tu árbol (en orden crear, editar, eliminar), sin escribir nada en el registro de cambios de Drive, así que los pendientes de los Cronistas no se tocan. Todas las fichas nuevas reciben los últimos huecos libres de ID (por debajo de 900000), se ajustan sus enlaces de padre, madre y cónyuges, se reservan en Drive para que ningún Cronista los use y se descarga una tabla con los IDs asignados. Después se ofrece publicar el árbol oficial.'
   ]},
@@ -9069,11 +9072,15 @@ if(maxCambio<ANOCALC_RELAJACION_TOLERANCIA)break;
 }
 return{fuentes:fuentesPorNodo,detalle:detallePorNodo};
 }
-function calcularAnosEstimados(statsPrecalculadas){
+function calcularAnosEstimados(statsPrecalculadas,excluidos){
 var stats=statsPrecalculadas||calcularEstadisticasArbol();
 var dist={},origen={},valorNodo={},saltos={},visitado={};
 var buckets=[],maxBucket=0;
 function encolar(id,costeAcum,nSaltos,pred,tipoArista,valorEstimado){
+/* v2.8: un nodo 'excluido' (contaminado en una pasada anterior, ver calcularAnosEstimadosDepurado)
+   no entra nunca en el grafo: ni recibe año ni propaga el suyo a sus vecinos. Los años reales
+   (pred===null) jamás están en esa lista. */
+if(excluidos&&excluidos[id])return;
 if(dist[id]!==undefined&&dist[id]<=costeAcum)return;
 dist[id]=costeAcum;saltos[id]=nSaltos;valorNodo[id]=valorEstimado;
 origen[id]={pred:pred,tipo:tipoArista};
@@ -9151,6 +9158,39 @@ if(origen[id]&&origen[id].pred!==null)valorInicial[id]=valorNodo[id];
 });
 var refinado=aplicarRelajacionGlobalANOCALC(valorNodo,visitado,origen,stats);
 return{dist:dist,origen:origen,valorNodo:valorNodo,saltos:saltos,visitado:visitado,stats:stats,valorInicial:valorInicial,refinado:refinado.fuentes,refinadoDetalle:refinado.detalle};
+}
+/* ===== v2.8 — DEPURACIÓN AUTOMÁTICA DE CONTAMINADOS =====
+Una persona queda 'contaminada' cuando los años REALES de sus familiares directos se
+contradicen entre sí (límites duros con lo>hi): ningún año cumple a la vez todas las edades
+mínimas/máximas. Hasta ahora el motor, en ese caso, proyectaba el valor al límite más cercano
+y lo GUARDABA (p.ej. 1198 para una esposa cuyo marido es de 1848), y además seguía propagando
+esa cifra por el grafo (Dijkstra), de modo que hijos, hermanos y cónyuges heredaban el error.
+Ahora el propio motor lo depura en la misma ejecución: tras cada pasada, las personas
+contaminadas se EXCLUYEN del grafo (no reciben año ni lo propagan) y se RECALCULA todo sin
+ellas; se repite hasta que no aparece ninguna contaminada nueva (tope ANOCALC_MAX_PASADAS).
+Las excluidas quedan sin ANOCALC, con ANOCALC_CONTAMINADO='1' y un motivo que lo explica, para
+que se vean en el Gestor y se arregle el dato real de fondo. Los años reales (NACA) no se tocan. */
+var ANOCALC_MAX_PASADAS=8;
+function calcularAnosEstimadosDepurado(statsPrecalculadas){
+var stats=statsPrecalculadas||calcularEstadisticasArbol();
+var excluidos={},vaciados={};
+var res=calcularAnosEstimados(stats,excluidos);
+var pasadas=1;
+function contaminadosNuevos(r){
+return Object.keys(r.origen).filter(function(id){return r.origen[id]&&r.origen[id].pred!==null&&r.origen[id].contaminado&&!vaciados[id];});
+}
+var nuevos=contaminadosNuevos(res);
+while(nuevos.length&&pasadas<ANOCALC_MAX_PASADAS){
+nuevos.forEach(function(id){excluidos[id]=true;vaciados[id]={descartado:res.valorNodo[id]};});
+res=calcularAnosEstimados(stats,excluidos);
+pasadas++;
+nuevos=contaminadosNuevos(res);
+}
+/* Si se agotó el tope y quedan contaminadas, también se vacían (su valor no se guarda). */
+nuevos.forEach(function(id){vaciados[id]={descartado:res.valorNodo[id]};});
+res.vaciados=vaciados;
+res.pasadas=pasadas;
+return res;
 }
 function etiquetaRelacionEstimada(tipo,sexoNodo){
 if(tipo==='padre')return'padre';
@@ -9249,9 +9289,18 @@ if(getYearReal(p)!==null){
 if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='';cambios++;}
 return;
 }
+if(resultado.vaciados&&resultado.vaciados[p.ID]){
+/* v2.8: contaminada y vaciada por el propio motor: sin año estimado, pero señalada. */
+var infoV=resultado.vaciados[p.ID];
+var motivoV='Calculado automáticamente el '+fecha+': no se ha asignado año estimado a '+fn(p).trim()+' porque los años reales de sus familiares directos se contradicen entre sí (ningún año cumple a la vez las edades mínimas/máximas respecto a su padre, madre, hijos, cónyuges o hermanos), así que cualquier cifra habría sido inventada y habría contagiado a otras personas.'+(infoV.descartado!==undefined?' La estimación descartada era \u2248'+infoV.descartado+'.':'')+' Revisa sus vínculos y los años de su familia en el Gestor de datos y vuelve a recalcular.';
+if(p.ANOCALC!==''||p.ANOCALC_MOTIVO!==motivoV||p.ANOCALC_CONTAMINADO!=='1'||p.ANOCALC_DISTANCIA!==''){
+p.ANOCALC='';p.ANOCALC_MOTIVO=motivoV;p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='1';cambios++;
+}
+return;
+}
 var v=resultado.valorNodo[p.ID];
 if(v===undefined){
-if(p.ANOCALC){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='';cambios++;}
+if(p.ANOCALC||p.ANOCALC_CONTAMINADO||p.ANOCALC_MOTIVO){p.ANOCALC='';p.ANOCALC_MOTIVO='';p.ANOCALC_DISTANCIA='';p.ANOCALC_CONTAMINADO='';cambios++;}
 return;
 }
 /* ANOCALC_CONTAMINADO: se guarda como campo propio (además de mencionarse en el
@@ -9276,10 +9325,10 @@ onFase(6,'Calculando estadísticas de edad reales del árbol...');
 setTimeout(function(){
 var stats;
 try{stats=calcularEstadisticasArbol();}catch(err){onError(err);return;}
-onFase(35,'Propagando años por parentesco (padres, hijos, cónyuges, hermanos)...');
+onFase(35,'Propagando años por parentesco y depurando datos contradictorios...');
 setTimeout(function(){
 var resultado;
-try{resultado=calcularAnosEstimados(stats);}catch(err){onError(err);return;}
+try{resultado=calcularAnosEstimadosDepurado(stats);}catch(err){onError(err);return;}
 onFase(70,'Aplicando los resultados a las fichas...');
 setTimeout(function(){
 var cambios;
@@ -9287,7 +9336,7 @@ try{cambios=aplicarResultadoAnosEstimados(resultado);}catch(err){onError(err);re
 onFase(90,'Guardando...');
 sAll(D,{marcarANOCALCSucio:false}).then(function(){
 onFase(100,'Listo');
-onDone(cambios);
+onDone(cambios,Object.keys(resultado.vaciados||{}).length);
 }).catch(function(err){onError(err);});
 },20);
 },20);
@@ -9313,13 +9362,13 @@ if(cont)cont.style.display='block';
 if(btn)btn.disabled=true;
 ejecutarFasesAnosEstimados({
 onFase:fase,
-onDone:function(cambios){
+onDone:function(cambios,nVaciados){
 fase(100,'Subiendo el archivo de años calculados a Drive (Seguridad)...');
 guardarAniosCalculadosDrive().then(function(){
 fase(100,'Listo');
 rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
 setTimeout(function(){if(cont)cont.style.display='none';fase(0,'');if(btn)btn.disabled=false;},700);
-toast((cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo')+'. Archivo de años calculados actualizado en Drive.');
+toast((cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo')+(nVaciados?'; '+nVaciados+' persona(s) sin año estimado por datos familiares contradictorios (vaciadas)':'')+'. Archivo de años calculados actualizado en Drive.');
 }).catch(function(err){
 fase(100,'Listo (aviso pendiente)');
 rStats();doSrch(document.getElementById('si').value);if(cid)rFic(cid);
@@ -9567,7 +9616,12 @@ cont.innerHTML='<p style="font-size:13px;color:var(--muted)">'+esc(fn(p))+' tien
 modal.style.display='flex';
 return;
 }
-var resultado=calcularAnosEstimados();
+var resultado=calcularAnosEstimadosDepurado();
+if(resultado.vaciados&&resultado.vaciados[id]){
+cont.innerHTML='<p style="font-size:13px;color:var(--muted)">'+esc(fn(p))+' no tiene año estimado a propósito: los años reales de sus familiares directos se contradicen entre sí y ninguna cifra cumpliría a la vez todos los límites de edad (estimación descartada: \u2248'+esc(String(resultado.vaciados[id].descartado))+'). Revisa sus vínculos y los años de su familia en el Gestor de datos.</p>';
+modal.style.display='flex';
+return;
+}
 if(resultado.valorNodo[id]===undefined){
 cont.innerHTML='<p style="font-size:13px;color:var(--muted)">No se ha podido conectar a '+esc(fn(p))+' con ningún antepasado o familiar con año conocido, así que no tiene año estimado disponible.</p>';
 modal.style.display='flex';
@@ -14889,9 +14943,9 @@ if(barra)barra.style.width=pct+'%';
 try{
 ejecutarFasesAnosEstimados({
 onFase:fase,
-onDone:function(cambios){
+onDone:function(cambios,nVaciados){
 rStats();
-toast(cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo');
+toast((cambios?('Años estimados recalculados: '+cambios+' registro(s) actualizado(s)'):'No hay cambios respecto al último cálculo')+(nVaciados?'; '+nVaciados+' persona(s) sin año estimado por datos familiares contradictorios (vaciadas)':''));
 actualizarProgresoAccion('Actualizando el Gestor de datos...',100);
 setTimeout(function(){try{rGesLigero();}finally{cerrarBarraAccion();}},30);
 },
