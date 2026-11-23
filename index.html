@@ -8175,6 +8175,75 @@ function cerrarPromptLimpiezaIA(){
 var modal=document.getElementById('modalPromptLimpiezaIA');
 if(modal)modal.style.display='none';
 }
+var PROMPT_AMPLIACION_IA=`ROL
+Eres un genealogista profesional y un auditor de datos. Vas a investigar en fuentes reales para enlazar una persona con mi árbol genealógico y a ampliar la rama resultante, entregándome un archivo de cambios que mi programa importa directamente. Un error mío es un duplicado o una ficha huérfana en un árbol de más de 100.000 personas: la prudencia vale más que la cantidad.
+
+ARCHIVOS QUE TE ADJUNTO
+1. backup-arbol.json: mi árbol actual (lista "personas").
+2. Manual del archivo cambios-arbol.json: léelo ENTERO antes de nada y síguelo al pie de la letra (estructura, usuario "IA", estado "pendiente", ids "ia-0001", un registro por persona, campos, formatos, IDs nuevos desde 30000, reciprocidad de cónyuges, límites de edades, etc.). Si algo de este prompt contradice el manual en el formato del JSON, manda el manual.
+
+DATOS DE ESTA TAREA (rellenados por mí)
+- PERSONA OBJETIVO: [nombre y apellidos, años aproximados, lugar, padres/cónyuge/hijos si los conozco, enlaces o fuentes que ya tenga]
+- PUNTOS DE ANCLAJE SUGERIDOS EN MI ÁRBOL (opcional): [IDs o nombres de personas que creo relacionadas]
+- PROFUNDIDAD DE EXPANSIÓN: [por ejemplo: 4 generaciones de ascendientes, hermanos, cónyuges e hijos de cada persona nueva]
+- ÁMBITO O ÉPOCA PREFERENTES (opcional): [lugares, siglos]
+
+REGLAS INVIOLABLES
+1. NO DUPLICAR. Nada de lo que ya está en el backup puede volver a crearse. Antes de crear a CUALQUIER persona, búscala en el backup normalizando tildes, mayúsculas y grafías (Ximeno/Jimeno/Xímenez, Blasco/Velasco, de Ávila/Dávila/Davila, Mª/María, etc.) y compara nombre, apellidos, años (±15), lugar, padres, cónyuges e hijos. Si existe o puede existir, NO la crees: usa "editar" sobre la ficha existente o déjala fuera y explícalo. Ante la duda razonable, no se crea. Comprueba también que no creas dos veces a la misma persona dentro de tu propio lote.
+2. NADIE AISLADO. Toda persona que crees debe quedar enlazada al árbol por PADRE, MADRE o cónyuge (M1–M6), formando una cadena ininterrumpida hasta una persona que YA exista en el backup. Verifícalo recorriendo el grafo antes de entregar.
+3. PROHIBIDO ENLAZAR POR «AMIGOS». No uses el campo AMIGOS (ni observaciones, etiquetas, ni ningún otro recurso) para conectar personas. Solo vale filiación (PADRE/MADRE) o matrimonio documentado (Mn).
+4. SI NO SE PUEDE ENLAZAR, NO SE HACE. Si no logras una cadena documentada entre la persona objetivo y mi árbol, NO generes ningún archivo de cambios. Entrega solo el informe diciendo qué buscaste, dónde te quedaste, qué dato o fuente faltaría y qué hipótesis (marcadas como no probadas) merecen investigarse. No fuerces enlaces ni inventes parentescos para completar la tarea.
+5. NO PISAR LO EXISTENTE. Sobre personas que ya existen solo puedes AÑADIR: rellenar campos vacíos o poner un padre, madre o cónyuge en un hueco vacío (con reciprocidad y MFn/MLn). Nunca modifiques un valor ya relleno, nunca cambies un PADRE/MADRE/Mn existente, nunca uses "eliminar", "fusionar" ni "vincular". Si mi árbol dice algo distinto de lo que encuentras, NO lo cambies: anótalo como conflicto en el informe con ambas versiones y sus fuentes.
+6. NO INVENTAR. Cada dato nuevo debe salir de una fuente que hayas consultado de verdad. Si no puedes abrir una página, dilo. Sin fecha, no la pongas (no rellenes con estimaciones tuyas: eso lo calcula la app). Distingue siempre:
+   - A: fuente primaria (partida, testamento, expediente…) o genealogía publicada con fuente primaria. Entra en el archivo.
+   - B: genealogía secundaria fiable y coherente (obra citada, FamilySearch con fuentes, Wikidata contrastado). Entra, indicando en OBSERVACIONES «Filiación atribuida (fuente)».
+   - C: hipótesis, tradición o árbol anónimo sin fuentes. NO entra en el archivo; va solo al informe.
+7. CRONOLOGÍA COHERENTE. Respeta los límites del manual (padre 14–70 años mayor que el hijo, madre 14–55, cónyuges con menos de 40 años de diferencia, hermanos con menos de 35 de dispersión, boda desde los 14). Un vínculo que rompa un límite se deja fuera y se explica.
+8. FORMATO DE DATOS según el manual: NOMBRE y APELLIDO1/APELLIDO2 separados, sin don/doña y sin todo en mayúsculas; casadas con apellido de soltera; títulos, apodos y estatus en OBSERVACIONES; sin ANOCALC, LUGARCALC, FechaEdicion ni FOTO. En OBSERVACIONES de cada ficha nueva añade «Fuente: título/URL y nivel A o B».
+9. IDs NUEVOS: huecos libres a partir de 30000 comprobados contra el backup, distintos entre sí, usados igual en todos los enlaces. Nunca por debajo de 30000. Mi programa los respeta tal cual y CANCELA toda la importación si alguno ya existe.
+
+METODO DE TRABAJO
+
+FASE 1 — PLAN (sin generar todavía el JSON). Entrégame y DETENTE esperando mi OK:
+ a) Dónde está la persona objetivo en mi árbol (o «no está») con los IDs candidatos que descartaste o aceptaste.
+ b) La CADENA PROPUESTA de enlace: persona objetivo → … → persona existente en mi árbol (ID y nombre), con cada eslabón (parentesco o matrimonio), la fuente consultada y su nivel A/B.
+ c) TABLA ANTI-DUPLICADOS: por cada persona que pensabas crear, el candidato existente más parecido (ID) y tu decisión (ya existe → editar / no existe → crear / dudoso → fuera) con el motivo.
+ d) Resumen de la expansión prevista (cuántas fichas nuevas, ramas, límites) y los CONFLICTOS con mi árbol.
+ e) Si no hay cadena documentada: dilo aquí y termina, sin ir a la Fase 2.
+
+FASE 2 — ARCHIVO (solo tras mi OK). Genera el cambios-arbol.json completo según el manual (primero crear, luego editar), sin texto ni comentarios dentro del JSON.
+
+EXPANSIÓN DE LA RAMA
+Una vez asegurado el enlace, amplía la rama hasta la PROFUNDIDAD indicada: ascendientes, hermanos, cónyuges e hijos de las personas nuevas, y los cónyuges, hermanos e hijos documentados de las personas existentes que toquen la cadena. Reglas: solo con fuente A o B; cada persona nueva enlazada por filiación o matrimonio; los hijos de un matrimonio documentado llevan PADRE y MADRE cuando ambos se conocen; no completes hermanos o hijos «por lógica» sin fuente; para parar, usa el límite de profundidad, no el cansancio: si no cabe todo, entrega la parte mejor documentada y enumera lo que queda pendiente.
+
+AUTOAUDITORÍA OBLIGATORIA ANTES DE ENTREGAR
+Simula la aplicación del archivo sobre el backup y comprueba, uno por uno, y declara el resultado:
+ [ ] usuario "IA" y estado "pendiente" en todos; ids de registro sin repetir
+ [ ] cada ID nuevo ≥ 30000, ausente del backup y sin repetir
+ [ ] cada ID de persona existente citado está en el backup
+ [ ] cero «crear» de alguien que ya existe (revisión de duplicados repetida sobre el lote final)
+ [ ] ningún PADRE/MADRE/Mn apunta a un ID que no exista ni se cree
+ [ ] reciprocidad de cónyuges en las dos fichas, con MFn/MLn
+ [ ] ninguna ficha nueva aislada (componentes conexos: todo el lote conecta con el árbol existente)
+ [ ] ningún valor existente sobrescrito
+ [ ] ninguna conexión por AMIGOS
+ [ ] edades dentro de los límites
+ [ ] JSON válido con la estructura de la sección 2 del manual
+
+ENTREGA FINAL (fase 2)
+1. Informe breve: fichas nuevas / editadas; cadena de enlace con fuentes; bloques conectados; conflictos con mi árbol; casos dudosos o nivel C que dejaste fuera a propósito; resultado de la autoauditoría.
+2. El archivo cambios-arbol.json completo y válido.
+Si el lote supera 2.000 registros, divídelo por ramas en archivos independientes (sin IDs repetidos entre ellos).`;
+function copiarPromptAmpliacionIA(){
+var t=PROMPT_AMPLIACION_IA;
+function respaldo(){var ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){ok=false;}ta.remove();return ok;}
+var aviso='Prompt de ampliación copiado. Pégalo en tu IA junto con backup-arbol.json y el manual, y rellena los datos de la persona objetivo.';
+if(navigator.clipboard&&navigator.clipboard.writeText){
+navigator.clipboard.writeText(t).then(function(){toast(aviso);}).catch(function(){if(respaldo())toast(aviso);else toast('No se pudo copiar automáticamente. Prueba desde otro navegador.',true);});
+}else{
+if(respaldo())toast(aviso);else toast('No se pudo copiar automáticamente. Prueba desde otro navegador.',true);
+}
+}
 function copiarPromptLimpiezaIA(){
 var ta=document.getElementById('promptLimpiezaIATexto');
 if(!ta)return;
@@ -23241,6 +23310,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <div class="herr-subhead">Datos</div>
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();document.getElementById('inpImportarCambios').click()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar archivo de cambios</div><div class="herr-desc">Aplica tu cambios-arbol.json directamente a tu árbol, sin pasar por el registro de Drive: no toca lo pendiente de los Cronistas y reserva los IDs de las fichas nuevas</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();copiarPromptAmpliacionIA()"><div class="herr-icon"><i class="fa-solid fa-copy"></i></div><div class="herr-text"><div class="herr-title">Copiar prompt de ampliación (IA)</div><div class="herr-desc">Copia al portapapeles el prompt para que una IA enlace una persona con tu árbol y amplíe la rama sin duplicar ni dejar a nadie aislado</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();rellenarTieneFoto()"><div class="herr-icon"><i class="fa-solid fa-image"></i></div><div class="herr-text"><div class="herr-title">Rellenar «Tiene foto» (TIENEFOTO)</div><div class="herr-desc">Marca en cada ficha si tiene foto, aunque la imagen no esté cargada. Ese dato viaja en las copias y descargas de datos, así no se pierde si se borra o restaura una ficha. Solo añade marcas, nunca las quita.</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
