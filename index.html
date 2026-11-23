@@ -2008,8 +2008,13 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.23.1';
+var APP_VERSION = '2026.11.23.2';
 var APP_CHANGELOG = [
+  { version:'2026.11.23.2', fecha:'2026-11-23', cambios:[
+    'Fotos: al traer la foto de otra ficha ahora SIEMPRE se mueve (se quita de la ficha de origen y su archivo de Drive va a la papelera); ya no hay opción de copiar. Si en ese momento no hay sesión de Drive, el borrado queda apuntado y se reintenta al conectar, y la importación desde Drive ignora esa foto mientras tanto. Al eliminar una ficha también se borra su foto de Drive, para que no reaparezca en otra ficha que reutilice el ID.',
+    'Carga de fotos: el perfil Guardián ya no ve el informe detallado de la importación; solo ve cuántas fotos se han cargado.',
+    'Nuevo campo «TIENEFOTO» (Sí / vacío) que recuerda si una persona tiene foto aunque la imagen no esté cargada. Se rellena solo al guardar cualquier ficha con foto y se vacía solo al quitarle la foto a propósito. Viaja en backup-arbol.json y demás descargas de datos. Nueva herramienta (solo Archivero, Herramientas → Datos → «Rellenar Tiene foto») para marcarlo de golpe en todas las fichas, opcionalmente revisando también la carpeta FOTO de Drive.'
+  ]},
   { version:'2026.11.23.1', fecha:'2026-11-23', cambios:[
     'Años estimados (ANOCALC) v2.8: el motor depura por sí mismo a las personas «contaminadas» (aquellas cuyos familiares directos tienen años reales que se contradicen entre sí). Antes se les guardaba un año forzado hasta el límite más cercano —a veces con siglos de diferencia— y además se propagaba a sus hijos, hermanos y cónyuges. Ahora, en cada recálculo, esas personas se sacan del cálculo, se vacía su año estimado (quedan marcadas y con el motivo explicado) y se recalcula todo sin ellas, repitiendo hasta que no aparezcan nuevas. Los años de nacimiento reales no se tocan.'
   ]},
@@ -4316,8 +4321,16 @@ function oDB(){return new Promise(function(res,rej){var r=indexedDB.open(DB);r.o
    y el guardado del almacén principal se hace por lotes, cada uno en su
    propia transacción corta, para no acumular miles de escrituras pendientes
    en memoria a la vez. */
+/* ===== TIENEFOTO: marca persistente «esta persona tiene foto» =====
+   FOTO (dataURL) no viaja en backup-arbol.json ni en las descargas de datos, así que al
+   restaurar solo datos (o al borrar una ficha) se perdía el rastro de quién tenía foto.
+   TIENEFOTO ('Sí' o '') sí viaja siempre. Se pone a 'Sí' automáticamente al guardar cualquier
+   ficha con FOTO; solo se vacía cuando se quita la foto a propósito (Editar foto → Quitar).
+   Si FOTO está vacía pero TIENEFOTO='Sí' se conserva (la foto puede no estar cargada aún). */
+function marcarTieneFoto(p){if(p&&p.FOTO&&p.TIENEFOTO!=='Sí'){p.TIENEFOTO='Sí';return true;}return false;}
 function sAll(d,opciones){
 opciones=opciones||{};
+for(var iTf=0;iTf<d.length;iTf++)marcarTieneFoto(d[iTf]);
 var marcarSucio=opciones.marcarANOCALCSucio!==false;
 var LOTE=2000;
 function txProm(stores,fnUsar){
@@ -4381,6 +4394,7 @@ if(db.objectStoreNames.contains(CFG))stores.push(CFG);
 var tx=db.transaction(stores,'readwrite'),s=tx.objectStore(ST),b=tx.objectStore(BK);
 idsUnicos.forEach(function(id){
 var p=PI[id];
+if(p)marcarTieneFoto(p);
 if(p)s.put(p);else s.delete(id);
 });
 b.put({id:'ultima',fecha:new Date().toISOString(),personas:D});
@@ -4455,11 +4469,11 @@ var CAMBIOS_STORE='cambios';
 var CAMBIOS_ESTADO='pendiente';
 var CAMBIOS_HISTORIAL='historial';
 var CAMBIOS_SYNC_FILENAME='cambios-arbol.json';
-var CAMBIOS_IGNORAR=['ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'];
+var CAMBIOS_IGNORAR=['TIENEFOTO','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','FechaEdicion','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO'];
 var CAMBIOS_LABELS={
 FOTO_BASE:'Foto basada en (ID)',FOTO_RECON:'Imagen reconstruida',ID:'ID',NOMBRE:'Nombre',APELLIDO1:'Primer apellido',APELLIDO2:'Segundo apellido',SEXO:'Sexo',NACD:'Día de nacimiento',NACM:'Mes de nacimiento',NACA:'Año de nacimiento',
 DEFD:'Día de defunción',DEFM:'Mes de defunción',DEFA:'Año de defunción',LUGARNAC:'Lugar de nacimiento',LUGARDEF:'Lugar de defunción',PADRE:'Padre',MADRE:'Madre',M1:'Cónyuge 1',M2:'Cónyuge 2',M3:'Cónyuge 3',M4:'Cónyuge 4',M5:'Cónyuge 5',M6:'Cónyuge 6',
-ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas',BORRAR:'Marcada para borrar',REVISADA:'Ficha revisada'
+ML1:'Lugar matrimonio 1',MF1:'Fecha matrimonio 1',ML2:'Lugar matrimonio 2',MF2:'Fecha matrimonio 2',ML3:'Lugar matrimonio 3',MF3:'Fecha matrimonio 3',ML4:'Lugar matrimonio 4',MF4:'Fecha matrimonio 4',ML5:'Lugar matrimonio 5',MF5:'Fecha matrimonio 5',ML6:'Lugar matrimonio 6',MF6:'Fecha matrimonio 6',FALLECIDO:'Estado fallecimiento',FOTO:'Fotografía',TIENEFOTO:'Tiene foto',APROX:'Año aproximado',MotivoAprox:'Motivo del año aproximado',OBSERVACIONES:'Observaciones',NoVISIBLE:'Visibilidad',ETIQUETAS:'Etiquetas',BORRAR:'Marcada para borrar',REVISADA:'Ficha revisada'
 };
 function clonarPersona(p){if(!p)return null;var o={};Object.keys(p).forEach(function(k){var v=p[k];if(v instanceof Date)o[k]=new Date(v.getTime());else if(Array.isArray(v))o[k]=v.slice();else if(v&&typeof v==='object')o[k]=JSON.parse(JSON.stringify(v));else o[k]=v;});return o;}
 function mapaPersonas(arr){var m={};(arr||[]).forEach(function(p){if(p&&p.ID)m[p.ID]=clonarPersona(p);});return m;}
@@ -4709,7 +4723,7 @@ async function sincronizarCambiosDriveInterno(forzar,mostrarProgreso){if(!driveR
 if(forzar)toast('Conecta primero Google Drive para sincronizar cambios',true);return;}
 if(mostrarProgreso)mostrarProgresoDrive('Comprobando cambios pendientes en Drive...','camSyncProgresoWrap');
 try{await refrescarCambiosDesdeDrive();var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Sincronizado con Google Drive · '+new Date().toLocaleTimeString('es-ES');actualizarContadorCambios();registrarSincronizacionDrive();if(document.getElementById('vCam').classList.contains('active'))mostrarCambios('pendientes');if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');if(forzar)toast('Cambios sincronizados con Google Drive');}catch(err){if(mostrarProgreso)ocultarProgresoDrive('camSyncProgresoWrap');var e=document.getElementById('cambiosEstadoSync');if(e)e.textContent='Pendiente de sincronizar con Drive';if(forzar)toast('No se pudieron sincronizar los cambios: '+err.message,true);}}
-function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','FOTO_FECHA','FOTO_RECON','FOTO_BASE','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO','BORRAR','REVISADA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
+function lAll(){return new Promise(function(res,rej){var r=db.transaction(ST,'readonly').objectStore(ST).getAll();r.onsuccess=function(){var limpia = r.result.map(function(p) {['ID','APROX','MotivoAprox','NoVISIBLE','APELLIDO1','APELLIDO2','NOMBRE','PADRE','MADRE','LUGARNAC','LUGARDEF','OBSERVACIONES','SEXO','FechaEdicion','M1','MF1','ML1','M2','MF2','ML2','M3','MF3','ML3','M4','MF4','ML4','M5','MF5','ML5','M6','MF6','ML6','FALLECIDO','FOTO','TIENEFOTO','FOTO_FECHA','FOTO_RECON','FOTO_BASE','ANOCALC','ANOCALC_MOTIVO','ANOCALC_DISTANCIA','ETIQUETAS','LUGARCALC','LUGARCALC_CONFIANZA','LUGARCALC_MOTIVO','BORRAR','REVISADA'].forEach(function(k) {if(p[k] === null || p[k] === undefined) p[k] = '';if(typeof p[k] !== 'string') p[k] = String(p[k]);});return p;});res(limpia);};r.onerror=function(){rej(r.error);};});}
 function cargarCarpetaDocumentos(){return new Promise(function(res){
 /* La configuración local solo sirve como caché. La fuente común es Drive. */
 driveRootFolderId=DEFAULT_DRIVE_ROOT_FOLDER_ID||null;
@@ -4861,6 +4875,7 @@ callback:async function(resp){
 if(resp&&resp.access_token){
 driveAccessToken=resp.access_token;driveTokenExpira=Date.now()+((resp.expires_in?parseInt(resp.expires_in,10):3500)*1000);
 guardarSesionDriveLocal();huboSesionDriveActiva=true;
+setTimeout(function(){try{procesarFotosPendientesBorrar();}catch(e){}},4000);
 /* Antes se esperaba aquí, con await, a la identidad de Google y a la
    configuración común de Drive antes de dar la conexión por buena: esa
    cadena de llamadas de red adicionales es lo que hacía que "Conectando..."
@@ -7710,6 +7725,39 @@ var wrap=document.getElementById('navMoreWrap'),menu=document.getElementById('na
 if(wrap&&wrap.contains(e.target))return;
 if(menu&&menu.contains(e.target))return;
 cerrarNavMas();
+}
+/* ===== Herramienta (Archivero): rellenar el campo TIENEFOTO de todas las fichas =====
+   1) Marca 'Sí' a quien tiene FOTO cargada en este dispositivo.
+   2) Si hay sesión de Drive, ofrece además marcar a quien tiene archivo <ID>.jpg/png en la carpeta FOTO.
+   Nunca borra marcas existentes: solo añade. Después, «Subir copia a Drive» o la copia local
+   llevarán el campo en backup-arbol.json. */
+var tieneFotoEnCurso=false;
+async function rellenarTieneFoto(){
+if(tieneFotoEnCurso){toast('Ya hay un proceso en curso',true);return;}
+if(!esAdministrador()){toast('Solo el Archivero puede usar esta herramienta',true);return;}
+tieneFotoEnCurso=true;
+try{
+var ids=[],yaMarcadas=0,conFotoLocal=0;
+D.forEach(function(p){if(!p)return;if(p.FOTO)conFotoLocal++;if(p.TIENEFOTO==='Sí')yaMarcadas++;if(marcarTieneFoto(p))ids.push(p.ID);});
+var nDrive=0,avisoDrive='';
+if(driveRootFolderId&&tokenDriveValido()&&confirm('Fotos de este dispositivo revisadas.\n\n¿Quieres revisar también la carpeta FOTO de Google Drive para marcar a quien tenga foto allí aunque no esté cargada en este dispositivo?')){
+try{
+var folderId=await obtenerCarpetaFotoId(false);
+if(folderId){
+var todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType');
+todos.forEach(function(f){
+if(!esArchivoImagenImportable(f.mimeType,f.name))return;
+var p=PI[nombreSinExtensionImportado(f.name)];
+if(p&&p.TIENEFOTO!=='Sí'){p.TIENEFOTO='Sí';ids.push(p.ID);nDrive++;}
+});
+}else avisoDrive=' (no se encontró la carpeta FOTO en Drive)';
+}catch(e){avisoDrive=' (no se pudo revisar Drive: '+(e&&e.message||e)+')';}
+}
+if(ids.length){bIdx(D);await sPersonas(ids,{marcarANOCALCSucio:false});}
+var sinCargar=D.filter(function(p){return p&&p.TIENEFOTO==='Sí'&&!p.FOTO;}).length;
+toast('Campo TIENEFOTO actualizado: '+ids.length+' ficha(s) marcadas ahora ('+nDrive+' por Drive). En total '+(yaMarcadas+ids.length)+' con foto'+(sinCargar?', '+sinCargar+' sin la imagen cargada aquí':'')+'.'+avisoDrive);
+}catch(err){toast('No se pudo rellenar TIENEFOTO: '+(err&&err.message||err),true);}
+finally{tieneFotoEnCurso=false;}
 }
 function mostrarHerramientas(){
 mostrarVersionEnHerramientas();
@@ -10814,7 +10862,7 @@ h+='<input type="file" id="ef-foto-input" accept="image/*" style="display:none" 
 h+='<button type="button" class="ef-btn ghost" onclick="document.getElementById(\'ef-foto-input\').click()"><i class="fa-solid fa-camera"></i> Subir foto</button>';
 h+=' <button type="button" class="ef-btn ghost" onclick="pegarFotoDesdePortapapelesFicha()"><i class="fa-solid fa-paste"></i> Pegar del portapapeles</button>';
 h+=' <button type="button" class="ef-btn ghost" onclick="abrirSelectorFotoOrigen(\''+safeId(id)+'\')"><i class="fa-solid fa-people-arrows"></i> Traer foto de otra ficha</button>';
-h+='<div id="ef-foto-origen" style="display:none;margin-top:8px;font-size:12px"><div id="ef-foto-origen-txt" style="color:var(--muted);margin-bottom:4px"></div><label class="ef-check"><input type="checkbox" id="ef-foto-origen-quitar"> Quitar la foto de la otra ficha (moverla en lugar de copiarla)</label></div>';
+h+='<div id="ef-foto-origen" style="display:none;margin-top:8px;font-size:12px"><div id="ef-foto-origen-txt" style="color:var(--muted);margin-bottom:4px"></div></div>';
 if(p.FOTO) h+=' <button type="button" class="ef-btn ghost" id="ef-foto-quitar-btn" onclick="quitarFoto()" style="margin-left:6px">Quitar</button>';
 h+='<p style="font-size:10px;color:var(--muted);margin-top:6px">En móvil, el botón ofrece hacer una foto o elegir de la galería. En ordenador, también puedes arrastrar una imagen sobre el recuadro.</p>';
 h+='</div></div>';
@@ -10934,18 +10982,18 @@ var antesGuardadoParcial=mapaPersonas(D);
 var antesOrigenFoto=null,origenFotoMovida=null;
 if(fotoPendiente!==undefined){
 p.FOTO=fotoPendiente;
+p.TIENEFOTO=fotoPendiente?'Sí':'';
 p.FOTO_FECHA=new Date().toISOString();
 var fotoParaDrive=fotoPendiente,idParaDrive=id;
 fotoPendiente=undefined;
 if(fotoParaDrive)subirFotoPersonaADrive(idParaDrive,fotoParaDrive);
 else eliminarFotoPersonaDeDrive(idParaDrive);
 /* Foto traída de otra ficha: si se marcó «moverla», se quita de la ficha de origen. */
-var chkMover=document.getElementById('ef-foto-origen-quitar');
-var origenMover=(fotoOrigenId&&chkMover&&chkMover.checked&&fotoParaDrive&&PI[fotoOrigenId]&&String(fotoOrigenId)!==String(id))?PI[fotoOrigenId]:null;
+var origenMover=(fotoOrigenId&&fotoParaDrive&&PI[fotoOrigenId]&&String(fotoOrigenId)!==String(id))?PI[fotoOrigenId]:null;
 fotoOrigenId=null;
 if(origenMover){
 antesOrigenFoto=clonarPersona(origenMover);
-origenMover.FOTO='';origenMover.FOTO_FECHA=new Date().toISOString();origenMover.FOTO_RECON='';if(origenMover.FOTO_BASE)origenMover.FOTO_BASE='';
+origenMover.FOTO='';origenMover.TIENEFOTO='';origenMover.FOTO_FECHA=new Date().toISOString();origenMover.FOTO_RECON='';if(origenMover.FOTO_BASE)origenMover.FOTO_BASE='';
 eliminarFotoPersonaDeDrive(origenMover.ID);
 origenFotoMovida=origenMover;
 }
@@ -11419,6 +11467,8 @@ document.getElementById('impFotosProgresoWrap').style.display='none';
 document.getElementById('impFotosCerrarBtn').style.display='inline-flex';
 var cont=document.getElementById('impFotosResumen');
 cont.style.display='block';
+/* Perfil Guardián: sin informe detallado, solo cuántas fotos se han cargado. */
+if(esLector()){cont.innerHTML='<p style="font-size:14px;margin:6px 0"><i class="fa-solid fa-circle-check" style="color:var(--green)"></i> Fotos cargadas: <strong>'+(res.asociadas||0)+'</strong></p>'+(res.pausa?'<p style="font-size:12px;color:var(--muted)">La carga se ha pausado antes de terminar. Vuelve a intentarlo para cargar el resto.</p>':'');return;}
 var h='<div class="ges-resumen" style="justify-content:flex-start;margin-top:0">';
 h+='<span class="ges-pill">Archivos encontrados: '+res.encontrados+'</span>';
 h+='<span class="ges-pill">Imágenes reconocidas: '+res.reconocidas+'</span>';
@@ -11541,6 +11591,7 @@ var d=await r.json();
 return(d.files&&d.files.length)?d.files[0]:null;
 }
 async function subirFotoPersonaADrive(id,dataUrl){
+try{await quitarFotoPendBorrar(id);}catch(eQ){}
 if(!driveRootFolderId||!tokenDriveValido())return;
 try{
 var folderId=await obtenerCarpetaFotoId(true);
@@ -11555,16 +11606,33 @@ if(!resp.ok)throw new Error('Drive respondio '+resp.status);
 console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);toast('La foto de la ficha '+id+' no se subió a Drive. Usa Herramientas → Fotos sin copia en Drive.',true);
 }
 }
+/* ===== Cola de fotos pendientes de borrar en Drive =====
+   Si al quitar/mover/eliminar una foto no hay sesión de Drive (o falla), el ID se apunta en este
+   dispositivo y el borrado se reintenta al conectar. Mientras un ID esté en la cola, la importación
+   masiva desde Drive IGNORA su archivo, para que la foto no «resucite» en otra ficha que reutilice ese ID. */
+var CFG_FOTOS_PEND_BORRAR='fotosPendientesBorrarDrive';
+var fotosPendBorrar=null;
+async function cargarFotosPendBorrar(){if(fotosPendBorrar)return fotosPendBorrar;var v=await leerValorCFG(CFG_FOTOS_PEND_BORRAR);fotosPendBorrar=Array.isArray(v)?v.map(String):[];return fotosPendBorrar;}
+async function anotarFotoPendBorrar(id){var l=await cargarFotosPendBorrar();id=String(id);if(l.indexOf(id)<0){l.push(id);await guardarValorCFG(CFG_FOTOS_PEND_BORRAR,l);}}
+async function quitarFotoPendBorrar(id){var l=await cargarFotosPendBorrar();id=String(id);var i=l.indexOf(id);if(i>=0){l.splice(i,1);await guardarValorCFG(CFG_FOTOS_PEND_BORRAR,l);}}
+async function procesarFotosPendientesBorrar(){
+if(!driveRootFolderId||!tokenDriveValido())return;
+var l=(await cargarFotosPendBorrar()).slice();
+for(var i=0;i<l.length;i++){if(!tokenDriveValido())break;await eliminarFotoPersonaDeDrive(l[i]);}
+}
 async function eliminarFotoPersonaDeDrive(id){
+try{await anotarFotoPendBorrar(id);}catch(eAn){}
 if(!driveRootFolderId||!tokenDriveValido())return;
 try{
 var folderId=await obtenerCarpetaFotoId(false);
 if(!folderId)return;
 var nombre=String(id)+'.jpg';
 var existente=await buscarArchivoFotoDrivePorId(nombre,folderId);
-if(!existente)return;
+if(!existente){await quitarFotoPendBorrar(id);return;}
 var r=await fetch('https://www.googleapis.com/drive/v3/files/'+existente.id,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});
 if(r.status===401){driveAccessToken=null;return;}
+if(r.ok)await quitarFotoPendBorrar(id);
+else toast('No se pudo borrar en Drive la foto de la ficha '+id+' (¿sin permiso de editor?). Se reintentará al conectar.',true);
 }catch(err){
 console.warn('No se pudo eliminar la foto de la persona '+id+' en Drive:',err.message);
 }
@@ -11810,12 +11878,14 @@ return;
 var TAM_BLOQUE_FOTOS=50,CONCURRENCIA_FOTOS=4;
 /* Paso 1: separar lo que no hay que descargar (sin persona / sin cambios). */
 var pendientes=[];
+var listaPendBorrar=[];try{await procesarFotosPendientesBorrar();listaPendBorrar=await cargarFotosPendBorrar();}catch(ePB){}
 for(var idx=0;idx<archivos.length;idx++){
 var f=archivos[idx];
 /* Asociación SIEMPRE por coincidencia exacta del nombre (sin extensión) con el
    ID de persona; nunca se hacen coincidencias aproximadas. */
 var base=nombreSinExtensionImportado(f.name);
 var persona=PI[base];
+if(listaPendBorrar.indexOf(String(base))>=0)continue; /* foto retirada: pendiente de borrar en Drive */
 if(!persona){
 res.sinPersona.push({nombre:f.name,motivo:impFotosCategoriaTexto('sin_persona')});
 continue;
@@ -11883,7 +11953,7 @@ document.getElementById('impFotosProgresoWrap').style.display='none';
 document.getElementById('impFotosCerrarBtn').style.display='inline-flex';
 var cont=document.getElementById('impFotosResumen');
 cont.style.display='block';
-cont.innerHTML='<div class="backup-warn" style="display:flex;max-width:none"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(err.message)+'</div>';
+cont.innerHTML=esLector()?'<div class="backup-warn" style="display:flex;max-width:none"><i class="fa-solid fa-triangle-exclamation"></i> No se pudieron cargar las fotos. Vuelve a intentarlo más tarde.</div>':'<div class="backup-warn" style="display:flex;max-width:none"><i class="fa-solid fa-triangle-exclamation"></i> '+esc(err.message)+'</div>';
 }finally{
 importFotosEnCurso=false;fijarBotonesImportFotos(false);soltarWakeLockFotos();
 }
@@ -12544,6 +12614,7 @@ return copia;
 actualizarProgresoAccion('Guardando los cambios en este dispositivo...');
 await cederPantalla();
 await sAll(nuevos);
+try{eliminarFotoPersonaDeDrive(id);}catch(eFD){}
 D=nuevos;bIdx(D);cid=null;editSec={};rStats();doSrch(document.getElementById('si').value);if(__dualAb){var __Pd=__dual.p[__dual.act];__Pd.editSec={};editSec=__Pd.editSec;cid=__Pd.id;dualPintar(__dual.act);}else if(__splitGes){__splitCerrar(true);rGesLigero();}else sv('bus');actualizarBarraActiva();
 toast('Ficha eliminada correctamente');
 try{
@@ -12780,10 +12851,9 @@ if(prev)prev.innerHTML='<img src="'+escAttr(otro.FOTO)+'" style="width:100%;heig
 if(!document.getElementById('ef-foto-quitar-btn')&&prev&&prev.parentElement){
 var b=document.createElement('button');b.type='button';b.className='ef-btn ghost';b.id='ef-foto-quitar-btn';b.style.marginLeft='6px';b.textContent='Quitar';b.onclick=quitarFoto;prev.parentElement.appendChild(b);
 }
-var cont=document.getElementById('ef-foto-origen'),txt=document.getElementById('ef-foto-origen-txt'),chk=document.getElementById('ef-foto-origen-quitar');
+var cont=document.getElementById('ef-foto-origen'),txt=document.getElementById('ef-foto-origen-txt'),chk=null;
 if(cont)cont.style.display='block';
-if(chk)chk.checked=false;
-if(txt)txt.textContent='Foto de '+fn(otro).trim()+' (ID '+otro.ID+'). Pulsa Guardar para ponérsela a esta ficha.';
+if(txt)txt.textContent='Foto de '+fn(otro).trim()+' (ID '+otro.ID+'). Pulsa Guardar para ponérsela a esta ficha: se MOVERÁ, es decir, se quitará de la otra ficha (y de Drive).';
 cerrarSelectorRelacion();
 toast('Foto cargada de '+fn(otro).trim()+'. Pulsa Guardar para conservarla.');
 }
@@ -22762,6 +22832,7 @@ if(estabaCargando&&document.getElementById('vCam').classList.contains('active'))
 <button class="herr-item" onclick="cerrarHerramientas();sv('ges')"><div class="herr-icon"><i class="fa-solid fa-list-check"></i></div><div class="herr-text"><div class="herr-title">Gestor de datos</div><div class="herr-desc">Discrepancias, inconsistencias, posibles duplicados, lugares y años estimados pendientes</div></div></button>
 <button class="herr-item herr-req-drive" onclick="cerrarHerramientas();document.getElementById('inpImportarCambios').click()"><div class="herr-icon"><i class="fa-solid fa-file-import"></i></div><div class="herr-text"><div class="herr-title">Importar archivo de cambios</div><div class="herr-desc">Aplica tu cambios-arbol.json directamente a tu árbol, sin pasar por el registro de Drive: no toca lo pendiente de los Cronistas y reserva los IDs de las fichas nuevas</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();abrirModalEstimaciones()"><div class="herr-icon"><i class="fa-solid fa-calculator"></i></div><div class="herr-text"><div class="herr-title">Estimaciones (ANOCALC / LUGARCALC)</div><div class="herr-desc">Recalcular años y lugares estimados y configurar las medias de edad</div></div></button>
+<button class="herr-item" onclick="cerrarHerramientas();rellenarTieneFoto()"><div class="herr-icon"><i class="fa-solid fa-image"></i></div><div class="herr-text"><div class="herr-title">Rellenar «Tiene foto» (TIENEFOTO)</div><div class="herr-desc">Marca en cada ficha si tiene foto, aunque la imagen no esté cargada. Ese dato viaja en las copias y descargas de datos, así no se pierde si se borra o restaura una ficha. Solo añade marcas, nunca las quita.</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGed()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM</div><div class="herr-desc">Descarga un archivo .ged con todo el árbol, compatible con otros programas de genealogía</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGedAscendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de la rama</div><div class="herr-desc">Descarga un .ged con los antepasados de la persona activa (la de la barra "Viendo a") y sus parientes colaterales: hermanos, cuñados, tíos, primos, sobrinos y tíos abuelos</div></div></button>
 <button class="herr-item" onclick="cerrarHerramientas();expGedDescendientes()"><div class="herr-icon"><i class="fa-solid fa-file-export"></i></div><div class="herr-text"><div class="herr-title">Exportar GEDCOM de descendientes</div><div class="herr-desc">Descarga un .ged con la persona activa (la de la barra "Viendo a") y todos sus descendientes, con sus cónyuges y los ascendientes de esos cónyuges</div></div></button>
