@@ -2023,7 +2023,7 @@ var APP_CHANGELOG = [
     'Años estimados (ANOCALC) v2.8: el motor depura por sí mismo a las personas «contaminadas» (aquellas cuyos familiares directos tienen años reales que se contradicen entre sí). Antes se les guardaba un año forzado hasta el límite más cercano —a veces con siglos de diferencia— y además se propagaba a sus hijos, hermanos y cónyuges. Ahora, en cada recálculo, esas personas se sacan del cálculo, se vacía su año estimado (quedan marcadas y con el motivo explicado) y se recalcula todo sin ellas, repitiendo hasta que no aparezcan nuevas. Los años de nacimiento reales no se tocan.'
   ]},
   { version:'2026.11.22.1', fecha:'2026-11-22', cambios:[
-    'Herramientas (solo Archivero) → «Importar archivo de cambios»: aplica tu cambios-arbol.json directamente a tu árbol (en orden crear, editar, eliminar), sin escribir nada en el registro de cambios de Drive, así que los pendientes de los Cronistas no se tocan. Todas las fichas nuevas reciben los últimos huecos libres de ID (por debajo de 900000), se ajustan sus enlaces de padre, madre y cónyuges, se reservan en Drive para que ningún Cronista los use y se descarga una tabla con los IDs asignados. Después se ofrece publicar el árbol oficial.'
+    'Herramientas (solo Archivero) → «Importar archivo de cambios»: aplica tu cambios-arbol.json directamente a tu árbol (en orden crear, editar, eliminar), sin escribir nada en el registro de cambios de Drive, así que los pendientes de los Cronistas no se tocan. Las fichas nuevas conservan exactamente el ID que trae el archivo (la IA los toma de huecos libres a partir de 30.000); la app nunca los cambia. Antes de aplicar nada comprueba que ninguno exista ya en el árbol, esté reservado en Drive o aparezca repetido: si alguno falla, no se importa nada y se avisa (así no se duplican personas si se importa dos veces el mismo archivo). Al aplicar, esos IDs se reservan en Drive para que ningún Cronista los use. Después se ofrece publicar el árbol oficial.'
   ]},
   { version:'2026.11.21.4', fecha:'2026-11-21', cambios:[
     'Perfiles: al conectar con Google la app vuelve a leer siempre la lista de usuarios de Drive. Antes, un dispositivo que ya tenía recordado el perfil anterior (por ejemplo Guardián) seguía con él aunque el Archivero lo hubiera cambiado a Cronista, y no mostraba los botones de editar. Ahora el cambio de perfil se aplica en cuanto la persona conecta.',
@@ -10139,12 +10139,16 @@ if(r)r(null);
 }
 /* ===== Importar el archivo de cambios del Archivero (Herramientas → «Importar archivo de cambios») =====
    Aplica los registros DIRECTAMENTE al árbol local del Archivero (como si diera Conforme a todos), sin
-   escribir nada en cambios-arbol.json de Drive: los pendientes de los Cronistas ni se tocan. De Drive
-   solo LEE el registro y los IDs reservados, para elegir IDs de fichas nuevas que nadie use. Todas las
-   fichas nuevas reciben los ÚLTIMOS huecos libres (por debajo de 900000), se reasignan sus enlaces
-   (PADRE, MADRE, M1-M6) y se reservan en ids-reservados.json (escritura con ETag). */
-var IMP_CAMBIOS_TOPE=900000;
-function impCambiosEsAjeno(c){return /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(c.id))||/^c-\d+-/.test(String(c.id));}
+   escribir nada en cambios-arbol.json de Drive: los pendientes de los Cronistas ni se tocan.
+   REGLA: la app NUNCA cambia los IDs del archivo. Las fichas nuevas (crear) conservan exactamente el ID que
+   trae el archivo (la IA los toma de huecos libres a partir de 30.000). ANTES de tocar nada comprueba que
+   cada ID de «crear» sea un número válido, no se repita en el archivo, no exista ya en el árbol, no esté
+   reservado en Drive y no lo use una propuesta pendiente de un Cronista. Si alguno falla, NO se importa
+   nada, no se reserva nada y se avisa (así, importar dos veces el mismo archivo ya no duplica personas).
+   También se cancela si algún enlace (PADRE, MADRE, M1-M6, AMIGOS) apunta a un ID que no existe ni se crea
+   en el archivo. Tras la confirmación, los IDs nuevos se reservan en ids-reservados.json (escritura con
+   ETag, volviendo a comprobar que nadie los haya reservado entre tanto). */
+var IMP_CAMBIOS_ZONA_IA=30000;
 async function impCambiosLeerDrive(){
 var f=await obtenerArchivoCambiosDrive();
 if(!f)return{fileId:null,etag:null,cambios:[]};
@@ -10154,52 +10158,58 @@ if(!r.ok)throw new Error('Drive respondió '+r.status+' al leer cambios-arbol.js
 return{fileId:f.id,etag:r.headers.get('ETag')||r.headers.get('etag'),cambios:normalizarArchivoCambios(await r.json()).cambios};
 }
 async function impCambiosReservar(ids){
+if(!ids.length)return;
 for(var i=0;i<IDS_RESERVADOS_MAX_REINTENTOS;i++){
 var est=await leerIdsReservadosDrive(),set={};
-est.reservados.forEach(function(n){set[n]=1;});
-var nuevos=ids.filter(function(n){return !set[n];});
-if(!nuevos.length)return;
-var resp=await guardarIdsReservadosDrive(est.fileId,est.etag,est.reservados.concat(nuevos));
+est.reservados.forEach(function(n){set[String(n)]=1;});
+var choque=ids.filter(function(n){return set[String(n)];});
+if(choque.length)throw new Error('entre tanto se han reservado en Drive estos IDs: '+choque.slice(0,8).join(', ')+(choque.length>8?'…':'')+'. No se ha importado nada');
+var resp=await guardarIdsReservadosDrive(est.fileId,est.etag,est.reservados.concat(ids));
 if(resp&&resp.status===412)continue;
 if(!resp||!resp.ok)throw new Error('Drive respondió '+(resp?resp.status:'sin respuesta')+' al reservar los IDs');
 return;
 }
 throw new Error('no se pudieron reservar los IDs tras varios intentos');
 }
-function impCambiosPlanificar(mios,drive,reservados,directo){
-/* Manual: todo registro de la IA lleva usuario «IA» y estado «pendiente». Del archivo solo se importan esos; el resto (registros de Cronistas o ya resueltos que el archivo arrastra por partir del actual) ya están en Drive y se ignoran. */
-var totalArchivo=mios.length;
-if(!directo)mios=mios.filter(function(c){return (c.usuario||'IA')==='IA'&&c.estado==='pendiente';});
-var omitidos=totalArchivo-mios.length;
-var quitar=directo?[]:drive.filter(function(c){return c.estado==='pendiente'&&c.usuario==='IA'&&!impCambiosEsAjeno(c);});
-var quitarIds={},propios={};
-quitar.forEach(function(c){quitarIds[c.id]=1;if(c.tipo==='crear')propios[String(c.personaId)]=1;});
-var quedan=drive.filter(function(c){return !quitarIds[c.id];});
-var usadosId={};quedan.forEach(function(c){usadosId[c.id]=1;});
-var ocup={};
-Object.keys(PI).forEach(function(k){ocup[k]=1;});
-reservados.forEach(function(n){if(!propios[String(n)])ocup[String(n)]=1;});
-quedan.forEach(function(c){if(c.tipo==='crear')ocup[String(c.personaId)]=1;});
-var tope=0;Object.keys(ocup).forEach(function(k){var n=Number(k);if(n<IMP_CAMBIOS_TOPE&&n>tope)tope=n;});
-function hueco(){for(var n=tope;n>=1;n--){if(!ocup[n]){ocup[n]=1;return String(n);}}var m=tope+1;while(ocup[m])m++;ocup[m]=1;return String(m);}
-function val(c,k){var f=(c.campos||[]).filter(function(x){return x.campo===k;})[0];return f?String(f.despues||'').trim().toLowerCase():'';}
-/* Todas las fichas nuevas reciben SIEMPRE un ID del último hueco libre; el ID que traiga el archivo solo sirve para enlazar los registros entre sí. */
-var crear=mios.filter(function(c){return c.tipo==='crear';}),fijos={},yaEstan={},mapa={};
-crear.forEach(function(c){var id=String(c.personaId),ex=PI[id];
-if(ex&&val(c,'NOMBRE')===String(ex.NOMBRE||'').trim().toLowerCase()&&val(c,'APELLIDO1')===String(ex.APELLIDO1||'').trim().toLowerCase()){fijos[id]=1;yaEstan[id]=1;return;}
+function impCambiosPlanificar(mios,drive,reservados){
+var ahora=new Date().toISOString(),lote='arch-'+ahora.slice(0,16).replace(/[-:T]/g,'');
+var resSet={};reservados.forEach(function(n){resSet[String(n)]=1;});
+var pendSet={},usadosId={};
+drive.forEach(function(c){usadosId[c.id]=1;if(c.estado==='pendiente'&&c.tipo==='crear')pendSet[String(c.personaId).trim()]=1;});
+function nom(p){return [p.NOMBRE,p.APELLIDO1,p.APELLIDO2].filter(Boolean).join(' ');}
+function val(c,k){var f=(c.campos||[]).filter(function(x){return x.campo===k;})[0];return f?String(f.despues==null?'':f.despues).trim():'';}
+var crearIds={},conflictos=[],enlaces=[],crearLista=[];
+mios.forEach(function(c){
+if(c.tipo!=='crear')return;
+var id=String(c.personaId==null?'':c.personaId).trim();
+if(!/^[1-9]\d{0,14}$/.test(id)){conflictos.push((id||'(vacío)')+': ID no válido (debe ser un número entero)');return;}
+if(crearIds[id]){conflictos.push(id+': aparece en más de un «crear» del archivo');return;}
+crearIds[id]=1;crearLista.push(c);
+if(PI[id])conflictos.push(id+': ya existe en el árbol ('+nom(PI[id])+')');
+else if(resSet[id])conflictos.push(id+': ya está reservado en Drive');
+else if(pendSet[id])conflictos.push(id+': lo usa una propuesta pendiente de un Cronista');
 });
-crear.forEach(function(c){var id=String(c.personaId);if(!fijos[id]&&!mapa.hasOwnProperty(id))mapa[id]=hueco();});
-var REFS=['PADRE','MADRE','M1','M2','M3','M4','M5','M6','ID'];
-function mp(v){var s=String(v);return mapa.hasOwnProperty(s)?mapa[s]:v;}
-var lote='arch-'+new Date().toISOString().slice(0,16).replace(/[-:T]/g,''),ahora=new Date().toISOString();
+var REFS=['PADRE','MADRE','M1','M2','M3','M4','M5','M6'];
+mios.forEach(function(c){
+if(c.tipo==='eliminar')return;
+(c.campos||[]).forEach(function(k){
+var vals=[];
+if(REFS.indexOf(k.campo)>=0)vals=[k.despues];
+else if(k.campo==='AMIGOS')vals=Array.isArray(k.despues)?k.despues:String(k.despues==null?'':k.despues).split(/[,;|]/);
+vals.forEach(function(v){v=String(v==null?'':v).trim();if(v&&!PI[v]&&!crearIds[v])enlaces.push(String(c.personaId).trim()+' → '+k.campo+' = '+v);});
+});
+});
+/* Aviso (no bloquea): fichas nuevas con el mismo nombre completo que una existente y el mismo año de nacimiento (o sin año en alguna). */
+var porClave={},posibles=[];
+function nt(t){return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9ñ]+/g,' ').trim();}
+function clave(n,a1,a2){return nt(n)+'|'+nt(a1)+'|'+nt(a2);}
+crearLista.forEach(function(c){if(!val(c,'NOMBRE')||!val(c,'APELLIDO1'))return;var k=clave(val(c,'NOMBRE'),val(c,'APELLIDO1'),val(c,'APELLIDO2'));(porClave[k]=porClave[k]||[]).push(c);});
+if(crearLista.length)D.forEach(function(p){var cs=porClave[clave(p.NOMBRE,p.APELLIDO1,p.APELLIDO2)];if(!cs)return;cs.forEach(function(c){var x=val(c,'NACA'),y=String(p.NACA||'').trim();if(!x||!y||x===y)posibles.push(nom(p)+' (nueva '+String(c.personaId).trim()+' ≈ existente '+p.ID+')');});});
 var nuevos=mios.map(function(c,i){var r=JSON.parse(JSON.stringify(c));
-r.personaId=String(mp(r.personaId));
-(r.campos||[]).forEach(function(k){
-if(REFS.indexOf(k.campo)>=0)k.despues=mp(k.despues);
-else if(k.campo==='AMIGOS'){if(Array.isArray(k.despues))k.despues=k.despues.map(mp);else if(typeof k.despues==='string')k.despues=k.despues.split(/([,;|])/).map(function(t){return /^[,;|]$/.test(t)?t:mp(t.trim());}).join('');}});
+r.personaId=String(r.personaId==null?'':r.personaId).trim();
 var idr=String(r.id||'ia');if(usadosId[idr])idr=idr+'-'+lote+'-'+i;usadosId[idr]=1;r.id=idr;r.estado='pendiente';r.usuario=r.usuario||'IA';r.fecha=r.fecha||ahora;r.actualizadoEn=ahora;return r;});
-var reservar=[];crear.forEach(function(c){var id=String(mp(c.personaId));if(/^\d+$/.test(id)&&!yaEstan[String(c.personaId)]&&reservar.indexOf(Number(id))<0)reservar.push(Number(id));});
-return{omitidos:omitidos,quitarIds:quitarIds,quitar:quitar,quedan:quedan,nuevos:nuevos,mapa:mapa,reservar:reservar};
+var reservar=Object.keys(crearIds).map(Number);
+return{nuevos:nuevos,conflictos:conflictos,enlaces:enlaces,posibles:posibles,reservar:reservar};
 }
 async function importarCambiosArchivero(inp){
 var f=inp&&inp.files&&inp.files[0];if(inp)inp.value='';if(!f)return;
@@ -10214,20 +10224,29 @@ var x;try{x=JSON.parse(await f.text());}catch(e){throw new Error('el archivo no 
 var mios=normalizarArchivoCambios(x).cambios;
 if(!mios.length)throw new Error('el archivo no trae ningún registro de cambios');
 var est=await impCambiosLeerDrive(),res=await leerIdsReservadosDrive();
-var plan=impCambiosPlanificar(mios,est.cambios,res.reservados,true);
+var plan=impCambiosPlanificar(mios,est.cambios,res.reservados);
 off();
+if(plan.conflictos.length||plan.enlaces.length){
+var m='IMPORTACIÓN CANCELADA: no se ha cambiado nada en el árbol ni se ha reservado ningún ID.\n';
+if(plan.conflictos.length)m+='\nProblemas con los IDs de las fichas nuevas ('+plan.conflictos.length+'):\n- '+plan.conflictos.slice(0,10).join('\n- ')+(plan.conflictos.length>10?'\n… y '+(plan.conflictos.length-10)+' más':'')+'\n';
+if(plan.enlaces.length)m+='\nEnlaces a IDs que no existen en el árbol ni se crean en el archivo ('+plan.enlaces.length+'):\n- '+plan.enlaces.slice(0,10).join('\n- ')+(plan.enlaces.length>10?'\n… y '+(plan.enlaces.length-10)+' más':'')+'\n';
+m+='\nSi ya habías importado este archivo antes, NO lo repitas. Si no, pásale este aviso a la IA para que genere un archivo nuevo con IDs libres a partir de '+IMP_CAMBIOS_ZONA_IA+'.';
+await confirmarApp(m,{titulo:'Importación cancelada',textoAceptar:'Entendido',textoCancelar:'Cerrar'});
+return;
+}
 var rango={crear:0,editar:1,eliminar:2};
 var lista=plan.nuevos.slice().map(function(c,i){return{c:c,i:i};}).sort(function(a,b){var ra=rango[a.c.tipo]!==undefined?rango[a.c.tipo]:1,rb=rango[b.c.tipo]!==undefined?rango[b.c.tipo]:1;return ra-rb||a.i-b.i;}).map(function(o){return o.c;});
 var cuenta={};lista.forEach(function(c){cuenta[c.tipo]=(cuenta[c.tipo]||0)+1;});
 var ajenos=est.cambios.filter(function(c){return c.estado==='pendiente';}).length;
-var pares=Object.keys(plan.mapa).map(function(k){return k+' → '+plan.mapa[k];});
 var msg='Se aplican DIRECTAMENTE a tu árbol de este dispositivo '+lista.length+' registros ('+Object.keys(cuenta).map(function(k){return cuenta[k]+' '+k;}).join(', ')+'), en orden crear, editar, eliminar.\n'
 +'No se escribe nada en el registro de cambios de Drive: los '+ajenos+' pendientes de los Cronistas quedan intactos.\n'
-+(pares.length?'Las '+pares.length+' fichas nuevas reciben los últimos huecos libres de ID (ej.: '+pares.slice(0,5).join(', ')+(pares.length>5?'…':'')+'); se reservan en Drive para que ningún Cronista los use y se descarga la tabla completa.\n':'')
-+'No hay deshacer: haz antes una copia. Después se te ofrecerá publicar el árbol oficial.';
++(plan.reservar.length?'Comprobado: ninguno de los '+plan.reservar.length+' IDs de fichas nuevas existe ya en el árbol, ni está reservado en Drive, ni se repite. Se conservan tal cual (ej.: '+plan.reservar.slice(0,5).join(', ')+(plan.reservar.length>5?'…':'')+') y se reservan en Drive para que ningún Cronista los use.\n':'')
++(plan.posibles.length?'\nOJO, posibles duplicados por nombre y año ('+plan.posibles.length+'): '+plan.posibles.slice(0,5).join('; ')+(plan.posibles.length>5?'…':'')+'. Si alguno es la misma persona, cancela y pide a la IA que use editar en vez de crear.\n':'')
++'\nNo hay deshacer: haz antes una copia. Después se te ofrecerá publicar el árbol oficial.';
 if(!(await confirmarApp(msg,{titulo:'Importar archivo de cambios',textoAceptar:'Aplicar'})))return;
 on('Reservando los IDs de las fichas nuevas...',0);
-await impCambiosReservar(plan.reservar);
+try{await impCambiosReservar(plan.reservar);}
+catch(err){off();if(err.message==='sesion_caducada'&&typeof avisarSesionDriveCaducada==='function'){avisarSesionDriveCaducada();return;}toast('Importación cancelada, no se ha aplicado nada: '+err.message,true);return;}
 await cederPantalla();
 var ok=0,fallos=[];
 for(var i=0;i<lista.length;i++){
@@ -10243,7 +10262,6 @@ actualizarProgresoAccion('Actualizando la pantalla...',98);
 await cederPantalla();
 rStats();refrescarVistaTrasCambios();
 off();
-if(pares.length){var csv='id_archivo;id_asignado\n'+Object.keys(plan.mapa).map(function(k){return k+';'+plan.mapa[k];}).join('\n'),u=URL.createObjectURL(new Blob([csv],{type:'text/csv'})),a=document.createElement('a');a.href=u;a.download='ids-asignados-'+new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);}
 toast('Aplicados '+ok+' de '+lista.length+' registros'+(fallos.length?'; no aplicables: '+fallos.slice(0,6).join(', ')+(fallos.length>6?'…':''):''),!!fallos.length);
 await ofrecerPublicarArbolOficial();
 }catch(err){off();if(err.message==='sesion_caducada'&&typeof avisarSesionDriveCaducada==='function'){avisarSesionDriveCaducada();return;}toast('No se pudo importar: '+err.message,true);}
