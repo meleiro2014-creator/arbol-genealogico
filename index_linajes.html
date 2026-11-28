@@ -92,7 +92,7 @@ nav button{padding:8px 14px}
 .retrato:focus-visible{outline:none}
 .retrato .foto img,.retrato .foto svg{width:100%;height:100%;object-fit:cover;display:block;border-radius:5px}
 .retrato .pie{font-size:13px;line-height:1.25}
-.retrato .pie b{display:block;font-family:'Cinzel',serif;font-size:12.5px}
+.retrato .pie b{display:block;font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:14px;line-height:1.2}
 .retrato .pie small{color:var(--muted);font-size:11.5px}
 .ayuda-cat{margin-top:22px;font-size:12.5px;color:var(--muted);line-height:1.6;border:1.5px dashed var(--border);border-radius:12px;padding:12px 16px}
 .ayuda-cat b{color:var(--text)}
@@ -104,10 +104,10 @@ dialog::backdrop{background:rgba(20,12,6,.6)}
 @media(max-width:560px){.ficha{grid-template-columns:1fr}}
 .ficha .foto{border:1.5px solid var(--border);padding:6px;border-radius:10px;align-self:start}
 .ficha .foto img,.ficha .foto svg{width:100%;display:block;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
-.ficha h3{font-size:22px;color:var(--accent);margin:0 0 6px;padding-right:28px}
+.ficha h3{font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:23px;color:var(--accent);margin:0 0 6px;padding-right:28px}
 .ficha .sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px}
 .ficha .bio{grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin-top:2px}
-.ficha .bio h4{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.ficha .bio h4{margin:0 0 8px;font-family:Lato,sans-serif;font-size:13px;font-weight:700;color:var(--muted)}
 .ficha .bio-txt{font-size:14px;line-height:1.7;max-height:min(38vh,320px);overflow:auto;white-space:pre-wrap;padding-right:4px}
 .ficha .bio-txt.vacia{color:var(--muted);font-style:italic}
 .ficha .bio-fuente{font-size:11.5px;color:var(--muted);margin-top:8px}
@@ -506,7 +506,7 @@ return s;
         return '<button type="button" class="azulejo'+(k?'':' vacio')+'" data-cat="'+esc(slug(x.cat.clave))+'">'+icoCat(x.cat)+'<span><span class="az-nom">'+esc(x.cat.plural)+'</span><span class="az-dat">'+(k?nPers(k):'Sin personajes todavía')+'</span></span></button>';
       }).join('')+'</div>'+
       '<div class="galeria" id="galPers" hidden></div>'+
-      (conCat?'':'<p class="ayuda-cat">Para que un personaje aparezca en una categoría, en su ficha pulsa «Editar» en Etiquetas y marca <b>Personaje relevante</b> con su categoría, por ejemplo <b>Personaje relevante (Santo)</b>. Si una persona encaja en varias, puede llevar varias etiquetas. Sin categoría irá a «Otros personajes».</p>');
+      (conCat?'':'<p class="ayuda-cat">Para que un personaje aparezca en una categoría, en su ficha pulsa «Editar» en Etiquetas, elige la categoría en la lista (Santo, Escritor…) y pulsa <b>Marcar como personaje relevante</b>. Si encaja en varias, repítelo con cada una. Sin categoría irá a «Otros personajes».</p>');
     window.scrollTo(0,0);
   }
   function filtraPers(q){
