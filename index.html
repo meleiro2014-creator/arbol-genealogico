@@ -7316,6 +7316,57 @@ try{var nd=await resizeImageToDataURL(dataURLABlob(p.FOTO),600,0.8);if(nd&&nd.le
 if(ids.length>=20)await sPersonas(ids.splice(0));}
 if(ids.length)await sPersonas(ids);}catch(e){toast('Error al reducir fotos: '+e.message,true);}finally{ocultarProgresoAccion();}
 toast(ok+' fotos reducidas');abrirDiagnosticoMemoria();}
+/* ===== ESCUDOS DE LINAJES (Drive: DATOS/ESCUDOS/<linaje>.png) =====
+   Los usa index_linajes.html (abierta desde Herramientas) llamando a estas funciones de la ventana de la app.
+   Lectura: cualquier perfil con Drive conectado. Escritura: solo el Archivero (en Drive, los Guardianes
+   tienen la carpeta en solo lectura). El nombre de archivo es el «slug» del reino/linaje (castilla-y-leon.png). */
+var driveEscudosFolderId=null;
+async function obtenerCarpetaEscudosId(crear){
+if(driveEscudosFolderId)return driveEscudosFolderId;
+var pad=await obtenerCarpetaDatosId(crear);if(!pad)return null;
+var q="'"+pad+"' in parents and name='ESCUDOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+var d=await r.json();if(d.files&&d.files.length){driveEscudosFolderId=d.files[0].id;return driveEscudosFolderId;}
+if(!crear)return null;
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'ESCUDOS',parents:[pad],mimeType:'application/vnd.google-apps.folder'})});
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear ESCUDOS');
+driveEscudosFolderId=(await rc.json()).id;return driveEscudosFolderId;
+}
+function linajesEscudoPuedeEditar(){return !!(esAdministrador()&&driveRootFolderId&&tokenDriveValido());}
+/* Devuelve {slug: dataURL} solo de los slugs pedidos (no descarga el resto de la carpeta). */
+async function linajesEscudosCargar(slugs){
+var out={};
+if(!driveRootFolderId||!tokenDriveValido()||!Array.isArray(slugs)||!slugs.length)return out;
+var fid=await obtenerCarpetaEscudosId(false);if(!fid)return out;
+var pedidos={};slugs.forEach(function(x){pedidos[String(x)+'.png']=String(x);});
+var arch=await listarTodosArchivosDrive("'"+fid+"' in parents and trashed=false and mimeType='image/png'",'id,name,size');
+for(var i=0;i<arch.length;i++){
+var f=arch[i];if(!pedidos[f.name]||!(Number(f.size)>0))continue;
+try{
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+f.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(!r.ok)continue;
+var b=await r.blob();
+out[pedidos[f.name]]=await new Promise(function(ok,ko){var fr=new FileReader();fr.onload=function(){ok(fr.result);};fr.onerror=ko;fr.readAsDataURL(b);});
+}catch(eE){}
+}
+return out;
+}
+async function linajesEscudoGuardar(slug,dataUrl){
+if(!linajesEscudoPuedeEditar())throw new Error('solo el Archivero puede cambiar escudos, con Drive conectado');
+if(!/^[a-z0-9-]{1,80}$/.test(String(slug)))throw new Error('nombre de linaje no válido');
+var blob=dataURLABlob(dataUrl);
+var fid=await obtenerCarpetaEscudosId(true);if(!fid)throw new Error('no se encontró la carpeta DATOS/ESCUDOS');
+var nombre=slug+'.png',ultimo=null;
+for(var intento=0;intento<3;intento++){
+try{
+var ex=await buscarArchivoFotoDrivePorId(nombre,fid);
+await subirArchivoDriveVerificado(nombre,blob,'image/png',fid,ex?ex.id:null);
+return true;
+}catch(eI){ultimo=eI;if(eI&&eI.message==='sesion_caducada')break;await esperarMs(900*(intento+1));}
+}
+throw ultimo||new Error('no se pudo subir');
+}
 function verFichasConEtiqueta(tag){
 sv('bus');
 var panel=document.getElementById('busFiltrosPanel'),btn=document.getElementById('busFiltrosBtn');
