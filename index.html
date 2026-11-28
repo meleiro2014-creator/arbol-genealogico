@@ -2011,8 +2011,13 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.28.1';
+var APP_VERSION = '2026.11.28.2';
 var APP_CHANGELOG = [
+  { version:'2026.11.28.2', fecha:'2026-11-28', cambios:[
+    'Etiquetas de la ficha: «Personaje relevante» ahora lleva categoría (Santo, Escritor, Militar…). Se elige en una lista antes de marcarlo; Archivero y Cronista pueden crear categorías nuevas. Una persona puede tener varias.',
+    'Importar archivo de cambios y «Conformidad a todos» mucho más rápidos: los índices del árbol se reconstruyen una sola vez al final y no una por cada cambio (10.000 cambios pasan de horas a segundos o pocos minutos). Además, las tareas largas ya no necesitan tener la ventana a la vista: se puede minimizar o cambiar de pestaña mientras trabajan.',
+    'Linajes: biografía breve de cada rey y personaje, guardada aparte del árbol (Datos/biografias.json). Archivero y Cronista pueden escribirla o buscarla en Wikipedia desde la página de linajes.'
+  ]},
   { version:'2026.11.28.1', fecha:'2026-11-28', cambios:[
     'Etiquetas de la ficha: ya no son texto libre. Ahora son categorías cerradas que se eligen en la ficha: «Rey de…» / «Reina de…» con el reino y el reinado (desde año – hasta año) y «Personaje relevante». El tratamiento Rey o Reina se pone solo según el sexo de la ficha.',
     'La lista de reinos es abierta: trae los principales de la península y de Europa y se amplía sobre la marcha. Archivero y Cronista pueden añadir un reino nuevo desde la propia ficha; en cuanto se guarda, queda disponible para todos. Las etiquetas antiguas de texto libre que aún queden en una ficha se pueden quitar, pero ya no se pueden añadir.',
@@ -4073,9 +4078,26 @@ if(wrap)wrap.style.display='none';
    no se veria hasta que todo hubiera terminado. Admite llamadas anidadas: la barra solo se
    oculta cuando termina la ultima. Con porcentaje (0-100) la barra es real; sin el, indeterminada. */
 var progresoAccionNivel=0;
-function cederPantalla(){
+/* IMPORTANTE (pestaña oculta o ventana minimizada): requestAnimationFrame NO se ejecuta y los temporizadores
+   se frenan (1 por segundo y, pasados 5 minutos, 1 por minuto). Antes, cada «respiro» de una tarea larga
+   (importar 10.000 cambios, etc.) esperaba a la pantalla y la tarea tardaba horas si no se la miraba.
+   Ahora, con la pestaña oculta, el respiro se hace con un MessageChannel, que el navegador no frena. */
+var __cedQ=[],__cedCh=null;
+function cederHiloSinPintar(){
 return new Promise(function(res){
-var hecho=false;function f(){if(!hecho){hecho=true;res();}}
+try{
+if(!__cedCh){__cedCh=new MessageChannel();__cedCh.port1.onmessage=function(){var f=__cedQ.shift();if(f)f();};}
+__cedQ.push(res);__cedCh.port2.postMessage(0);
+}catch(e){setTimeout(res,0);}
+});
+}
+function cederPantalla(){
+if(document.hidden)return cederHiloSinPintar();
+return new Promise(function(res){
+var hecho=false;
+function f(){if(!hecho){hecho=true;document.removeEventListener('visibilitychange',alOcultar);res();}}
+function alOcultar(){if(document.hidden)f();}   /* si se minimiza justo mientras espera, no se queda esperando al pintado */
+document.addEventListener('visibilitychange',alOcultar);
 try{requestAnimationFrame(function(){setTimeout(f,0);});}catch(e){}
 setTimeout(f,80);
 });
@@ -7316,21 +7338,24 @@ try{var nd=await resizeImageToDataURL(dataURLABlob(p.FOTO),600,0.8);if(nd&&nd.le
 if(ids.length>=20)await sPersonas(ids.splice(0));}
 if(ids.length)await sPersonas(ids);}catch(e){toast('Error al reducir fotos: '+e.message,true);}finally{ocultarProgresoAccion();}
 toast(ok+' fotos reducidas');abrirDiagnosticoMemoria();}
-/* ===== ESCUDOS DE LINAJES (Drive: DATOS/ESCUDOS/<linaje>.png) =====
+/* ===== ESCUDOS DE LINAJES (Drive: Genealogia/escudos/<linaje>.png, carpeta «escudos» directamente dentro de la carpeta raíz) =====
    Los usa index_linajes.html (abierta desde Herramientas) llamando a estas funciones de la ventana de la app.
    Lectura: cualquier perfil con Drive conectado. Escritura: solo el Archivero (en Drive, los Guardianes
-   tienen la carpeta en solo lectura). El nombre de archivo es el «slug» del reino/linaje (castilla-y-leon.png). */
+   ven la carpeta en solo lectura, heredada de la raíz). El nombre de archivo es el «slug» del reino/linaje (castilla-y-leon.png). */
 var driveEscudosFolderId=null;
 async function obtenerCarpetaEscudosId(crear){
 if(driveEscudosFolderId)return driveEscudosFolderId;
-var pad=await obtenerCarpetaDatosId(crear);if(!pad)return null;
-var q="'"+pad+"' in parents and name='ESCUDOS' and mimeType='application/vnd.google-apps.folder' and trashed=false";
-var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id)&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
+var pad=driveRootFolderId;if(!pad)return null;
+/* Carpeta «escudos» dentro de la carpeta raíz (Genealogia); se compara el nombre sin distinguir mayúsculas. */
+var q="'"+pad+"' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+var r=await fetch('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&pageSize=200&spaces=drive',{headers:{Authorization:'Bearer '+driveAccessToken}});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
-var d=await r.json();if(d.files&&d.files.length){driveEscudosFolderId=d.files[0].id;return driveEscudosFolderId;}
+var d=await r.json();var enc=(d.files||[]).filter(function(f){return String(f.name||'').trim().toLowerCase()==='escudos';});
+if(enc.length){driveEscudosFolderId=enc[0].id;return driveEscudosFolderId;}
 if(!crear)return null;
-var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'ESCUDOS',parents:[pad],mimeType:'application/vnd.google-apps.folder'})});
-if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear ESCUDOS');
+var rc=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({name:'escudos',parents:[pad],mimeType:'application/vnd.google-apps.folder'})});
+if(rc.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!rc.ok)throw new Error('Drive respondió '+rc.status+' al crear la carpeta escudos');
 driveEscudosFolderId=(await rc.json()).id;return driveEscudosFolderId;
 }
 function linajesEscudoPuedeEditar(){return !!(esAdministrador()&&driveRootFolderId&&tokenDriveValido());}
@@ -7356,7 +7381,7 @@ async function linajesEscudoGuardar(slug,dataUrl){
 if(!linajesEscudoPuedeEditar())throw new Error('solo el Archivero puede cambiar escudos, con Drive conectado');
 if(!/^[a-z0-9-]{1,80}$/.test(String(slug)))throw new Error('nombre de linaje no válido');
 var blob=dataURLABlob(dataUrl);
-var fid=await obtenerCarpetaEscudosId(true);if(!fid)throw new Error('no se encontró la carpeta DATOS/ESCUDOS');
+var fid=await obtenerCarpetaEscudosId(true);if(!fid)throw new Error('no se encontró la carpeta Genealogia/escudos');
 var nombre=slug+'.png',ultimo=null;
 for(var intento=0;intento<3;intento++){
 try{
@@ -7366,6 +7391,58 @@ return true;
 }catch(eI){ultimo=eI;if(eI&&eI.message==='sesion_caducada')break;await esperarMs(900*(intento+1));}
 }
 throw ultimo||new Error('no se pudo subir');
+}
+/* ===== BIOGRAFÍAS DE REYES Y PERSONAJES (Drive: Datos/biografias.json) =====
+   Las usa index_linajes.html llamando a estas tres funciones de la ventana de la app. Un único archivo
+   {version:1, biografias:{<id de persona>:{texto,fuente,fecha,autor}}}. Va aparte del árbol a propósito: así no pesa en cada
+   guardado ni en las copias. Lectura: cualquier perfil con Drive conectado. Escritura: Archivero y Cronista
+   (el Guardián tiene Datos en solo lectura). Al guardar se vuelve a leer el archivo y solo se cambia la entrada de esa persona,
+   de modo que dos personas editando biografías distintas no se pisan. */
+var BIOGRAFIAS_ARCHIVO='biografias.json';
+var BIOGRAFIAS_MAX_TEXTO=2000;
+function linajesBiografiaPuedeEditar(){return !!((esAdministrador()||esColaborador())&&driveRootFolderId&&tokenDriveValido());}
+async function leerBiografiasDrive(crearCarpeta){
+var carpeta=await obtenerCarpetaDatosId(!!crearCarpeta);
+if(!carpeta)return {carpeta:null,fileId:null,mapa:{}};
+var ex=await buscarArchivoFotoDrivePorId(BIOGRAFIAS_ARCHIVO,carpeta);
+if(!ex)return {carpeta:carpeta,fileId:null,mapa:{}};
+var r=await fetch('https://www.googleapis.com/drive/v3/files/'+ex.id+'?alt=media',{headers:{Authorization:'Bearer '+driveAccessToken}});
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status+' al leer '+BIOGRAFIAS_ARCHIVO);
+var t=await r.text(),mapa={};
+if(t.trim()){
+var x=null;try{x=JSON.parse(t);}catch(eJ){}
+/* Si el archivo existe pero no se entiende, se falla en vez de tratarlo como vacío: así nunca se sobrescribe con un archivo casi vacío. */
+if(!x||typeof x!=='object'||!x.biografias||typeof x.biografias!=='object')throw new Error(BIOGRAFIAS_ARCHIVO+' no tiene el formato esperado; no se modifica');
+mapa=x.biografias;
+}
+return {carpeta:carpeta,fileId:ex.id,mapa:mapa};
+}
+async function linajesBiografiasCargar(){
+if(!driveRootFolderId||!tokenDriveValido())return {};
+var d=await leerBiografiasDrive(false);
+return d.mapa;
+}
+async function linajesBiografiaGuardar(id,entrada){
+if(!linajesBiografiaPuedeEditar())throw new Error('solo el Archivero o el Cronista pueden editar biografías, con Drive conectado');
+id=String(id==null?'':id);
+if(!/^[0-9A-Za-z_-]{1,40}$/.test(id)||!PI[id])throw new Error('persona no válida');
+var texto=String(entrada&&entrada.texto||'').replace(/\r\n?/g,'\n').trim();
+if(!texto)throw new Error('la biografía está vacía');
+if(texto.length>BIOGRAFIAS_MAX_TEXTO)throw new Error('la biografía es demasiado larga (máximo '+BIOGRAFIAS_MAX_TEXTO+' caracteres)');
+var e={texto:texto,fuente:String(entrada.fuente||'').trim().slice(0,300),fecha:new Date().toISOString(),autor:(googleIdentidad&&(googleIdentidad.name||googleIdentidad.email))||''};
+var ultimo=null;
+for(var intento=0;intento<3;intento++){
+try{
+var d=await leerBiografiasDrive(true);
+if(!d.carpeta)throw new Error('no se encontró la carpeta Datos');
+d.mapa[id]=e;
+var blob=new Blob([JSON.stringify({version:1,biografias:d.mapa})],{type:'application/json'});
+await subirArchivoDriveVerificado(BIOGRAFIAS_ARCHIVO,blob,'application/json',d.carpeta,d.fileId);
+return e;
+}catch(eI){ultimo=eI;if(eI&&eI.message==='sesion_caducada')break;await esperarMs(900*(intento+1));}
+}
+throw ultimo||new Error('no se pudo guardar');
 }
 function verFichasConEtiqueta(tag){
 sv('bus');
@@ -10154,13 +10231,17 @@ on('Reservando los IDs de las fichas nuevas...',0);
 try{await impCambiosReservar(plan.reservar);}
 catch(err){off();if(err.message==='sesion_caducada'&&typeof avisarSesionDriveCaducada==='function'){avisarSesionDriveCaducada();return;}toast('Importación cancelada, no se ha aplicado nada: '+err.message,true);return;}
 await cederPantalla();
-var ok=0,fallos=[];
+var ok=0,fallos=[],lote=loteCambiosNuevo(),tCes=performance.now();
+try{
 for(var i=0;i<lista.length;i++){
 var c=lista[i],bien=false;
-try{bien=aplicarCambioALaBase(c);}catch(e){bien=false;}
+try{bien=aplicarCambioALaBase(c,lote);}catch(e){bien=false;}
 if(bien)ok++;else fallos.push(c.tipo+' '+c.personaId);
-if((i+1)%100===0||i===lista.length-1){actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+lista.length+')...',(i+1)/lista.length*85);await cederPantalla();}
+if(performance.now()-tCes>200||i===lista.length-1){actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+lista.length+')...',(i+1)/lista.length*80);await cederPantalla();tCes=performance.now();}
 }
+actualizarProgresoAccion('Reconstruyendo los índices del árbol...',85);
+await cederPantalla();
+}finally{loteCambiosCerrar(lote);}
 actualizarProgresoAccion('Guardando el árbol en este dispositivo...',92);
 await cederPantalla();
 await sAll(D);
@@ -10815,7 +10896,15 @@ if(puede)h+='<div class="etq-add-row" id="efReinoNuevoFila" style="display:none"
 h+='<div class="etq-add-row"><input class="ef-input" id="efReinoDesde" type="number" inputmode="numeric" min="1" max="2100" placeholder="Reinó desde (año)" aria-label="Reinó desde (año)"><input class="ef-input" id="efReinoHasta" type="number" inputmode="numeric" min="1" max="2100" placeholder="hasta (año)" aria-label="Reinó hasta (año)"><button type="button" class="ef-btn ghost" onclick="efAnadirReinado()"><i class="fa-solid fa-plus"></i> Añadir</button></div>';
 if(puede)h+='<div class="etq-ayuda">Si el reino no está en la lista, elige «Añadir un reino nuevo»: quedará disponible para todos en cuanto guardes la ficha.</div>';
 h+='</div>';
-h+='<div class="etq-cat"><div class="etq-cat-t"><i class="fa-solid fa-star" aria-hidden="true"></i> Personaje relevante</div><div class="etq-add-row"><button type="button" class="ef-btn ghost" onclick="efAnadirPersonaje()"><i class="fa-solid fa-plus"></i> Marcar como personaje relevante</button></div></div>';
+var CP=etqCategoriasDisponibles();
+h+='<div class="etq-cat"><div class="etq-cat-t"><i class="fa-solid fa-star" aria-hidden="true"></i> Personaje relevante</div>';
+h+='<div class="etq-add-row"><label class="sr-only" for="efCatSel">Categoría</label><select class="ef-input" id="efCatSel" onchange="efSelCambio(\'efCatSel\',\'efCatNuevaFila\')"><option value="">Sin categoría</option>';
+CP.forEach(function(c){h+='<option value="'+escAttr(c)+'">'+esc(c)+'</option>';});
+if(puede)h+='<option value="__nuevo__">➕ Añadir una categoría nueva…</option>';
+h+='</select></div>';
+if(puede)h+='<div class="etq-add-row" id="efCatNuevaFila" style="display:none"><input class="ef-input" id="efCatNueva" maxlength="30" placeholder="Nombre de la categoría (ej: Mártir)" autocomplete="off"></div>';
+h+='<div class="etq-add-row"><button type="button" class="ef-btn ghost" onclick="efAnadirPersonaje()"><i class="fa-solid fa-plus"></i> Marcar como personaje relevante</button></div>';
+h+='<div class="etq-ayuda">Elige la categoría y pulsa el botón. Si encaja en varias, repítelo con cada una. Sin categoría irá a «Otros personajes».</div></div>';
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'etiquetas\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionEtiquetas(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
@@ -11217,7 +11306,8 @@ function etqParse(t){
 t=String(t||'').trim();
 var m=t.match(/^(Rey|Reina) de (.+?) \((\d{1,4})-(\d{1,4})\)$/);
 if(m)return {tipo:'reinado',titulo:m[1],reino:m[2],desde:+m[3],hasta:+m[4]};
-if(t===ETQ_PERSONAJE)return {tipo:'personaje'};
+var mp=t.match(/^Personaje relevante(?:\s*\((.+)\))?$/);
+if(mp)return {tipo:'personaje',cat:mp[1]?mp[1].trim():null};
 return {tipo:'antigua'};
 }
 function etqBase(t){var x=etqParse(t);return x.tipo==='reinado'?x.titulo+' de '+x.reino:String(t||'').trim();}
@@ -11271,9 +11361,45 @@ sel.value='';efSelCambio('efReinoSel','efReinoNuevoFila');
 ['efReinoNuevo','efReinoDesde','efReinoHasta'].forEach(function(x){var e=document.getElementById(x);if(e)e.value='';});
 efRenderEtiquetas();
 }
+/* Categorías de «Personaje relevante». Mismas que usa index_linajes.html (con sus variantes, para no ofrecer «santa» aparte de «Santo»);
+   la lista es abierta: se suman las que ya existan en el árbol y Archivero y Cronista pueden crear nuevas. */
+var ETQ_CATS_PERSONAJE=[
+{c:'Santo',al:['santos','santa','beato','beata']},
+{c:'Descubridor',al:['descubridores','descubridora','explorador','exploradora','navegante','conquistador']},
+{c:'Político',al:['politicos','politica','gobernante','estadista','diplomatico','valido']},
+{c:'Escritor',al:['escritores','escritora','poeta','poetisa','dramaturgo','novelista','cronista']},
+{c:'Científico',al:['cientificos','cientifica','inventor','medico','matematico','astronomo']},
+{c:'Filósofo',al:['filosofos','filosofa','pensador','teologo','jurista']},
+{c:'Artista',al:['artistas','pintor','pintora','escultor','arquitecto','musico','compositor']},
+{c:'Militar',al:['militares','general','almirante','guerrero','caballero']},
+{c:'Eclesiástico',al:['eclesiasticos','eclesiastica','papa','obispo','cardenal','clerigo','religioso','religiosa','abad']}
+];
+function etqCategoriasDisponibles(){
+var vistos={},out=[];
+ETQ_CATS_PERSONAJE.forEach(function(x){out.push(x.c);vistos[normTxt(x.c)]=1;x.al.forEach(function(a){vistos[normTxt(a)]=1;});});
+var extra=[];
+D.forEach(function(p){if(!p||!p.ETIQUETAS||String(p.ETIQUETAS).indexOf('Personaje relevante')<0)return;etiquetasArray(p).forEach(function(t){var x=etqParse(t);if(x.tipo!=='personaje'||!x.cat)return;var k=normTxt(x.cat);if(k==='otros'||k==='otro'||vistos[k])return;vistos[k]=1;extra.push(x.cat);});});
+extra.sort(function(a,b){return a.localeCompare(b,'es');});
+return out.concat(extra);
+}
 function efAnadirPersonaje(){
-if(efEtqDuplicada(ETQ_PERSONAJE)){toast('Ya está marcado como personaje relevante',true);return;}
-efEtiquetasEdit.push(ETQ_PERSONAJE);
+var sel=document.getElementById('efCatSel'),cat=sel?sel.value:'';
+if(cat==='__nuevo__'){
+var n=efNombreNuevoValido(leerCampo('efCatNueva'),/^(categor[ií]a|personaje relevante)\s*:?\s*/i);
+if(!n)return;
+var ya=etqCategoriasDisponibles().filter(function(x){return normTxt(x)===normTxt(n);})[0];
+cat=ya||(n.charAt(0).toUpperCase()+n.slice(1));
+}
+var t=cat?ETQ_PERSONAJE+' ('+cat+')':ETQ_PERSONAJE;
+if(efEtqDuplicada(t)){toast(cat?'Ya tiene la categoría '+cat:'Ya está marcado como personaje relevante',true);return;}
+if(cat){ /* al poner una categoría, la marca «sin categoría» anterior sobra */
+efEtiquetasEdit=efEtiquetasEdit.filter(function(x){var q=etqParse(x);return !(q.tipo==='personaje'&&!q.cat);});
+}else if(efEtiquetasEdit.some(function(x){return etqParse(x).tipo==='personaje';})){
+toast('Ya tiene categoría: elige otra en la lista si quieres añadir más',true);return;
+}
+efEtiquetasEdit.push(t);
+if(sel){sel.value='';efSelCambio('efCatSel','efCatNuevaFila');}
+var nn=document.getElementById('efCatNueva');if(nn)nn.value='';
 efRenderEtiquetas();
 }
 function efQuitarEtiqueta(i){
@@ -13214,7 +13340,7 @@ var operacionFichaEnCurso=false;
    (textoCarga='') siguen igual que antes. */
 var operacionFichaProgresoMostrado=false;
 /* Deja que el navegador pinte el spinner y la barra con la abeja ANTES del trabajo pesado (copias de todo el árbol). */
-function cederPintado(){return new Promise(function(r){requestAnimationFrame(function(){setTimeout(r,0);});});}
+function cederPintado(){return cederPantalla();}
 function iniciarOperacionFicha(btn,textoCarga){
 if(operacionFichaEnCurso){toast('Espera, ya se está guardando…',true);return false;}
 operacionFichaEnCurso=true;
@@ -22939,7 +23065,40 @@ srchTimerRelB=setTimeout(function(){doSrchRel(val,'B');},150);
    visible en Herramientas/Novedades quedaría desactualizado aunque el changelog no lo esté. */
 /* Al eliminar a la persona id: vacía su hueco Mn con su MFn/MLn y compacta M1..M6 (con MF/ML) sin dejar huecos. */
 function compactarConyuguesTras(p,id){var hubo=false,i;for(i=1;i<=6;i++){if(String(p['M'+i])===id){p['M'+i]='';p['MF'+i]='';p['ML'+i]='';hubo=true;}}if(!hubo)return;var slots=[];for(i=1;i<=6;i++){if(p['M'+i]!==undefined&&p['M'+i]!==null&&String(p['M'+i])!=='')slots.push({m:p['M'+i],f:p['MF'+i],l:p['ML'+i]});}for(i=1;i<=6;i++){var s=slots[i-1];p['M'+i]=s?s.m:'';p['MF'+i]=s?(s.f==null?'':s.f):'';p['ML'+i]=s?(s.l==null?'':s.l):'';}}
-function aplicarCambioALaBase(c){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE'].forEach(function(f){if(String(copia[f])===id)copia[f]='';});compactarConyuguesTras(copia,id);if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(PI[id]){/* el ID ya existe: solo se da por aplicado si es la misma persona (NOMBRE y APELLIDO1 coinciden); si no, queda pendiente y avisa para no perder una ficha nueva */var ex=PI[id],comp=0,igual=true;campos.forEach(function(k){if(k.campo==='NOMBRE'||k.campo==='APELLIDO1'){comp++;if(String(ex[k.campo]||'').trim().toLowerCase()!==String(k.despues||'').trim().toLowerCase())igual=false;}});return comp>0&&igual;}var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);bIdx(D);return true;}var p=PI[id];if(!p)return false;campos.forEach(function(k){p[k.campo]=k.despues;});bIdx(D);return true;}
+/* ===== Aplicar cambios EN LOTE =====
+   Antes, cada cambio reconstruía todos los índices del árbol (bIdx sobre ~105.000 fichas, con el texto de
+   búsqueda normalizado de cada una): 10.000 cambios = 10.000 reconstrucciones = horas. Ahora los cambios se
+   aplican sin reindexar (crear y editar trabajan directamente sobre las fichas), las eliminaciones se anotan
+   y se hacen de una vez, y los índices se reconstruyen UNA sola vez al final con loteCambiosCerrar(). */
+function loteCambiosNuevo(){return {elim:{},n:0};}
+function loteCambiosCerrar(lote){
+if(lote&&lote.n){
+var elim=lote.elim,nuevo=[];
+for(var i=0;i<D.length;i++){
+var p=D[i];
+if(elim[String(p.ID)])continue;
+var ids=[];
+if(p.PADRE&&elim[String(p.PADRE)])ids.push(String(p.PADRE));
+if(p.MADRE&&elim[String(p.MADRE)])ids.push(String(p.MADRE));
+for(var m=1;m<=6;m++){var v=p['M'+m];if(v!==undefined&&v!==null&&v!==''&&elim[String(v)])ids.push(String(v));}
+var amigos=null;
+if(p.AMIGOS!=null){
+var la=Array.isArray(p.AMIGOS)?p.AMIGOS.map(String):(typeof p.AMIGOS==='string'&&p.AMIGOS.trim()?p.AMIGOS.split(/[,;|]/).map(function(x){return String(x).trim();}):[]);
+if(la.some(function(a){return elim[a];}))amigos=la.filter(function(a){return !elim[a];});
+}
+if(!ids.length&&!amigos){nuevo.push(p);continue;}
+var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});
+if(copia.PADRE&&elim[String(copia.PADRE)])copia.PADRE='';
+if(copia.MADRE&&elim[String(copia.MADRE)])copia.MADRE='';
+ids.forEach(function(id){compactarConyuguesTras(copia,id);});
+if(amigos)copia.AMIGOS=amigos;
+nuevo.push(copia);
+}
+D=nuevo;lote.elim={};lote.n=0;
+}
+bIdx(D);
+}
+function aplicarCambioALaBase(c,lote){var id=String(c.personaId),campos=c.campos||[];if(c.tipo==='eliminar'){if(!PI[id])return false;if(lote){if(lote.elim[id])return false;lote.elim[id]=1;lote.n++;return true;}D=D.filter(function(p){return String(p.ID)!==id;}).map(function(p){var copia={};Object.keys(p).forEach(function(k){copia[k]=p[k];});['PADRE','MADRE'].forEach(function(f){if(String(copia[f])===id)copia[f]='';});compactarConyuguesTras(copia,id);if(copia.AMIGOS!=null){var la=Array.isArray(copia.AMIGOS)?copia.AMIGOS.map(String):(typeof copia.AMIGOS==='string'&&copia.AMIGOS.trim()?copia.AMIGOS.split(/[,;|]/).map(function(s){return String(s).trim();}):[]);copia.AMIGOS=la.filter(function(aid){return String(aid)!==id;});}return copia;});bIdx(D);return true;}if(c.tipo==='crear'){if(lote&&lote.elim[id])loteCambiosCerrar(lote);if(PI[id]){/* el ID ya existe: solo se da por aplicado si es la misma persona (NOMBRE y APELLIDO1 coinciden); si no, queda pendiente y avisa para no perder una ficha nueva */var ex=PI[id],comp=0,igual=true;campos.forEach(function(k){if(k.campo==='NOMBRE'||k.campo==='APELLIDO1'){comp++;if(String(ex[k.campo]||'').trim().toLowerCase()!==String(k.despues||'').trim().toLowerCase())igual=false;}});return comp>0&&igual;}var nuevo={ID:id};campos.forEach(function(k){nuevo[k.campo]=k.despues;});nuevo.ID=id;D.push(nuevo);if(lote)PI[id]=nuevo;else bIdx(D);return true;}var p=PI[id];if(!p||(lote&&lote.elim[id]))return false;campos.forEach(function(k){p[k.campo]=k.despues;});if(!lote)bIdx(D);return true;}
 async function aprobarCambio(id){
 if(!esAdministrador()){toast('Solo el Archivero puede dar conformidad',true);return;}
 var barra=true;
@@ -22980,14 +23139,17 @@ mostrarProgresoAccion('Aplicando los cambios al árbol...',0);
 function quitarBarra(){if(barra){barra=false;ocultarProgresoAccion();}}
 try{
 await cederPantalla();
+var lote=loteCambiosNuevo(),tCes=performance.now();
+try{
 for(var i=0;i<pend.length;i++){
 var c=pend[i];
-if(aplicarCambioALaBase(c)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;
-if((i+1)%3===0||i===pend.length-1){
+if(aplicarCambioALaBase(c,lote)){aplicados++;c.estado='conforme';c.resueltoPor=quien;c.resueltoEn=new Date().toISOString();c.actualizadoEn=c.resueltoEn;}else fallidos++;
+if(performance.now()-tCes>200||i===pend.length-1){
 actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+pend.length+')...',(i+1)/pend.length*70);
-await cederPantalla();
+await cederPantalla();tCes=performance.now();
 }
 }
+}finally{loteCambiosCerrar(lote);}
 actualizarProgresoAccion('Guardando el registro de cambios en Drive...',75);
 await guardarCambiosArbolCompleto(arr);
 actualizarProgresoAccion('Guardando el árbol en este dispositivo...',90);
