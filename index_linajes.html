@@ -57,23 +57,96 @@ nav button{padding:8px 14px}
 .hero{padding:22px 12px 16px}
 }
 
-/* ===== Reinos y reyes ===== */
-.reinos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.reino-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:2px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);cursor:pointer;font:inherit;transition:all .2s}
-.reino-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-.reino-card i{font-size:20px;color:var(--accent)}
-.reino-nom{font-family:'Cinzel',serif;font-weight:700;font-size:15px;line-height:1.2}
-.reino-n{font-size:11px;color:var(--muted)}
-.reyes-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.reyes-bar h2{font-size:20px;color:var(--accent)}
+/* ===== Comunes ===== */
+[hidden]{display:none!important}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s}
 .pill:hover{border-color:var(--accent);color:var(--accent)}
-.rey-lista{display:flex;flex-direction:column;gap:8px}
-.rey-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--card)}
-.rey-nombre{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--text);text-align:left;cursor:default}
-.rey-nombre.enlace{color:var(--accent);cursor:pointer;text-decoration:underline}
-.rey-det{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
-@media(max-width:640px){.rey-fila{flex-direction:column;align-items:flex-start;gap:2px}.rey-det{text-align:left}}
+.reyes-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.res{font-size:12px;color:var(--muted)}
+.grupo-t{font-family:'Cinzel',serif;font-size:14px;letter-spacing:.06em;color:var(--accent);margin:22px 0 10px;display:flex;align-items:center;gap:10px}
+.grupo-t:first-child{margin-top:4px}
+.grupo-t::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+
+/* ===== Azulejos (reinos y categorías) ===== */
+.azulejos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.azulejo{display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);cursor:pointer;font:inherit;text-align:left;transition:all .2s}
+.azulejo:hover,.azulejo:focus-visible{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.14)}
+.azulejo.vacio{opacity:.6}
+.escudo{width:62px;height:74px;flex:none;display:flex;align-items:center;justify-content:center}
+.escudo img,.escudo svg{max-width:100%;max-height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+.cat-ico{width:62px;height:62px;flex:none;border-radius:50%;border:2px solid var(--accent);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(196,101,58,.07)}
+.az-nom{display:block;font-family:'Cinzel',serif;font-weight:700;font-size:17px;line-height:1.15}
+.az-dat{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ===== Galería de retratos ===== */
+.cab-reino{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.cab-reino .escudo{width:64px;height:76px}
+.cab-reino .cat-ico{width:64px;height:64px}
+.cab-reino h2{font-size:22px;color:var(--accent)}
+.herram{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.herram input[type=search]{font:inherit;font-size:14px;padding:8px 14px;border:1.5px solid var(--border);border-radius:20px;background:var(--card);color:var(--text);min-width:220px}
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px 12px}
+.retrato{display:flex;flex-direction:column;gap:7px;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit;text-align:center}
+.retrato .foto{aspect-ratio:3/4;background:var(--card);border:1.5px solid var(--border);padding:6px;border-radius:10px;transition:all .2s}
+.retrato:hover .foto,.retrato:focus-visible .foto{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 16px rgba(0,0,0,.16)}
+.retrato:focus-visible{outline:none}
+.retrato .foto img,.retrato .foto svg{width:100%;height:100%;object-fit:cover;display:block;border-radius:5px}
+.retrato .pie{font-size:13px;line-height:1.25}
+.retrato .pie b{display:block;font-family:'Cinzel',serif;font-size:12.5px}
+.retrato .pie small{color:var(--muted);font-size:11.5px}
+.ayuda-cat{margin-top:22px;font-size:12.5px;color:var(--muted);line-height:1.6;border:1.5px dashed var(--border);border-radius:12px;padding:12px 16px}
+.ayuda-cat b{color:var(--text)}
+
+/* ===== Ficha de persona ===== */
+dialog{margin:auto;border:2px solid var(--accent);border-radius:16px;background:var(--card);color:var(--text);padding:0;width:min(720px,94vw);max-width:none}
+dialog::backdrop{background:rgba(20,12,6,.6)}
+.ficha{position:relative;display:grid;grid-template-columns:minmax(140px,240px) 1fr;gap:20px;padding:22px}
+@media(max-width:560px){.ficha{grid-template-columns:1fr}}
+.ficha .foto{border:1.5px solid var(--border);padding:6px;border-radius:10px;align-self:start}
+.ficha .foto img,.ficha .foto svg{width:100%;display:block;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
+.ficha h3{font-size:22px;color:var(--accent);margin:0 0 6px;padding-right:28px}
+.ficha .sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+.ficha .cerrar{position:absolute;right:12px;top:8px;font-size:26px;line-height:1;background:none;border:0;color:var(--muted);cursor:pointer}
+.ficha .cerrar:hover{color:var(--accent)}
+
+/* ===== Abeja aleteando sobre la barra de progreso (la misma que en el índice) ===== */
+.pb{width:100%;height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin:8px 0}
+.pf{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;width:0%}
+.pf.indet{width:40%!important;transition:none;animation:pfIndet 1.1s ease-in-out infinite}
+@keyframes pfIndet{0%{margin-left:-40%}50%{margin-left:60%}100%{margin-left:-40%}}
+@media (prefers-reduced-motion:reduce){.pf.indet{animation:none;width:100%!important;margin-left:0!important;opacity:.5}}
+.pb-bee-host{position:relative;display:block}
+.pb-bee{position:absolute;top:-16px;left:0;width:26px;height:18px;pointer-events:none;transform:translateX(-50%);transition:left .25s linear;animation:pbBeeEses 1.2s ease-in-out infinite}
+.pb-bee.pb-bee-indet{transition:none;animation:pbBeeEses .65s ease-in-out infinite,pbBeeIndetVuela 2.6s ease-in-out infinite}
+.pb-bee-gira,.pb-bee-ladea{transform-box:fill-box;transform-origin:50% 50%}
+.pb-bee-ladea{animation:pbBeeLadea 1.2s ease-in-out infinite;animation-delay:-.9s}
+.pb-bee-indet .pb-bee-ladea{animation-duration:.65s;animation-delay:-.4875s}
+.pb-bee-indet .pb-bee-gira{animation:pbBeeGira 2.6s step-end infinite}
+.pb-bee-ala{transform-origin:50% 90%;animation:pbBeeAleteo .16s ease-in-out infinite}
+.pb-bee-ala2{animation-delay:.03s}
+@keyframes pbBeeEses{0%,100%{transform:translateX(-50%) translateY(-8px)}50%{transform:translateX(-50%) translateY(2px)}}
+@keyframes pbBeeLadea{0%,100%{transform:rotate(14deg)}50%{transform:rotate(-14deg)}}
+@keyframes pbBeeGira{0%{transform:scaleX(1)}50%{transform:scaleX(-1)}100%{transform:scaleX(-1)}}
+@keyframes pbBeeIndetVuela{0%{left:13px}50%{left:calc(100% - 13px)}100%{left:13px}}
+@keyframes pbBeeAleteo{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.32)}}
+@media (prefers-reduced-motion:reduce){.pb-bee,.pb-bee.pb-bee-indet,.pb-bee-ala,.pb-bee-ladea,.pb-bee-gira{animation:none}.pb-bee.pb-bee-indet{left:50%}}
+.lam-wrap .pb-bee-host{max-width:320px;margin:20px auto 4px}
+.est-bee{display:inline-block;width:150px;vertical-align:middle;margin-left:8px}
+.est-bee .pb{margin:4px 0}
+
+/* ===== Araña en reposo (la misma que en el índice) ===== */
+#aranaOverlay{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:0;visibility:hidden;transition:opacity 1.8s ease,visibility 0s linear 1.8s}
+#aranaOverlay.activa{opacity:1;visibility:visible;transition:opacity 1.8s ease}
+#aranaOverlay .ar-tela{position:absolute;width:min(46vw,300px);height:min(46vw,300px)}
+#aranaOverlay .ar-tela svg{width:100%;height:100%;display:block}
+#aranaOverlay .ar-tela.sup{top:0;right:0;transform:scaleX(-1)}
+#aranaOverlay .ar-tela.inf{bottom:0;left:0;width:min(32vw,210px);height:min(32vw,210px);transform:scaleY(-1)}
+#aranaOverlay .ar-hilo{position:absolute;top:0;right:calc(min(46vw,300px)*0.22);width:1px;background:rgba(110,110,110,.75);height:50px}
+#aranaOverlay.activa .ar-hilo{animation:arSube 7s ease-in-out infinite alternate}
+#aranaOverlay .ar-bicho{position:absolute;left:-11px;bottom:-17px;width:22px;height:22px}
+@keyframes arSube{from{height:50px}to{height:min(60vh,420px)}}
+@media (prefers-reduced-motion:reduce){#aranaOverlay.activa .ar-hilo{animation:none;height:120px}}
+@media print{#aranaOverlay{display:none!important}}
 
 /* ===== TEMA «MUELLE» (el mismo que index) ===== */
 html[data-tema="muelle"]{color-scheme:dark;--bg:#0C2B3B;--card:#14465D;--text:#E4F2F5;--muted:#8FB8C7;--accent:#F2A71B;--green:#6FC2A5;--blue:#86CBE3;--border:#2C6A85}
@@ -115,42 +188,81 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
       <h1>Linajes y personajes</h1>
       <p>Reyes y figuras de la historia ligadas a tu árbol</p>
     </div>
-
-    <div class="view active" id="v-reyes" role="tabpanel">
-      <div id="reyesCont"><div class="lam-wrap"><p class="lam-msg">Cargando los reyes…</p></div></div>
-    </div>
-
-    <div class="view" id="v-personajes" role="tabpanel">
-      <div id="personajesCont"><div class="lam-wrap"><p class="lam-msg">Cargando los personajes…</p></div></div>
-    </div>
+    <div class="view active" id="v-reyes" role="tabpanel"><div id="reyesCont"></div></div>
+    <div class="view" id="v-personajes" role="tabpanel"><div id="personajesCont"></div></div>
   </div>
 </main>
+
+<dialog id="dlg" aria-label="Ficha de la persona">
+  <div class="ficha">
+    <button class="cerrar" id="dCerrar" type="button" aria-label="Cerrar">×</button>
+    <div class="foto" id="dFoto"></div>
+    <div>
+      <h3 id="dNombre"></h3>
+      <div class="sub" id="dSub"></div>
+      <button class="pill" id="dAbrir" type="button" hidden><i class="fa-solid fa-sitemap" aria-hidden="true"></i> Abrir en el árbol</button>
+    </div>
+  </div>
+</dialog>
 
 <script>
 (function(){
   var botones=document.querySelectorAll('#mn button');
   var ids=['reyes','personajes'];
-  function ir(id){
-    botones.forEach(function(b){
-      var on=b.dataset.view===id;
-      b.classList.toggle('active',on);
-      b.setAttribute('aria-selected',on?'true':'false');
-    });
-    ids.forEach(function(v){
-      var el=document.getElementById('v-'+v);
-      el.classList.remove('active');
-      if(v===id){void el.offsetWidth;el.classList.add('active');}
-    });
-    try{history.replaceState(null,'','#'+id);}catch(e){}
-  }
-  botones.forEach(function(b){b.addEventListener('click',function(){ir(b.dataset.view);});});
-  var h=(location.hash||'').slice(1);
-  if(ids.indexOf(h)>=0)ir(h);
+  function $(id){return document.getElementById(id);}
 
-
-  /* ===== Reyes: se leen de las etiquetas «Rey de X (desde-hasta)» / «Reina de X (desde-hasta)» de las fichas ===== */
+  /* ===== Utilidades ===== */
   function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function imgOk(u){return typeof u==='string'&&/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(u);}
+  function sin(t){return String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+  function slug(t){return sin(t).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+  function cap(n){return n.charAt(0).toUpperCase()+n.slice(1);}
+  function romano(n){var r=[[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']],o='';r.forEach(function(p){while(n>=p[0]){o+=p[1];n-=p[0];}});return o;}
+  function siglo(y){return Math.max(1,Math.ceil(y/100));}
+  function rangoSiglos(a,b){var x=siglo(a),y=siglo(b);return x===y?'siglo '+romano(x):'siglos '+romano(x)+'–'+romano(y);}
+  function aniosTxt(a,b){return (a!==null||b!==null)?((a!==null?a:'?')+'–'+(b!==null?b:'?')):'';}
+  function entero(v){var n=parseInt(v,10);return isNaN(n)?null:n;}
+
+  /* ===== Abeja (la misma que en las barras de progreso del índice) ===== */
+  var pbBeeIdSeq=0;
+function pbBeeSvg(){
+var s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+s.setAttribute('viewBox','0 0 32 22');s.setAttribute('class','pb-bee');s.setAttribute('aria-hidden','true');
+var cid='pbBeeClip'+(++pbBeeIdSeq);
+/* Cuerpo ovalado con rayas negras recortadas (clip-path) para que se
+   reconozca como abeja incluso a tamaño pequeño, más cabeza, antenas,
+   aguijón y dos alas semitransparentes. */
+s.innerHTML=
+'<defs><clipPath id="'+cid+'"><ellipse cx="14" cy="13" rx="9" ry="6"/></clipPath></defs>'+
+'<g class="pb-bee-gira"><g class="pb-bee-ladea">'+
+'<ellipse class="pb-bee-ala pb-bee-ala1" cx="9" cy="5" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<ellipse class="pb-bee-ala pb-bee-ala2" cx="18" cy="5" rx="5.5" ry="3.2" fill="#fff" opacity=".9"/>'+
+'<path d="M5 13 L1 10 L1 16 Z" fill="#3D2C1E"/>'+
+'<g clip-path="url(#'+cid+')">'+
+'<ellipse cx="14" cy="13" rx="9" ry="6" fill="#F2B705"/>'+
+'<rect x="6" y="6" width="3" height="14" fill="#20140c"/>'+
+'<rect x="12.5" y="6" width="3" height="14" fill="#20140c"/>'+
+'<rect x="19" y="6" width="3" height="14" fill="#20140c"/>'+
+'</g>'+
+'<ellipse cx="14" cy="13" rx="9" ry="6" fill="none" stroke="#20140c" stroke-width=".6"/>'+
+'<circle cx="24.5" cy="11.5" r="3.4" fill="#20140c"/>'+
+'<line x1="25.5" y1="8.7" x2="28" y2="5.5" stroke="#20140c" stroke-width="1" stroke-linecap="round"/>'+
+'<line x1="26.5" y1="9.3" x2="30" y2="8" stroke="#20140c" stroke-width="1" stroke-linecap="round"/>'+
+'<circle cx="25.6" cy="11.5" r="0.9" fill="#fff"/>'+
+'</g></g>';
+return s;
+}
+  function barraAbeja(){
+    var host=document.createElement('span');host.className='pb-bee-host';
+    host.innerHTML='<div class="pb"><div class="pf indet"></div></div>';
+    var b=pbBeeSvg();b.classList.add('pb-bee-indet');host.appendChild(b);
+    var w=document.createElement('div');w.appendChild(host);return w.innerHTML;
+  }
+  function cargandoHTML(txt){return '<div class="lam-wrap"><p class="lam-msg">'+esc(txt)+'</p>'+barraAbeja()+'</div>';}
+
+  /* ===== Datos: etiquetas «Rey de X (desde-hasta)», «Reina de X (desde-hasta)» y «Personaje relevante [(Categoría)]» ===== */
   function parseReinado(t){var m=String(t).trim().match(/^(Rey|Reina) de (.+?) \((\d{1,4})-(\d{1,4})\)$/);return m?{titulo:m[1],reino:m[2],desde:+m[3],hasta:+m[4]}:null;}
+  function parsePersonaje(t){var m=String(t).trim().match(/^Personaje relevante(?:\s*\((.+)\))?$/);return m?{cat:m[1]?m[1].trim():null}:null;}
   function etqs(p){return String(p.ETIQUETAS||'').split(/[|;]/).map(function(x){return x.trim();}).filter(Boolean);}
   function nombreDe(p){return [p.NOMBRE,p.APELLIDO1,p.APELLIDO2].map(function(x){return String(x||'').trim();}).filter(Boolean).join(' ');}
   function opener_(){try{if(window.opener&&!window.opener.closed&&typeof window.opener.irAFicha==='function')return window.opener;}catch(e){}return null;}
@@ -170,7 +282,7 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
         try{c=db.transaction('personas','readonly').objectStore('personas').openCursor();}catch(e){db.close();res([]);return;}
         c.onsuccess=function(ev){
           var cur=ev.target.result;
-          if(cur){var v=cur.value;if(v&&v.ETIQUETAS&&/(Rey|Reina) de |Personaje relevante/.test(v.ETIQUETAS))out.push({ID:v.ID,NOMBRE:v.NOMBRE,APELLIDO1:v.APELLIDO1,APELLIDO2:v.APELLIDO2,ETIQUETAS:v.ETIQUETAS,FALLECIDO:v.FALLECIDO,NACA:v.NACA,DEFA:v.DEFA});cur.continue();}
+          if(cur){var v=cur.value;if(v&&v.ETIQUETAS&&/(Rey|Reina) de |Personaje relevante/.test(v.ETIQUETAS))out.push({ID:v.ID,NOMBRE:v.NOMBRE,APELLIDO1:v.APELLIDO1,APELLIDO2:v.APELLIDO2,ETIQUETAS:v.ETIQUETAS,FALLECIDO:v.FALLECIDO,NACA:v.NACA,DEFA:v.DEFA,FOTO:v.FOTO});cur.continue();}
           else{db.close();res(out);}
         };
         c.onerror=function(){db.close();res(out);};
@@ -183,7 +295,36 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
     return leerBase();
   }
 
-  var REINOS={};   /* reino -> [{id,nombre,titulo,desde,hasta}] */
+  /* ===== Categorías de personajes (lista abierta: cualquier otra categoría que aparezca en una etiqueta se añade sola) ===== */
+  var CATEGORIAS=[
+    {clave:'Santo',plural:'Santos',icono:'fa-cross',alias:['santa','beato','beata']},
+    {clave:'Descubridor',plural:'Descubridores',icono:'fa-compass',alias:['descubridora','explorador','exploradora','navegante','conquistador']},
+    {clave:'Político',plural:'Políticos',icono:'fa-landmark',alias:['politica','gobernante','estadista','diplomatico','valido']},
+    {clave:'Escritor',plural:'Escritores',icono:'fa-feather-pointed',alias:['escritora','poeta','poetisa','dramaturgo','novelista','cronista']},
+    {clave:'Científico',plural:'Científicos',icono:'fa-flask',alias:['cientifica','inventor','medico','matematico','astronomo']},
+    {clave:'Filósofo',plural:'Filósofos',icono:'fa-lightbulb',alias:['filosofa','pensador','teologo','jurista']},
+    {clave:'Artista',plural:'Artistas',icono:'fa-palette',alias:['pintor','pintora','escultor','arquitecto','musico','compositor']},
+    {clave:'Militar',plural:'Militares',icono:'fa-shield-halved',alias:['general','almirante','guerrero','caballero']},
+    {clave:'Eclesiástico',plural:'Eclesiásticos',icono:'fa-church',alias:['eclesiastica','papa','obispo','cardenal','clerigo','religioso','religiosa','abad']}
+  ];
+  var OTROS={clave:'Otros',plural:'Otros personajes',icono:'fa-star',alias:[]};
+  var CATS_DIN={};
+  function resolverCategoria(txt){
+    var k=sin(txt);
+    for(var i=0;i<CATEGORIAS.length;i++){var c=CATEGORIAS[i];if(sin(c.clave)===k||sin(c.plural)===k||c.alias.indexOf(k)>=0)return c;}
+    if(k==='otros'||k==='otro')return OTROS;
+    if(!CATS_DIN[k])CATS_DIN[k]={clave:cap(txt.trim()),plural:cap(txt.trim()),icono:'fa-star',alias:[],dinamica:true};
+    return CATS_DIN[k];
+  }
+
+  /* ===== Estado ===== */
+  var REINOS={};          /* reino -> [{id,nombre,titulo,reino,desde,hasta,nac,def,foto}] */
+  var REINO_POR_SLUG={};  /* slug -> nombre del reino */
+  var PERS=[];            /* personajes únicos */
+  var CAT_LISTA=[];       /* [{cat, personas:[...]}] en orden de presentación */
+  var ESCUDOS={};         /* slug -> dataURL (carpeta DATOS/ESCUDOS de Drive, vía la app) */
+  var CARGADO=false, REINO_ACTUAL=null, GAL=[], FICHA=null;
+
   function recoger(personas){
     var m={};
     personas.forEach(function(p){
@@ -191,72 +332,263 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
       etqs(p).forEach(function(t){
         var r=parseReinado(t);if(!r)return;
         if(String(p.FALLECIDO)==='0'&&r.hasta>1920)return;   /* solo históricos */
-        (m[r.reino]=m[r.reino]||[]).push({id:String(p.ID),nombre:nombreDe(p),titulo:r.titulo,desde:r.desde,hasta:r.hasta});
+        (m[r.reino]=m[r.reino]||[]).push({id:String(p.ID),nombre:nombreDe(p),titulo:r.titulo,reino:r.reino,desde:r.desde,hasta:r.hasta,nac:entero(p.NACA),def:entero(p.DEFA),foto:p.FOTO});
       });
     });
     Object.keys(m).forEach(function(k){m[k].sort(function(a,b){return a.desde-b.desde||a.hasta-b.hasta;});});
     return m;
   }
+  function recogerPersonajes(personas){
+    var lista=[],mapa={};
+    personas.forEach(function(p){
+      if(!p||!p.ETIQUETAS)return;
+      if(String(p.FALLECIDO)==='0')return;   /* solo históricos */
+      var sinCat=false,cats=[],marcado=false;
+      etqs(p).forEach(function(t){
+        var r=parsePersonaje(t);if(!r)return;
+        marcado=true;
+        if(r.cat){var c=resolverCategoria(r.cat);if(cats.indexOf(c)<0)cats.push(c);}else sinCat=true;
+      });
+      if(!marcado)return;
+      if(!cats.length&&sinCat)cats.push(OTROS);
+      var rec={id:String(p.ID),nombre:nombreDe(p),nac:entero(p.NACA),def:entero(p.DEFA),foto:p.FOTO,cats:cats.map(function(c){return c.clave;})};
+      lista.push(rec);
+      cats.forEach(function(c){(mapa[c.clave]=mapa[c.clave]||{cat:c,personas:[]}).personas.push(rec);});
+    });
+    function ord(a,b){return (a.nac===null)-(b.nac===null)||(a.nac-b.nac)||a.nombre.localeCompare(b.nombre,'es');}
+    lista.sort(ord);
+    var orden=[];
+    CATEGORIAS.forEach(function(c){orden.push(mapa[c.clave]||{cat:c,personas:[]});});
+    Object.keys(CATS_DIN).sort().forEach(function(k){var c=CATS_DIN[k];if(mapa[c.clave])orden.push(mapa[c.clave]);});
+    if(mapa[OTROS.clave])orden.push(mapa[OTROS.clave]);
+    orden.forEach(function(x){x.personas.sort(ord);});
+    return {lista:lista,orden:orden};
+  }
+
+  /* ===== Piezas gráficas ===== */
+  var COLORES=['#8e1b1b','#1f4e8c','#2f6b3a','#6b2f7a','#b3741b','#1d6b6b'];
+  function colorDe(t){var x=0;for(var i=0;i<t.length;i++)x=(x*31+t.charCodeAt(i))>>>0;return COLORES[x%COLORES.length];}
+  function escudoProvisional(n){
+    return '<svg viewBox="0 0 80 96" aria-hidden="true"><path d="M6 6H74V50C74 74 52 88 40 92C28 88 6 74 6 50Z" fill="'+colorDe(n)+'" stroke="#e6cf94" stroke-width="4"/><path d="M6 6H74V22H6Z" fill="rgba(255,255,255,.16)"/><text x="40" y="62" text-anchor="middle" font-size="40" font-family="Cinzel,Georgia,serif" fill="#f6ecd6">'+esc(n.trim().charAt(0).toUpperCase())+'</text></svg>';
+  }
+  function escudoHTML(n){var u=ESCUDOS[slug(n)];return imgOk(u)?'<img src="'+u+'" alt="Escudo de '+esc(n)+'">':escudoProvisional(n);}
+  var SILUETA='<svg viewBox="0 0 60 80" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="60" height="80" style="fill:var(--bg)"/><circle cx="30" cy="30" r="12" style="fill:var(--border)"/><path d="M6 80C6 56 20 48 30 48C40 48 54 56 54 80Z" style="fill:var(--border)"/></svg>';
+  function fotoHTML(f,n){return imgOk(f)?'<img src="'+f+'" alt="'+esc(n)+'" loading="lazy">':SILUETA;}
+  function retratos(lista,pie){
+    return lista.map(function(r,i){
+      var p=pie(r);
+      return '<button type="button" class="retrato" data-i="'+i+'"><span class="foto">'+fotoHTML(r.foto,r.nombre)+'</span><span class="pie"><b>'+esc(r.nombre||('Ficha '+r.id))+'</b>'+(p?'<small>('+esc(p)+')</small>':'')+'</span></button>';
+    }).join('');
+  }
+  function icoCat(c){return '<span class="cat-ico"><i class="fa-solid '+c.icono+'" aria-hidden="true"></i></span>';}
+
+  /* ===== Navegación por enlaces (#reyes · #reino/castilla · #personajes · #personajes/santo) ===== */
+  function irHash(h){if(location.hash==='#'+h)render();else location.hash=h;}
+  function activarTab(id){
+    botones.forEach(function(b){var on=b.dataset.view===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false');});
+    ids.forEach(function(v){var el=$('v-'+v);var on=v===id;if(on&&!el.classList.contains('active')){el.classList.remove('active');void el.offsetWidth;el.classList.add('active');}else if(!on)el.classList.remove('active');});
+  }
+  function catPorSlug(s){for(var i=0;i<CAT_LISTA.length;i++){if(slug(CAT_LISTA[i].cat.clave)===s)return CAT_LISTA[i];}return null;}
+  function render(){
+    var pt=(location.hash||'#reyes').slice(1).split('/'),v=pt[0];
+    var enPers=(v==='personajes');
+    activarTab(enPers?'personajes':'reyes');
+    if(!CARGADO)return;
+    if(enPers){
+      var c=pt[1]?catPorSlug(decodeURIComponent(pt[1])):null;
+      if(c)pintarCategoria(c);else pintarPortadaPers();
+      return;
+    }
+    var n=(v==='reino'&&pt[1])?REINO_POR_SLUG[decodeURIComponent(pt[1])]:null;
+    if(n)pintarReino(n);else pintarReinos();
+  }
+  window.addEventListener('hashchange',render);
+  botones.forEach(function(b){b.addEventListener('click',function(){irHash(b.dataset.view);});});
+
+  /* ===== Reyes: portada de reinos, agrupados ===== */
+  var GRUPOS_BASE=[
+    {g:'Península ibérica',l:['Asturias','Galicia','León','Castilla','Castilla y León','Pamplona','Navarra','Navarra y Aragón','Aragón','Catalunya','Catalunya y Aragón','Mallorca','Valencia','Portugal','España','los Suevos','los Visigodos']},
+    {g:'Resto de Europa y Mediterráneo',l:['los Francos','Francia','Inglaterra','Escocia','Irlanda','Sicilia','Nápoles','Cerdeña','Italia','los Lombardos','Borgoña','Jerusalén','Chipre','Países Bajos','Bélgica','Bohemia','Hungría','Polonia','Dinamarca','Suecia','Noruega','Prusia','Baviera','Sajonia','Württemberg','Grecia']}
+  ];
+  function grupoDe(n){var k=sin(n);for(var i=0;i<GRUPOS_BASE.length;i++){for(var j=0;j<GRUPOS_BASE[i].l.length;j++){if(sin(GRUPOS_BASE[i].l[j])===k)return i;}}return GRUPOS_BASE.length;}
+  function span(l){return {a:Math.min.apply(null,l.map(function(r){return r.desde;})),b:Math.max.apply(null,l.map(function(r){return r.hasta;}))};}
   function pintarReinos(){
-    var cont=document.getElementById('reyesCont');
-    var nombres=Object.keys(REINOS).sort(function(a,b){return REINOS[a][0].desde-REINOS[b][0].desde||a.localeCompare(b,'es');});
+    REINO_ACTUAL=null;
+    var cont=$('reyesCont'),nombres=Object.keys(REINOS);
     if(!nombres.length){
       cont.innerHTML='<div class="lam-wrap"><div class="ico"><i class="fa-solid fa-crown" aria-hidden="true"></i></div><h2>Todavía no hay reyes</h2><p class="lam-msg">En la ficha de una persona, pulsa «Editar» en Etiquetas y elige <b>Rey / Reina</b>, el reino y los años de reinado. Aparecerán aquí agrupados por reino.</p></div>';
       return;
     }
-    var h='<div class="reinos-grid">'+nombres.map(function(n){var k=REINOS[n].length;return '<button type="button" class="reino-card" data-reino="'+esc(n)+'"><i class="fa-solid fa-crown" aria-hidden="true"></i><span class="reino-nom">'+esc(n.charAt(0).toUpperCase()+n.slice(1))+'</span><span class="reino-n">'+k+(k===1?' reinado':' reinados')+'</span></button>';}).join('')+'</div>';
+    var grupos=[];
+    nombres.forEach(function(n){var g=grupoDe(n);(grupos[g]=grupos[g]||[]).push(n);});
+    var h='';
+    grupos.forEach(function(lista,g){
+      if(!lista)return;
+      lista.sort(function(a,b){return REINOS[a][0].desde-REINOS[b][0].desde||a.localeCompare(b,'es');});
+      h+='<h3 class="grupo-t">'+esc(g<GRUPOS_BASE.length?GRUPOS_BASE[g].g:'Otros reinos')+'</h3><div class="azulejos">'+lista.map(function(n){
+        var l=REINOS[n],k=l.length,s=span(l);
+        return '<button type="button" class="azulejo" data-reino="'+esc(n)+'"><span class="escudo">'+escudoHTML(n)+'</span><span><span class="az-nom">'+esc(cap(n))+'</span><span class="az-dat">'+k+(k===1?' reinado':' reinados')+' · '+rangoSiglos(s.a,s.b)+'</span></span></button>';
+      }).join('')+'</div>';
+    });
     cont.innerHTML=h;
-    try{history.replaceState(null,'','#reyes');}catch(e){}
-  }
-  function pintarReino(n){
-    var cont=document.getElementById('reyesCont'),l=REINOS[n]||[],hay=!!opener_();
-    var h='<div class="reyes-bar"><button type="button" class="pill" id="btnReinos"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Reinos</button><h2>'+esc(n.charAt(0).toUpperCase()+n.slice(1))+'</h2></div><div class="rey-lista">';
-    h+=l.map(function(r){return '<div class="rey-fila"><button type="button" class="rey-nombre'+(hay?' enlace':'')+'" data-id="'+esc(r.id)+'"'+(hay?' title="Abrir su ficha en el Libro de los Ancestros"':'')+'>'+esc(r.nombre||('Ficha '+r.id))+'</button><span class="rey-det">'+r.titulo+' · '+r.desde+'–'+r.hasta+'</span></div>';}).join('');
-    cont.innerHTML=h+'</div>';
     window.scrollTo(0,0);
   }
-  document.getElementById('reyesCont').addEventListener('click',function(ev){
-    var t=ev.target;
-    var c=t.closest&&t.closest('.reino-card');if(c){pintarReino(c.getAttribute('data-reino'));return;}
-    if(t.closest&&t.closest('#btnReinos')){pintarReinos();return;}
-    var b=t.closest&&t.closest('.rey-nombre.enlace');
-    if(b){var o=opener_();if(o){try{o.irAFicha(b.getAttribute('data-id'));o.focus();}catch(e){}}}
+
+  /* ===== Reyes: página de un reino (enlace #reino/<nombre>) ===== */
+  function puedeEditarEscudos(){var o=opener_();try{return !!(o&&typeof o.linajesEscudoPuedeEditar==='function'&&o.linajesEscudoPuedeEditar());}catch(e){return false;}}
+  function pintarReino(n){
+    REINO_ACTUAL=n;
+    var l=REINOS[n]||[],cont=$('reyesCont'),s=span(l);
+    cont.innerHTML='<div class="reyes-bar"><button type="button" class="pill" id="btnReinos"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Reinos</button></div>'+
+      '<div class="cab-reino"><div class="escudo" id="escReino">'+escudoHTML(n)+'</div><div><h2>'+esc(cap(n))+'</h2><div class="res">'+l.length+(l.length===1?' reinado':' reinados')+' · '+s.a+'–'+s.b+' · '+rangoSiglos(s.a,s.b)+'</div></div></div>'+
+      '<div class="herram"><input type="search" id="buscarReino" placeholder="Buscar en este reino…" aria-label="Buscar en este reino"><button type="button" class="pill" id="btnEscudo" hidden><i class="fa-solid fa-shield" aria-hidden="true"></i> Cambiar escudo…</button><input type="file" id="fileEscudo" accept="image/*" hidden><span class="res" id="estEscudo" role="status"></span></div>'+
+      '<div class="galeria" id="galReino"></div>';
+    $('btnEscudo').hidden=!puedeEditarEscudos();
+    galeriaReino('');
+    window.scrollTo(0,0);
+  }
+  function galeriaReino(q){
+    var l=(REINOS[REINO_ACTUAL]||[]),f=sin(q);
+    GAL=l.filter(function(r){return !f||sin(r.nombre).indexOf(f)>=0;});
+    $('galReino').innerHTML=GAL.length?retratos(GAL,function(r){return r.desde===r.hasta?String(r.desde):r.desde+'–'+r.hasta;}):'<p class="res">'+(f?'Nadie coincide con la búsqueda.':'Este reino aún no tiene reinados.')+'</p>';
+  }
+
+  /* ===== Personajes: portada de categorías ===== */
+  function nPers(n){return n+(n===1?' personaje':' personajes');}
+  function pintarPortadaPers(){
+    var cont=$('personajesCont');
+    var conCat=CAT_LISTA.some(function(x){return x.cat!==OTROS&&x.personas.length;});
+    cont.innerHTML='<div class="herram"><input type="search" id="buscarPers" placeholder="Buscar un personaje en todas las categorías…" aria-label="Buscar personaje"><span class="res">'+nPers(PERS.length)+'</span></div>'+
+      '<div id="tilesCat" class="azulejos">'+CAT_LISTA.map(function(x){
+        var k=x.personas.length;
+        return '<button type="button" class="azulejo'+(k?'':' vacio')+'" data-cat="'+esc(slug(x.cat.clave))+'">'+icoCat(x.cat)+'<span><span class="az-nom">'+esc(x.cat.plural)+'</span><span class="az-dat">'+(k?nPers(k):'Sin personajes todavía')+'</span></span></button>';
+      }).join('')+'</div>'+
+      '<div class="galeria" id="galPers" hidden></div>'+
+      (conCat?'':'<p class="ayuda-cat">Para que un personaje aparezca en una categoría, en su ficha pulsa «Editar» en Etiquetas y marca <b>Personaje relevante</b> con su categoría, por ejemplo <b>Personaje relevante (Santo)</b>. Si una persona encaja en varias, puede llevar varias etiquetas. Sin categoría irá a «Otros personajes».</p>');
+    window.scrollTo(0,0);
+  }
+  function filtraPers(q){
+    var f=sin(q);
+    if(!f){$('tilesCat').hidden=false;$('galPers').hidden=true;return;}
+    GAL=PERS.filter(function(r){return sin(r.nombre).indexOf(f)>=0;});
+    $('tilesCat').hidden=true;$('galPers').hidden=false;
+    $('galPers').innerHTML=GAL.length?retratos(GAL,function(r){return aniosTxt(r.nac,r.def);}):'<p class="res">Nadie coincide con la búsqueda.</p>';
+  }
+  function pintarCategoria(x){
+    var cont=$('personajesCont');
+    cont.innerHTML='<div class="reyes-bar"><button type="button" class="pill" id="btnCats"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Categorías</button></div>'+
+      '<div class="cab-reino">'+icoCat(x.cat)+'<div><h2>'+esc(x.cat.plural)+'</h2><div class="res">'+nPers(x.personas.length)+'</div></div></div>'+
+      '<div class="herram"><input type="search" id="buscarCat" placeholder="Buscar en esta categoría…" aria-label="Buscar en esta categoría"></div>'+
+      '<div class="galeria" id="galCat"></div>';
+    cont.dataset.cat=x.cat.clave;
+    galeriaCat('');
+    window.scrollTo(0,0);
+  }
+  function galeriaCat(q){
+    var x=CAT_LISTA.filter(function(y){return y.cat.clave===$('personajesCont').dataset.cat;})[0],f=sin(q);
+    GAL=(x?x.personas:[]).filter(function(r){return !f||sin(r.nombre).indexOf(f)>=0;});
+    $('galCat').innerHTML=GAL.length?retratos(GAL,function(r){return aniosTxt(r.nac,r.def);}):'<p class="res">'+(f?'Nadie coincide con la búsqueda.':'Todavía no hay personajes en esta categoría.')+'</p>';
+  }
+
+  /* ===== Ficha de persona ===== */
+  function abrirFicha(r){
+    FICHA=r;
+    $('dFoto').innerHTML=fotoHTML(r.foto,r.nombre);
+    $('dNombre').textContent=r.nombre||('Ficha '+r.id);
+    var sub=[];
+    if(r.titulo&&r.reino)sub.push(r.titulo+' de '+cap(r.reino)+' · '+(r.desde===r.hasta?r.desde:r.desde+'–'+r.hasta));
+    if(r.cats&&r.cats.length)sub.push('Personaje relevante · '+r.cats.join(', '));
+    var v=aniosTxt(r.nac,r.def);if(v)sub.push('Vida: '+v);
+    $('dSub').innerHTML=sub.map(esc).join('<br>');
+    $('dAbrir').hidden=!opener_();
+    $('dlg').showModal();
+  }
+  $('dCerrar').addEventListener('click',function(){$('dlg').close();});
+  $('dlg').addEventListener('click',function(e){if(e.target===$('dlg'))$('dlg').close();});
+  $('dAbrir').addEventListener('click',function(){
+    var o=opener_();
+    if(o&&FICHA){try{o.irAFicha(FICHA.id);o.focus();}catch(e){}}
+    $('dlg').close();
   });
 
-  /* ===== Personajes: fichas con la etiqueta «Personaje relevante» ===== */
-  var PERS=[];
-  function recogerPersonajes(personas){
-    var l=[];
-    personas.forEach(function(p){
-      if(!p||!p.ETIQUETAS||etqs(p).indexOf('Personaje relevante')<0)return;
-      if(String(p.FALLECIDO)==='0')return;   /* solo históricos */
-      var na=parseInt(p.NACA,10),da=parseInt(p.DEFA,10);
-      l.push({id:String(p.ID),nombre:nombreDe(p),nac:isNaN(na)?null:na,def:isNaN(da)?null:da});
-    });
-    l.sort(function(a,b){return (a.nac===null)-(b.nac===null)||(a.nac-b.nac)||a.nombre.localeCompare(b.nombre,'es');});
-    return l;
+  /* ===== Escudos (Drive: DATOS/ESCUDOS/<reino>.png, gestionado por la app) ===== */
+  function estado(t,trabajando){var e=$('estEscudo');if(e)e.innerHTML=esc(t||'')+(trabajando?'<span class="est-bee">'+barraAbeja()+'</span>':'');}
+  function refrescarEscudo(n){
+    if(REINO_ACTUAL===null){if(CARGADO&&(location.hash||'#reyes').indexOf('#personajes')!==0)pintarReinos();}
+    else if(REINO_ACTUAL===n&&$('escReino'))$('escReino').innerHTML=escudoHTML(n);
   }
-  function pintarPersonajes(){
-    var cont=document.getElementById('personajesCont'),hay=!!opener_();
-    if(!PERS.length){
-      cont.innerHTML='<div class="lam-wrap"><div class="ico"><i class="fa-solid fa-star" aria-hidden="true"></i></div><h2>Todavía no hay personajes</h2><p class="lam-msg">En la ficha de una persona, pulsa «Editar» en Etiquetas y marca <b>Personaje relevante</b>. Aparecerá aquí.</p></div>';
-      return;
-    }
-    cont.innerHTML='<div class="rey-lista">'+PERS.map(function(r){
-      var f=(r.nac!==null||r.def!==null)?((r.nac!==null?r.nac:'?')+'–'+(r.def!==null?r.def:'?')):'';
-      return '<div class="rey-fila"><button type="button" class="rey-nombre'+(hay?' enlace':'')+'" data-id="'+esc(r.id)+'"'+(hay?' title="Abrir su ficha en el Libro de los Ancestros"':'')+'>'+esc(r.nombre||('Ficha '+r.id))+'</button><span class="rey-det">'+f+'</span></div>';
-    }).join('')+'</div>';
+  function cargarEscudos(){
+    var o=opener_();
+    if(!o||typeof o.linajesEscudosCargar!=='function')return;
+    var nombres=Object.keys(REINOS);if(!nombres.length)return;
+    Promise.resolve().then(function(){return o.linajesEscudosCargar(nombres.map(slug));}).then(function(m){
+      if(m&&typeof m==='object')Object.keys(m).forEach(function(k){if(imgOk(m[k]))ESCUDOS[k]=m[k];});
+      refrescarEscudo(REINO_ACTUAL);
+    }).catch(function(){});
   }
-  document.getElementById('personajesCont').addEventListener('click',function(ev){
-    var b=ev.target.closest&&ev.target.closest('.rey-nombre.enlace');
-    if(b){var o=opener_();if(o){try{o.irAFicha(b.getAttribute('data-id'));o.focus();}catch(e){}}}
+  function guardarEscudo(n,d){
+    var o=opener_();
+    if(!o||typeof o.linajesEscudoGuardar!=='function'){estado('Abre esta página desde la app para guardar escudos.');return;}
+    estado('Guardando el escudo en Drive…',true);
+    Promise.resolve().then(function(){return o.linajesEscudoGuardar(slug(n),d);}).then(function(){
+      ESCUDOS[slug(n)]=d;estado('Escudo guardado en Drive.');refrescarEscudo(n);
+    }).catch(function(e){estado('No se pudo guardar el escudo: '+(e&&e.message?e.message:e));});
+  }
+  function procesarEscudo(file,n){
+    var url=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){
+      var k=Math.min(1,320/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);
+      var d=c.toDataURL('image/png');
+      if(!imgOk(d)||d.length<200){estado('No se pudo preparar la imagen del escudo.');return;}
+      guardarEscudo(n,d);
+    };
+    im.onerror=function(){URL.revokeObjectURL(url);estado('No se pudo leer esa imagen.');};
+    im.src=url;
+  }
+
+  /* ===== Eventos ===== */
+  function clickRetrato(t){var r=t.closest&&t.closest('.retrato');if(r&&GAL[+r.getAttribute('data-i')]){abrirFicha(GAL[+r.getAttribute('data-i')]);return true;}return false;}
+  $('reyesCont').addEventListener('click',function(ev){
+    var t=ev.target,c=t.closest&&t.closest('.azulejo');
+    if(c){irHash('reino/'+slug(c.getAttribute('data-reino')));return;}
+    if(t.closest&&t.closest('#btnReinos')){irHash('reyes');return;}
+    if(t.closest&&t.closest('#btnEscudo')){$('fileEscudo').click();return;}
+    clickRetrato(t);
   });
-  cargarPersonas().then(function(p){REINOS=recoger(p);pintarReinos();PERS=recogerPersonajes(p);pintarPersonajes();}).catch(function(){REINOS={};pintarReinos();PERS=[];pintarPersonajes();});
+  $('reyesCont').addEventListener('input',function(ev){if(ev.target.id==='buscarReino')galeriaReino(ev.target.value);});
+  $('reyesCont').addEventListener('change',function(ev){
+    if(ev.target.id!=='fileEscudo')return;
+    var f=ev.target.files&&ev.target.files[0];ev.target.value='';
+    if(f&&REINO_ACTUAL!==null)procesarEscudo(f,REINO_ACTUAL);
+  });
+  $('personajesCont').addEventListener('click',function(ev){
+    var t=ev.target,c=t.closest&&t.closest('.azulejo');
+    if(c){irHash('personajes/'+c.getAttribute('data-cat'));return;}
+    if(t.closest&&t.closest('#btnCats')){irHash('personajes');return;}
+    clickRetrato(t);
+  });
+  $('personajesCont').addEventListener('input',function(ev){
+    if(ev.target.id==='buscarPers')filtraPers(ev.target.value);
+    else if(ev.target.id==='buscarCat')galeriaCat(ev.target.value);
+  });
+
+  /* ===== Arranque ===== */
+  $('reyesCont').innerHTML=cargandoHTML('Cargando los reyes…');
+  $('personajesCont').innerHTML=cargandoHTML('Cargando los personajes…');
+  render();
+  function terminar(p){
+    REINOS=recoger(p);REINO_POR_SLUG={};Object.keys(REINOS).forEach(function(n){REINO_POR_SLUG[slug(n)]=n;});
+    var r=recogerPersonajes(p);PERS=r.lista;CAT_LISTA=r.orden;
+    CARGADO=true;render();cargarEscudos();
+  }
+  cargarPersonas().then(terminar).catch(function(){terminar([]);});
 
   /* «Volver»: si se abrió desde la app (pestaña nueva), cierra esta pestaña y enfoca la app. */
   var desdeApp=false;
   try{desdeApp=!!(window.opener&&!window.opener.closed);}catch(e){}
-  document.getElementById('volver').addEventListener('click',function(){
+  $('volver').addEventListener('click',function(){
     if(desdeApp){
       try{window.opener.focus();}catch(e){}
       window.close();
@@ -265,6 +597,43 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
       location.href='index.html';
     }
   });
+})();
+</script>
+<script>
+(function(){
+var ESPERA_MS=60000,ov=null,t=null;
+function telaSVG(){
+var R=[],ang=[0,15,30,45,60,75,90],rad=[35,70,105,140,175,210],d='';
+function pt(r,a){var q=a*Math.PI/180;return[(r*Math.cos(q)).toFixed(1),(r*Math.sin(q)).toFixed(1)];}
+ang.forEach(function(a){var p=pt(235,a);d+='M0 0L'+p[0]+' '+p[1];});
+rad.forEach(function(r){
+for(var i=0;i<ang.length-1;i++){
+var a=pt(r,ang[i]),b=pt(r,ang[i+1]),c=pt(r*0.84,(ang[i]+ang[i+1])/2);
+d+='M'+a[0]+' '+a[1]+'Q'+c[0]+' '+c[1]+' '+b[0]+' '+b[1];
+}
+});
+return '<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><path d="'+d+'" fill="none" stroke="#8d8d8d" stroke-opacity=".75" stroke-width=".7" stroke-linecap="round"/></svg>';
+}
+function aranaSVG(){
+var l='';
+[[-1,-.9],[-1,-.2],[-1,.5],[-1,1.1]].forEach(function(v){
+var s=v[0],y=v[1];
+l+='<path d="M11 11 Q'+(11+s*5)+' '+(11+y*5-3)+' '+(11+s*9)+' '+(11+y*9)+'" fill="none" stroke="#444" stroke-width=".9"/>';
+l+='<path d="M11 11 Q'+(11-s*5)+' '+(11+y*5-3)+' '+(11-s*9)+' '+(11+y*9)+'" fill="none" stroke="#444" stroke-width=".9"/>';
+});
+return '<svg class="ar-bicho" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">'+l+'<ellipse cx="11" cy="13" rx="3.6" ry="4.6" fill="#3a3a3a"/><circle cx="11" cy="8.3" r="2.3" fill="#2b2b2b"/></svg>';
+}
+function crear(){
+if(ov)return;
+ov=document.createElement('div');ov.id='aranaOverlay';ov.setAttribute('aria-hidden','true');
+ov.innerHTML='<div class="ar-tela sup">'+telaSVG()+'</div><div class="ar-tela inf">'+telaSVG()+'</div><div class="ar-hilo">'+aranaSVG()+'</div>';
+document.body.appendChild(ov);
+}
+function mostrar(){crear();requestAnimationFrame(function(){ov.classList.add('activa');});}
+function ocultar(){if(ov)ov.classList.remove('activa');}
+function actividad(){ocultar();clearTimeout(t);t=setTimeout(mostrar,ESPERA_MS);}
+['mousemove','mousedown','keydown','touchstart','wheel','scroll','click'].forEach(function(ev){window.addEventListener(ev,actividad,{passive:true,capture:true});});
+actividad();
 })();
 </script>
 </body>
