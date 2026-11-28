@@ -57,6 +57,24 @@ nav button{padding:8px 14px}
 .hero{padding:22px 12px 16px}
 }
 
+/* ===== Reinos y reyes ===== */
+.reinos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.reino-card{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px;border:2px solid var(--border);border-radius:14px;background:var(--card);color:var(--text);cursor:pointer;font:inherit;transition:all .2s}
+.reino-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.reino-card i{font-size:20px;color:var(--accent)}
+.reino-nom{font-family:'Cinzel',serif;font-weight:700;font-size:15px;line-height:1.2}
+.reino-n{font-size:11px;color:var(--muted)}
+.reyes-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.reyes-bar h2{font-size:20px;color:var(--accent)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s}
+.pill:hover{border-color:var(--accent);color:var(--accent)}
+.rey-lista{display:flex;flex-direction:column;gap:8px}
+.rey-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;background:var(--card)}
+.rey-nombre{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--text);text-align:left;cursor:default}
+.rey-nombre.enlace{color:var(--accent);cursor:pointer;text-decoration:underline}
+.rey-det{font-size:12px;color:var(--muted);white-space:nowrap;text-align:right}
+@media(max-width:640px){.rey-fila{flex-direction:column;align-items:flex-start;gap:2px}.rey-det{text-align:left}}
+
 /* ===== TEMA «MUELLE» (el mismo que index) ===== */
 html[data-tema="muelle"]{color-scheme:dark;--bg:#0C2B3B;--card:#14465D;--text:#E4F2F5;--muted:#8FB8C7;--accent:#F2A71B;--green:#6FC2A5;--blue:#86CBE3;--border:#2C6A85}
 html[data-tema="muelle"] body::before{background:radial-gradient(ellipse 600px 400px at 20% 15%,rgba(242,167,27,.10) 0%,transparent 60%),radial-gradient(ellipse 500px 500px at 80% 85%,rgba(134,203,227,.10) 0%,transparent 60%)}
@@ -99,19 +117,11 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
     </div>
 
     <div class="view active" id="v-reyes" role="tabpanel">
-      <div class="lam-wrap">
-        <div class="ico"><i class="fa-solid fa-crown" aria-hidden="true"></i></div>
-        <h2>Reyes</h2>
-        <p class="lam-msg">Aquí irán los reyes y las casas reales de tu base de datos, con sus escudos y sus fotos.</p>
-      </div>
+      <div id="reyesCont"><div class="lam-wrap"><p class="lam-msg">Cargando los reyes…</p></div></div>
     </div>
 
     <div class="view" id="v-personajes" role="tabpanel">
-      <div class="lam-wrap">
-        <div class="ico"><i class="fa-solid fa-user-group" aria-hidden="true"></i></div>
-        <h2>Personajes</h2>
-        <p class="lam-msg">Aquí irán los personajes relevantes: nobles y otras figuras de la historia ligadas a tus linajes.</p>
-      </div>
+      <div id="personajesCont"><div class="lam-wrap"><p class="lam-msg">Cargando los personajes…</p></div></div>
     </div>
   </div>
 </main>
@@ -136,6 +146,112 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
   botones.forEach(function(b){b.addEventListener('click',function(){ir(b.dataset.view);});});
   var h=(location.hash||'').slice(1);
   if(ids.indexOf(h)>=0)ir(h);
+
+
+  /* ===== Reyes: se leen de las etiquetas «Rey de X (desde-hasta)» / «Reina de X (desde-hasta)» de las fichas ===== */
+  function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function parseReinado(t){var m=String(t).trim().match(/^(Rey|Reina) de (.+?) \((\d{1,4})-(\d{1,4})\)$/);return m?{titulo:m[1],reino:m[2],desde:+m[3],hasta:+m[4]}:null;}
+  function etqs(p){return String(p.ETIQUETAS||'').split(/[|;]/).map(function(x){return x.trim();}).filter(Boolean);}
+  function nombreDe(p){return [p.NOMBRE,p.APELLIDO1,p.APELLIDO2].map(function(x){return String(x||'').trim();}).filter(Boolean).join(' ');}
+  function opener_(){try{if(window.opener&&!window.opener.closed&&typeof window.opener.irAFicha==='function')return window.opener;}catch(e){}return null;}
+
+  /* Con la app abierta usa sus datos en memoria; si no, lee la base local del navegador (sin crearla si no existe). */
+  function leerBase(){
+    return new Promise(function(res){
+      var r;
+      try{r=indexedDB.open('Genealogia');}catch(e){res([]);return;}
+      r.onupgradeneeded=function(e){try{e.target.transaction.abort();}catch(x){}};
+      r.onerror=function(){res([]);};
+      r.onblocked=function(){res([]);};
+      r.onsuccess=function(){
+        var db=r.result;
+        if(!db.objectStoreNames.contains('personas')){db.close();res([]);return;}
+        var out=[],c;
+        try{c=db.transaction('personas','readonly').objectStore('personas').openCursor();}catch(e){db.close();res([]);return;}
+        c.onsuccess=function(ev){
+          var cur=ev.target.result;
+          if(cur){var v=cur.value;if(v&&v.ETIQUETAS&&/(Rey|Reina) de |Personaje relevante/.test(v.ETIQUETAS))out.push({ID:v.ID,NOMBRE:v.NOMBRE,APELLIDO1:v.APELLIDO1,APELLIDO2:v.APELLIDO2,ETIQUETAS:v.ETIQUETAS,FALLECIDO:v.FALLECIDO,NACA:v.NACA,DEFA:v.DEFA});cur.continue();}
+          else{db.close();res(out);}
+        };
+        c.onerror=function(){db.close();res(out);};
+      };
+    });
+  }
+  function cargarPersonas(){
+    var o=opener_();
+    if(o&&o.D&&o.D.length)return Promise.resolve(o.D);
+    return leerBase();
+  }
+
+  var REINOS={};   /* reino -> [{id,nombre,titulo,desde,hasta}] */
+  function recoger(personas){
+    var m={};
+    personas.forEach(function(p){
+      if(!p||!p.ETIQUETAS||!/(Rey|Reina) de /.test(p.ETIQUETAS))return;
+      etqs(p).forEach(function(t){
+        var r=parseReinado(t);if(!r)return;
+        if(String(p.FALLECIDO)==='0'&&r.hasta>1920)return;   /* solo históricos */
+        (m[r.reino]=m[r.reino]||[]).push({id:String(p.ID),nombre:nombreDe(p),titulo:r.titulo,desde:r.desde,hasta:r.hasta});
+      });
+    });
+    Object.keys(m).forEach(function(k){m[k].sort(function(a,b){return a.desde-b.desde||a.hasta-b.hasta;});});
+    return m;
+  }
+  function pintarReinos(){
+    var cont=document.getElementById('reyesCont');
+    var nombres=Object.keys(REINOS).sort(function(a,b){return REINOS[a][0].desde-REINOS[b][0].desde||a.localeCompare(b,'es');});
+    if(!nombres.length){
+      cont.innerHTML='<div class="lam-wrap"><div class="ico"><i class="fa-solid fa-crown" aria-hidden="true"></i></div><h2>Todavía no hay reyes</h2><p class="lam-msg">En la ficha de una persona, pulsa «Editar» en Etiquetas y elige <b>Rey / Reina</b>, el reino y los años de reinado. Aparecerán aquí agrupados por reino.</p></div>';
+      return;
+    }
+    var h='<div class="reinos-grid">'+nombres.map(function(n){var k=REINOS[n].length;return '<button type="button" class="reino-card" data-reino="'+esc(n)+'"><i class="fa-solid fa-crown" aria-hidden="true"></i><span class="reino-nom">'+esc(n.charAt(0).toUpperCase()+n.slice(1))+'</span><span class="reino-n">'+k+(k===1?' reinado':' reinados')+'</span></button>';}).join('')+'</div>';
+    cont.innerHTML=h;
+    try{history.replaceState(null,'','#reyes');}catch(e){}
+  }
+  function pintarReino(n){
+    var cont=document.getElementById('reyesCont'),l=REINOS[n]||[],hay=!!opener_();
+    var h='<div class="reyes-bar"><button type="button" class="pill" id="btnReinos"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Reinos</button><h2>'+esc(n.charAt(0).toUpperCase()+n.slice(1))+'</h2></div><div class="rey-lista">';
+    h+=l.map(function(r){return '<div class="rey-fila"><button type="button" class="rey-nombre'+(hay?' enlace':'')+'" data-id="'+esc(r.id)+'"'+(hay?' title="Abrir su ficha en el Libro de los Ancestros"':'')+'>'+esc(r.nombre||('Ficha '+r.id))+'</button><span class="rey-det">'+r.titulo+' · '+r.desde+'–'+r.hasta+'</span></div>';}).join('');
+    cont.innerHTML=h+'</div>';
+    window.scrollTo(0,0);
+  }
+  document.getElementById('reyesCont').addEventListener('click',function(ev){
+    var t=ev.target;
+    var c=t.closest&&t.closest('.reino-card');if(c){pintarReino(c.getAttribute('data-reino'));return;}
+    if(t.closest&&t.closest('#btnReinos')){pintarReinos();return;}
+    var b=t.closest&&t.closest('.rey-nombre.enlace');
+    if(b){var o=opener_();if(o){try{o.irAFicha(b.getAttribute('data-id'));o.focus();}catch(e){}}}
+  });
+
+  /* ===== Personajes: fichas con la etiqueta «Personaje relevante» ===== */
+  var PERS=[];
+  function recogerPersonajes(personas){
+    var l=[];
+    personas.forEach(function(p){
+      if(!p||!p.ETIQUETAS||etqs(p).indexOf('Personaje relevante')<0)return;
+      if(String(p.FALLECIDO)==='0')return;   /* solo históricos */
+      var na=parseInt(p.NACA,10),da=parseInt(p.DEFA,10);
+      l.push({id:String(p.ID),nombre:nombreDe(p),nac:isNaN(na)?null:na,def:isNaN(da)?null:da});
+    });
+    l.sort(function(a,b){return (a.nac===null)-(b.nac===null)||(a.nac-b.nac)||a.nombre.localeCompare(b.nombre,'es');});
+    return l;
+  }
+  function pintarPersonajes(){
+    var cont=document.getElementById('personajesCont'),hay=!!opener_();
+    if(!PERS.length){
+      cont.innerHTML='<div class="lam-wrap"><div class="ico"><i class="fa-solid fa-star" aria-hidden="true"></i></div><h2>Todavía no hay personajes</h2><p class="lam-msg">En la ficha de una persona, pulsa «Editar» en Etiquetas y marca <b>Personaje relevante</b>. Aparecerá aquí.</p></div>';
+      return;
+    }
+    cont.innerHTML='<div class="rey-lista">'+PERS.map(function(r){
+      var f=(r.nac!==null||r.def!==null)?((r.nac!==null?r.nac:'?')+'–'+(r.def!==null?r.def:'?')):'';
+      return '<div class="rey-fila"><button type="button" class="rey-nombre'+(hay?' enlace':'')+'" data-id="'+esc(r.id)+'"'+(hay?' title="Abrir su ficha en el Libro de los Ancestros"':'')+'>'+esc(r.nombre||('Ficha '+r.id))+'</button><span class="rey-det">'+f+'</span></div>';
+    }).join('')+'</div>';
+  }
+  document.getElementById('personajesCont').addEventListener('click',function(ev){
+    var b=ev.target.closest&&ev.target.closest('.rey-nombre.enlace');
+    if(b){var o=opener_();if(o){try{o.irAFicha(b.getAttribute('data-id'));o.focus();}catch(e){}}}
+  });
+  cargarPersonas().then(function(p){REINOS=recoger(p);pintarReinos();PERS=recogerPersonajes(p);pintarPersonajes();}).catch(function(){REINOS={};pintarReinos();PERS=[];pintarPersonajes();});
 
   /* «Volver»: si se abrió desde la app (pestaña nueva), cierra esta pestaña y enfoca la app. */
   var desdeApp=false;
