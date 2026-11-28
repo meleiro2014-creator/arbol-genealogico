@@ -522,6 +522,10 @@ html[data-tema="relieve"] main.ges-split #gesPanel,html[data-tema="relieve"] mai
 .etq-chip button{background:none;border:none;color:var(--accent);cursor:pointer;font-weight:700;font-size:13px;line-height:1;padding:0}
 .etq-add-row{display:flex;gap:6px;align-items:center;margin-top:8px}
 .etq-add-row input{flex:1}
+.etq-add-row select{flex:1;min-width:0}
+.etq-cat{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+.etq-cat-t{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:2px}
+.etq-ayuda{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4}
 .fl2{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:700}.fl2:hover{text-decoration:underline}
 .ul{list-style:none}.ul li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}.ul li:last-child{border:0}
 .ul a{color:var(--blue);cursor:pointer;text-decoration:none;font-weight:600}.ul a:hover{text-decoration:underline}
@@ -1283,7 +1287,7 @@ body.perfil-cronista .solo-cronista,body.perfil-admin .solo-cronista{display:fle
 <div class="bus-filtros" id="busFiltrosPanel">
 <div class="bus-filtros-row">
 <div class="ef-field"><label class="ef-label" for="busFLugar">Lugar (nac. o def.)</label><input class="ef-input" id="busFLugar" placeholder="Ej: Sevilla" autocomplete="off"></div>
-<div class="ef-field"><label class="ef-label" for="busFEtiqueta">Etiqueta</label><input class="ef-input" id="busFEtiqueta" list="dlEtiquetasGlobal" placeholder="Ej: Migrante" autocomplete="off"></div>
+<div class="ef-field"><label class="ef-label" for="busFEtiqueta">Etiqueta</label><input class="ef-input" id="busFEtiqueta" list="dlEtiquetasGlobal" placeholder="Ej: Rey de Castilla, Personaje relevante" autocomplete="off"></div>
 </div>
 <div class="bus-filtros-row">
 <div class="ef-field"><label class="ef-label" for="busFID">ID (exacto; varios separados por coma)</label><input class="ef-input" id="busFID" placeholder="Ej: 16453" autocomplete="off"></div>
@@ -2007,8 +2011,13 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 }
 
 /* ===== VERSION Y REGISTRO DE CAMBIOS (punto 15) ===== */
-var APP_VERSION = '2026.11.23.3';
+var APP_VERSION = '2026.11.28.1';
 var APP_CHANGELOG = [
+  { version:'2026.11.28.1', fecha:'2026-11-28', cambios:[
+    'Etiquetas de la ficha: ya no son texto libre. Ahora son categorías cerradas que se eligen en la ficha: «Rey de…» / «Reina de…» con el reino y el reinado (desde año – hasta año) y «Personaje relevante». El tratamiento Rey o Reina se pone solo según el sexo de la ficha.',
+    'La lista de reinos es abierta: trae los principales de la península y de Europa y se amplía sobre la marcha. Archivero y Cronista pueden añadir un reino nuevo desde la propia ficha; en cuanto se guarda, queda disponible para todos. Las etiquetas antiguas de texto libre que aún queden en una ficha se pueden quitar, pero ya no se pueden añadir.',
+    'Pulsar una etiqueta de reinado busca a todos los reyes de ese reino, sea cual sea su reinado.'
+  ]},
   { version:'2026.11.23.3', fecha:'2026-11-23', cambios:[
     'Gestor de datos, nueva categoría «Fusiones en falso», dividida en dos apartados según el nacimiento de la persona: antes de 1800 y de 1800 en adelante (se usa el año real; si falta, el que encajan sus familiares; si falta, el estimado; sin ningún año, va con las de 1800 en adelante) (solo Archivero; los Cronistas la ven en solo lectura si se les da el visado). Detecta fichas que parecen dos personas fundidas en una al unir árboles: cónyuges múltiples (3 o más), edades incoherentes entre padres, hijos y cónyuges (usa solo años reales, nunca estimados), hijos de la misma madre con menos de 9 meses de diferencia, bodas anteriores a los 12 años o posteriores a la muerte, cónyuge que es a la vez padre, hijo o hermano, vidas de más de 100 años y fichas marcadas como «contaminadas» por el motor de años. Cada caso se gradúa como SEGURO, ALTA o POSIBLE, y se puede filtrar por grado, ocultar las ya revisadas y ver solo las que tienen foto (cada tarjeta indica si la ficha está revisada o tiene foto).',
     'Fusiones en falso, solución: «Separar en dos fichas» crea una ficha nueva con el mismo nombre y le pasa los familiares marcados (los padres, o cada cónyuge con sus hijos). La app propone el reparto que deja a cada lado con edades coherentes; puedes cambiar las casillas, e incluso pasar también los datos propios (nacimiento, defunción, lugares) a la ficha nueva. La foto se queda en la ficha original, la marca de revisada se quita de las dos y ambas anotan el origen en Observaciones. «No es una fusión en falso» descarta el aviso.'
@@ -7268,7 +7277,8 @@ function todasLasEtiquetas(){var set={};D.forEach(function(p){etiquetasArray(p).
 function actualizarDatalistEtiquetas(){
 var dl=document.getElementById('dlEtiquetasGlobal');
 if(!dl)return;
-var set=todasLasEtiquetas();
+var set={};
+D.forEach(function(p){etiquetasArray(p).forEach(function(t){set[etqBase(t)]=true;});});
 var tags=Object.keys(set).sort(function(a,b){return a.localeCompare(b,'es');});
 dl.innerHTML=tags.map(function(t){return '<option value="'+escAttr(t)+'">';}).join('');
 }
@@ -10741,7 +10751,20 @@ h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" clas
 return h;
 }
 function htmlEtiquetasEditForm(id){
-var h='<div id="efEtiquetasChips"></div><div class="etq-add-row"><input class="ef-input" id="efEtiquetaInput" list="dlEtiquetasGlobal" placeholder="Ej: Migrante, Línea materna confirmada..." autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();efAnadirEtiqueta();}"><button type="button" class="ef-btn ghost" onclick="efAnadirEtiqueta()"><i class="fa-solid fa-plus"></i> Añadir</button></div>';
+efEtqId=id;
+var puede=esAdministrador()||esColaborador();
+var R=etqReinosDisponibles();
+var h='<div id="efEtiquetasChips"></div>';
+h+='<div class="etq-cat"><div class="etq-cat-t"><i class="fa-solid fa-crown" aria-hidden="true"></i> Rey / Reina</div>';
+h+='<div class="etq-add-row"><label class="sr-only" for="efReinoSel">Reino</label><select class="ef-input" id="efReinoSel" onchange="efSelCambio(\'efReinoSel\',\'efReinoNuevoFila\')"><option value="">Elige un reino…</option>';
+R.grupos.forEach(function(g){h+='<optgroup label="'+escAttr(g.g)+'">'+g.l.map(function(r){return '<option value="'+escAttr(r)+'">'+esc(r)+'</option>';}).join('')+'</optgroup>';});
+if(puede)h+='<option value="__nuevo__">➕ Añadir un reino nuevo…</option>';
+h+='</select></div>';
+if(puede)h+='<div class="etq-add-row" id="efReinoNuevoFila" style="display:none"><input class="ef-input" id="efReinoNuevo" maxlength="40" placeholder="Nombre del reino (ej: Navarra)" autocomplete="off"></div>';
+h+='<div class="etq-add-row"><input class="ef-input" id="efReinoDesde" type="number" inputmode="numeric" min="1" max="2100" placeholder="Reinó desde (año)" aria-label="Reinó desde (año)"><input class="ef-input" id="efReinoHasta" type="number" inputmode="numeric" min="1" max="2100" placeholder="hasta (año)" aria-label="Reinó hasta (año)"><button type="button" class="ef-btn ghost" onclick="efAnadirReinado()"><i class="fa-solid fa-plus"></i> Añadir</button></div>';
+if(puede)h+='<div class="etq-ayuda">Si el reino no está en la lista, elige «Añadir un reino nuevo»: quedará disponible para todos en cuanto guardes la ficha.</div>';
+h+='</div>';
+h+='<div class="etq-cat"><div class="etq-cat-t"><i class="fa-solid fa-star" aria-hidden="true"></i> Personaje relevante</div><div class="etq-add-row"><button type="button" class="ef-btn ghost" onclick="efAnadirPersonaje()"><i class="fa-solid fa-plus"></i> Marcar como personaje relevante</button></div></div>';
 h+='<div style="display:flex;gap:8px;margin-top:12px"><button type="button" class="ef-btn ghost" onclick="cancelarEdicionSeccion(\''+safeId(id)+'\',\'etiquetas\')">Cancelar</button><button type="button" class="ef-btn save" onclick="guardarSeccionEtiquetas(\''+safeId(id)+'\',this)"><i class="fa-solid fa-check"></i> Guardar</button></div>';
 return h;
 }
@@ -10887,8 +10910,6 @@ var p=PI[id];
 if(!p){toast('Registro no encontrado',true);finOperacionFicha(btn);return;}
 var antesCambio=clonarPersona(p);
 var antesGuardadoParcial=mapaPersonas(D);
-var etqPendiente=leerCampo('efEtiquetaInput');
-if(etqPendiente&&etqPendiente.indexOf('|')<0&&!efEtiquetasEdit.some(function(t){return t.toLowerCase()===etqPendiente.toLowerCase();}))efEtiquetasEdit.push(etqPendiente);
 p.ETIQUETAS=efEtiquetasEdit.join('|');
 var today=new Date();
 p.FechaEdicion=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
@@ -10991,7 +11012,7 @@ else h+='<div style="font-size:12px;margin:-8px 0 12px;color:var(--muted)"><i cl
 if(p.BORRAR==='1')h+='<div style="background:#FBEDE6;border:1px solid #C4653A;color:#A9512C;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin:0 0 12px"><i class="fa-solid fa-flag" aria-hidden="true"></i> Marcada para borrar. Se eliminará cuando el Archivero ejecute el borrado masivo en el Gestor de datos.</div>';
 var etqsFicha=etiquetasArray(p);
 if(etqsFicha.length){
-h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(t)+'\')"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
+h+='<div style="margin:-6px 0 14px">'+etqsFicha.map(function(t){return '<span class="etq-chip" title="Ver todas las personas con esta etiqueta" onclick="verFichasConEtiqueta(\''+safeId(etqBase(t))+'\')"><i class="fa-solid '+etqIcono(t)+'" style="font-size:9px"></i> '+esc(t)+'</span>';}).join('')+'</div>';
 }
 h+=htmlAvisosFicha(id);
 /* ===== Pestañas Datos / Familia / Abuelos / Hermanos ===== */
@@ -11011,7 +11032,7 @@ secDatosPersonales+=htmlRevisadaFicha(id,p);
 }
 var secFoto=editSec.foto?(seccionHeaderHtml('Foto',id,'foto',false)+htmlFotoEditForm(id,p)):'';
 var etqActuales=etiquetasArray(p);
-var secEtiquetas=seccionHeaderHtml('Etiquetas',id,'etiquetas',!haySeccionEditando())+(editSec.etiquetas?htmlEtiquetasEditForm(id):(etqActuales.length?etqActuales.map(function(t){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+'</span>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin etiquetas todavía.</p>'));
+var secEtiquetas=seccionHeaderHtml('Etiquetas',id,'etiquetas',!haySeccionEditando())+(editSec.etiquetas?htmlEtiquetasEditForm(id):(etqActuales.length?etqActuales.map(function(t){return '<span class="etq-chip"><i class="fa-solid '+etqIcono(t)+'" style="font-size:9px"></i> '+esc(t)+'</span>';}).join(''):'<p style="font-size:12px;color:var(--muted)">Sin etiquetas todavía.</p>'));
 var secArbolCaja=htmlEsquemaArbolFicha(id,p,padreObj,madreObj,abuelos);
 var secObservaciones=seccionHeaderHtml('Observaciones',id,'observaciones',!haySeccionEditando())+(editSec.observaciones?htmlObservacionesEditForm(id,p):(p.OBSERVACIONES?'<p style="font-size:12px;line-height:1.5;color:var(--muted)">'+esc(p.OBSERVACIONES)+'</p>':'<p style="font-size:12px;color:var(--muted)">Sin observaciones</p>'));
 var pl=padreObj?nombreFamiliarEnlazable(padreObj,'irAFicha(\''+safeId(p.PADRE)+'\')',etiquetaAnioRelacion(padreObj)):'<span style="color:var(--muted)">Desconocido</span>';
@@ -11128,25 +11149,81 @@ el.innerHTML='';
 }
 }
 /* ===== Edición de etiquetas dentro de la ficha ===== efEtiquetasEdit vive solo en memoria mientras
-se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar. */
-var efEtiquetasEdit=[];
+se edita el formulario (mismo patrón que fotoPendiente); se vuelca a p.ETIQUETAS al guardar.
+Las etiquetas son CATEGORÍAS CERRADAS, guardadas en ETIQUETAS separadas por «|»:
+  · «Rey de Castilla (1217-1252)» / «Reina de Castilla (1474-1504)»: reino + reinado (desde-hasta).
+    Rey o Reina se elige solo según el sexo de la ficha.
+  · «Personaje relevante».
+La lista de reinos es abierta: la base de abajo + todos los reinos que ya existan en el árbol.
+Archivero y Cronista pueden añadir un reino nuevo desde la ficha. */
+var efEtiquetasEdit=[],efEtqId=null;
+var ETQ_PERSONAJE='Personaje relevante';
+var ETQ_REINOS_BASE=[
+{g:'Península ibérica',l:['Asturias','Galicia','León','Castilla','Castilla y León','Pamplona','Navarra','Navarra y Aragón','Aragón','Catalunya','Catalunya y Aragón','Mallorca','Valencia','Portugal','España','los Suevos','los Visigodos']},
+{g:'Resto de Europa y Mediterráneo',l:['los Francos','Francia','Inglaterra','Escocia','Irlanda','Sicilia','Nápoles','Cerdeña','Italia','los Lombardos','Borgoña','Jerusalén','Chipre','Países Bajos','Bélgica','Bohemia','Hungría','Polonia','Dinamarca','Suecia','Noruega','Prusia','Baviera','Sajonia','Württemberg','Grecia']}
+];
+function etqParse(t){
+t=String(t||'').trim();
+var m=t.match(/^(Rey|Reina) de (.+?) \((\d{1,4})-(\d{1,4})\)$/);
+if(m)return {tipo:'reinado',titulo:m[1],reino:m[2],desde:+m[3],hasta:+m[4]};
+if(t===ETQ_PERSONAJE)return {tipo:'personaje'};
+return {tipo:'antigua'};
+}
+function etqBase(t){var x=etqParse(t);return x.tipo==='reinado'?x.titulo+' de '+x.reino:String(t||'').trim();}
+function etqIcono(t){var x=etqParse(t).tipo;return x==='reinado'?'fa-crown':x==='personaje'?'fa-star':'fa-tag';}
+function etqReinosDisponibles(){
+var vistos={},grupos=[];
+ETQ_REINOS_BASE.forEach(function(g){g.l.forEach(function(r){vistos[normTxt(r)]=r;});grupos.push({g:g.g,l:g.l.slice()});});
+var extra=[];
+D.forEach(function(p){etiquetasArray(p).forEach(function(t){var x=etqParse(t);if(x.tipo!=='reinado')return;var k=normTxt(x.reino);if(!vistos[k]){vistos[k]=x.reino;extra.push(x.reino);}});});
+extra.sort(function(a,b){return a.localeCompare(b,'es');});
+if(extra.length)grupos.push({g:'Añadidos',l:extra});
+return {grupos:grupos,mapa:vistos};
+}
 function efRenderEtiquetas(){
 var cont=document.getElementById('efEtiquetasChips');
 if(!cont)return;
 if(!efEtiquetasEdit.length){cont.innerHTML='<p style="font-size:11px;color:var(--muted)">Sin etiquetas todavía.</p>';return;}
-cont.innerHTML=efEtiquetasEdit.map(function(t,i){return '<span class="etq-chip"><i class="fa-solid fa-tag" style="font-size:9px"></i> '+esc(t)+' <button type="button" title="Quitar etiqueta" onclick="efQuitarEtiqueta('+i+')">×</button></span>';}).join('');
+cont.innerHTML=efEtiquetasEdit.map(function(t,i){var ant=etqParse(t).tipo==='antigua';return '<span class="etq-chip"'+(ant?' title="Etiqueta antigua de texto libre: ya no se puede añadir, pero sí quitar"':'')+'><i class="fa-solid '+etqIcono(t)+'" style="font-size:9px"></i> '+esc(t)+' <button type="button" title="Quitar etiqueta" aria-label="Quitar etiqueta '+escAttr(t)+'" onclick="efQuitarEtiqueta('+i+')">×</button></span>';}).join('');
 }
-function efAnadirEtiqueta(){
-var inp=document.getElementById('efEtiquetaInput');
-if(!inp)return;
-var v=(inp.value||'').trim();
-if(!v){return;}
-if(v.indexOf('|')>=0){toast('Una etiqueta no puede contener el carácter "|"',true);return;}
-if(efEtiquetasEdit.some(function(t){return t.toLowerCase()===v.toLowerCase();})){toast('Esa etiqueta ya está añadida',true);inp.value='';return;}
-efEtiquetasEdit.push(v);
-inp.value='';
+function efSelCambio(selId,filaId){
+var s=document.getElementById(selId),f=document.getElementById(filaId);
+if(f)f.style.display=(s&&s.value==='__nuevo__')?'flex':'none';
+}
+function efEtqDuplicada(t){return efEtiquetasEdit.some(function(x){return normTxt(x)===normTxt(t);});}
+function efNombreNuevoValido(n,quitar){
+n=String(n||'').replace(/\s+/g,' ').trim().replace(quitar,'').trim();
+if(!n){toast('Escribe el nombre',true);return '';}
+if(/[|;()]/.test(n)){toast('El nombre no puede llevar «|», «;» ni paréntesis',true);return '';}
+return n;
+}
+function efAnadirReinado(){
+var sel=document.getElementById('efReinoSel');
+if(!sel)return;
+var reino=sel.value;
+if(!reino){toast('Elige un reino',true);return;}
+if(reino==='__nuevo__'){
+var n=efNombreNuevoValido(leerCampo('efReinoNuevo'),/^(reino|rey|reina) de /i);
+if(!n)return;
+var ya=etqReinosDisponibles().mapa[normTxt(n)];
+reino=ya||(/^(los|las|el|la)\s/i.test(n)?n:n.charAt(0).toUpperCase()+n.slice(1));
+}
+var d=parseInt(leerCampo('efReinoDesde'),10),h=parseInt(leerCampo('efReinoHasta'),10);
+if(!(d>=1&&d<=2100)||!(h>=1&&h<=2100)){toast('Indica el reinado: año de inicio y año de fin',true);return;}
+if(d>h){toast('El año de inicio no puede ser posterior al de fin',true);return;}
+var pp=efEtqId?PI[efEtqId]:null;
+var tit=(pp&&pp.SEXO==='Mujer')?'Reina':'Rey';
+var t=tit+' de '+reino+' ('+d+'-'+h+')';
+if(efEtqDuplicada(t)){toast('Ese reinado ya está añadido',true);return;}
+efEtiquetasEdit.push(t);
+sel.value='';efSelCambio('efReinoSel','efReinoNuevoFila');
+['efReinoNuevo','efReinoDesde','efReinoHasta'].forEach(function(x){var e=document.getElementById(x);if(e)e.value='';});
 efRenderEtiquetas();
-inp.focus();
+}
+function efAnadirPersonaje(){
+if(efEtqDuplicada(ETQ_PERSONAJE)){toast('Ya está marcado como personaje relevante',true);return;}
+efEtiquetasEdit.push(ETQ_PERSONAJE);
+efRenderEtiquetas();
 }
 function efQuitarEtiqueta(i){
 efEtiquetasEdit.splice(i,1);
