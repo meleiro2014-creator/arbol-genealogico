@@ -106,6 +106,23 @@ dialog::backdrop{background:rgba(20,12,6,.6)}
 .ficha .foto img,.ficha .foto svg{width:100%;display:block;aspect-ratio:3/4;object-fit:cover;border-radius:5px}
 .ficha h3{font-size:22px;color:var(--accent);margin:0 0 6px;padding-right:28px}
 .ficha .sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+.ficha .bio{grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin-top:2px}
+.ficha .bio h4{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.ficha .bio-txt{font-size:14px;line-height:1.7;max-height:min(38vh,320px);overflow:auto;white-space:pre-wrap;padding-right:4px}
+.ficha .bio-txt.vacia{color:var(--muted);font-style:italic}
+.ficha .bio-fuente{font-size:11.5px;color:var(--muted);margin-top:8px}
+.ficha .bio textarea{width:100%;min-height:170px;box-sizing:border-box;font:inherit;font-size:14px;line-height:1.6;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);resize:vertical}
+.ficha .bio input[type=text]{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:7px 12px;border:1.5px solid var(--border);border-radius:20px;background:var(--bg);color:var(--text);margin-top:8px}
+.ficha .bio-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+dialog{max-height:94vh;overflow:auto}
+.ficha .bio-cand{margin-top:12px;border:1.5px dashed var(--border);border-radius:12px;padding:12px}
+.ficha .bio-cand .busq{display:flex;gap:8px;flex-wrap:wrap}
+.ficha .bio-cand .busq input{flex:1;min-width:150px;font:inherit;font-size:13px;padding:7px 12px;border:1.5px solid var(--border);border-radius:20px;background:var(--bg);color:var(--text)}
+.ficha .bio-cand ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.ficha .cand{display:block;width:100%;text-align:left;font:inherit;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);cursor:pointer}
+.ficha .cand:hover,.ficha .cand:focus-visible{border-color:var(--accent)}
+.ficha .cand b{display:block;font-size:13.5px;color:var(--accent)}
+.ficha .cand span{display:block;font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:2px}
 .ficha .cerrar{position:absolute;right:12px;top:8px;font-size:26px;line-height:1;background:none;border:0;color:var(--muted);cursor:pointer}
 .ficha .cerrar:hover{color:var(--accent)}
 
@@ -202,6 +219,29 @@ html[data-tema="relieve"] .nav-hist-btn:hover{border-color:var(--accent);color:v
       <div class="sub" id="dSub"></div>
       <button class="pill" id="dAbrir" type="button" hidden><i class="fa-solid fa-sitemap" aria-hidden="true"></i> Abrir en el árbol</button>
     </div>
+    <section class="bio" id="dBio" aria-label="Biografía">
+      <h4>Biografía</h4>
+      <div id="bioVer">
+        <div class="bio-txt" id="bioTxt"></div>
+        <div class="bio-fuente" id="bioFuente"></div>
+        <div class="bio-acc"><button class="pill" id="bioEditar" type="button" hidden><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar biografía</button><button class="pill bioWiki" type="button" hidden><i class="fa-brands fa-wikipedia-w" aria-hidden="true"></i> Buscar en Wikipedia</button></div>
+      </div>
+      <div id="bioEdit" hidden>
+        <textarea id="bioTa" aria-label="Texto de la biografía" placeholder="Escribe aquí la biografía (unas 100-200 palabras)…"></textarea>
+        <input type="text" id="bioFu" aria-label="Fuente de la biografía" placeholder="Fuente (p. ej. Wikipedia, CC BY-SA, o «Redacción propia»)">
+        <div class="bio-acc">
+          <button class="pill" id="bioGuardar" type="button"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar</button>
+          <button class="pill bioWiki" type="button"><i class="fa-brands fa-wikipedia-w" aria-hidden="true"></i> Buscar en Wikipedia</button>
+          <button class="pill" id="bioCancelar" type="button">Cancelar</button>
+          <span class="res" id="bioEst" role="status"></span>
+        </div>
+      </div>
+      <div class="bio-cand" id="bioCand" hidden>
+        <div class="busq"><input type="search" id="wikiQ" aria-label="Buscar en Wikipedia"><button class="pill" id="wikiIr" type="button">Buscar</button></div>
+        <div class="res" id="wikiEst" role="status" style="margin-top:8px"></div>
+        <ul id="wikiRes"></ul>
+      </div>
+    </section>
   </div>
 </dialog>
 
@@ -322,7 +362,9 @@ return s;
   var REINO_POR_SLUG={};  /* slug -> nombre del reino */
   var PERS=[];            /* personajes únicos */
   var CAT_LISTA=[];       /* [{cat, personas:[...]}] en orden de presentación */
-  var ESCUDOS={};         /* slug -> dataURL (carpeta DATOS/ESCUDOS de Drive, vía la app) */
+  var ESCUDOS={};         /* slug -> dataURL (carpeta Genealogia/escudos de Drive, vía la app) */
+  var BIOS={};            /* id de persona -> {texto,fuente,fecha,autor} (DATOS/biografias.json, vía la app) */
+  var BIOS_OK=false;      /* true cuando la app ha respondido (aunque venga vacío) */
   var CARGADO=false, REINO_ACTUAL=null, GAL=[], FICHA=null;
 
   function recoger(personas){
@@ -501,6 +543,7 @@ return s;
     var v=aniosTxt(r.nac,r.def);if(v)sub.push('Vida: '+v);
     $('dSub').innerHTML=sub.map(esc).join('<br>');
     $('dAbrir').hidden=!opener_();
+    pintarBio();
     $('dlg').showModal();
   }
   $('dCerrar').addEventListener('click',function(){$('dlg').close();});
@@ -511,7 +554,117 @@ return s;
     $('dlg').close();
   });
 
-  /* ===== Escudos (Drive: DATOS/ESCUDOS/<reino>.png, gestionado por la app) ===== */
+
+  /* ===== Biografías (DATOS/biografias.json, gestionado por la app) ===== */
+  function puedeEditarBio(){var o=opener_();try{return !!(o&&typeof o.linajesBiografiaPuedeEditar==='function'&&o.linajesBiografiaPuedeEditar());}catch(e){return false;}}
+  function fechaTxt(iso){var d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});}
+  function bioEst(t){$('bioEst').textContent=t||'';}
+  function pintarBio(){
+    $('bioVer').hidden=false;$('bioEdit').hidden=true;$('bioCand').hidden=true;bioEst('');
+    var b=FICHA&&BIOS[FICHA.id],t=$('bioTxt'),f=$('bioFuente');
+    if(b&&b.texto){
+      t.className='bio-txt';t.textContent=b.texto;
+      var x=[];if(b.fuente)x.push('Fuente: '+b.fuente);
+      var fe=b.fecha?fechaTxt(b.fecha):'';if(fe)x.push('Actualizada el '+fe);
+      f.textContent=x.join(' · ');
+    }else{
+      t.className='bio-txt vacia';
+      t.textContent=opener_()&&!BIOS_OK?'Cargando la biografía…':'Todavía no hay biografía de este personaje.';
+      f.textContent='';
+    }
+    var pe=puedeEditarBio();$('bioEditar').hidden=!pe;
+    Array.prototype.forEach.call(document.querySelectorAll('#bioVer .bioWiki'),function(b){b.hidden=!pe;});
+  }
+  function cargarBiografias(){
+    var o=opener_();
+    if(!o||typeof o.linajesBiografiasCargar!=='function'){BIOS_OK=true;return;}
+    Promise.resolve().then(function(){return o.linajesBiografiasCargar();}).then(function(m){
+      if(m&&typeof m==='object')Object.keys(m).forEach(function(k){var v=m[k];if(v&&typeof v.texto==='string')BIOS[k]=v;});
+    }).catch(function(){}).then(function(){BIOS_OK=true;if($('dlg').open)pintarBio();});
+  }
+  function abrirEdicionBio(){
+    var b=(FICHA&&BIOS[FICHA.id])||{};
+    $('bioTa').value=b.texto||'';$('bioFu').value=b.fuente||'';
+    $('bioVer').hidden=true;$('bioEdit').hidden=false;bioEst('');
+  }
+  $('bioEditar').addEventListener('click',function(){abrirEdicionBio();$('bioTa').focus();});
+  $('bioCancelar').addEventListener('click',pintarBio);
+  $('bioGuardar').addEventListener('click',function(){
+    var o=opener_(),r=FICHA;
+    if(!r)return;
+    if(!o||typeof o.linajesBiografiaGuardar!=='function'){bioEst('Abre esta página desde la app para guardar biografías.');return;}
+    var texto=$('bioTa').value.trim(),fuente=$('bioFu').value.trim();
+    if(!texto){bioEst('Escribe el texto de la biografía.');return;}
+    var e={texto:texto,fuente:fuente,fecha:new Date().toISOString()};
+    $('bioGuardar').disabled=true;bioEst('Guardando en Drive…');
+    Promise.resolve().then(function(){return o.linajesBiografiaGuardar(r.id,e);}).then(function(res){
+      if(res&&typeof res==='object'&&typeof res.texto==='string')e=res;   /* la app puede añadir el autor */
+      BIOS[r.id]=e;if(FICHA===r)pintarBio();
+    }).catch(function(err){bioEst('No se pudo guardar: '+(err&&err.message?err.message:err));}).then(function(){$('bioGuardar').disabled=false;});
+  });
+
+  /* ===== Buscar una biografía breve en Wikipedia (es) ===== */
+  var WIKI_MAX_FRASES=4, WIKI_MAX_CHARS=550, WIKI_RES=[];
+  var ABREV=/(?:^|\s)(?:s|ss|a|c|ca|d|dr|dra|sr|sra|sta|sto|ntra|ntro|vv|fl|aprox|etc|n|nº|p|pp|cap|vol|ed|Mons|Fr|Hno)\.$/i;
+  function consultaWiki(r){var q=r.nombre||'';if(r.titulo&&r.reino)q+=' '+r.titulo.toLowerCase()+' de '+cap(r.reino);return q.trim();}
+  /* Intro de Wikipedia -> 1 a 4 frases (≈550 caracteres), cortando siempre al final de una frase */
+  function resumir(t){
+    t=String(t||'').replace(/\[\d+\]|\[nota \d+\]/g,'');
+    t=t.replace(/\s*\([^()]*\d{3,4}[^()]*\)/g,'');            /* quita paréntesis con fechas: ya salen en la ficha */
+    t=t.replace(/\s*\n+\s*/g,' ').replace(/\s{2,}/g,' ').trim();
+    var trozos=t.split(/(?<=[.!?…])\s+(?=[A-ZÁÉÍÓÚÑ¿¡«"“])/),fr=[];
+    trozos.forEach(function(x){if(fr.length&&ABREV.test(fr[fr.length-1]))fr[fr.length-1]+=' '+x;else fr.push(x);});
+    var out='';
+    for(var i=0;i<fr.length&&i<WIKI_MAX_FRASES;i++){
+      var n=out?out+' '+fr[i]:fr[i];
+      if(out&&n.length>WIKI_MAX_CHARS)break;
+      out=n;
+    }
+    return out.trim();
+  }
+  function iniciarWiki(){
+    if($('bioEdit').hidden)abrirEdicionBio();
+    $('bioCand').hidden=false;
+    $('wikiQ').value=consultaWiki(FICHA||{});
+    buscarWiki();
+  }
+  function buscarWiki(){
+    var q=$('wikiQ').value.trim(),est=$('wikiEst'),ul=$('wikiRes');
+    ul.innerHTML='';WIKI_RES=[];
+    if(!q){est.textContent='Escribe qué buscar.';return;}
+    est.textContent='Buscando en Wikipedia…';
+    var ctl=window.AbortController?new AbortController():null,tm=setTimeout(function(){if(ctl)ctl.abort();},12000);
+    var url='https://es.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&generator=search&gsrlimit=6&gsrsearch='+encodeURIComponent(q)+'&prop=extracts|info&exintro=1&explaintext=1&exlimit=max&inprop=url';
+    fetch(url,ctl?{signal:ctl.signal}:{}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+      clearTimeout(tm);
+      var pg=(d&&d.query&&d.query.pages)?Object.keys(d.query.pages).map(function(k){return d.query.pages[k];}):[];
+      pg=pg.filter(function(x){return x.extract&&!/puede referirse a|desambiguaci/i.test(x.extract.slice(0,200)+' '+x.title);}).sort(function(a,b){return a.index-b.index;}).slice(0,4);
+      WIKI_RES=pg.map(function(x){return {titulo:x.title,url:x.fullurl,texto:resumir(x.extract)};}).filter(function(x){return x.texto;});
+      if(!WIKI_RES.length){est.textContent='Wikipedia no tiene resultados para esa búsqueda. Prueba a cambiarla o escribe el texto tú.';return;}
+      est.textContent='Elige el artículo correcto (lo podrás retocar antes de guardar):';
+      ul.innerHTML=WIKI_RES.map(function(x,i){
+        var vista=x.texto.length>150?x.texto.slice(0,150).replace(/\s+\S*$/,'')+'…':x.texto;
+        return '<li><button type="button" class="cand" data-i="'+i+'"><b>'+esc(x.titulo)+'</b><span>'+esc(vista)+'</span></button></li>';
+      }).join('');
+    }).catch(function(e){
+      clearTimeout(tm);
+      est.textContent=(e&&e.name==='AbortError')?'Wikipedia tarda demasiado en responder. Inténtalo de nuevo.':'No se pudo consultar Wikipedia (¿sin conexión?).';
+    });
+  }
+  function usarWiki(i){
+    var x=WIKI_RES[i];if(!x)return;
+    var ta=$('bioTa');
+    if(ta.value.trim()&&ta.value.trim()!==x.texto&&!confirm('Ya hay un texto escrito. ¿Sustituirlo por el de Wikipedia?'))return;
+    ta.value=x.texto;
+    $('bioFu').value='Wikipedia (es), «'+x.titulo+'» · '+x.url+' · CC BY-SA 4.0';
+    $('bioCand').hidden=true;bioEst('Texto de Wikipedia cargado: revísalo y pulsa Guardar.');ta.focus();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.bioWiki'),function(b){b.addEventListener('click',iniciarWiki);});
+  $('wikiIr').addEventListener('click',buscarWiki);
+  $('wikiQ').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();buscarWiki();}});
+  $('wikiRes').addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.cand');if(b)usarWiki(+b.getAttribute('data-i'));});
+
+  /* ===== Escudos (Drive: Genealogia/escudos/<reino>.png, gestionado por la app) ===== */
   function estado(t,trabajando){var e=$('estEscudo');if(e)e.innerHTML=esc(t||'')+(trabajando?'<span class="est-bee">'+barraAbeja()+'</span>':'');}
   function refrescarEscudo(n){
     if(REINO_ACTUAL===null){if(CARGADO&&(location.hash||'#reyes').indexOf('#personajes')!==0)pintarReinos();}
@@ -581,7 +734,7 @@ return s;
   function terminar(p){
     REINOS=recoger(p);REINO_POR_SLUG={};Object.keys(REINOS).forEach(function(n){REINO_POR_SLUG[slug(n)]=n;});
     var r=recogerPersonajes(p);PERS=r.lista;CAT_LISTA=r.orden;
-    CARGADO=true;render();cargarEscudos();
+    CARGADO=true;render();cargarEscudos();cargarBiografias();
   }
   cargarPersonas().then(terminar).catch(function(){terminar([]);});
 
