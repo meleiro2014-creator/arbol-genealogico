@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linajes y personajes · El Libro de los Ancestros</title>
+<style>
+:root{
+  --vino:#4f2a2a; --vino-osc:#3a1e1e; --arena:#dcbc8c; --arena-clara:#efe2c8; --arena-osc:#b8925c;
+  --texto:#2b1c14; --fondo:#f6efe1; --tarjeta:#fffaf0; --borde:#d9c29a; --dorado:#b8903f;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --fondo:#1d1613; --tarjeta:#2a201b; --texto:#f0e4d0; --borde:#5a4636; --arena-clara:#3a2c24; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Georgia,"Times New Roman",serif;background:var(--fondo);color:var(--texto);min-height:100vh}
+header{background:var(--vino);color:#f5e6c8;padding:14px 20px 0;border-bottom:3px solid var(--arena-osc)}
+.fila{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(24px,5vw,38px);font-weight:normal;font-style:italic;letter-spacing:.5px}
+.volver{color:#f5e6c8;text-decoration:none;border:1px solid var(--arena-osc);padding:6px 12px;border-radius:6px;font-family:system-ui,sans-serif;font-size:14px}
+.volver:hover{background:var(--vino-osc)}
+nav{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+nav button{font-family:system-ui,sans-serif;font-size:15px;background:var(--arena);color:var(--texto);border:2px solid var(--arena-osc);border-bottom:none;border-radius:8px 8px 0 0;padding:9px 22px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--fondo);color:var(--texto);font-weight:700}
+main{max-width:1000px;margin:0 auto;padding:24px 18px 60px}
+.panel{display:none}
+.panel.activo{display:block}
+.tarjeta{background:var(--tarjeta);border:1px solid var(--borde);border-radius:12px;padding:20px 22px;margin-bottom:16px}
+.tarjeta h2{margin:0 0 8px;font-size:22px;color:var(--dorado)}
+.tarjeta p{margin:6px 0;line-height:1.55}
+.estado{font-family:system-ui,sans-serif;font-size:14px;display:flex;gap:8px;align-items:center}
+.punto{width:10px;height:10px;border-radius:50%;background:#3a9a4a;display:inline-block}
+.aviso{font-family:system-ui,sans-serif;font-size:13px;color:var(--arena-osc);margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="fila">
+    <h1>Linajes y personajes</h1>
+    <a class="volver" href="index.html" id="volver">← Volver al Libro de los Ancestros</a>
+  </div>
+  <nav role="tablist" aria-label="Secciones">
+    <button role="tab" aria-selected="true"  data-p="linajes">Linajes</button>
+    <button role="tab" aria-selected="false" data-p="personajes">Personajes</button>
+    <button role="tab" aria-selected="false" data-p="cronologia">Cronología</button>
+  </nav>
+</header>
+
+<main>
+  <section class="panel activo" id="p-linajes">
+    <div class="tarjeta">
+      <h2>Linajes</h2>
+      <p>Aquí irán los linajes y casas de tu base de datos, con sus escudos y sus fotos.</p>
+      <p class="estado"><span class="punto"></span> La página funciona: está abierta como archivo independiente.</p>
+      <p class="aviso" id="origen"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-personajes">
+    <div class="tarjeta">
+      <h2>Personajes</h2>
+      <p>Aquí irán los personajes relevantes: reyes, nobles y otras figuras de la historia ligadas a tus linajes.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-cronologia">
+    <div class="tarjeta">
+      <h2>Cronología</h2>
+      <p>Aquí irá la línea del tiempo, con reinados y personas de tu árbol en paralelo.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var botones=document.querySelectorAll('nav button');
+  function ir(id){
+    botones.forEach(function(b){b.setAttribute('aria-selected',b.dataset.p===id?'true':'false');});
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.toggle('activo',p.id==='p-'+id);});
+    try{history.replaceState(null,'','#'+id);}catch(e){}
+  }
+  botones.forEach(function(b){b.addEventListener('click',function(){ir(b.dataset.p);});});
+  var h=(location.hash||'').slice(1);
+  if(['linajes','personajes','cronologia'].indexOf(h)>=0)ir(h);
+
+  /* Si se abrió desde la app (pestaña nueva), «Volver» cierra esta pestaña y enfoca la app. */
+  var o=document.getElementById('origen');
+  var desdeApp=false;
+  try{desdeApp=!!(window.opener&&!window.opener.closed);}catch(e){}
+  o.textContent=desdeApp?'Abierta desde el Libro de los Ancestros.':'Abierta directamente (no desde la app).';
+  document.getElementById('volver').addEventListener('click',function(ev){
+    if(desdeApp){ev.preventDefault();try{window.opener.focus();}catch(e){}window.close();setTimeout(function(){location.href='index.html';},300);}
+  });
+})();
+</script>
+</body>
+</html>
