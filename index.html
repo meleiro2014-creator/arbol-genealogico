@@ -10108,7 +10108,7 @@ for(var i=0;i<lista.length;i++){
 var c=lista[i],bien=false;
 try{bien=aplicarCambioALaBase(c);}catch(e){bien=false;}
 if(bien)ok++;else fallos.push(c.tipo+' '+c.personaId);
-if((i+1)%3===0||i===lista.length-1){actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+lista.length+')...',(i+1)/lista.length*85);await cederPantalla();}
+if((i+1)%100===0||i===lista.length-1){actualizarProgresoAccion('Aplicando los cambios al árbol ('+(i+1)+' de '+lista.length+')...',(i+1)/lista.length*85);await cederPantalla();}
 }
 actualizarProgresoAccion('Guardando el árbol en este dispositivo...',92);
 await cederPantalla();
