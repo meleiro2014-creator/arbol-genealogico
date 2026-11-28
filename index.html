@@ -2011,7 +2011,7 @@ setTimeout(function(){URL.revokeObjectURL(u);},4000);
 var APP_VERSION = '2026.11.23.3';
 var APP_CHANGELOG = [
   { version:'2026.11.23.3', fecha:'2026-11-23', cambios:[
-    'Gestor de datos, nueva categoría «Fusiones en falso» (solo Archivero; los Cronistas la ven en solo lectura si se les da el visado). Detecta fichas que parecen dos personas fundidas en una al unir árboles: cónyuges múltiples (3 o más), edades incoherentes entre padres, hijos y cónyuges (usa solo años reales, nunca estimados), hijos de la misma madre con menos de 9 meses de diferencia, bodas anteriores a los 12 años o posteriores a la muerte, cónyuge que es a la vez padre, hijo o hermano, vidas de más de 100 años y fichas marcadas como «contaminadas» por el motor de años. Cada caso se gradúa como SEGURO, ALTA o POSIBLE, y se puede filtrar por grado, ocultar las ya revisadas y ver solo las que tienen foto (cada tarjeta indica si la ficha está revisada o tiene foto).',
+    'Gestor de datos, nueva categoría «Fusiones en falso», dividida en dos apartados según el nacimiento de la persona: antes de 1800 y de 1800 en adelante (se usa el año real; si falta, el que encajan sus familiares; si falta, el estimado; sin ningún año, va con las de 1800 en adelante) (solo Archivero; los Cronistas la ven en solo lectura si se les da el visado). Detecta fichas que parecen dos personas fundidas en una al unir árboles: cónyuges múltiples (3 o más), edades incoherentes entre padres, hijos y cónyuges (usa solo años reales, nunca estimados), hijos de la misma madre con menos de 9 meses de diferencia, bodas anteriores a los 12 años o posteriores a la muerte, cónyuge que es a la vez padre, hijo o hermano, vidas de más de 100 años y fichas marcadas como «contaminadas» por el motor de años. Cada caso se gradúa como SEGURO, ALTA o POSIBLE, y se puede filtrar por grado, ocultar las ya revisadas y ver solo las que tienen foto (cada tarjeta indica si la ficha está revisada o tiene foto).',
     'Fusiones en falso, solución: «Separar en dos fichas» crea una ficha nueva con el mismo nombre y le pasa los familiares marcados (los padres, o cada cónyuge con sus hijos). La app propone el reparto que deja a cada lado con edades coherentes; puedes cambiar las casillas, e incluso pasar también los datos propios (nacimiento, defunción, lugares) a la ficha nueva. La foto se queda en la ficha original, la marca de revisada se quita de las dos y ambas anotan el origen en Observaciones. «No es una fusión en falso» descarta el aviso.'
   ]},
   { version:'2026.11.23.2', fecha:'2026-11-23', cambios:[
@@ -5059,6 +5059,13 @@ return dp.id;
 contenido con uploadType=media), igual patrón que subirFotoPersonaADrive: evita
 el multipart manual (que solo funciona bien con texto) y admite adjuntar
 "properties" (aquí usado para guardar la categoría del documento). */
+/* Archivos que esta sesión ha creado vacíos y aún no tienen su contenido: si la subida falla del todo,
+   subirContenidoArchivoDrive los manda a la papelera para no dejar archivos de 0 KB en Drive. */
+var DRIVE_VACIOS_NUEVOS={};
+async function papeleraDriveSilenciosa(fileId){
+if(!driveAccessToken)return;
+try{await fetch('https://www.googleapis.com/drive/v3/files/'+fileId,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});}catch(e){}
+}
 async function crearArchivoDriveVacioConMetadatos(nombre,mimeType,folderId,propiedades){
 var body={name:nombre,parents:[folderId],mimeType:mimeType||'application/octet-stream'};
 if(propiedades)body.properties=propiedades;
@@ -5066,13 +5073,36 @@ var r=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',hea
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 if(!r.ok)throw new Error('Drive respondió '+r.status);
 var d=await r.json();
+DRIVE_VACIOS_NUEVOS[d.id]=1;
 return d.id;
 }
+/* Sube el contenido a un archivo ya creado. Comprueba que el contenido no esté vacío, reintenta hasta 3
+   veces y verifica que Drive guardó los mismos bytes. Si no hay manera y el archivo lo creó esta sesión
+   vacío, lo manda a la papelera (nunca queda un archivo de 0 KB). */
 async function subirContenidoArchivoDrive(fileId,blob,mimeType){
-var r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media',{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mimeType||'application/octet-stream'},body:blob});
+var ultimo=null;
+try{
+if(!blob||!blob.size)throw new Error('El archivo está vacío (0 KB): no hay nada que subir');
+for(var intento=0;intento<3;intento++){
+try{
+var r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media&fields=id,size',{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mimeType||'application/octet-stream'},body:blob});
 if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+if(String(d.size)!==String(blob.size))throw new Error('Drive guardó '+(d.size||0)+' bytes en lugar de '+blob.size);
+delete DRIVE_VACIOS_NUEVOS[fileId];
 return r;
+}catch(eInt){
+ultimo=eInt;
+if(eInt&&eInt.message==='sesion_caducada')break;
+await esperarMs(900*(intento+1));
+}
+}
+throw ultimo||new Error('No se pudo subir el contenido');
+}catch(err){
+if(DRIVE_VACIOS_NUEVOS[fileId]){delete DRIVE_VACIOS_NUEVOS[fileId];await papeleraDriveSilenciosa(fileId);}
+throw err;
+}
 }
 /* Utilidades compartidas para mostrar iconos/tamaños de archivo, usadas
    ahora por el Explorador de documentos (pantalla independiente). */
@@ -7376,8 +7406,7 @@ var g=act.familias.filter(function(y){return y.id===id;})[0];if(g)Object.assign(
 var s=await subirArchivoDrive(FAM_FILE,JSON.stringify(act),'application/json',x.folderId,x.f.id);if(!s.ok)throw new Error('Drive respondió '+s.status);return true;}
 catch(e){toast('No se pudo guardar familias.json: '+e.message,true);return false;}}
 async function famEscudoGuardar(id,blob,meta){var f=famPorId(id);if(!f||!esAdministrador())return;if(!driveRootFolderId||!tokenDriveValido()){toast('Conecta con Drive para guardar el escudo',true);return;}
-try{toast('Guardando escudo…');var p=await famEscudoProcesar(blob),mini=await famBlobUrl(p.mini),nom=id+'.png',fid=await obtenerCarpetaEscudosId(true),ex=await buscarArchivoFotoDrivePorId(nom,fid),fileId=ex?ex.id:await crearArchivoDriveVacio(nom,'image/png',fid),r=await subirArchivoDrive(nom,p.full,'image/png',fid,fileId);
-if(!r.ok)throw new Error('Drive respondió '+r.status);
+try{toast('Guardando escudo…');var p=await famEscudoProcesar(blob),mini=await famBlobUrl(p.mini),nom=id+'.png',fid=await obtenerCarpetaEscudosId(true),ex=await buscarArchivoFotoDrivePorId(nom,fid),r=await subirArchivoDriveVerificado(nom,p.full,'image/png',fid,ex?ex.id:null),fileId=r.id;
 var e={fileId:fileId,nombre:nom,mime:'image/png',v:((f.escudo&&f.escudo.v)||0)+1,fecha:famHoy(),mini:mini,origen:meta.origen||'subida',fuente:meta.fuente||'',credito:meta.credito||''};
 if(await famCatGuardarFamilia(id,{escudo:e})){FAM_ESC_CACHE={};toast('Escudo guardado');}famVista('ficha');}
 catch(e){toast('No se pudo guardar el escudo: '+e.message,true);}}
@@ -11650,6 +11679,9 @@ var mime=mimeMatch?mimeMatch[1]:'image/jpeg';
 var bstr=atob(partes[1]||'');
 var n=bstr.length,u8=new Uint8Array(n);
 while(n--){u8[n]=bstr.charCodeAt(n);}
+/* Una imagen real nunca pesa menos de unos cientos de bytes. Si el navegador no pudo codificarla
+   (p. ej. «data:,» en móviles con poca memoria), se avisa en vez de subir un archivo vacío. */
+if(u8.length<100)throw new Error('La foto está vacía o no se pudo preparar');
 return new Blob([u8],{type:mime});
 }
 async function obtenerCarpetaFotoId(crearSiNoExiste){
@@ -11681,20 +11713,52 @@ if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
 var d=await r.json();
 return(d.files&&d.files.length)?d.files[0]:null;
 }
+/* Sube un archivo binario a Drive SIN dejar nunca un archivo vacío: si el archivo es nuevo, se crea y se
+   rellena en una única petición (multipart); si ya existe, se sustituye su contenido. Después comprueba que
+   Drive ha guardado el mismo número de bytes; si no coincide, lo manda a la papelera (si era nuevo) y falla,
+   para que quien llama pueda reintentar. Devuelve {id,size}. */
+async function subirArchivoDriveVerificado(nombre,blob,mime,folderId,fileId){
+if(!blob||!blob.size)throw new Error('El archivo a subir está vacío');
+var nuevo=!fileId,r;
+if(fileId){
+r=await fetch('https://www.googleapis.com/upload/drive/v3/files/'+fileId+'?uploadType=media&fields=id,size',{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':mime},body:blob});
+}else{
+var b='libroancestros_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+var cab=new Blob(['--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:nombre,parents:[folderId],mimeType:mime})+'\r\n--'+b+'\r\nContent-Type: '+mime+'\r\n\r\n']);
+var pie=new Blob(['\r\n--'+b+'--']);
+r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,size',{method:'POST',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'multipart/related; boundary="'+b+'"'},body:new Blob([cab,blob,pie])});
+}
+if(r.status===401){driveAccessToken=null;throw new Error('sesion_caducada');}
+if(!r.ok)throw new Error('Drive respondió '+r.status);
+var d=await r.json();
+if(String(d.size)!==String(blob.size)){
+if(nuevo&&d.id){try{await fetch('https://www.googleapis.com/drive/v3/files/'+d.id,{method:'PATCH',headers:{Authorization:'Bearer '+driveAccessToken,'Content-Type':'application/json'},body:JSON.stringify({trashed:true})});}catch(eT){}}
+throw new Error('Drive guardó '+(d.size||0)+' bytes en lugar de '+blob.size);
+}
+return d;
+}
 async function subirFotoPersonaADrive(id,dataUrl){
 try{await quitarFotoPendBorrar(id);}catch(eQ){}
 if(!driveRootFolderId||!tokenDriveValido())return;
 try{
+var blob=dataURLABlob(dataUrl); /* falla si la foto está vacía: no se sube nada */
 var folderId=await obtenerCarpetaFotoId(true);
 if(!folderId)return;
-var nombre=String(id)+'.jpg';
-var existente=await buscarArchivoFotoDrivePorId(nombre,folderId);
-var blob=dataURLABlob(dataUrl);
-var fileId=existente?existente.id:await crearArchivoDriveVacio(nombre,'image/jpeg',folderId);
-var resp=await subirArchivoDrive(nombre,blob,'image/jpeg',folderId,fileId);
-if(!resp.ok)throw new Error('Drive respondio '+resp.status);
+var nombre=String(id)+'.jpg',ultimo=null;
+for(var intento=0;intento<3;intento++){ /* hasta 3 intentos: una red inestable (móvil) no debe dejar la foto sin subir */
+try{
+var existente=await buscarArchivoFotoDrivePorId(nombre,folderId); /* si ya hay un archivo (incluso vacío), se rellena */
+await subirArchivoDriveVerificado(nombre,blob,'image/jpeg',folderId,existente?existente.id:null);
+return;
+}catch(eInt){
+ultimo=eInt;
+if(eInt&&eInt.message==='sesion_caducada')break;
+await esperarMs(900*(intento+1));
+}
+}
+throw ultimo||new Error('No se pudo subir');
 }catch(err){
-console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);toast('La foto de la ficha '+id+' no se subió a Drive. Usa Herramientas → Fotos sin copia en Drive.',true);
+console.warn('No se pudo sincronizar la foto de la persona '+id+' con Drive (se conserva localmente):',err.message);toast('La foto de la ficha '+id+' no se subió a Drive ('+(err.message==='sesion_caducada'?'la sesión de Google ha caducado':err.message)+'). Se conserva en este dispositivo: vuelve a guardarla cuando tengas conexión.',true);
 }
 }
 /* ===== Cola de fotos pendientes de borrar en Drive =====
@@ -11955,7 +12019,7 @@ if(!dC.files||!dC.files.length)throw new Error('No existe una carpeta llamada "F
 var folderId=dC.files[0].id;
 actualizarProgresoImportFotos(0,1,'Listando archivos de la carpeta FOTO');
 var todos;
-try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType,modifiedTime');}
+try{todos=await listarTodosArchivosDrive("'"+folderId+"' in parents and trashed=false",'id,name,mimeType,modifiedTime,size');}
 catch(e){throw new Error(e.message==='sesion_caducada'?'Tu conexión con Google Drive ha caducado. Vuelve a intentarlo.':('No se pudo listar la carpeta FOTO de Drive: '+e.message));}
 res.encontrados=todos.length;
 /* Detección robusta: por mimeType si está disponible y, si no, por extensión
@@ -11979,6 +12043,10 @@ var persona=PI[base];
 if(listaPendBorrar.indexOf(String(base))>=0)continue; /* foto retirada: pendiente de borrar en Drive */
 if(!persona){
 res.sinPersona.push({nombre:f.name,motivo:impFotosCategoriaTexto('sin_persona')});
+continue;
+}
+if(f.size!==undefined&&Number(f.size)===0){ /* subida que se quedó a medias: no hay nada que leer */
+res.errores.push({nombre:f.name,motivo:'Archivo vacío (0 KB) en Drive: hay que volver a subir la foto de esta ficha'});
 continue;
 }
 if(modoDrive==='cambiadas'&&fotoDebeOmitirsePorNoCambiar(persona,f.modifiedTime?Date.parse(f.modifiedTime):NaN)){
@@ -12881,6 +12949,18 @@ r.rel=gr.hijos.slice();r.verId=gr.hijos[0]||'';
 }
 return r;
 }
+/* Año de nacimiento con el que se reparte la ficha entre «antes de 1800» y «1800 o después».
+   Orden: año real (NACA); si no hay, el punto medio de la ventana que encaja con lo que se queda en la
+   ficha original (según sus familiares); si tampoco, el año estimado (ANOCALC); si no hay ninguno, null. */
+var FF_AÑO_CORTE=1800;
+function ffAnioClasif(x,d){
+var r=getYearReal(x);if(r!==null)return r;
+var v=d&&d.reparto?d.reparto.vA:null;
+if(v){var lo=isFinite(v.lo)?v.lo:null,hi=isFinite(v.hi)?v.hi:null;
+if(lo!==null&&hi!==null)return Math.round((lo+hi)/2);
+if(lo!==null)return lo;if(hi!==null)return hi;}
+return getYear(x);
+}
 function gesFfItems(){
 var firma=ffFirmaDatos();
 if(!FF_CACHE||FF_CACHE.firma!==firma)FF_CACHE={firma:firma,res:ffDetectar()};
@@ -12893,7 +12973,7 @@ var enB={};if(d.reparto)d.reparto.B.forEach(function(gr){enB[gr.k]=1;});
 var grupos=d.grupos.map(function(gr){var r=ffDescribirGrupo(x,gr);r.lado=enB[gr.k]?'B':'A';return r;});
 var rel=[d.id];grupos.forEach(function(gr){gr.rel.forEach(function(i){rel.push(i);});});
 var anios=getYearReal(x),def=ffNum(x.DEFA);
-items.push({tipo:'ffalso',id:d.id,clave:clave,nivel:d.nivel,pts:d.pts,motivos:d.motivos,nom:fn(x).trim()||'(sin nombre)',
+items.push({tipo:'ffalso',id:d.id,clave:clave,anioC:ffAnioClasif(x,d),nivel:d.nivel,pts:d.pts,motivos:d.motivos,nom:fn(x).trim()||'(sin nombre)',
 vida:(anios!==null?anios:'?')+'–'+(def!==null?def:''),rev:x.REVISADA==='1',foto:(x.TIENEFOTO==='Sí'||!!x.FOTO),
 hayReparto:!!d.reparto,hueco:d.reparto?d.reparto.hueco:null,
 ventA:d.reparto?ffVentanaTxt(d.reparto.vA):'',ventB:d.reparto?ffVentanaTxt(d.reparto.vB):'',
@@ -12901,8 +12981,12 @@ grupos:grupos,rel:rel});
 });
 return items;
 }
-function gesFfCategoria(){
-var todos=gesFfItems();
+var FF_CAT_IDS={pre:'fusiones_falso_pre1800',post:'fusiones_falso_1800'};
+function gesFfCategoria(periodo){
+var todos=gesFfItems().filter(function(it){
+var antes=(it.anioC!==null&&it.anioC<FF_AÑO_CORTE);
+return periodo==='pre'?antes:!antes; /* sin ningún año posible: van con las de 1800 en adelante */
+});
 if(!esAdministrador())todos=todos.filter(function(it){return it.rel.every(function(i){return puedeVerPersona(i);});});
 if(!todos.length)return null;
 var cuentas={seguro:0,alta:0,posible:0,rev:0,foto:0};
@@ -12914,9 +12998,9 @@ if(f.sinRev&&it.rev)return false;
 if(f.conFoto&&!it.foto)return false;
 return true;
 });
-return{id:'fusiones_falso',fuente:'ffalso',grupo:'duplicados',
-titulo:'Fusiones en falso',icono:'fa-code-pull-request',severidad:'revision',
-descripcion:todos.length+' ficha(s) que parecen dos personas fundidas en una al unir árboles ('+cuentas.seguro+' seguras, '+cuentas.alta+' altas, '+cuentas.posible+' posibles). Se detectan por cónyuges múltiples, edades incoherentes entre padres, hijos y cónyuges, hijos con menos de 9 meses de diferencia, bodas fuera de su vida y otras señales. Solo se usan años reales, nunca estimados. La solución es separar: se crea una ficha nueva y se le pasan los familiares que no corresponden. Seguro = los familiares se reparten limpiamente en dos grupos de edades incompatibles (con al menos dos años reales en cada grupo); Alta = hay un reparto claro pero con menos datos; Posible = solo hay señales sueltas.',
+return{id:FF_CAT_IDS[periodo],fuente:'ffalso',grupo:'duplicados',
+titulo:(periodo==='pre'?'Fusiones en falso · nacidos antes de 1800':'Fusiones en falso · nacidos en 1800 o después'),icono:'fa-code-pull-request',severidad:'revision',
+descripcion:todos.length+' ficha(s) de personas nacidas '+(periodo==='pre'?'antes de 1800':'en 1800 o después (incluye las que no tienen ningún año posible)')+' que parecen dos personas fundidas en una al unir árboles ('+cuentas.seguro+' seguras, '+cuentas.alta+' altas, '+cuentas.posible+' posibles). Se detectan por cónyuges múltiples, edades incoherentes entre padres, hijos y cónyuges, hijos con menos de 9 meses de diferencia, bodas fuera de su vida y otras señales. Solo se usan años reales, nunca estimados. La solución es separar: se crea una ficha nueva y se le pasan los familiares que no corresponden. Seguro = los familiares se reparten limpiamente en dos grupos de edades incompatibles (con al menos dos años reales en cada grupo); Alta = hay un reparto claro pero con menos datos; Posible = solo hay señales sueltas.',
 items:items,accionMasiva:null,ffCuentas:cuentas};
 }
 function gesFfBarraHtml(c){
@@ -12929,7 +13013,7 @@ return '<div class="ges-nav" style="margin:4px 0 8px">'+chip('todos','Todos',q.s
 function gesFfFiltro(k,v){
 GES_UI.ffFiltro=GES_UI.ffFiltro||{nivel:'todos',sinRev:false,conFoto:false};
 GES_UI.ffFiltro[k]=v;
-GES_UI.desde=GES_UI.desde||{};GES_UI.desde['fusiones_falso']=0;
+GES_UI.desde=GES_UI.desde||{};GES_UI.desde[FF_CAT_IDS.pre]=0;GES_UI.desde[FF_CAT_IDS.post]=0;
 rGesLigero();
 }
 function gesFfSelDe(it){
@@ -14897,7 +14981,10 @@ var carpeta=await obtenerCarpetaArbolOficialId(true);
 var f=await obtenerArchivoEnDrivePorNombre(GES_PERMISOS_ARCHIVO,carpeta);
 if(!f){GES_PERMISOS_COLAB=GES_PERMISOS_DEFECTO.slice();GES_PERMISOS_LECTURA_OK=true;return;}
 var x=await leerArchivoDriveJSON(f);
-if(x&&Array.isArray(x.apartados)){GES_PERMISOS_COLAB=x.apartados.map(String);GES_PERMISOS_LECTURA_OK=true;}
+if(x&&Array.isArray(x.apartados)){GES_PERMISOS_COLAB=x.apartados.map(String);GES_PERMISOS_LECTURA_OK=true;
+/* «Fusiones en falso» se dividió en dos apartados: un visado antiguo vale para ambos */
+if(GES_PERMISOS_COLAB.indexOf('fusiones_falso')>=0){GES_PERMISOS_COLAB=GES_PERMISOS_COLAB.filter(function(i){return i!=='fusiones_falso';});
+['fusiones_falso_pre1800','fusiones_falso_1800'].forEach(function(i){if(GES_PERMISOS_COLAB.indexOf(i)<0)GES_PERMISOS_COLAB.push(i);});}}
 else GES_PERMISOS_COLAB=esAdministrador()?GES_PERMISOS_DEFECTO.slice():[];
 }catch(e){GES_PERMISOS_COLAB=esAdministrador()?GES_PERMISOS_DEFECTO.slice():[];}
 }
@@ -15143,7 +15230,7 @@ descripcion:conyPar.length+' caso(s) de una persona con dos o más cónyuges cuy
 items:conyPar,
 accionMasiva:null
 });
-var ffCat=gesFfCategoria();if(ffCat)cats.push(ffCat);
+['pre','post'].forEach(function(per){var ffCat=gesFfCategoria(per);if(ffCat)cats.push(ffCat);});
 /* §4.3 Completitud: mismas categorias que datosFaltantesCategorias(), salvo las de años,
 lugar de nacimiento, padre/madre y foto (esas tres últimas se quitaron del Gestor: son
 datos habituales de completar más tarde y no aportaban valor como aviso recurrente). */
